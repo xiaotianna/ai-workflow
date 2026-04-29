@@ -10,8 +10,12 @@
     "no-console": "off",
     "unicorn/filename-case": "off",
     "import/no-duplicates": "off",
+    "import/no-named-export": "off",
+    "import/no-unassigned-import": "off",
+    "import/prefer-default-export": "off",
     "eslint/no-duplicate-imports": "off",
     "eslint/sort-imports": "off",
+    "func-style": "off",
     "typescript/no-explicit-any": "off",
     "eslint/no-unused-vars": [
       "error",

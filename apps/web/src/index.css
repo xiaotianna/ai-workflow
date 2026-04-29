@@ -1,0 +1,5 @@
+@import '@ai-workflow/shared/style';
+
+/* @source 是 Tailwind v4 的“扫描路径声明” */
+@source './';
+@source '../../../packages/shared/ui';

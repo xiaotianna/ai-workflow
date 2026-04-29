@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "tsx": true,
+  "rsc": false,
+  "tailwind": {
+    "css": "../../apps/web/src/index.css",
+    "baseColor": "neutral"
+  },
+  "aliases": {
+    "components": "@ai-workflow/shared/ui/components",
+    "ui": "@ai-workflow/shared/ui/components",
+    "utils": "@ai-workflow/shared/ui/lib/utils",
+    "lib": "@ai-workflow/shared/ui/lib",
+    "hooks": "@ai-workflow/shared/ui/hooks"
+  }
+}
