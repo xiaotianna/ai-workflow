@@ -9,22 +9,23 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "oxlint",
-    "lint:fix": "oxlint --fix",
-    "format": "prettier . --write --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
+    "lint:staged": "oxlint --fix",
+    "format:staged": "prettier --write --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
     "format:check": "prettier . --check --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
-    "check": "pnpm format && pnpm lint",
+    "check": "pnpm format:check && pnpm lint",
     "husky:init": "npx husky init",
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,mjs,cjs,json,css,scss,md,mdx}": "pnpm check"
+    "*.{js,jsx,ts,tsx,mjs,cjs}": [
+      "pnpm lint:staged",
+      "pnpm format:staged"
+    ],
+    "*.{json,css,scss,md,mdx}": "pnpm format:staged"
   },
   "config": {
     "commitizen": {
-      "path": "./node_modules/cz-vinyl",
-      "types": [
-        "./configs/commit/.czvinylrc"
-      ]
+      "path": "./node_modules/cz-vinyl"
     }
   },
   "devDependencies": {

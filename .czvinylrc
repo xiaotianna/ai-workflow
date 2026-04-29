@@ -1,5 +1,5 @@
 {
-    "headerFormat": "{type}({scope}): {subject}",
+    "headerFormat": "{type}: {subject}",
     "commitTypes": [
         {
             "description": "一个新的功能",
@@ -42,12 +42,11 @@
             "value": "build"
         }
     ],
-    "skipScope": false,
+    "skipScope": true,
     "skipTicketId": true,
     "subjectMaxLength": 70,
     "subjectMinLength": 3,
     "typeQuestion": "请选择一个提交类型：",
-    "scopeQuestion": "请输入一个改动范围：",
     "subjectQuestion": "请输入一个提交信息：",
     "bodyQuestion": "请输入一个提交详细内容（可跳过）："
 }
