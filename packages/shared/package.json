@@ -1,15 +1,13 @@
 {
   "name": "@ai-workflow/shared",
   "version": "1.0.0",
-  "type": "module",
   "description": "",
-  "keywords": [],
-  "license": "ISC",
-  "author": "",
+  "main": "index.js",
   "exports": {
-    "./ui": "./ui/index.ts",
-    "./style": "./style/index.css"
+    ".": "./src/index.ts"
   },
   "scripts": {},
-  "dependencies": {}
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }

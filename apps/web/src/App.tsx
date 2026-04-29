@@ -1,9 +1,9 @@
-import { Button } from '@ai-workflow/shared/ui'
+import { Button } from '@ai-workflow/ui/components/button'
 
 export default function App() {
   return (
     <div className="flex min-h-screen items-center justify-center">
-      <Button>Shared shadcn Button</Button>
+      <Button className="text-blue-400">Shared shadcn Button</Button>
     </div>
   )
 }

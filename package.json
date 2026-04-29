@@ -11,7 +11,7 @@
   "license": "ISC",
   "author": "",
   "scripts": {
-    "dev": "pnpm run -F @ai-flow/web dev",
+    "dev": "pnpm run -F @ai-workflow/web dev",
     "build": "turbo run build",
     "lint": "oxlint .",
     "lint:staged": "oxlint . --fix",
