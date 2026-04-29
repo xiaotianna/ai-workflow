@@ -8,8 +8,8 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
-    "lint": "oxlint",
-    "lint:staged": "oxlint --fix",
+    "lint": "oxlint .",
+    "lint:staged": "oxlint . --fix",
     "format:staged": "prettier --write --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
     "format:check": "prettier . --check --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
     "check": "pnpm format:check && pnpm lint",
