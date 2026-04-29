@@ -2,43 +2,43 @@
     "headerFormat": "{type}: {subject}",
     "commitTypes": [
         {
-            "description": "一个新的功能",
+            "description": "新增功能（用户可感知的新能力）",
             "value": "feat"
         },
         {
-            "description": "一个BUG修复",
+            "description": "修复缺陷（问题修正、异常处理）",
             "value": "fix"
         },
         {
-            "description": "辅助工具更改或者无法分类的提交",
+            "description": "杂项维护（脚手架、配置、工程化，不改业务功能）",
             "value": "chore"
         },
         {
-            "description": "提高性能的代码更改",
+            "description": "性能优化（提升响应速度、降低资源消耗）",
             "value": "perf"
         },
         {
-            "description": "不修复错误也不增加功能的重构代码",
+            "description": "代码重构（非修复、非新功能）",
             "value": "refactor"
         },
         {
-            "description": "更新代码格式",
+            "description": "代码样式调整（格式化、排版，不影响逻辑）",
             "value": "style"
         },
         {
-            "description": "添加测试用例",
+            "description": "测试相关（新增/修改测试用例、测试配置）",
             "value": "test"
         },
         {
-            "description": "更新文档",
+            "description": "文档变更（README、注释、说明文档）",
             "value": "docs"
         },
         {
-            "description": "更新CI发版代码",
+            "description": "CI/CD 流程变更（流水线、发布脚本）",
             "value": "ci"
         },
         {
-            "description": "更新构建依赖等模块",
+            "description": "构建系统或依赖变更（打包、编译、依赖升级）",
             "value": "build"
         }
     ],
@@ -46,7 +46,7 @@
     "skipTicketId": true,
     "subjectMaxLength": 70,
     "subjectMinLength": 3,
-    "typeQuestion": "请选择一个提交类型：",
-    "subjectQuestion": "请输入一个提交信息：",
-    "bodyQuestion": "请输入一个提交详细内容（可跳过）："
+    "typeQuestion": "请选择提交类型：",
+    "subjectQuestion": "请输入提交标题（简明描述本次改动）：",
+    "bodyQuestion": "请输入补充说明（可选，建议写改动动机与影响范围）："
 }

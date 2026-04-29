@@ -7,11 +7,7 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
-    "baseUrl": ".",
-    "paths": {
-      "@ai-workflow/ui/*": ["./src/*"]
-    }
+    "noEmit": true
   },
   "include": ["."],
   "exclude": ["node_modules", "dist"]
