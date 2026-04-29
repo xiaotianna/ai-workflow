@@ -1,0 +1,8 @@
+**/node_modules/**
+**/dist/**
+**/build/**
+**/.turbo/**
+**/coverage/**
+**/.cache/**
+**/.next/**
+pnpm-lock.yaml

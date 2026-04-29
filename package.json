@@ -1,0 +1,43 @@
+{
+  "name": "ai-workflow",
+  "version": "1.0.0",
+  "description": "",
+  "keywords": [],
+  "license": "ISC",
+  "author": "",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
+    "format": "prettier . --write --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
+    "format:check": "prettier . --check --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
+    "check": "pnpm format && pnpm lint",
+    "husky:init": "npx husky init",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,mjs,cjs,json,css,scss,md,mdx}": "pnpm check"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-vinyl",
+      "types": [
+        "./configs/commit/.czvinylrc"
+      ]
+    }
+  },
+  "devDependencies": {
+    "@commitlint/config-conventional": "^20.5.0",
+    "@oxlint/binding-darwin-arm64": "1.62.0",
+    "commitizen": "^4.3.1",
+    "commitlint": "^20.5.2",
+    "cz-vinyl": "^1.6.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "oxlint": "^1.62.0",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.7.1",
+    "turbo": "^2.9.6"
+  }
+}
