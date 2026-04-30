@@ -2,7 +2,7 @@ import { BaseNode } from './nodes/base'
 import type { NodeContentProps } from './nodes/base'
 import { getUINode } from './registry'
 
-export function renderNode(props: NodeContentProps) {
+export function RenderNode(props: NodeContentProps) {
   const RenderNodeComponent = getUINode(props.type)
 
   return (

@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
 import { nodes } from '@ai-workflow/core'
 import { FormRender } from '@ai-workflow/form'
-import { renderNode } from '@ai-workflow/nodes-ui'
-import { Button } from '@ai-workflow/ui/components/button'
+import { RenderNode } from '@ai-workflow/nodes-ui'
 
 function getInitialData(definition: (typeof nodes)[number]['definition']) {
   return Object.entries(definition.inputs).reduce<Record<string, unknown>>(
@@ -26,7 +25,7 @@ export default function App() {
 
   const nodeElement = useMemo(
     () =>
-      renderNode({
+      RenderNode({
         id: 'demo-node-1',
         type: definition.type,
         definition,
@@ -39,7 +38,6 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2">
-        <Button>111</Button>
         <section className="rounded-xl border bg-white p-4">
           <h2 className="mb-4 text-sm font-semibold text-slate-700">Node Preview</h2>
           {nodeElement}
