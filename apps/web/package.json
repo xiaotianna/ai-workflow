@@ -16,6 +16,9 @@
   "dependencies": {
     "@ai-workflow/ui": "workspace:*",
     "@ai-workflow/shared": "workspace:*",
+    "@ai-workflow/core": "workspace:*",
+    "@ai-workflow/nodes-ui": "workspace:*",
+    "@ai-workflow/form": "workspace:*",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
