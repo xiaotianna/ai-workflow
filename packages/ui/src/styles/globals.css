@@ -4,6 +4,7 @@
 @import '@fontsource-variable/inter';
 
 @custom-variant dark (&:is(.dark *));
+@source '../../../../apps/**/*.{ts,tsx}';
 @source '../../../../packages/**/*.{ts,tsx}';
 @source '../**/*.{ts,tsx}';
 
