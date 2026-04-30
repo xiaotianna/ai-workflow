@@ -12,9 +12,9 @@
   "iconLibrary": "lucide",
   "aliases": {
     "components": "src/components",
-    "utils": "src/lib/utils",
-    "hooks": "src/hooks",
-    "lib": "src/lib",
+    "utils": "@ai-workflow/ui/lib/utils",
+    "hooks": "@ai-workflow/ui/hooks",
+    "lib": "@ai-workflow/ui/lib",
     "ui": "src/components"
   },
   "rtl": false,

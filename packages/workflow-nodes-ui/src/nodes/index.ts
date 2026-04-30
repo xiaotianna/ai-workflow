@@ -3,6 +3,9 @@ import type { WorkflowNodeUIComponent } from '../registry'
 import { nodes, WorkflowNodeType } from '@ai-workflow/core'
 import { ChatNodeUI } from './chat'
 
+export * from './base'
+export * from './chat'
+
 const renderNode: Partial<Record<WorkflowNodeType, WorkflowNodeUIComponent>> = {
   [WorkflowNodeType.CHAT]: ChatNodeUI,
 }
