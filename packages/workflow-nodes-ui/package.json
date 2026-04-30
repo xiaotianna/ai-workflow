@@ -2,6 +2,7 @@
   "name": "@ai-workflow/nodes-ui",
   "version": "1.0.0",
   "type": "module",
+  "private": true,
   "description": "",
   "keywords": [],
   "license": "ISC",
@@ -13,6 +14,7 @@
   },
   "scripts": {},
   "dependencies": {
+    "@ai-workflow/core": "workspace:*",
     "@ai-workflow/shared": "workspace:*"
   }
 }

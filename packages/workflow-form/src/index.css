@@ -1,5 +1,0 @@
-@import '@ai-workflow/shared/style';
-
-@source './';
-@source '../../shared/ui';
-@source '../workflow-nodes-ui/src';
