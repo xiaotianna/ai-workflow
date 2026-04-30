@@ -6,9 +6,6 @@
     "node": ">=22",
     "pnpm": ">=10"
   },
-  "description": "",
-  "keywords": [],
-  "license": "ISC",
   "author": "",
   "scripts": {
     "dev": "pnpm run -F @ai-workflow/web dev",

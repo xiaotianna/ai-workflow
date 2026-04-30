@@ -2,17 +2,15 @@
   "name": "@ai-workflow/form",
   "version": "1.0.0",
   "type": "module",
-  "description": "",
-  "keywords": [],
-  "license": "ISC",
-  "author": "",
+  "private": true,
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./style.css": "./src/index.css"
+    ".": "./src/index.ts"
   },
   "scripts": {},
   "dependencies": {
+    "@ai-workflow/core": "workspace:*",
+    "@ai-workflow/ui": "workspace:*",
     "@ai-workflow/shared": "workspace:*"
   }
 }

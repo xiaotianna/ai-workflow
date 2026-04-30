@@ -1,8 +1,7 @@
 import { z } from 'zod'
+import { WorkflowFieldUIType } from './enums'
 
 export type FieldType = 'string' | 'number' | 'boolean' | 'select'
-
-export type FieldUI = 'input' | 'textarea' | 'slider' | 'switch' | 'select'
 
 export interface NodeFieldDefinition {
   type: FieldType
@@ -10,7 +9,8 @@ export interface NodeFieldDefinition {
   description?: string
   required?: boolean
   default?: unknown
-  ui?: FieldUI
+  ui?: WorkflowFieldUIType // 表单字段使用的ui组件
+  props?: unknown // 使用ui组件的props
   options?: Array<{
     label: string
     value: string | number | boolean

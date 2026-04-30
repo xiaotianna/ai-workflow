@@ -1,27 +1,41 @@
-// import { getField } from './registry'
+import { WorkflowFieldUIType } from '@ai-workflow/core'
+import type { NodeDefinition } from '@ai-workflow/core'
+import { RenderFieldComponent } from './registry'
 
-// export function FormRenderer({ definition, value, onChange }) {
-//   function update(key: string, v: any) {
-//     onChange({
-//       ...value,
-//       [key]: v
-//     })
-//   }
+interface FormRenderProps {
+  definition: NodeDefinition
+  value: Record<string, unknown>
+  onChange: (next: Record<string, unknown>) => void
+}
 
-//   return (
-//     <>
-//       {Object.entries(definition.inputs).map(([key, field]) => {
-//         const FieldComponent = getField(field.ui || 'input')
+export const FormRender = ({ definition, value, onChange }: FormRenderProps) => (
+  <div className="space-y-3">
+    {Object.entries(definition.inputs).map(([fieldKey, field]) => {
+      const uiType = field.ui ?? WorkflowFieldUIType.INPUT
+      const FieldComponent = RenderFieldComponent[uiType]
 
-//         return (
-//           <FieldComponent
-//             key={key}
-//             field={field}
-//             value={value[key]}
-//             onChange={(v) => update(key, v)}
-//           />
-//         )
-//       })}
-//     </>
-//   )
-// }
+      if (!FieldComponent) {
+        return (
+          <div key={fieldKey} className="text-destructive text-sm">
+            字段 {fieldKey} 未找到对应渲染组件: {String(uiType)}
+          </div>
+        )
+      }
+
+      return (
+        <FieldComponent
+          key={fieldKey}
+          fieldKey={fieldKey}
+          field={field}
+          value={value[fieldKey]}
+          onChange={(nextValue: unknown) =>
+            onChange({
+              ...value,
+              [fieldKey]: nextValue,
+            })
+          }
+        />
+      )
+    })}
+  </div>
+)

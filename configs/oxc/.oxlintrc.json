@@ -26,9 +26,11 @@
     "eslint/sort-keys": "off",
     "eslint/id-length": "off",
     "eslint/sort-imports": "off",
+    "eslint/arrow-body-style": "off",
     "func-style": "off",
     "typescript/array-type": "off",
     "typescript/consistent-type-imports": "off",
+    "typescript/no-empty-interface": "off",
     "typescript/no-explicit-any": "off",
     "eslint/no-unused-vars": [
       "error",

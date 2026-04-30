@@ -1,12 +1,17 @@
-// export function TextareaField({ field, value, onChange }) {
-//   return (
-//     <div>
-//       <label>{field.label}</label>
+import { Textarea } from '@ai-workflow/ui/components/textarea'
+import type { FieldRendererProps } from '../registry'
 
-//       <textarea
-//         value={value || ''}
-//         onChange={(e) => onChange(e.target.value)}
-//       />
-//     </div>
-//   )
-// }
+export const TextareaField = ({ field, value, onChange }: FieldRendererProps) => {
+  return (
+    <div className="space-y-1">
+      <div className="text-sm font-medium">{field.label}</div>
+      <Textarea
+        value={typeof value === 'string' ? value : ''}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      {field.description && (
+        <div className="text-muted-foreground text-xs">{field.description}</div>
+      )}
+    </div>
+  )
+}

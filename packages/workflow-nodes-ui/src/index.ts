@@ -1,4 +1,4 @@
-export * from './nodes/base'
-export * from './nodes/chat'
+import './nodes'
+
 export * from './registry'
 export * from './render-node'

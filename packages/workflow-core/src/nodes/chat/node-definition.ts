@@ -1,4 +1,4 @@
-import { WorkflowNodeType } from '../../types/node'
+import { WorkflowFieldUIType, WorkflowNodeType } from '../../types/node'
 import { NodeDefinition } from '../../types/node/node-definition'
 import { chatNodeSchema } from './node-schema'
 
@@ -13,14 +13,14 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
       type: 'string',
       label: 'Prompt',
       required: true,
-      ui: 'textarea',
+      ui: WorkflowFieldUIType.TEXTAREA,
       description: '发送给模型的用户提示词',
     },
 
     systemMessage: {
       type: 'string',
       label: 'System Message',
-      ui: 'textarea',
+      ui: WorkflowFieldUIType.TEXTAREA,
       default: '',
       description: '系统提示词',
     },
@@ -28,7 +28,7 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
     model: {
       type: 'select',
       label: 'Model',
-      ui: 'select',
+      ui: WorkflowFieldUIType.SELECT,
       default: 'gpt-4.1-mini',
       options: [
         { label: 'GPT-4.1', value: 'gpt-4.1' },
@@ -40,7 +40,7 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
     temperature: {
       type: 'number',
       label: 'Temperature',
-      ui: 'slider',
+      ui: WorkflowFieldUIType.SLIDER,
       default: 0.7,
       description: '控制输出随机性，范围 0 - 2',
     },

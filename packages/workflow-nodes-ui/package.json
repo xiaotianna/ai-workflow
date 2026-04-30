@@ -3,10 +3,6 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
-  "description": "",
-  "keywords": [],
-  "license": "ISC",
-  "author": "",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",

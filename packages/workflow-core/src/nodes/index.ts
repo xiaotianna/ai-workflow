@@ -18,6 +18,4 @@ export * from './chat'
 
 export const nodes = [chatNode]
 
-const setup = () => nodes.forEach((node) => registerNode(node.definition))
-
-setup()
+nodes.forEach((node) => registerNode(node.definition))

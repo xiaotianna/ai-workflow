@@ -1,30 +1,19 @@
-// import type { ComponentType } from 'react'
+import { WorkflowFieldUIType } from '@ai-workflow/core'
+import type { NodeFieldDefinition } from '@ai-workflow/core'
+import type { ComponentType } from 'react'
+import { InputField } from './fields/input-field'
+import { TextareaField } from './fields/textarea-field'
 
-// export interface FieldProps {
-//   field: any
-//   value: any
-//   onChange: (value: any) => void
-// }
+export interface FieldRendererProps {
+  fieldKey: string
+  field: NodeFieldDefinition
+  value: unknown
+  onChange: (value: unknown) => void
+}
 
-// const fieldRegistry = new Map<string, ComponentType<FieldProps>>()
-
-// export function registerField(
-//   type: string,
-//   component: ComponentType<FieldProps>
-// ) {
-//   if (fieldRegistry.has(type)) {
-//     console.warn(`Field "${type}" 已覆盖`)
-//   }
-
-//   fieldRegistry.set(type, component)
-// }
-
-// export function getField(type: string) {
-//   const comp = fieldRegistry.get(type)
-
-//   if (!comp) {
-//     throw new Error(`Field "${type}" 未注册`)
-//   }
-
-//   return comp
-// }
+export const RenderFieldComponent: Partial<
+  Record<WorkflowFieldUIType, ComponentType<FieldRendererProps>>
+> = {
+  [WorkflowFieldUIType.INPUT]: InputField,
+  [WorkflowFieldUIType.TEXTAREA]: TextareaField,
+}

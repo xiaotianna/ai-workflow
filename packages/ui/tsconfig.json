@@ -1,4 +1,11 @@
 {
   "extends": ["../../configs/typescript/packages-tsconfig.json"],
-  "include": ["."]
+  "include": ["."],
+  "compilerOptions": {
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"]
+    }
+  }
 }
