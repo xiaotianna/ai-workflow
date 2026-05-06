@@ -3,15 +3,16 @@ import type { NodeContentProps } from './nodes/base'
 import { getUINode } from './registry'
 
 export function RenderNode(props: NodeContentProps) {
-  const RenderNodeComponent = getUINode(props.type)
+  const { definition, selected, disabled, onSelect, onDelete, type } = props
+  const RenderNodeComponent = getUINode(type)
 
   return (
     <BaseNode
-      definition={props.definition}
-      selected={props.selected}
-      disabled={props.disabled}
-      onSelect={props.onSelect}
-      onDelete={props.onDelete}
+      definition={definition}
+      selected={selected}
+      disabled={disabled}
+      onSelect={onSelect}
+      onDelete={onDelete}
     >
       <RenderNodeComponent {...props} />
     </BaseNode>

@@ -2,8 +2,10 @@ import { registerUINode } from '../registry'
 import type { WorkflowNodeUIComponent } from '../registry'
 import { nodes, WorkflowNodeType } from '@ai-workflow/core'
 import { ChatNodeUI } from './chat'
+import { StartNodeUI } from './start'
 
 export const renderNodeMap: Partial<Record<WorkflowNodeType, WorkflowNodeUIComponent>> = {
+  [WorkflowNodeType.START]: StartNodeUI,
   [WorkflowNodeType.CHAT]: ChatNodeUI,
 }
 

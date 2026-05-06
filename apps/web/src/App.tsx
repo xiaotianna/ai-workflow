@@ -1,10 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { nodes } from '@ai-workflow/core'
 import { FormRender } from '@ai-workflow/form'
 import { RenderNode } from '@ai-workflow/nodes-ui'
 
 function getInitialData(definition: (typeof nodes)[number]['definition']) {
-  return Object.entries(definition.inputs).reduce<Record<string, unknown>>(
+  const schemaResult = definition.schema.safeParse({})
+  const schemaDefaults = schemaResult.success ? (schemaResult.data as Record<string, unknown>) : {}
+  const formFields = definition.form ?? {}
+
+  const inputDefaults = Object.entries(formFields).reduce<Record<string, unknown>>(
     (acc, [fieldKey, field]) => {
       if (field.default !== undefined) {
         acc[fieldKey] = field.default
@@ -13,15 +17,31 @@ function getInitialData(definition: (typeof nodes)[number]['definition']) {
     },
     {},
   )
+
+  return {
+    ...schemaDefaults,
+    ...inputDefaults,
+  }
 }
 
 export default function App() {
-  const firstNode = nodes[0]
-  const { definition } = firstNode
+  const [selectedNodeType, setSelectedNodeType] = useState<string>(
+    () => nodes[0]?.definition.type ?? '',
+  )
+
+  const selectedNode = useMemo(
+    () => nodes.find((node) => node.definition.type === selectedNodeType) ?? nodes[0],
+    [selectedNodeType],
+  )
+  const { definition } = selectedNode
 
   const [nodeData, setNodeData] = useState<Record<string, unknown>>(() =>
     getInitialData(definition),
   )
+
+  useEffect(() => {
+    setNodeData(getInitialData(definition))
+  }, [definition])
 
   const nodeElement = useMemo(
     () =>
@@ -39,7 +59,20 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-6 md:grid-cols-2">
         <section className="rounded-xl border bg-white p-4">
-          <h2 className="mb-4 text-sm font-semibold text-slate-700">Node Preview</h2>
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-semibold text-slate-700">Node Preview</h2>
+            <select
+              className="rounded-md border px-2 py-1 text-sm"
+              value={definition.type}
+              onChange={(event) => setSelectedNodeType(event.target.value)}
+            >
+              {nodes.map((node) => (
+                <option key={node.definition.type} value={node.definition.type}>
+                  {node.definition.label}
+                </option>
+              ))}
+            </select>
+          </div>
           {nodeElement}
         </section>
 

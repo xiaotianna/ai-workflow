@@ -1,7 +1,9 @@
 import { registerNode } from '../registry'
 import { chatNode } from './chat'
+import { startNode } from './start'
 
 export * from './chat'
+export * from './start'
 
 /**
  * nodes的导出配置作用：
@@ -16,6 +18,6 @@ export * from './chat'
  *      - 节点注册中心收集所有可用节点元信息
  */
 
-export const nodes = [chatNode]
+export const nodes = [startNode, chatNode]
 
 nodes.forEach((node) => registerNode(node.definition))

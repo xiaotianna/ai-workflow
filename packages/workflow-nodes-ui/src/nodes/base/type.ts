@@ -1,8 +1,6 @@
-export interface BaseNodeDefinition {
-  type: string
-  label: string
-  description?: string
-}
+import type { NodeDefinition } from '@ai-workflow/core'
+
+export type BaseNodeDefinition = NodeDefinition
 
 export interface BaseNodeUIProps<T = unknown, D extends BaseNodeDefinition = BaseNodeDefinition> {
   id: string // id

@@ -1,3 +1,4 @@
+import { MessageSquare } from 'lucide-react'
 import { WorkflowFieldUIType, WorkflowNodeType } from '../../types/node'
 import { NodeDefinition } from '../../types/node/node-definition'
 import { chatNodeSchema } from './node-schema'
@@ -6,9 +7,26 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
   type: WorkflowNodeType.CHAT,
   label: 'Chat',
   description: '调用大模型生成文本',
-  icon: 'MessageSquare',
+  icon: MessageSquare,
 
-  inputs: {
+  ports: {
+    inputs: {
+      // 接受上游节点的值
+      prompt: {
+        type: 'string',
+      },
+    },
+
+    outputs: {
+      // 输出给下游节点的值
+      text: {
+        type: 'string',
+        label: 'Text',
+      },
+    },
+  },
+
+  form: {
     prompt: {
       type: 'string',
       label: 'Prompt',
@@ -43,13 +61,6 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
       ui: WorkflowFieldUIType.SLIDER,
       default: 0.7,
       description: '控制输出随机性，范围 0 - 2',
-    },
-  },
-
-  outputs: {
-    text: {
-      type: 'string',
-      label: 'Text',
     },
   },
 

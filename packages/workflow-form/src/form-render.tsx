@@ -10,7 +10,7 @@ interface FormRenderProps {
 
 export const FormRender = ({ definition, value, onChange }: FormRenderProps) => (
   <div className="space-y-3">
-    {Object.entries(definition.inputs).map(([fieldKey, field]) => {
+    {Object.entries(definition.form ?? {}).map(([fieldKey, field]) => {
       const uiType = field.ui ?? WorkflowFieldUIType.INPUT
       const FieldComponent = RenderFieldComponent[uiType]
 

@@ -1,9 +1,11 @@
+import type { StartNodeData } from '@ai-workflow/core'
 import type { NodeContentProps } from '../base'
-import type { ChatNodeData } from '@ai-workflow/core'
 
-export type ChatNodeUIProps = NodeContentProps<Partial<ChatNodeData>>
+export type StartNodeUIProps = NodeContentProps<Partial<StartNodeData>>
 
-export function ChatNodeUI(_: ChatNodeUIProps) {
+export function StartNodeUI({ data }: StartNodeUIProps) {
+  const variables = data?.variables ?? []
+
   return (
     <div className="rounded-md bg-slate-100/80 px-2.5 py-2">
       <div className="bg-workflow-block-parma-bg flex h-6 items-center justify-between gap-2 space-x-1 rounded-md px-1">
@@ -14,7 +16,7 @@ export function ChatNodeUI(_: ChatNodeUIProps) {
             viewBox="0 0 24 24"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="h-3.5 w-3.5 shrink-0 text-blue-600"
+            className="h-3.5 w-3.5 shrink-0 text-emerald-600"
             data-icon="Variable02"
             aria-hidden="true"
           >
@@ -35,9 +37,9 @@ export function ChatNodeUI(_: ChatNodeUIProps) {
               </g>
             </g>
           </svg>
-          <span className="w-0 grow truncate text-sm">text</span>
+          <span className="w-0 grow truncate text-sm">variables</span>
         </div>
-        <div className="shrink-0 text-xs font-medium text-slate-500">必填</div>
+        <div className="shrink-0 text-xs font-medium text-slate-500">{variables.length} 个</div>
       </div>
     </div>
   )

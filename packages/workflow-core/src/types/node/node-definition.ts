@@ -1,30 +1,34 @@
 import { z } from 'zod'
-import { WorkflowFieldUIType } from './enums'
+import { LucideIcon, LucideProps } from 'lucide-react'
+import { WorkflowDataType } from '../workflow/node'
+import { NodeFieldDefinition } from '../field'
 
-export type FieldType = 'string' | 'number' | 'boolean' | 'select'
-
-export interface NodeFieldDefinition {
-  type: FieldType
-  label: string
-  description?: string
+// 端口定义
+export interface PortDefinition {
+  // 上游的值
+  type: WorkflowDataType
+  // 是否必填
   required?: boolean
-  default?: unknown
-  ui?: WorkflowFieldUIType // 表单字段使用的ui组件
-  props?: unknown // 使用ui组件的props
-  options?: Array<{
-    label: string
-    value: string | number | boolean
-  }>
+  // 是否支持多连接
+  multiple?: boolean
+  label?: string
+  description?: string
 }
 
 export interface NodeDefinition<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
   type: string
   label: string
   description?: string
-  icon?: string
+  icon: LucideIcon | React.ComponentType<LucideProps>
 
-  inputs: Record<string, NodeFieldDefinition>
-  outputs?: Record<string, NodeFieldDefinition>
+  // 输入输出端口
+  ports: {
+    inputs: Record<string, PortDefinition>
+    outputs: Record<string, PortDefinition>
+  }
+
+  // 表单配置
+  form?: Record<string, NodeFieldDefinition>
 
   schema: TSchema
 }
