@@ -3,6 +3,8 @@ import type { NodeFieldDefinition } from '@ai-workflow/core'
 import type { ComponentType } from 'react'
 import { InputField } from './fields/input-field'
 import { TextareaField } from './fields/textarea-field'
+import { SelectField } from './fields/select-field'
+import { SliderField } from './fields/slider-field'
 
 export interface FieldRendererProps {
   fieldKey: string
@@ -16,4 +18,6 @@ export const RenderFieldComponent: Partial<
 > = {
   [WorkflowFieldUIType.INPUT]: InputField,
   [WorkflowFieldUIType.TEXTAREA]: TextareaField,
+  [WorkflowFieldUIType.SELECT]: SelectField,
+  [WorkflowFieldUIType.SLIDER]: SliderField,
 }

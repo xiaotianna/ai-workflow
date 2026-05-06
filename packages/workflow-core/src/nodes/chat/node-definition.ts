@@ -13,7 +13,7 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
       type: 'string',
       label: 'Prompt',
       required: true,
-      ui: WorkflowFieldUIType.TEXTAREA,
+      ui: WorkflowFieldUIType.INPUT,
       description: '发送给模型的用户提示词',
     },
 
