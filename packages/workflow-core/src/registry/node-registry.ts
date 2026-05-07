@@ -1,4 +1,4 @@
-import { NodeDefinition } from './types/node'
+import { NodeDefinition } from '../node/node-definition'
 
 const nodeRegistry = new Map<string, NodeDefinition>()
 

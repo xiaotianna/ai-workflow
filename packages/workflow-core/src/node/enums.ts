@@ -20,3 +20,16 @@ export enum WorkflowFieldUIType {
   SLIDER = 'slider',
   CODE_EDITOR = 'code_editor',
 }
+
+// 工作流数据类型枚举
+export enum WorkflowDataTypeKind {
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  JSON = 'json',
+  CHAT_MESSAGE = 'chat-message',
+  IMAGE = 'image',
+  ARRAY = 'array',
+  OBJECT = 'object',
+  CUSTOM = 'custom',
+}

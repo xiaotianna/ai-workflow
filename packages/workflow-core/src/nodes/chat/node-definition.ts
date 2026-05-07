@@ -1,7 +1,7 @@
 import { MessageSquare } from 'lucide-react'
-import { WorkflowFieldUIType, WorkflowNodeType } from '../../types/node'
-import { NodeDefinition } from '../../types/node/node-definition'
 import { chatNodeSchema } from './node-schema'
+import { NodeDefinition } from '../../node/node-definition'
+import { WorkflowDataTypeKind, WorkflowFieldUIType, WorkflowNodeType } from '../../node/enums'
 
 export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
   type: WorkflowNodeType.CHAT,
@@ -13,15 +13,24 @@ export const chatNodeDefinition: NodeDefinition<typeof chatNodeSchema> = {
     inputs: {
       // 接受上游节点的值
       prompt: {
-        type: 'string',
+        dataType: {
+          kind: WorkflowDataTypeKind.STRING,
+        },
+        label: 'Prompt',
+        required: true,
+        description: '发送给模型的用户提示词',
       },
     },
 
     outputs: {
       // 输出给下游节点的值
       text: {
-        type: 'string',
+        dataType: {
+          kind: WorkflowDataTypeKind.STRING,
+        },
         label: 'Text',
+        required: true,
+        description: '模型生成的文本结果',
       },
     },
   },

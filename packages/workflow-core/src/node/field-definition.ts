@@ -1,7 +1,4 @@
-import { WorkflowFieldUIType } from '../node'
-
-// TODO：从类型体操获取
-export type FieldType = 'string' | 'number' | 'boolean' | 'select'
+import { WorkflowFieldUIType } from './enums'
 
 // 基础字段（后续会继承）
 export interface BaseFieldDefinition {

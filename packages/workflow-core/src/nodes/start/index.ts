@@ -1,6 +1,6 @@
+import { NodeType } from '../../node/node-type'
 import { startNodeDefinition } from './node-definition'
 import { startNodeSchema } from './node-schema'
-import type { NodeType } from '../../types/node'
 import { z } from 'zod'
 
 export const startNode: NodeType<typeof startNodeSchema> = {

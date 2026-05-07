@@ -1,7 +1,7 @@
 import { Play } from 'lucide-react'
-import { WorkflowNodeType } from '../../types/node'
-import { NodeDefinition } from '../../types/node/node-definition'
 import { startNodeSchema } from './node-schema'
+import { NodeDefinition } from '../../node/node-definition'
+import { WorkflowDataTypeKind, WorkflowNodeType } from '../../node/enums'
 
 export const startNodeDefinition: NodeDefinition<typeof startNodeSchema> = {
   type: WorkflowNodeType.START,
@@ -12,7 +12,13 @@ export const startNodeDefinition: NodeDefinition<typeof startNodeSchema> = {
     inputs: {},
     outputs: {
       variables: {
-        type: 'string',
+        dataType: {
+          kind: WorkflowDataTypeKind.ARRAY,
+          itemType: {
+            kind: WorkflowDataTypeKind.CUSTOM,
+            typeName: 'workflow-variable-definition',
+          },
+        },
         label: 'Variables',
         description: '开始节点定义的输入变量集合',
       },
