@@ -1,8 +1,8 @@
 import { z } from 'zod'
+import { DATA_TYPE_OPTIONS } from '../../constant'
 
 const startNodeVariableSchema = z.object({
-  // TODO：后续支持更复杂的变量定义，目前先简单使用字符串表示
-  fieldType: z.enum(['string']).default('string'),
+  fieldType: z.enum(DATA_TYPE_OPTIONS),
   name: z.string().min(1, '变量名称不能为空'),
   label: z.string().min(1, '显示名称不能为空'),
   maxLength: z.number().int('最大长度必须是整数').positive('最大长度必须大于 0').optional(),

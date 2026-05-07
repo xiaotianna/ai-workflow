@@ -10,8 +10,6 @@ export interface BaseFieldDefinition {
 }
 
 // 扩展类型
-// 可以扩展node节点的form字段
-// TODO：改为枚举
 export interface StringFieldDefinition extends BaseFieldDefinition {
   type: 'string'
   ui?: WorkflowFieldUIType.INPUT | WorkflowFieldUIType.TEXTAREA
