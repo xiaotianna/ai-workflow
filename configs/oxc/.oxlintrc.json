@@ -23,6 +23,7 @@
     "eslint/no-ternary": "off",
     "eslint/capitalized-comments": "off",
     "eslint/no-magic-numbers": "off",
+    "eslint/curly": "off",
     "eslint/no-nested-ternary": "off",
     "eslint/no-underscore-dangle": "off",
     "eslint/sort-keys": "off",

@@ -1,6 +1,5 @@
-import { WorkflowFieldUIType } from '@ai-workflow/core'
 import type { NodeDefinition } from '@ai-workflow/core'
-import { RenderFieldComponent } from './registry'
+import { RenderFieldComponent } from './register-builtin-fields'
 
 interface FormRenderProps {
   definition: NodeDefinition
@@ -11,9 +10,16 @@ interface FormRenderProps {
 export const FormRender = ({ definition, value, onChange }: FormRenderProps) => (
   <div className="space-y-3">
     {Object.entries(definition.form ?? {}).map(([fieldKey, field]) => {
-      const uiType = field.ui ?? WorkflowFieldUIType.INPUT
-      const FieldComponent = RenderFieldComponent[uiType]
+      const uiType = field.ui
+      if (!uiType) {
+        return (
+          <div key={fieldKey} className="text-destructive text-sm">
+            字段 {fieldKey} 缺少 ui 配置
+          </div>
+        )
+      }
 
+      const FieldComponent = RenderFieldComponent[uiType]
       if (!FieldComponent) {
         return (
           <div key={fieldKey} className="text-destructive text-sm">

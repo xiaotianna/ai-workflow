@@ -8,4 +8,5 @@ export const chatNode: NodeType<typeof chatNodeSchema> = {
   definition: chatNodeDefinition,
 }
 
+// 给nodes-ui使用的
 export type ChatNodeData = z.infer<typeof chatNodeSchema>

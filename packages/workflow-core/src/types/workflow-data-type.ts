@@ -12,16 +12,6 @@ export interface PrimitiveTypeDefinition {
 }
 
 // 数组类型定义
-/**
- * 使用示例：
- *  dataType: {
-      kind: 'array',
-      itemType: {
-        kind: 'custom',
-        typeName: 'workflow-variable'
-      }
-    }
- */
 export interface ArrayTypeDefinition {
   kind: WorkflowDataTypeKind.ARRAY
   itemType: WorkflowDataType
@@ -40,6 +30,16 @@ export interface CustomTypeDefinition {
 }
 
 // 工作流数据类型
+/**
+ * 使用示例：
+ *  dataType: {
+      kind: 'array',
+      itemType: {
+        kind: 'custom',
+        typeName: 'workflow-variable'
+      }
+    }
+ */
 export type WorkflowDataType =
   | PrimitiveTypeDefinition
   | ArrayTypeDefinition

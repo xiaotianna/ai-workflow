@@ -19,6 +19,7 @@ export enum WorkflowFieldUIType {
   SWITCH = 'switch',
   SLIDER = 'slider',
   CODE_EDITOR = 'code_editor',
+  SCHEMA_EDITOR = 'schema-editor',
 }
 
 // 工作流数据类型枚举

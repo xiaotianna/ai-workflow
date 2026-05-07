@@ -1,10 +1,6 @@
-import { WorkflowFieldUIType } from '@ai-workflow/core'
-import type { NodeFieldDefinition } from '@ai-workflow/core'
 import type { ComponentType } from 'react'
-import { InputField } from './fields/input-field'
-import { TextareaField } from './fields/textarea-field'
-import { SelectField } from './fields/select-field'
-import { SliderField } from './fields/slider-field'
+
+import type { NodeFieldDefinition, WorkflowFieldUIType } from '@ai-workflow/core'
 
 export interface FieldRendererProps {
   fieldKey: string
@@ -13,11 +9,27 @@ export interface FieldRendererProps {
   onChange: (value: unknown) => void
 }
 
-export const RenderFieldComponent: Partial<
-  Record<WorkflowFieldUIType, ComponentType<FieldRendererProps>>
-> = {
-  [WorkflowFieldUIType.INPUT]: InputField,
-  [WorkflowFieldUIType.TEXTAREA]: TextareaField,
-  [WorkflowFieldUIType.SELECT]: SelectField,
-  [WorkflowFieldUIType.SLIDER]: SliderField,
+const fieldRegistry = new Map<WorkflowFieldUIType | string, ComponentType<FieldRendererProps>>()
+
+/**
+ * 注册字段组件
+ */
+export function registerField(
+  type: WorkflowFieldUIType | string,
+  component: ComponentType<FieldRendererProps>,
+) {
+  fieldRegistry.set(type, component)
+}
+
+/**
+ * 获取字段组件
+ */
+export function getFieldComponent(type: WorkflowFieldUIType | string) {
+  const component = fieldRegistry.get(type)
+
+  if (!component) {
+    throw new Error(`Field "${type}" 未注册`)
+  }
+
+  return component
 }
