@@ -3,27 +3,6 @@ import { nodes } from '@ai-workflow/core'
 import { FormRender } from '@ai-workflow/form'
 import { RenderNode } from '@ai-workflow/nodes-ui'
 
-function getInitialData(definition: (typeof nodes)[number]['definition']) {
-  const schemaResult = definition.schema.safeParse({})
-  const schemaDefaults = schemaResult.success ? (schemaResult.data as Record<string, unknown>) : {}
-  const formFields = definition.form ?? {}
-
-  const inputDefaults = Object.entries(formFields).reduce<Record<string, unknown>>(
-    (acc, [fieldKey, field]) => {
-      if (field.default !== undefined) {
-        acc[fieldKey] = field.default
-      }
-      return acc
-    },
-    {},
-  )
-
-  return {
-    ...schemaDefaults,
-    ...inputDefaults,
-  }
-}
-
 export default function App() {
   const [selectedNodeType, setSelectedNodeType] = useState<string>(
     () => nodes[0]?.definition.type ?? '',
@@ -33,15 +12,16 @@ export default function App() {
     () => nodes.find((node) => node.definition.type === selectedNodeType) ?? nodes[0],
     [selectedNodeType],
   )
+
   const { definition } = selectedNode
 
   const [nodeData, setNodeData] = useState<Record<string, unknown>>(() =>
-    getInitialData(definition),
+    selectedNode.createInitialConfig(),
   )
 
   useEffect(() => {
-    setNodeData(getInitialData(definition))
-  }, [definition])
+    setNodeData(selectedNode.createInitialConfig())
+  }, [selectedNode])
 
   const nodeElement = useMemo(
     () =>

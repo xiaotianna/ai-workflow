@@ -17,7 +17,7 @@ export interface PortDefinition {
  * outputs: {
         text: {
             label: 'Text',
-            dataType: { kind: DATA_TYPE_KINDS.STRING },
+            dataType: 'string',
         },
     }
     这里的 `text` 直接对应 `edge.sourceHandle`
