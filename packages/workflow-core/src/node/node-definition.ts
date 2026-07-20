@@ -54,6 +54,8 @@ export type NodeType<TSchema extends z.ZodTypeAny = z.ZodTypeAny> = {
   schema: TSchema
   // 节点的静态元信息，主要供工作流 UI、端口渲染、节点菜单和连线校验使用
   definition: NodeDefinition
+  // 根据节点实例config生成动态端口，针对于像【条件节点】这样需要动态节点端口的情况，没有动态端口的节点不需要实现
+  resolvePorts?: (config: z.output<TSchema>) => NodeDefinition['ports']
 } &
   // initialConfig、createInitialConfig二者只能传入其中一个
   InitialConfig<TSchema>
