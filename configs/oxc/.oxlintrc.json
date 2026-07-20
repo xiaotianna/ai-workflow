@@ -36,6 +36,8 @@
     "typescript/no-empty-interface": "off",
     "typescript/no-explicit-any": "off",
     "unicorn/no-nested-ternary": "off",
+    "max-statements": "off",
+    "max-params": "off",
     "eslint/no-unused-vars": [
       "error",
       {
