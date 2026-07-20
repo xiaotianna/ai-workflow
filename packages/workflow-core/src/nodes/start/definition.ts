@@ -12,10 +12,11 @@ export const startNodeDefinition = {
     inputs: {},
     // 下游通过 output handle 获取输入内容
     outputs: {
-      input: {
-        label: '初始输入',
-        dataType: DATA_TYPE_KINDS.STRING,
-        description: '启动工作流时传入的内容',
+      variables: {
+        label: '初始变量输入',
+        dataType: DATA_TYPE_KINDS.JSON,
+        description: '工作流输入变量声明集合',
+        multiple: true,
       },
     },
   },
