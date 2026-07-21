@@ -1,9 +1,9 @@
 import { NodeRegistry } from '../node'
-import { Workflow } from '../workflow/workflow-schema'
+import type { Workflow } from '../workflow/workflow-schema'
 import { validateAcyclicWorkflow } from './validate-cycle'
 import { validateEdges } from './validate-edge'
 import { validateNodes, validateRequiredNodeInputs } from './validate-node'
-import {
+import type {
   EdgeValidationResult,
   NodeValidationResult,
   ReportValidationIssueFn,

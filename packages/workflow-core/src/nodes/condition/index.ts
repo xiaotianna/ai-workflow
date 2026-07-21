@@ -1,7 +1,8 @@
-import { z } from 'zod'
-import { NodeType } from '../../node/node-definition'
+import type { z } from 'zod'
+import { createInitialConfig } from '../../node/create-initial-config'
+import type { NodeType } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
-import { PortDefinition } from '../../port/port-types'
+import type { PortDefinition } from '../../port/port-types'
 import { generateUuid } from '../../utils/uuid'
 import { conditionNodeDefinition } from './definition'
 import { conditionNodeSchema } from './schema'
@@ -9,21 +10,22 @@ import { conditionNodeSchema } from './schema'
 export const conditionNode = {
   schema: conditionNodeSchema,
   definition: conditionNodeDefinition,
-  createInitialConfig: () => ({
-    conditions: [
-      {
-        portId: generateUuid(),
-        conditionLabel: '条件 1',
-        condition: '',
-        isFallback: false,
-      },
-      {
-        portId: generateUuid(),
-        conditionLabel: '其他',
-        isFallback: true,
-      },
-    ],
-  }),
+  createInitialConfig: () =>
+    createInitialConfig(conditionNodeSchema, {
+      conditions: [
+        {
+          portId: generateUuid(),
+          conditionLabel: '条件 1',
+          condition: '',
+          isFallback: false,
+        },
+        {
+          portId: generateUuid(),
+          conditionLabel: '其他',
+          isFallback: true,
+        },
+      ],
+    }),
   resolvePorts: (config: z.output<typeof conditionNodeSchema>) => ({
     // 固定输入端口
     inputs: conditionNodeDefinition.ports.inputs,
@@ -61,3 +63,5 @@ export const conditionNode = {
     ),
   }),
 } satisfies NodeType<typeof conditionNodeSchema>
+
+export type { ConditionNodeConfig } from './schema'

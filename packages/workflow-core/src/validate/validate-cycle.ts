@@ -1,5 +1,5 @@
-import { WorkflowEdge } from '../edge/workflow-edge-schema'
-import { ReportValidationIssueFn } from './validate-types'
+import type { WorkflowEdge } from '../edge/workflow-edge-schema'
+import type { ReportValidationIssueFn } from './validate-types'
 
 // 判断给定拓扑中是否存在有向环
 // 使用迭代式 Kahn 拓扑排序，避免递归 DFS 在大型工作流中造成调用栈溢出

@@ -1,4 +1,5 @@
-import { NodeRegistry, RegisteredNodeType } from '../node/node-registry'
+import { NodeType } from '../node/node-definition'
+import { NodeRegistry } from '../node/node-registry'
 import { BuiltinNodeType } from './builtin-node-types'
 import { conditionNode } from './condition'
 import { startNode } from './start'
@@ -9,8 +10,6 @@ export const builtinNodeStrategies = {
   //   [BuiltinNodeType.LLM]: llmNode,
   //   [BuiltinNodeType.HTTP]: httpNode,
   [BuiltinNodeType.CONDITION]: conditionNode,
-} satisfies Record<BuiltinNodeType, RegisteredNodeType>
+} satisfies Record<BuiltinNodeType, NodeType>
 
 export const nodeRegistry = new NodeRegistry()
-
-nodeRegistry.registerAll(Object.values(builtinNodeStrategies))

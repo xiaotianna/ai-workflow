@@ -1,4 +1,4 @@
-import { NodeDefinition } from '../../node/node-definition'
+import type { NodeDefinition } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import { BuiltinNodeType } from '../builtin-node-types'
 

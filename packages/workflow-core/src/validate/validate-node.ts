@@ -1,7 +1,8 @@
 // 该文件用于校验node相关的内容，例如：id唯一、是否node已注册...
 
-import { getNodePorts, NodeDefinition, NodeRegistry, NodeType, WorkflowNode } from '../node'
-import {
+import { getNodePorts, NodeRegistry } from '../node'
+import type { NodeDefinition, NodeType, WorkflowNode } from '../node'
+import type {
   NodeValidationResult,
   PortConnectionCounts,
   ReportValidationIssueFn,

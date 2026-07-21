@@ -14,3 +14,5 @@ export const conditionItemSchema = z.object({
 export const conditionNodeSchema = z.object({
   conditions: z.array(conditionItemSchema).min(1, '至少需要一个条件'),
 })
+
+export type ConditionNodeConfig = z.output<typeof conditionNodeSchema>

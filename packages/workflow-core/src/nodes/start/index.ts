@@ -1,13 +1,12 @@
-import { NodeType } from '../../node/node-definition'
+import { createInitialConfig } from '../../node/create-initial-config'
+import type { NodeType } from '../../node/node-definition'
 import { startNodeDefinition } from './definition'
 import { startNodeSchema } from './schema'
 
 export const startNode = {
   schema: startNodeSchema,
   definition: startNodeDefinition,
-  initialConfig: {
-    variables: [],
-  },
+  createInitialConfig: () => createInitialConfig(startNodeSchema),
 } satisfies NodeType<typeof startNodeSchema>
 
-export { StartNodeConfig } from './schema'
+export type { StartNodeConfig } from './schema'

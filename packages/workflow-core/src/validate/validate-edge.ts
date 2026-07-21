@@ -1,6 +1,6 @@
-import { WorkflowEdge } from '../edge/workflow-edge-schema'
-import { PortDefinition } from '../port/port-types'
-import {
+import type { WorkflowEdge } from '../edge/workflow-edge-schema'
+import type { PortDefinition } from '../port/port-types'
+import type {
   EdgeValidationResult,
   NodeValidationResult,
   PortConnectionCounts,

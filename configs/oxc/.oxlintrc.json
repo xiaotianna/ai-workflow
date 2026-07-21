@@ -38,6 +38,7 @@
     "unicorn/no-nested-ternary": "off",
     "max-statements": "off",
     "max-params": "off",
+    "eslint/prefer-destructuring": "off",
     "eslint/no-unused-vars": [
       "error",
       {
