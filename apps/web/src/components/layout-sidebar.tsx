@@ -1,5 +1,5 @@
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { BookOpen, Puzzle, Users, type LucideIcon } from 'lucide-react'
+import { BookMarked, Computer, ToolCase, type LucideIcon } from 'lucide-react'
 import { NavLink, useLocation } from 'react-router-dom'
 
 import { UserAvatar } from './user-avatar'
@@ -8,17 +8,17 @@ const navigationItems = [
   {
     label: '工作室',
     href: '/studio',
-    icon: Users,
+    icon: Computer,
   },
   {
     label: '知识库',
     href: '/knowledge-base',
-    icon: BookOpen,
+    icon: BookMarked,
   },
   {
     label: '插件',
     href: '/plugin',
-    icon: Puzzle,
+    icon: ToolCase,
   },
 ]
 
@@ -43,9 +43,7 @@ function SidebarNavItem({
       to={href}
       className={cn(
         'flex h-10 items-center gap-2.5 rounded-r-3xl px-5 text-sm font-medium transition-colors',
-        isActive
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        isActive ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-muted',
       )}
     >
       <Icon className={cn('size-4.5 shrink-0', isActive && 'text-primary')} />

@@ -13,9 +13,9 @@
   "aliases": {
     "components": "@/components",
     "utils": "@ai-workflow/ui/lib/utils",
-    "hooks": "@/hooks",
+    "hooks": "@ai-workflow/ui/hooks",
     "lib": "@ai-workflow/ui/lib",
-    "ui": "@/components/ui"
+    "ui": "@ai-workflow/ui/components"
   },
   "rtl": false,
   "menuColor": "default",

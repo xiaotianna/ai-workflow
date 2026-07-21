@@ -1,8 +1,8 @@
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Bot, ChevronDown, GitBranch, MessageSquare, Plus, Search, Upload } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Button } from '@ai-workflow/ui/components/button'
+import { Input } from '@ai-workflow/ui/components/input'
 
 type AppType = 'workflow' | 'chatflow'
 
