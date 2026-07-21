@@ -42,7 +42,12 @@ export interface NodeValidationResult {
 }
 
 // 节点中各端口的有效连接数
-export type PortConnectionCounts = Map<WorkflowNode['id'], Map<string, number>>
+export type PortConnectionCounts = Map<
+  // node id
+  WorkflowNode['id'],
+  // port id, 连接数量
+  Map<string, number>
+>
 
 // 边校验结果，供必填输入和拓扑规则使用（只保存边校验后可供后续规则使用的数据）
 export interface EdgeValidationResult {

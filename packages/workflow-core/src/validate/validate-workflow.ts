@@ -1,0 +1,53 @@
+import { NodeRegistry } from '../node'
+import { Workflow } from '../workflow/workflow-schema'
+import { validateAcyclicWorkflow } from './validate-cycle'
+import { validateEdges } from './validate-edge'
+import { validateNodes, validateRequiredNodeInputs } from './validate-node'
+import {
+  EdgeValidationResult,
+  NodeValidationResult,
+  ReportValidationIssueFn,
+  WorkflowValidationIssue,
+} from './validate-types'
+
+interface WorkflowValidationResult {
+  issues: WorkflowValidationIssue[]
+  nodes: NodeValidationResult
+  edges: EdgeValidationResult
+}
+
+// 统一基础校验入口，负责依次校验所有节点和边，并收集校验结果
+const collectWorkflowValidationResult = (
+  workflow: Workflow,
+  registry: NodeRegistry,
+): WorkflowValidationResult => {
+  const issues: WorkflowValidationIssue[] = []
+  const report: ReportValidationIssueFn = (issue) => issues.push(issue)
+  const nodes = validateNodes(workflow.nodes, registry, report)
+  const edges = validateEdges(workflow.edges, nodes, report)
+
+  return { issues, nodes, edges }
+}
+
+// 校验编辑、保存阶段已经存在的节点和连线
+export const validateWorkflow = (
+  workflow: Workflow,
+  registry: NodeRegistry, // 采用参数传入是为了后续可以扩展插件节点
+): WorkflowValidationIssue[] => collectWorkflowValidationResult(workflow, registry).issues
+
+// 执行完整校验，并追加必填输入和循环依赖规则
+export const validateExecutorWorkflow = (
+  workflow: Workflow,
+  registry: NodeRegistry,
+): WorkflowValidationIssue[] => {
+  const result = collectWorkflowValidationResult(workflow, registry)
+  const report: ReportValidationIssueFn = (issue) => {
+    result.issues.push(issue)
+  }
+
+  // 该校验只针对于运行时候执行
+  validateRequiredNodeInputs(result.nodes, result.edges.inputConnectionCounts, report)
+  validateAcyclicWorkflow(result.nodes.nodeIds, result.edges.resolvedEdges, report)
+
+  return result.issues
+}

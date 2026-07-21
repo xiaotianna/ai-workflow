@@ -1,7 +1,11 @@
 // 该文件用于校验node相关的内容，例如：id唯一、是否node已注册...
 
 import { getNodePorts, NodeDefinition, NodeRegistry, NodeType, WorkflowNode } from '../node'
-import { NodeValidationResult, ReportValidationIssueFn } from './validate-types'
+import {
+  NodeValidationResult,
+  PortConnectionCounts,
+  ReportValidationIssueFn,
+} from './validate-types'
 
 // 校验节点id唯一
 const validateUniqueNodeId = (
@@ -91,7 +95,7 @@ const validateNode = (
 }
 
 // 校验全部节点，并返回存在的节点和解析的端口
-export const vaildateNodes = (
+export const validateNodes = (
   workflowNodes: readonly WorkflowNode[],
   registry: NodeRegistry,
   report: ReportValidationIssueFn,
@@ -106,5 +110,27 @@ export const vaildateNodes = (
   return {
     nodeIds,
     portsByNodeId,
+  }
+}
+
+// 执行工作流之前，每个必填输入端口是否至少连接了一条边
+export const validateRequiredNodeInputs = (
+  nodes: NodeValidationResult,
+  inputConnectionCounts: PortConnectionCounts,
+  report: ReportValidationIssueFn,
+): void => {
+  for (const [nodeId, ports] of nodes.portsByNodeId) {
+    const inputCounts = inputConnectionCounts.get(nodeId)
+
+    for (const [portId, port] of Object.entries(ports.inputs)) {
+      if (port.required === true && !inputCounts?.has(portId)) {
+        report({
+          scope: 'node',
+          nodeId,
+          portId,
+          message: `必填输入端口尚未连接：${portId}`,
+        })
+      }
+    }
   }
 }
