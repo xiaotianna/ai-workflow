@@ -1,8 +1,8 @@
 export const BuiltinNodeType = {
   START: 'start',
-  END: 'end',
-  LLM: 'llm',
-  HTTP: 'http',
+  // END: 'end',
+  // LLM: 'llm',
+  // HTTP: 'http',
   CONDITION: 'condition',
 } as const
 

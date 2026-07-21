@@ -1,9 +1,11 @@
-import type { NodeType } from './node-definition'
+import { NodeType } from './node-definition'
+
+export type RegisteredNodeType = NodeType<any>
 
 export class NodeRegistry {
-  private readonly nodes = new Map<string, NodeType>()
+  private readonly nodes = new Map<string, RegisteredNodeType>()
 
-  register(node: NodeType): void {
+  register(node: RegisteredNodeType): void {
     const { type } = node.definition
 
     if (this.nodes.has(type)) {
@@ -13,11 +15,17 @@ export class NodeRegistry {
     this.nodes.set(type, node)
   }
 
-  get(type: string): NodeType | undefined {
+  registerAll(nodes: Iterable<RegisteredNodeType>): void {
+    for (const node of nodes) {
+      this.register(node)
+    }
+  }
+
+  get(type: string): RegisteredNodeType | undefined {
     return this.nodes.get(type)
   }
 
-  getOrThrow(type: string): NodeType {
+  getOrThrow(type: string): RegisteredNodeType {
     const node = this.nodes.get(type)
 
     if (!node) {
@@ -27,7 +35,7 @@ export class NodeRegistry {
     return node
   }
 
-  list(): NodeType[] {
+  list(): RegisteredNodeType[] {
     return [...this.nodes.values()]
   }
 }

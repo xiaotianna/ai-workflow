@@ -9,7 +9,7 @@ import { conditionNodeSchema } from './schema'
 export const conditionNode = {
   schema: conditionNodeSchema,
   definition: conditionNodeDefinition,
-  initialConfig: {
+  createInitialConfig: () => ({
     conditions: [
       {
         portId: generateUuid(),
@@ -23,7 +23,7 @@ export const conditionNode = {
         isFallback: true,
       },
     ],
-  },
+  }),
   resolvePorts: (config: z.output<typeof conditionNodeSchema>) => ({
     // 固定输入端口
     inputs: conditionNodeDefinition.ports.inputs,
