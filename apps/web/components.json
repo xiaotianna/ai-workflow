@@ -15,7 +15,7 @@
     "utils": "@ai-workflow/ui/lib/utils",
     "hooks": "@/hooks",
     "lib": "@ai-workflow/ui/lib",
-    "ui": "@/components"
+    "ui": "@/components/ui"
   },
   "rtl": false,
   "menuColor": "default",

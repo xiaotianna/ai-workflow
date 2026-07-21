@@ -57,7 +57,7 @@ export const routes = [
             ),
             handle: {
               meta: {
-                title: '工作流',
+                title: '工作室',
                 requiresAuth: true,
               },
             },

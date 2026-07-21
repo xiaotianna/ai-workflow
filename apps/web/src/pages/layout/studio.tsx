@@ -1,52 +1,137 @@
-import { nodeRegistry, type WorkflowNode } from '@ai-workflow/core'
-import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
-import { useMemo, useState } from 'react'
+import { cn } from '@ai-workflow/ui/lib/utils'
+import { Bot, ChevronDown, GitBranch, MessageSquare, Plus, Search, Upload } from 'lucide-react'
 
-// 注册node
-const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
-export default function StudioPage() {
-  const [node, setNode] = useState<WorkflowNode>()
-  const nodeTypes = useMemo(() => nodeRegistry.list(), [])
+type AppType = 'workflow' | 'chatflow'
+
+interface StudioApp {
+  id: string
+  name: string
+  type: AppType
+  editedAt: string
+}
+
+const mockApps: StudioApp[] = [
+  {
+    id: '1',
+    name: 'work flow',
+    type: 'workflow',
+    editedAt: '2024/04/30 11:30',
+  },
+  {
+    id: '2',
+    name: 'chat flow',
+    type: 'chatflow',
+    editedAt: '2024/04/30 11:30',
+  },
+]
+
+function FilterButton({ label }: { label: string }) {
+  return (
+    <button
+      type="button"
+      className="border-border bg-background text-foreground hover:bg-muted inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-sm shadow-xs transition-colors"
+    >
+      {label}
+      <ChevronDown className="text-muted-foreground size-3.5" />
+    </button>
+  )
+}
+
+function AppTypeBadge({ type }: { type: AppType }) {
+  if (type === 'workflow') {
+    return (
+      <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+        <GitBranch className="size-3" />
+        工作流
+      </span>
+    )
+  }
 
   return (
-    <div className="space-y-4 p-6">
-      <select
-        value={node?.type ?? ''}
-        disabled={nodeTypes.length === 0}
-        onChange={(event) => {
-          const nextType = nodeRegistry.get(event.target.value)
+    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs uppercase">
+      <MessageSquare className="size-3" />
+      Chatflow
+    </span>
+  )
+}
 
-          if (!nextType) {
-            return
-          }
+function StudioAppCard({ app }: { app: StudioApp }) {
+  return (
+    <article className="border-border bg-card hover:border-border/80 group flex flex-col rounded-xl border p-4 shadow-xs transition-colors hover:shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-violet-500 via-fuchsia-500 to-orange-400 text-white shadow-sm">
+          <Bot className="size-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold">{app.name}</h3>
+            <AppTypeBadge type={app.type} />
+          </div>
+        </div>
+      </div>
 
-          setNode({
-            id: node?.id ?? 'demo-node-1',
-            type: nextType.definition.type,
-            config: nextType.createInitialConfig(),
-          })
-        }}
+      <button
+        type="button"
+        className="border-border text-muted-foreground hover:text-foreground hover:border-border mt-4 inline-flex w-fit items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs transition-colors"
       >
-        <option value="">{nodeTypes.length === 0 ? '暂无可用节点' : '请选择节点'}</option>
+        <Plus className="size-3" />
+        添加标签
+      </button>
 
-        {nodeTypes.map((nodeType) => (
-          <option key={nodeType.definition.type} value={nodeType.definition.type}>
-            {nodeType.definition.label}
-          </option>
+      <p className="text-muted-foreground mt-auto pt-4 text-xs">
+        AI Workflow · 编辑于 {app.editedAt}
+      </p>
+    </article>
+  )
+}
+
+export default function StudioPage() {
+  return (
+    <div className="flex min-h-full flex-col px-8 py-6">
+      <header className="mb-6">
+        <h1 className="text-2xl font-semibold tracking-tight">工作室</h1>
+      </header>
+
+      <div className="mb-6 flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterButton label="类型" />
+          <FilterButton label="标签" />
+          <FilterButton label="创建者" />
+          <button
+            type="button"
+            className="border-border bg-background text-foreground hover:bg-muted inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-sm shadow-xs transition-colors"
+          >
+            <span className="text-muted-foreground">排序方式</span>
+            最近修改
+            <ChevronDown className="text-muted-foreground size-3.5" />
+          </button>
+        </div>
+
+        <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
+          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+          <Input className="bg-background pl-8" placeholder="搜索" />
+        </div>
+
+        <Button className={cn('ml-auto shrink-0 gap-1 rounded-lg')}>
+          <Plus className="size-4" />
+          创建
+          <ChevronDown className="size-3.5 opacity-80" />
+        </Button>
+      </div>
+
+      <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        {mockApps.map((app) => (
+          <StudioAppCard key={app.id} app={app} />
         ))}
-      </select>
+      </div>
 
-      {node && (
-        <RenderNode
-          node={node}
-          nodeRegistry={nodeRegistry}
-          uiRegistry={nodeUIRegistry}
-          selected
-          onSelect={(nodeId) => console.log('select', nodeId)}
-          onDelete={(nodeId) => console.log('delete', nodeId)}
-        />
-      )}
+      <footer className="text-muted-foreground mt-10 flex items-center justify-center gap-2 py-6 text-sm">
+        <Upload className="size-4" />
+        拖放 DSL 文件到此处创建应用
+      </footer>
     </div>
   )
 }

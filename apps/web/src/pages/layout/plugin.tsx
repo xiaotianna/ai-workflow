@@ -1,7 +1,5 @@
+import MockPage from './mock-page'
+
 export default function PluginPage() {
-  return (
-    <main>
-      <h1>插件</h1>
-    </main>
-  )
+  return <MockPage title="插件" description="管理与应用插件" />
 }
