@@ -12,4 +12,4 @@ export const builtinNodeStrategies = {
   [BuiltinNodeType.CONDITION]: conditionNode,
 } satisfies Record<BuiltinNodeType, NodeType>
 
-export const nodeRegistry = new NodeRegistry()
+export const nodeRegistry = new NodeRegistry(Object.values(builtinNodeStrategies))

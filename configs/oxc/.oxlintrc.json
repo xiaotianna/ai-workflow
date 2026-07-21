@@ -39,6 +39,7 @@
     "max-statements": "off",
     "max-params": "off",
     "eslint/prefer-destructuring": "off",
+    "import/consistent-type-specifier-style": "off",
     "eslint/no-unused-vars": [
       "error",
       {

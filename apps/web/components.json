@@ -11,11 +11,11 @@
   },
   "iconLibrary": "lucide",
   "aliases": {
-    "components": "src/components",
+    "components": "@/components",
     "utils": "@ai-workflow/ui/lib/utils",
-    "hooks": "@ai-workflow/ui/hooks",
+    "hooks": "@/hooks",
     "lib": "@ai-workflow/ui/lib",
-    "ui": "src/components"
+    "ui": "@/components"
   },
   "rtl": false,
   "menuColor": "default",

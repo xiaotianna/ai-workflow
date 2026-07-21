@@ -14,13 +14,16 @@
     "check": "pnpm run format:check && pnpm run lint"
   },
   "dependencies": {
-    "@ai-workflow/ui": "workspace:*",
-    "@ai-workflow/shared": "workspace:*",
     "@ai-workflow/core": "workspace:*",
-    "@ai-workflow/nodes-ui": "workspace:*",
     "@ai-workflow/form": "workspace:*",
+    "@ai-workflow/nodes-ui": "workspace:*",
+    "@ai-workflow/shared": "workspace:*",
+    "@ai-workflow/ui": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "radix-ui": "^1.4.3",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",

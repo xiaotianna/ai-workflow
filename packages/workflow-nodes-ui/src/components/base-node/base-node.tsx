@@ -1,5 +1,5 @@
 import { ReactNode, KeyboardEvent } from 'react'
-import { NodeIcon } from '../node-icons'
+import { NodeIcon } from '../node-icon'
 import { NodeDefinition } from '@ai-workflow/core'
 import { NodePortRender } from '../../contracts/node-content'
 import { cn } from '@ai-workflow/ui/lib/utils'
