@@ -1,0 +1,4 @@
+interface:
+  display_name: "前端应用（app-web）"
+  short_description: "维护 Web 前端架构、设计规范、组件使用、Hooks 与路由约定"
+  default_prompt: "使用 $app-web 实现符合项目架构与设计规范的前端改动。"

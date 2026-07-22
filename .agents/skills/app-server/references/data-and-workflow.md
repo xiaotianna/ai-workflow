@@ -1,0 +1,37 @@
+# 数据与工作流接入
+
+## PostgreSQL 与 Prisma
+
+- 把 Prisma schema、migration 和 client 生命周期放在服务端基础设施边界。
+- 由应用服务定义事务边界，Repository 不自行开启彼此无法组合的事务。
+- JSON 字段保存工作流前，先使用 `@ai-workflow/core` 校验结构和业务规则。
+- 数据模型变更时同步检查 DTO、迁移、索引、唯一约束和历史数据兼容性。
+- 不把数据库连接或 Prisma client 暴露给 Controller。
+
+## Redis
+
+- 只在缓存、幂等、限流、短期锁或事件协调需求明确时使用。
+- Key 包含稳定命名空间和版本，并明确过期时间与失效策略。
+- Redis 不作为必须持久化的工作流定义或执行结果的唯一事实来源。
+- 缓存失败的降级策略由用例决定，不静默吞掉影响正确性的错误。
+
+## Workspace package 边界
+
+- 使用 `@ai-workflow/core` 读取工作流 schema、节点注册表、端口和校验规则。
+- 使用 `@ai-workflow/runtime` 承载与 Nest 无关的执行引擎；当前 runtime 仍是占位包。
+- 使用 `@ai-workflow/shared` 共享纯 TypeScript 协议；当前包仍只有占位导出。
+- 服务端不得依赖 `@ai-workflow/ui`、`@ai-workflow/form` 或 `@ai-workflow/nodes-ui`。
+
+## 工作流入口
+
+1. 对外部原始数据调用 `workflowSchema.safeParse()`。
+2. 保存或编辑场景调用 `validateWorkflow(parsed.data, registry)`。
+3. 执行前调用 `validateExecutorWorkflow(parsed.data, registry)`，不先重复调用保存校验。
+4. 只有校验无问题后才持久化为有效版本或交给 runtime。
+5. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
+
+## LangGraph
+
+- 把 LangGraph 视为可替换执行适配器，不让 Core 模型直接依赖它。
+- 先把 Core 工作流转换为内部执行计划，再交给具体适配器。
+- 将重试、超时、取消、检查点和恢复语义定义在 runtime 接口，不散落在 Nest Controller 中。

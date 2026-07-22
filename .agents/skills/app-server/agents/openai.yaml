@@ -1,0 +1,4 @@
+interface:
+  display_name: "后端应用（app-server）"
+  short_description: "规划并维护 NestJS 服务端架构、模块边界、数据访问与工作流接入"
+  default_prompt: "使用 $app-server 规划或实现 AI Workflow 服务端功能。"
