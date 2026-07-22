@@ -1,4 +1,3 @@
-import { FileUp } from 'lucide-react'
 import { useState } from 'react'
 
 import {
@@ -8,6 +7,7 @@ import {
   StudioAppGrid,
   StudioToolbar,
   type CreateStudioAppInput,
+  type StudioAppActionHandler,
 } from '@/features/studio'
 
 const editedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
@@ -19,7 +19,11 @@ const editedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
   hour12: false,
 })
 
-export default function StudioPage() {
+export interface StudioPageProps {
+  onAppAction?: StudioAppActionHandler
+}
+
+export default function StudioPage({ onAppAction }: StudioPageProps) {
   const [apps, setApps] = useState(initialStudioApps)
   const [search, setSearch] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
@@ -93,12 +97,7 @@ export default function StudioPage() {
         onImport={handleImportApp}
       />
 
-      <StudioAppGrid apps={visibleApps} />
-
-      <p className="text-muted-foreground mt-auto flex items-center justify-center gap-1.5 px-8 pt-10 pb-2 text-xs">
-        <FileUp className="size-3.5 shrink-0 opacity-80" />
-        拖放 DSL 文件到此处创建应用
-      </p>
+      <StudioAppGrid apps={visibleApps} onAppAction={onAppAction} />
     </div>
   )
 }

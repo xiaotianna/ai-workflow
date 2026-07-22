@@ -6,7 +6,7 @@
 
 - 视觉保持轻量、克制，优先使用浅色背景、细边框和低对比阴影表达层级。
 - 禁止使用 Tailwind `ring-*`、`focus:ring-*`、`focus-visible:ring-*` 作为默认态、聚焦态、校验态或浮层轮廓。
-- 键盘聚焦必须仍然清晰可辨，使用背景、1px 边框和轻阴影组合表达，不得仅移除聚焦反馈。
+- 键盘聚焦必须仍然清晰可辨；按钮等可点击控件使用控件内部的背景或文字变化，输入型控件使用已有 1px 边框，不使用向外扩张的阴影或聚焦外圈。
 - 颜色使用 `packages/ui/src/styles/globals.css` 中的语义 token，不在组件内重复硬编码颜色。
 - 状态变化需包含过渡，默认过渡背景色、边框色和阴影；复杂展开、折叠等结构变化使用 Motion。
 
@@ -26,24 +26,25 @@
 
 ## 按钮与可点击控件
 
+- 可点击且提供 Hover 反馈的控件必须使用 `cursor-pointer`；拖拽、缩放等专用交互使用对应的 `cursor-grab`、`cursor-*-resize`，禁用态使用 `cursor-not-allowed`。Input、Textarea 等文本编辑控件不适用此规则。
 - Button 始终保留边框宽度，以避免聚焦或状态切换时出现尺寸变化。
-- `focus-visible` 使用语义边框和 `shadow-sm`，不使用 ring。
+- Button 的 `focus-visible` 使用背景或文字变化，不增加聚焦边框和阴影。
 - Ghost、侧栏菜单等无边框控件以背景色变化呈现聚焦：`focus-visible:bg-accent` 或对应区域的 accent token。
-- Destructive 控件使用 destructive 边框表达校验或聚焦，不叠加外圈光晕。
-- Slider Thumb 使用边框与 `shadow-md` 表达 Hover/Focus，不扩大 ring。
+- Destructive 控件使用 destructive 边框表达校验，聚焦时只调整内部背景，不叠加外圈光晕。
+- Slider Thumb 使用 `shadow-md` 表达 Hover，Focus 只调整已有边框，不增加阴影。
 - 登录、创建、保存、确认等提交型按钮统一使用 `Button` 的 `confirm` variant；普通主操作使用视觉相同的 `default` variant。表单未达到可提交状态时必须设置 `disabled`，不得仅依赖点击后提示。
 - 取消、返回等次级操作使用 `secondary` variant，采用 0.5px 语义边框、半透明背景、`shadow-xs` 与 `backdrop-blur-[5px]`，不得由页面使用 `outline` 临时拼接。
 - 紧凑型表单按钮使用 `size="sm"`，统一为 `h-8 rounded-lg px-3.5 text-[13px] leading-4 font-medium`。
 
 ### 主操作按钮状态
 
-| 状态          | 背景                         | 边框/阴影                                  | 文字                      |
-| ------------- | ---------------------------- | ------------------------------------------ | ------------------------- |
-| Default       | `bg-primary`                 | 透明边框、`shadow-xs`                      | `text-primary-foreground` |
-| Hover         | `bg-primary/85`              | 保持边框与阴影                             | 保持原色                  |
-| Focus visible | `bg-primary`                 | `border-primary/55 shadow-sm`，不使用 ring | 保持原色                  |
-| Active        | `bg-primary/70`              | `shadow-none` 并下移 1px                   | 保持原色                  |
-| Disabled      | `bg-button-primary-disabled` | 透明边框、无阴影                           | 保持白色且 `opacity-100`  |
+| 状态          | 背景                         | 边框/阴影                          | 文字                      |
+| ------------- | ---------------------------- | ---------------------------------- | ------------------------- |
+| Default       | `bg-primary`                 | 透明边框、`shadow-xs`              | `text-primary-foreground` |
+| Hover         | `bg-primary/85`              | 保持边框与阴影                     | 保持原色                  |
+| Focus visible | `bg-primary/85`              | 保持透明边框与默认阴影，不增加外圈 | 保持原色                  |
+| Active        | `bg-primary/70`              | `shadow-none` 并下移 1px           | 保持原色                  |
+| Disabled      | `bg-button-primary-disabled` | 透明边框、无阴影                   | 保持白色且 `opacity-100`  |
 
 亮色主题的 `--button-primary-disabled` 固定承载登录页使用的 `#dce3ff`，页面不得再次硬编码该颜色。
 
@@ -53,7 +54,7 @@
 | ------------- | --------------------------------- | ----------------------------------------- | -------------------------- |
 | Default       | `bg-button-secondary-bg`          | `border-button-secondary-border`，0.5px   | `shadow-xs`、正文色        |
 | Hover         | `bg-button-secondary-bg-hover`    | `border-button-secondary-border-hover`    | 保持正文色                 |
-| Focus visible | `bg-button-secondary-bg-hover`    | `border-button-secondary-border-hover`    | `shadow-sm`，不使用 ring   |
+| Focus visible | `bg-button-secondary-bg-hover`    | 保持默认边框                              | 保持默认阴影               |
 | Active        | `bg-button-secondary-bg-active`   | Hover 边框                                | 无阴影并下移 1px           |
 | Disabled      | `bg-button-secondary-bg-disabled` | `border-button-secondary-border-disabled` | 禁用文字、无阴影、不可点击 |
 
@@ -84,13 +85,14 @@
 
 - 单文件拖拽或点击选择统一使用 `packages/ui/src/components/file-dropzone.tsx` 中的 `FileDropzone`。组件基于原生 `input[type="file"]`，业务侧通过 `accept` 限制文件类型，并通过 `file`、`onFileChange` 管理受控状态。
 - 默认态使用浅色背景、圆角虚线边框和上传图标；整个内容区域必须可点击，也必须支持键盘聚焦后按 Enter 或 Space 打开文件选择器。
-- Hover 与 Focus visible 使用 `border-input-focus`、浅色背景和轻阴影；拖拽悬停使用 `border-primary bg-primary/5`；错误态使用 `border-destructive bg-destructive/5`，均不得使用 ring。
+- Hover 与 Focus visible 使用 `border-input-focus` 和浅色背景，不增加聚焦阴影；拖拽悬停使用 `border-primary bg-primary/5`；错误态使用 `border-destructive bg-destructive/5`，均不得使用 ring。
 - 选中文件后显示文件名、文件大小与重新选择提示。具体扩展名、大小及业务内容校验由 Feature 负责，错误信息通过 `Form.Field` 的 `error` 属性呈现。
 - 禁用态必须阻止点击和拖放，显示禁用光标与透明度反馈。
 
 ## 浮层与容器
 
-- Select、Popover、Dropdown、Dialog 等浮层采用 `border border-border shadow-md` 表达轮廓。
+- Select 与 Dropdown 菜单统一使用 `bg-popover/95 rounded-xl border-[0.5px] border-border shadow-lg backdrop-blur-[5px]`，业务页面不得分别覆盖浮层阴影。
+- Popover、Dialog 等浮层使用真实语义边框与低对比阴影表达轮廓。
 - Sidebar floating 变体采用 `border-sidebar-border shadow-sm`。
 - 禁止用 `ring-1` 模拟静态边框；需要轮廓时应使用真实 border。
 
@@ -112,8 +114,10 @@
 ## 组件检查清单
 
 - 默认、Hover、Focus visible、Invalid、Disabled 状态是否齐全。
+- 可点击且有 Hover 反馈的控件是否使用 `cursor-pointer`，专用交互与禁用态是否使用正确光标。
 - 鼠标与键盘操作下是否都能辨识当前状态。
 - 是否不存在 `ring-*`、`focus:ring-*`、`focus-visible:ring-*`。
+- Button、Slider、FileDropzone 等可点击控件是否不存在 `focus-visible` 外圈阴影或额外聚焦边框。
 - 聚焦时是否没有尺寸变化和布局抖动。
 - 是否复用语义 token，而非硬编码颜色。
 - 是否同时检查亮色与暗色主题。

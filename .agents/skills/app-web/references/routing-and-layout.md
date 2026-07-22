@@ -5,6 +5,7 @@
 - 使用 `createBrowserRouter` 在 `src/router/index.tsx` 集中声明路由。
 - `App.tsx` 只渲染根 `Outlet`。
 - `/` 下的布局页面提供侧栏和主内容区域，并通过子路由渲染页面。
+- `/studio/:id` 是与布局页面并列的根级独立页面，不渲染全局侧栏。
 - 页面使用 React `lazy`，由 `LazyLoad` 统一提供 Suspense fallback。
 - 路由 `handle.meta` 保存标题、鉴权标记和导航图标；侧栏从路由配置派生导航。
 

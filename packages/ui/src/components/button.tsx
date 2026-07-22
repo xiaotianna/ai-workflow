@@ -6,10 +6,10 @@ import { Slot } from 'radix-ui'
 import { cn } from '../lib/utils'
 
 const primaryButtonStyles =
-  'bg-primary text-primary-foreground shadow-xs hover:bg-primary/85 focus-visible:border-primary/55 focus-visible:shadow-sm active:bg-primary/70 active:shadow-none disabled:border-transparent disabled:bg-button-primary-disabled disabled:text-primary-foreground disabled:shadow-none disabled:opacity-100'
+  'bg-primary text-primary-foreground shadow-xs hover:bg-primary/85 focus-visible:bg-primary/85 active:bg-primary/70 active:shadow-none disabled:border-transparent disabled:bg-button-primary-disabled disabled:text-primary-foreground disabled:shadow-none disabled:opacity-100'
 
 const buttonVariants = cva(
-  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 outline-none select-none focus-visible:border-input-focus focus-visible:shadow-sm active:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive dark:aria-invalid:border-destructive/70 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "group/button inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-[background-color,border-color,color,box-shadow,transform] duration-150 outline-none select-none active:not-aria-[haspopup]:translate-y-px disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 aria-invalid:border-destructive dark:aria-invalid:border-destructive/70 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     defaultVariants: {
       size: 'default',
@@ -33,14 +33,14 @@ const buttonVariants = cva(
         confirm: primaryButtonStyles,
         default: primaryButtonStyles,
         destructive:
-          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 dark:bg-destructive/20 dark:hover:bg-destructive/30',
+          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:bg-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:bg-destructive/30',
         ghost:
-          'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
-        link: 'text-primary underline-offset-4 hover:underline',
+          'hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50 dark:focus-visible:bg-muted/50',
+        link: 'text-primary underline-offset-4 hover:underline focus-visible:underline',
         outline:
-          'border-border bg-background shadow-xs hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+          'border-border bg-background shadow-xs hover:bg-muted hover:text-foreground focus-visible:bg-muted focus-visible:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50 dark:focus-visible:bg-input/50',
         secondary:
-          'border-[0.5px] border-button-secondary-border bg-button-secondary-bg text-button-secondary-foreground shadow-xs backdrop-blur-[5px] hover:border-button-secondary-border-hover hover:bg-button-secondary-bg-hover focus-visible:border-button-secondary-border-hover focus-visible:bg-button-secondary-bg-hover active:border-button-secondary-border-hover active:bg-button-secondary-bg-active active:shadow-none disabled:border-button-secondary-border-disabled disabled:bg-button-secondary-bg-disabled disabled:text-button-secondary-foreground-disabled disabled:shadow-none disabled:backdrop-blur-xs disabled:opacity-100 aria-expanded:border-button-secondary-border-hover aria-expanded:bg-button-secondary-bg-hover',
+          'border-[0.5px] border-button-secondary-border bg-button-secondary-bg text-button-secondary-foreground shadow-xs backdrop-blur-[5px] hover:border-button-secondary-border-hover hover:bg-button-secondary-bg-hover focus-visible:bg-button-secondary-bg-hover active:border-button-secondary-border-hover active:bg-button-secondary-bg-active active:shadow-none disabled:border-button-secondary-border-disabled disabled:bg-button-secondary-bg-disabled disabled:text-button-secondary-foreground-disabled disabled:shadow-none disabled:backdrop-blur-xs disabled:opacity-100 aria-expanded:border-button-secondary-border-hover aria-expanded:bg-button-secondary-bg-hover',
       },
     },
   },

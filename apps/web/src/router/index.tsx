@@ -10,6 +10,7 @@ const LayoutPage = lazy(() => import('../pages/layout'))
 const KnowledgeBasePage = lazy(() => import('../pages/layout/knowledge-base'))
 const PluginPage = lazy(() => import('../pages/layout/plugin'))
 const StudioPage = lazy(() => import('../pages/layout/studio'))
+const StudioDetailPage = lazy(() => import('../pages/studio'))
 
 export const routes = [
   {
@@ -97,6 +98,21 @@ export const routes = [
             },
           },
         ],
+      },
+      {
+        id: 'studio-detail',
+        path: 'studio/:id',
+        element: (
+          <LazyLoad>
+            <StudioDetailPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '工作室详情',
+            requiresAuth: true,
+          },
+        },
       },
     ],
   },

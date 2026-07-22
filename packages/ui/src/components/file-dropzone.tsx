@@ -93,7 +93,7 @@ function FileDropzone({
         aria-label={ariaLabel}
         disabled={disabled}
         className={cn(
-          'border-border bg-muted/25 text-muted-foreground hover:border-input-focus hover:bg-muted/45 focus-visible:border-input-focus focus-visible:bg-muted/45 data-[dragging=true]:border-primary data-[dragging=true]:bg-primary/5 aria-invalid:border-destructive aria-invalid:bg-destructive/5 flex min-h-24 w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-5 text-left text-sm transition-[background-color,border-color,box-shadow] outline-none focus-visible:shadow-sm disabled:cursor-not-allowed disabled:opacity-50',
+          'border-border bg-muted/25 text-muted-foreground hover:border-input-focus hover:bg-muted/45 focus-visible:border-input-focus focus-visible:bg-muted/45 data-[dragging=true]:border-primary data-[dragging=true]:bg-primary/5 aria-invalid:border-destructive aria-invalid:bg-destructive/5 flex min-h-24 w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-dashed px-6 py-5 text-left text-sm transition-[background-color,border-color] outline-none disabled:cursor-not-allowed disabled:opacity-50',
           className,
         )}
         onClick={() => inputRef.current?.click()}

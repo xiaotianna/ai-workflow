@@ -28,19 +28,22 @@ import '@ai-workflow/ui/globals.css'
 ## 使用规范
 
 - 修改组件视觉前读取 `docs/design-system.md`，token 实际值以 `src/styles/globals.css` 为准。
-- 禁止重新引入 `ring-*` 交互样式；使用语义边框、背景和阴影表达聚焦。
+- 可点击且有 Hover 反馈的组件使用 `cursor-pointer`；拖拽、缩放和禁用态使用对应的专用光标，文本编辑控件除外。
+- 禁止重新引入 `ring-*` 交互样式；Button 等可点击组件通过内部背景或文字变化表达聚焦，不增加聚焦边框或阴影，输入型组件使用语义边框。
 - 表单使用 `Form` 与 `Form.Field`；实际控件提供 `aria-label`。
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。
 - 单文件选择使用 `FileDropzone`，业务校验保留在调用方。
+- `SelectContent` 与 `DropdownMenuContent` 统一使用半透明背景、0.5px 语义边框、`shadow-lg`、圆角和背景模糊，不在调用方分别覆盖阴影。
 - 使用 `cn()` 合并类名，变体较多时使用 CVA，不在调用方重做基础状态。
 
 ## 新增组件
 
 1. 确认组件无业务语义，且不能由现有 primitive 组合完成。
 2. 覆盖默认、Hover、Focus visible、Active、Invalid 和 Disabled 中适用的状态。
-3. 保留原生或 Radix props、ref、受控状态和键盘语义。
-4. 检查 `./components/*`、`./hooks/*` 或 `./lib/*` exports 能否覆盖新文件。
-5. shadcn 生成结果必须按项目规范移除默认 ring，并保留现有定制契约。
+3. 可点击且有 Hover 反馈时提供 `cursor-pointer`，专用交互与禁用态提供准确光标。
+4. 保留原生或 Radix props、ref、受控状态和键盘语义。
+5. 检查 `./components/*`、`./hooks/*` 或 `./lib/*` exports 能否覆盖新文件。
+6. shadcn 生成结果必须按项目规范移除默认 ring，以及可点击组件的聚焦外圈边框和阴影，并保留现有定制契约。
 
 ## 注意事项
 

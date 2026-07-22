@@ -1,8 +1,27 @@
+import { Button } from '@ai-workflow/ui/components/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@ai-workflow/ui/components/dropdown-menu'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { MessageSquare, Waypoints, type LucideIcon } from 'lucide-react'
-import type { ComponentPropsWithoutRef, CSSProperties, ReactNode } from 'react'
+import { Ellipsis, MessageSquare, Waypoints, type LucideIcon } from 'lucide-react'
+import { Fragment, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from 'react'
+import { Link, type To } from 'react-router-dom'
 
 export type ResourceKind = 'workflow' | 'chatflow'
+
+export interface ResourceCardAction {
+  id: string
+  label: ReactNode
+  onSelect: () => void
+  icon?: ReactNode
+  disabled?: boolean
+  destructive?: boolean
+  separatorBefore?: boolean
+}
 
 export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'article'>, 'children'> {
   title: string
@@ -10,6 +29,9 @@ export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'articl
   kindLabel: string
   author: string
   editedAtLabel: string
+  to?: To
+  linkAriaLabel?: string
+  actions?: readonly ResourceCardAction[]
   description?: string
   icon?: ReactNode
   iconBackground?: CSSProperties['background']
@@ -39,6 +61,9 @@ export function ResourceCard({
   kindLabel,
   author,
   editedAtLabel,
+  to,
+  linkAriaLabel,
+  actions,
   description,
   icon,
   iconBackground = defaultIconBackground,
@@ -50,11 +75,20 @@ export function ResourceCard({
   return (
     <article
       className={cn(
-        'bg-card hover:border-border/50 group border-border/20 flex h-fit w-full cursor-pointer flex-col overflow-hidden rounded-2xl border shadow-xs outline-hidden transition-shadow duration-200 ease-in-out hover:shadow-lg',
+        'bg-card hover:border-border/50 group border-border/20 relative flex h-fit w-full flex-col overflow-hidden rounded-2xl border shadow-xs outline-hidden transition-shadow duration-200 ease-in-out hover:shadow-lg',
+        to && 'cursor-pointer',
         className,
       )}
       {...props}
     >
+      {to ? (
+        <Link
+          to={to}
+          aria-label={linkAriaLabel ?? `打开 ${title}`}
+          className="focus-visible:border-input-focus absolute inset-0 z-10 rounded-2xl border border-transparent outline-hidden focus-visible:shadow-sm"
+        />
+      ) : undefined}
+
       <div className="flex shrink-0 items-center gap-3 pt-4 pr-4 pb-2 pl-4">
         <div className="relative shrink-0">
           <span
@@ -82,6 +116,41 @@ export function ResourceCard({
             {kindLabel}
           </div>
         </div>
+
+        {actions?.length ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${title} 的更多操作`}
+                className="pointer-events-none relative z-20 -mt-1 -mr-1 self-start opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100 aria-expanded:pointer-events-auto aria-expanded:opacity-100"
+              >
+                <Ellipsis className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="end" className="w-48">
+              {actions.map((action, index) => (
+                <Fragment key={action.id}>
+                  {action.separatorBefore && index > 0 ? <DropdownMenuSeparator /> : undefined}
+                  <DropdownMenuItem
+                    disabled={action.disabled}
+                    onSelect={action.onSelect}
+                    className={cn(
+                      action.destructive &&
+                        'text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive',
+                    )}
+                  >
+                    {action.icon}
+                    <span>{action.label}</span>
+                  </DropdownMenuItem>
+                </Fragment>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : undefined}
       </div>
 
       <div className="text-muted-foreground shrink-0 px-4 py-1 text-xs leading-4">

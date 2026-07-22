@@ -3,4 +3,9 @@ export { ImportAppDialog } from './components/import-app-dialog'
 export { StudioAppGrid } from './components/studio-app-grid'
 export { StudioToolbar } from './components/studio-toolbar'
 export { initialStudioApps } from './data'
-export type { CreateStudioAppInput, StudioAppListItem } from './types'
+export type {
+  CreateStudioAppInput,
+  StudioAppAction,
+  StudioAppActionHandler,
+  StudioAppListItem,
+} from './types'

@@ -11,6 +11,12 @@
 - 跨业务但仍依赖路由或应用上下文的组件放在 `apps/web/src/components`。
 - 无业务语义且可跨应用复用的组件放在 `packages/ui`，同时读取 `$ai-workflow-packages` 的 UI 引用。
 
+## Studio 资源卡片
+
+- Studio 菜单项配置维护在 `features/studio` 内，页面通过 `StudioAppGrid.onAppAction` 传入实际操作；资源卡片只负责菜单触发、展示和无障碍交互，不内置编辑、复制、删除等业务。
+- 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
+- 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
+
 ## 表单
 
 - 使用 `@ai-workflow/ui/components/form` 提供的 `Form` 与 `Form.Field`。
@@ -29,11 +35,12 @@
 
 ## 视觉与交互
 
+- 可点击且有 Hover 反馈的控件必须使用 `cursor-pointer`；拖拽、缩放和禁用态使用对应的专用光标，Input、Textarea 等文本编辑控件除外。
 - 禁止使用 `ring-*`、`focus:ring-*`、`focus-visible:ring-*` 表达默认、聚焦、错误或浮层轮廓。
-- 使用语义边框、背景和轻阴影表达聚焦，且不得造成尺寸变化或布局抖动。
+- Button 等可点击控件使用内部背景或文字变化表达聚焦，不增加聚焦边框或阴影；输入型控件使用语义边框，且不得造成尺寸变化或布局抖动。
 - 颜色使用 `packages/ui/src/styles/globals.css` 的语义 token，不在业务组件中硬编码通用状态色。
 - 输入控件覆盖默认、Hover、Focus visible、Invalid 和 Disabled 状态。
-- 浮层使用真实 border 与 shadow；结构展开和折叠需要动画时使用项目约定的 Motion 方案。
+- Select 与 Dropdown 使用 UI 包统一提供的半透明背景、0.5px border、`shadow-lg` 和模糊效果，页面不单独覆盖浮层阴影；其他浮层使用真实 border 与 shadow。
 
 ## 无障碍
 

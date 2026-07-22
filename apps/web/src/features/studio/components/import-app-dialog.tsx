@@ -62,7 +62,7 @@ export function ImportAppDialog({ open, onImport, onOpenChange }: ImportAppDialo
       <DialogContent>
         <DialogHeader>
           <DialogTitle>导入应用</DialogTitle>
-          <DialogDescription>上传应用 DSL 文件以创建应用。</DialogDescription>
+          <DialogDescription>上传应用 DSL 文件以创建应用</DialogDescription>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit}>
