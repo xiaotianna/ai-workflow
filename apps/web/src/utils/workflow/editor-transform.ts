@@ -3,7 +3,7 @@ import type { Workflow, WorkflowEdge, WorkflowNode } from '@ai-workflow/core'
 import type { Viewport, XYPosition } from '@xyflow/react'
 
 // 提供默认节点位置
-export const getDefaultNodePostion = (index: number): XYPosition => {
+export const getDefaultNodePosition = (index: number): XYPosition => {
   return {
     x: 120 + (index % 3) * 320,
     y: 120 + Math.floor(index / 3) * 220,
@@ -15,7 +15,7 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
   return snapshot.workflow.nodes.map((workflowNode, index) => ({
     id: workflowNode.id,
     type: workflowNode.type,
-    position: snapshot.layout.positions[workflowNode.id] ?? getDefaultNodePostion(index),
+    position: snapshot.layout.positions[workflowNode.id] ?? getDefaultNodePosition(index),
     data: workflowNode.config,
   }))
 }

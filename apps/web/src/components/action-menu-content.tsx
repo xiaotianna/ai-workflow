@@ -39,7 +39,7 @@ export function ActionMenuContent({
             onSelect={action.onSelect}
             className={cn(
               action.destructive &&
-                'text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive',
+                'text-destructive data-highlighted:bg-destructive/10 data-highlighted:text-destructive',
             )}
           >
             {action.icon}

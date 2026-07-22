@@ -42,9 +42,6 @@ export const WorkflowCanvas = ({
       nodes={nodes}
       edges={edges}
       nodeTypes={workflowNodeTypes}
-      defaultEdgeOptions={{
-        type: 'smoothstep',
-      }}
       defaultViewport={initialViewport}
       fitView={!initialViewport}
       deleteKeyCode={['Backspace', 'Delete']}

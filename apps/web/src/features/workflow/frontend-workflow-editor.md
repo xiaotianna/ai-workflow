@@ -957,7 +957,7 @@ import type { WorkflowCanvasNode, WorkflowEditorDocument } from '../types'
 import { useWorkflowSave } from './use-workflow-save'
 
 interface UseWorkflowEditorOptions {
-  initialDocument: WorkflowEditorDocument
+  initialSnapshot: WorkflowEditorDocument
   onSave: (document: WorkflowEditorDocument) => void | Promise<void>
 }
 
@@ -965,14 +965,14 @@ interface UseWorkflowEditorOptions {
  * 维护 Workflow 编辑会话并向视图暴露明确的状态和操作。
  * Hook 必须在 ReactFlowProvider 内调用，因为它会刷新动态 Handle 布局。
  */
-export function useWorkflowEditor({ initialDocument, onSave }: UseWorkflowEditorOptions) {
+export function useWorkflowEditor({ initialSnapshot, onSave }: UseWorkflowEditorOptions) {
   const [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
-    toCanvasNodes(initialDocument),
+    toCanvasNodes(initialSnapshot),
   )
   const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
-    ...initialDocument.workflow.edges,
+    ...initialSnapshot.workflow.edges,
   ])
-  const [viewport, setViewport] = useState<Viewport | undefined>(initialDocument.layout.viewport)
+  const [viewport, setViewport] = useState<Viewport | undefined>(initialSnapshot.layout.viewport)
   const [selectedNodeId, setSelectedNodeId] = useState<string>()
   const [dirty, setDirty] = useState(false)
   const updateNodeInternals = useUpdateNodeInternals()
@@ -983,7 +983,7 @@ export function useWorkflowEditor({ initialDocument, onSave }: UseWorkflowEditor
     : undefined
 
   const { errors, saveWorkflow, saving } = useWorkflowSave({
-    baseWorkflow: initialDocument.workflow,
+    baseWorkflow: initialSnapshot.workflow,
     edges,
     nodes,
     onSave,
@@ -1014,7 +1014,7 @@ export function useWorkflowEditor({ initialDocument, onSave }: UseWorkflowEditor
 
   /** 校验并提交一次拖线操作。 */
   function handleConnect(connection: Connection) {
-    if (!canConnect(connection, initialDocument.workflow, nodes, edges)) return
+    if (!canConnect(connection, initialSnapshot.workflow, nodes, edges)) return
 
     const nextEdge = createWorkflowEdge(connection)
     if (!nextEdge) return
@@ -1025,7 +1025,7 @@ export function useWorkflowEditor({ initialDocument, onSave }: UseWorkflowEditor
 
   /** 供 React Flow 拖线预览调用，不修改任何编辑状态。 */
   function isValidConnection(connection: Connection | WorkflowEdge) {
-    return canConnect(connection, initialDocument.workflow, nodes, edges)
+    return canConnect(connection, initialSnapshot.workflow, nodes, edges)
   }
 
   /** React Flow 删除节点后，同步清理引用这些节点的边和选择态。 */
@@ -1094,7 +1094,7 @@ export function useWorkflowEditor({ initialDocument, onSave }: UseWorkflowEditor
     handleNodesChange,
     handleNodesDelete,
     handleViewportChange,
-    initialViewport: initialDocument.layout.viewport,
+    initialViewport: initialSnapshot.layout.viewport,
     isValidConnection,
     nodes,
     saveWorkflow,
@@ -1124,13 +1124,13 @@ import { WorkflowCanvas } from './workflow-canvas'
 import { WorkflowConfigPanel } from './workflow-config-panel'
 
 interface WorkflowEditorProps {
-  initialDocument: WorkflowEditorDocument
+  initialSnapshot: WorkflowEditorDocument
   onSave: (document: WorkflowEditorDocument) => void | Promise<void>
 }
 
 /** 在 ReactFlowProvider 内消费编辑会话 Hook，并组合各展示区域。 */
-function WorkflowEditorSession({ initialDocument, onSave }: WorkflowEditorProps) {
-  const editor = useWorkflowEditor({ initialDocument, onSave })
+function WorkflowEditorSession({ initialSnapshot, onSave }: WorkflowEditorProps) {
+  const editor = useWorkflowEditor({ initialSnapshot, onSave })
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -1261,7 +1261,7 @@ function WorkflowPageSession({ appId }: WorkflowPageSessionProps) {
     createDemoWorkflowDocument(appId),
   )
 
-  return <WorkflowEditor initialDocument={document} onSave={setDocument} />
+  return <WorkflowEditor initialSnapshot={document} onSave={setDocument} />
 }
 
 /** 读取路由 appId，并在缺少参数时提供可诊断错误。 */

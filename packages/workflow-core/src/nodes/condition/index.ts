@@ -3,9 +3,9 @@ import { createInitialConfig } from '../../node/create-initial-config'
 import type { NodeType } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import type { PortDefinition } from '../../port/port-types'
-import { generateUuid } from '../../utils/uuid'
 import { conditionNodeDefinition } from './definition'
 import { conditionNodeSchema } from './schema'
+import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 
 export const conditionNode = {
   schema: conditionNodeSchema,

@@ -48,13 +48,18 @@ export function BaseNode({
       onClick={disabled ? undefined : onSelect}
       onKeyDown={handleKeyDown}
       className={cn(
-        'group relative w-60 rounded-2xl bg-transparent transition-all',
+        'group relative w-60 rounded-2xl bg-transparent transition-shadow',
         'hover:shadow-lg hover:shadow-black/5',
-        selected && 'shadow-lg ring-2 shadow-blue-100 ring-blue-500',
+        selected && 'shadow-primary/10 shadow-lg',
         disabled && 'pointer-events-none opacity-50',
       )}
     >
-      <div className="overflow-hidden rounded-[15px] border border-black/5 bg-white">
+      <div
+        className={cn(
+          'bg-card border-border overflow-hidden rounded-[15px] border transition-[border-color,background-color]',
+          selected && 'border-primary',
+        )}
+      >
         {/* Header */}
         <div className="flex items-start justify-between px-4 pt-3 pb-3">
           <div className="flex min-w-0 items-center">

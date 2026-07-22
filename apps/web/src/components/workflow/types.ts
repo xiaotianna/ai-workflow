@@ -45,6 +45,8 @@ export interface WorkflowEditorSnapshot {
   data: {
     ...(core node).config
   },
+
+  WorkflowNode['config'] => 节点定义的schema
 }
  */
 export interface WorkflowCanvasNode extends Node<WorkflowNode['config']> {

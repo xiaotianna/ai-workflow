@@ -21,7 +21,9 @@ export const workflowNodeSchema = z.object({
   type: z.string().min(1, '节点类型不能为空'),
   /**
    * 节点配置
-   * 这里只做通用约束，具体配置由对应节点的 schema 校验，实际执行前需要使用：
+   * 这里只做通用约束，具体配置由对应节点的 schema 参数的校验
+   * xxNode.config获取到的是nodeType定义的schema，该config是实际的数据对象
+   * 实际执行前需要使用：
    * chatNode.schema.parse(node.config) -> schema.parse由zod提供，可以用safeParse
    */
   config: z.record(z.string(), z.unknown()).default({}),
