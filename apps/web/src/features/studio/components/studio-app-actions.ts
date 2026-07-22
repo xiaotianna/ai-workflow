@@ -1,11 +1,16 @@
-import type { ResourceCardAction } from '@/components/resource-card'
+import type { ActionMenuAction } from '@/components/action-menu-content'
 
 import type { StudioAppActionHandler, StudioAppListItem } from '../types'
 
-export function getStudioAppCardActions(
+interface GetStudioAppActionsOptions {
+  onImportDsl?: () => void
+}
+
+export function getStudioAppActions(
   app: StudioAppListItem,
   onAppAction?: StudioAppActionHandler,
-): readonly ResourceCardAction[] {
+  { onImportDsl }: GetStudioAppActionsOptions = {},
+): readonly ActionMenuAction[] {
   return [
     {
       id: 'edit',
@@ -17,6 +22,15 @@ export function getStudioAppCardActions(
       label: '复制',
       onSelect: () => onAppAction?.('duplicate', app),
     },
+    ...(onImportDsl
+      ? [
+          {
+            id: 'import-dsl',
+            label: '导入 DSL',
+            onSelect: onImportDsl,
+          },
+        ]
+      : []),
     {
       id: 'export-dsl',
       label: '导出 DSL',

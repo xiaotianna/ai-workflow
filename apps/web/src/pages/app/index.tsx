@@ -1,9 +1,18 @@
 import { Button } from '@ai-workflow/ui/components/button'
+import { DropdownMenu, DropdownMenuTrigger } from '@ai-workflow/ui/components/dropdown-menu'
 import { ChevronLeft, SlidersHorizontal, type LucideIcon } from 'lucide-react'
+import { useState } from 'react'
 import { Link, Outlet, type RouteObject, useParams } from 'react-router-dom'
 
+import { ActionMenuContent } from '@/components/action-menu-content'
 import { LayoutSidebar } from '@/components/layout-sidebar'
-import { initialStudioApps } from '@/features/studio'
+import {
+  getStudioAppActions,
+  ImportDslDialog,
+  initialStudioApps,
+  type StudioAppActionHandler,
+  type StudioAppListItem,
+} from '@/features/studio'
 import { routes } from '@/router'
 
 interface AppNavigationMeta {
@@ -41,15 +50,37 @@ function getAppNavigationItems(): AppNavigationItem[] {
 const navigationItems = getAppNavigationItems()
 const defaultIconBackground = 'rgb(255, 234, 213)'
 
-export default function AppPage() {
+export interface AppPageProps {
+  onAppAction?: StudioAppActionHandler
+  onImportDsl?: (file: File, app: StudioAppListItem) => void
+}
+
+export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
   const { id } = useParams<{ id: string }>()
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const app = initialStudioApps.find((item) => item.id === id)
   const title = app?.title ?? '未命名应用'
   const kindLabel = app?.kindLabel ?? '工作流'
   const encodedAppId = encodeURIComponent(id ?? '')
+  const actions = app
+    ? getStudioAppActions(app, onAppAction, {
+        onImportDsl: () => setImportDialogOpen(true),
+      })
+    : []
+
+  function handleImportDsl(file: File) {
+    if (!app) return
+    onImportDsl?.(file, app)
+  }
 
   return (
     <div className="flex h-svh min-w-0 gap-1 overflow-hidden bg-[#f2f4f7] p-1">
+      <ImportDslDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportDsl}
+      />
+
       <div className="bg-background border-border flex h-full rounded-lg shadow-xs">
         <LayoutSidebar
           header={
@@ -66,38 +97,43 @@ export default function AppPage() {
                   <span>工作室</span>
                 </Link>
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                className="text-foreground h-auto w-full justify-start p-0 font-normal hover:bg-transparent"
-                aria-label={`${title}，${kindLabel}`}
-              >
-                <div className="hover:bg-muted flex w-full items-start gap-2 rounded-xl p-2">
-                  <span
-                    className="border-border/80 relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border-[0.5px] text-[24px] leading-none"
-                    style={{ background: defaultIconBackground }}
-                  >
-                    <span aria-hidden>{app?.icon ?? '🤖'}</span>
-                  </span>
-                  <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-0.5 self-stretch">
-                    <div className="flex w-full min-w-0 pr-1">
-                      <div className="text-text-secondary truncate text-sm/5 font-semibold">
-                        {title}
-                      </div>
-                    </div>
-                    <div className="text-muted-foreground truncate text-[10px] leading-3 font-medium tracking-wide uppercase">
-                      {kindLabel}
+              <div className="hover:bg-muted flex w-full items-start gap-2 rounded-xl p-2 transition-colors">
+                <span
+                  className="border-border/80 relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border-[0.5px] text-[24px] leading-none"
+                  style={{ background: defaultIconBackground }}
+                >
+                  <span aria-hidden>{app?.icon ?? '🤖'}</span>
+                </span>
+                <div className="flex min-w-0 flex-1 flex-col items-start justify-center gap-0.5 self-stretch">
+                  <div className="flex w-full min-w-0 pr-1">
+                    <div className="text-text-secondary truncate text-sm/5 font-semibold">
+                      {title}
                     </div>
                   </div>
-                  <div className="flex size-5 shrink-0 items-center justify-center rounded-md p-0.5">
-                    <SlidersHorizontal
-                      aria-hidden
-                      className="text-muted-foreground size-4"
-                      strokeWidth={2}
-                    />
+                  <div className="text-muted-foreground truncate text-[10px] leading-3 font-medium tracking-wide uppercase">
+                    {kindLabel}
                   </div>
                 </div>
-              </Button>
+                {actions.length ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label={`${title} 的更多操作`}
+                        className="text-muted-foreground -mt-1 self-start"
+                      >
+                        <SlidersHorizontal aria-hidden className="size-4" strokeWidth={2} />
+                      </Button>
+                    </DropdownMenuTrigger>
+
+                    <ActionMenuContent actions={actions} sideOffset={6} />
+                  </DropdownMenu>
+                ) : (
+                  <span className="size-8 shrink-0" aria-hidden />
+                )}
+              </div>
             </div>
           }
           items={navigationItems.map(({ path, title: label, icon }) => ({

@@ -14,7 +14,7 @@ import { useState, type FormEvent } from 'react'
 
 const maxDslFileSize = 10 * 1024 * 1024
 
-interface ImportAppDialogProps {
+interface ImportDslDialogProps {
   open: boolean
   onImport: (file: File) => void
   onOpenChange: (open: boolean) => void
@@ -26,7 +26,7 @@ function getFileError(file: File) {
   return undefined
 }
 
-export function ImportAppDialog({ open, onImport, onOpenChange }: ImportAppDialogProps) {
+export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialogProps) {
   const [selectedFile, setSelectedFile] = useState<File>()
   const [fileError, setFileError] = useState<string>()
 
@@ -61,8 +61,8 @@ export function ImportAppDialog({ open, onImport, onOpenChange }: ImportAppDialo
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>导入应用</DialogTitle>
-          <DialogDescription>上传应用 DSL 文件以创建应用</DialogDescription>
+          <DialogTitle>导入 DSL</DialogTitle>
+          <DialogDescription>上传 DSL 文件以导入当前工作流配置</DialogDescription>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit}>

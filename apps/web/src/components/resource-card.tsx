@@ -1,27 +1,15 @@
 import { Button } from '@ai-workflow/ui/components/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@ai-workflow/ui/components/dropdown-menu'
+import { DropdownMenu, DropdownMenuTrigger } from '@ai-workflow/ui/components/dropdown-menu'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Ellipsis, MessageSquare, Waypoints, type LucideIcon } from 'lucide-react'
-import { Fragment, type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from 'react'
+import { type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from 'react'
 import { Link, type To } from 'react-router-dom'
+
+import { ActionMenuContent, type ActionMenuAction } from '@/components/action-menu-content'
 
 export type ResourceKind = 'workflow' | 'chatflow'
 
-export interface ResourceCardAction {
-  id: string
-  label: ReactNode
-  onSelect: () => void
-  icon?: ReactNode
-  disabled?: boolean
-  destructive?: boolean
-  separatorBefore?: boolean
-}
+export type ResourceCardAction = ActionMenuAction
 
 export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'article'>, 'children'> {
   title: string
@@ -131,24 +119,7 @@ export function ResourceCard({
               </Button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-48">
-              {actions.map((action, index) => (
-                <Fragment key={action.id}>
-                  {action.separatorBefore && index > 0 ? <DropdownMenuSeparator /> : undefined}
-                  <DropdownMenuItem
-                    disabled={action.disabled}
-                    onSelect={action.onSelect}
-                    className={cn(
-                      action.destructive &&
-                        'text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive',
-                    )}
-                  >
-                    {action.icon}
-                    <span>{action.label}</span>
-                  </DropdownMenuItem>
-                </Fragment>
-              ))}
-            </DropdownMenuContent>
+            <ActionMenuContent actions={actions} />
           </DropdownMenu>
         ) : undefined}
       </div>

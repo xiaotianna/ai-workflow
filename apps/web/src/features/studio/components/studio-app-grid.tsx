@@ -1,7 +1,7 @@
 import { ResourceCard } from '@/components/resource-card'
 
 import type { StudioAppActionHandler, StudioAppListItem } from '../types'
-import { getStudioAppCardActions } from './studio-app-card-actions'
+import { getStudioAppActions } from './studio-app-actions'
 
 interface StudioAppGridProps {
   apps: StudioAppListItem[]
@@ -12,7 +12,7 @@ export function StudioAppGrid({ apps, onAppAction }: StudioAppGridProps) {
   return (
     <div className="2k:grid-cols-6 relative grid grow grid-cols-1 content-start gap-2.5 pt-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
       {apps.map((app) => {
-        const actions = getStudioAppCardActions(app, onAppAction)
+        const actions = getStudioAppActions(app, onAppAction)
 
         return (
           <ResourceCard

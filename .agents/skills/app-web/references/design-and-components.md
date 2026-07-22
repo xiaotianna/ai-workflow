@@ -13,7 +13,8 @@
 
 ## Studio 资源卡片
 
-- Studio 菜单项配置维护在 `features/studio` 内，页面通过 `StudioAppGrid.onAppAction` 传入实际操作；资源卡片只负责菜单触发、展示和无障碍交互，不内置编辑、复制、删除等业务。
+- Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；应用侧栏通过 `onImportDsl` 追加“导入 DSL”并打开文件选择弹窗，Studio 页面与资源卡片不提供导入入口。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
+- 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
 
@@ -24,7 +25,7 @@
 - 应用侧栏导航从 `/app/:id` 子路由的 `handle.meta` 派生，当前提供“编排”“访问 API”“日志”，不得在侧栏复制另一份导航配置。
 - 应用侧栏导航项连续排列，不在“访问 API”和“日志”之间添加分割线。
 - 应用侧栏顶部使用 `w-fit self-start` 的返回按钮，返回 `/studio` 并显示 `< / 工作室`；Hover 和 Focus 背景只覆盖内容区域，不铺满侧栏。
-- 返回按钮下方为应用标识区：与 Studio `ResourceCard` 标题行一致（40px 圆角图标底、默认桃色背景、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行可 Hover 的 `rounded-xl` 容器，右侧保留均衡器图标占位；交互尚未接入前使用单个按钮承载，图标装饰用 `aria-hidden`。
+- 返回按钮下方为应用标识区：与 Studio `ResourceCard` 标题行一致（40px 圆角图标底、默认桃色背景、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行为可 Hover 的 `rounded-xl` 容器；右侧均衡器图标按钮触发与资源卡片一致的操作菜单，并提供准确的无障碍名称。
 - App 页面使用浅色页面底衬分隔侧栏与内容区；应用侧栏沿用首页布局侧栏样式，内容区使用真实边框、低对比阴影与圆角容器。
 
 ## 表单

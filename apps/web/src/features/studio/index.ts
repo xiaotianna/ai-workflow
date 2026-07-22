@@ -1,5 +1,6 @@
 export { CreateBlankAppDialog } from './components/create-blank-app-dialog'
-export { ImportAppDialog } from './components/import-app-dialog'
+export { getStudioAppActions } from './components/studio-app-actions'
+export { ImportDslDialog } from './components/import-dsl-dialog'
 export { StudioAppGrid } from './components/studio-app-grid'
 export { StudioToolbar } from './components/studio-toolbar'
 export { initialStudioApps } from './data'
