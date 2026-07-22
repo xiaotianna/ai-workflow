@@ -17,6 +17,16 @@
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
 
+## App 内部布局
+
+- 首页和应用详情页都在各自的 `pages` 布局中直接组合侧栏；侧栏外壳统一复用 `components/layout-sidebar`，固定 `w-60`，两个页面都使用 `h-svh overflow-hidden p-1` 的满高 flex 父容器拉伸侧栏，保证底部账户菜单在页面切换时坐标不偏移；通过 `header` 与导航项 props 注入页面内容，应用侧栏不包含“监测”入口。
+- 侧栏底部账户菜单的触发区域按头像与用户名内容宽度收缩，不占满侧栏；用户名使用 `pl-2` 与头像保持间距，Hover、Focus、Active 和展开态背景只覆盖该内容区域。
+- 应用侧栏导航从 `/app/:id` 子路由的 `handle.meta` 派生，当前提供“编排”“访问 API”“日志”，不得在侧栏复制另一份导航配置。
+- 应用侧栏导航项连续排列，不在“访问 API”和“日志”之间添加分割线。
+- 应用侧栏顶部使用 `w-fit self-start` 的返回按钮，返回 `/studio` 并显示 `< / 工作室`；Hover 和 Focus 背景只覆盖内容区域，不铺满侧栏。
+- 返回按钮下方为应用标识区：与 Studio `ResourceCard` 标题行一致（40px 圆角图标底、默认桃色背景、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行可 Hover 的 `rounded-xl` 容器，右侧保留均衡器图标占位；交互尚未接入前使用单个按钮承载，图标装饰用 `aria-hidden`。
+- App 页面使用浅色页面底衬分隔侧栏与内容区；应用侧栏沿用首页布局侧栏样式，内容区使用真实边框、低对比阴影与圆角容器。
+
 ## 表单
 
 - 使用 `@ai-workflow/ui/components/form` 提供的 `Form` 与 `Form.Field`。

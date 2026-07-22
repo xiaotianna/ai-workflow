@@ -1,16 +1,26 @@
 import { lazy } from 'react'
-import { BookMarked, Computer, ToolCase } from 'lucide-react'
+import {
+  BookMarked,
+  Computer,
+  ScrollText,
+  SquareMousePointer,
+  SquareTerminal,
+  ToolCase,
+} from 'lucide-react'
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
 
 import App from '../App'
 import LazyLoad from '../components/lazy-load'
 
 const AuthPage = lazy(() => import('../pages/auth'))
-const LayoutPage = lazy(() => import('../pages/layout'))
-const KnowledgeBasePage = lazy(() => import('../pages/layout/knowledge-base'))
-const PluginPage = lazy(() => import('../pages/layout/plugin'))
-const StudioPage = lazy(() => import('../pages/layout/studio'))
-const StudioDetailPage = lazy(() => import('../pages/studio'))
+const LayoutPage = lazy(() => import('../pages/home-layout'))
+const KnowledgeBasePage = lazy(() => import('../pages/home-layout/knowledge-base'))
+const PluginPage = lazy(() => import('../pages/home-layout/plugin'))
+const StudioPage = lazy(() => import('../pages/home-layout/studio'))
+const AppPage = lazy(() => import('../pages/app'))
+const AppWorkflowPage = lazy(() => import('../pages/app/workflow'))
+const AppApiPage = lazy(() => import('../pages/app/api'))
+const AppLogsPage = lazy(() => import('../pages/app/logs'))
 
 export const routes = [
   {
@@ -100,19 +110,80 @@ export const routes = [
         ],
       },
       {
-        id: 'studio-detail',
-        path: 'studio/:id',
+        id: 'app',
+        path: 'app/:id',
         element: (
           <LazyLoad>
-            <StudioDetailPage />
+            <AppPage />
           </LazyLoad>
         ),
         handle: {
           meta: {
-            title: '工作室详情',
+            title: '应用',
             requiresAuth: true,
           },
         },
+        children: [
+          {
+            id: 'app-index',
+            index: true,
+            element: <Navigate to="workflow" replace />,
+            handle: {
+              meta: {
+                title: '应用',
+                requiresAuth: true,
+              },
+            },
+          },
+          {
+            id: 'app-workflow',
+            path: 'workflow',
+            element: (
+              <LazyLoad>
+                <AppWorkflowPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '工作流',
+                requiresAuth: true,
+                icon: SquareMousePointer,
+              },
+            },
+          },
+          {
+            id: 'app-api',
+            path: 'api',
+            element: (
+              <LazyLoad>
+                <AppApiPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '访问 API',
+                requiresAuth: true,
+                icon: SquareTerminal,
+              },
+            },
+          },
+          {
+            id: 'app-logs',
+            path: 'logs',
+            element: (
+              <LazyLoad>
+                <AppLogsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '日志',
+                requiresAuth: true,
+                icon: ScrollText,
+              },
+            },
+          },
+        ],
       },
     ],
   },

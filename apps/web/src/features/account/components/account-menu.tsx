@@ -38,17 +38,17 @@ function AccountMenuItem({
   )
 }
 
-export function AccountMenu() {
+export function AccountMenu({ className }: { className?: string }) {
   return (
-    <div className="flex items-center">
+    <div className={cn('flex min-w-0 items-center', className)}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="hover:bg-muted focus-visible:bg-muted active:bg-muted aria-expanded:bg-muted flex w-fit max-w-full min-w-0 cursor-pointer items-center gap-2 rounded-full bg-transparent py-1.5 pr-3 pl-1.5 text-left outline-hidden transition-colors"
+            className="hover:bg-muted focus-visible:bg-muted active:bg-muted aria-expanded:bg-muted inline-flex w-fit max-w-full min-w-0 cursor-pointer items-center rounded-full bg-transparent py-1.5 pr-3 pl-1.5 text-left outline-hidden transition-colors"
           >
             <UserAvatar username={displayName} />
-            <span className="min-w-0 flex-1 truncate pl-2 text-sm font-medium">{displayName}</span>
+            <span className="min-w-0 truncate pl-2 text-sm font-medium">{displayName}</span>
           </button>
         </DropdownMenuTrigger>
 

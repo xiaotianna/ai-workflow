@@ -24,7 +24,7 @@ export function StudioAppGrid({ apps, onAppAction }: StudioAppGridProps) {
             editedAtLabel={app.editedAtLabel}
             description={app.description}
             icon={app.icon}
-            to={`/studio/${encodeURIComponent(app.id)}`}
+            to={`/app/${encodeURIComponent(app.id)}/workflow`}
             linkAriaLabel={`打开应用 ${app.title}`}
             actions={actions}
           />
