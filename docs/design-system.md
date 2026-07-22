@@ -26,11 +26,67 @@
 
 ## 按钮与可点击控件
 
-- Button 默认保留透明边框，以避免聚焦时出现尺寸变化。
-- `focus-visible` 使用 `border-input-focus shadow-sm`，不使用 ring。
+- Button 始终保留边框宽度，以避免聚焦或状态切换时出现尺寸变化。
+- `focus-visible` 使用语义边框和 `shadow-sm`，不使用 ring。
 - Ghost、侧栏菜单等无边框控件以背景色变化呈现聚焦：`focus-visible:bg-accent` 或对应区域的 accent token。
 - Destructive 控件使用 destructive 边框表达校验或聚焦，不叠加外圈光晕。
 - Slider Thumb 使用边框与 `shadow-md` 表达 Hover/Focus，不扩大 ring。
+- 登录、创建、保存、确认等提交型按钮统一使用 `Button` 的 `confirm` variant；普通主操作使用视觉相同的 `default` variant。表单未达到可提交状态时必须设置 `disabled`，不得仅依赖点击后提示。
+- 取消、返回等次级操作使用 `secondary` variant，采用 0.5px 语义边框、半透明背景、`shadow-xs` 与 `backdrop-blur-[5px]`，不得由页面使用 `outline` 临时拼接。
+- 紧凑型表单按钮使用 `size="sm"`，统一为 `h-8 rounded-lg px-3.5 text-[13px] leading-4 font-medium`。
+
+### 主操作按钮状态
+
+| 状态          | 背景                         | 边框/阴影                                  | 文字                      |
+| ------------- | ---------------------------- | ------------------------------------------ | ------------------------- |
+| Default       | `bg-primary`                 | 透明边框、`shadow-xs`                      | `text-primary-foreground` |
+| Hover         | `bg-primary/85`              | 保持边框与阴影                             | 保持原色                  |
+| Focus visible | `bg-primary`                 | `border-primary/55 shadow-sm`，不使用 ring | 保持原色                  |
+| Active        | `bg-primary/70`              | `shadow-none` 并下移 1px                   | 保持原色                  |
+| Disabled      | `bg-button-primary-disabled` | 透明边框、无阴影                           | 保持白色且 `opacity-100`  |
+
+亮色主题的 `--button-primary-disabled` 固定承载登录页使用的 `#dce3ff`，页面不得再次硬编码该颜色。
+
+### 次级按钮状态
+
+| 状态          | 背景                              | 边框                                      | 阴影/文字                  |
+| ------------- | --------------------------------- | ----------------------------------------- | -------------------------- |
+| Default       | `bg-button-secondary-bg`          | `border-button-secondary-border`，0.5px   | `shadow-xs`、正文色        |
+| Hover         | `bg-button-secondary-bg-hover`    | `border-button-secondary-border-hover`    | 保持正文色                 |
+| Focus visible | `bg-button-secondary-bg-hover`    | `border-button-secondary-border-hover`    | `shadow-sm`，不使用 ring   |
+| Active        | `bg-button-secondary-bg-active`   | Hover 边框                                | 无阴影并下移 1px           |
+| Disabled      | `bg-button-secondary-bg-disabled` | `border-button-secondary-border-disabled` | 禁用文字、无阴影、不可点击 |
+
+## 表单布局
+
+- 通用表单布局使用 `packages/ui/src/components/form.tsx` 中的复合组件 `Form` 与 `Form.Field`。
+- `Form` 是原生 `form` 容器，只统一字段间距，不接管值、校验与提交状态。
+- `Form.Field` 使用非点击激活的分组标题统一标签、控件区域、说明和错误信息。实际 Input、Textarea、Select 或业务组件由外部作为 children 传入，字段容器不得克隆或修改这些控件。
+- 必填字段必须显式传入 `required`；未传入或传入 `false` 时，标签文字后自动添加 `（可选）`。
+- 因字段标题不会代理控件点击，外部控件必须提供准确的 `aria-label`，保证无障碍名称完整。
+- 表单校验由使用方负责。提交型按钮的 `disabled` 状态必须与当前表单是否可提交保持一致。
+
+```tsx
+<Form onSubmit={handleSubmit}>
+  <Form.Field required label="应用名称">
+    <Input aria-label="应用名称" />
+  </Form.Field>
+  <Form.Field label="描述">
+    <Textarea aria-label="描述（可选）" />
+  </Form.Field>
+  <Button type="submit" variant="confirm" disabled={!isValid}>
+    创建
+  </Button>
+</Form>
+```
+
+## 文件选择与拖拽
+
+- 单文件拖拽或点击选择统一使用 `packages/ui/src/components/file-dropzone.tsx` 中的 `FileDropzone`。组件基于原生 `input[type="file"]`，业务侧通过 `accept` 限制文件类型，并通过 `file`、`onFileChange` 管理受控状态。
+- 默认态使用浅色背景、圆角虚线边框和上传图标；整个内容区域必须可点击，也必须支持键盘聚焦后按 Enter 或 Space 打开文件选择器。
+- Hover 与 Focus visible 使用 `border-input-focus`、浅色背景和轻阴影；拖拽悬停使用 `border-primary bg-primary/5`；错误态使用 `border-destructive bg-destructive/5`，均不得使用 ring。
+- 选中文件后显示文件名、文件大小与重新选择提示。具体扩展名、大小及业务内容校验由 Feature 负责，错误信息通过 `Form.Field` 的 `error` 属性呈现。
+- 禁用态必须阻止点击和拖放，显示禁用光标与透明度反馈。
 
 ## 浮层与容器
 
@@ -48,6 +104,8 @@
 | `--background` / `bg-background`                 | 输入控件聚焦背景             |
 | `--border` / `border-border`                     | 容器、浮层的静态细边框       |
 | `--destructive` / `border-destructive`           | 错误与危险状态               |
+| `--button-primary-disabled`                      | 主操作按钮禁用背景           |
+| `--button-secondary-*`                           | 次级按钮各交互状态           |
 
 `--ring` 仅作为第三方兼容 token 保留，不应在项目组件样式中使用。若 shadcn 更新重新引入 ring 类，合并前必须按本规范替换。
 
@@ -59,3 +117,7 @@
 - 聚焦时是否没有尺寸变化和布局抖动。
 - 是否复用语义 token，而非硬编码颜色。
 - 是否同时检查亮色与暗色主题。
+- 提交型按钮是否在表单无效时禁用，并使用 `confirm` variant。
+- 取消、返回等操作是否使用 `secondary` variant，状态样式是否未在页面重复覆盖。
+- 非必填的 `Form.Field` 是否自动显示 `（可选）`，外部控件是否提供无障碍名称。
+- 文件上传是否同时支持点击、键盘和拖拽，拖拽与错误状态是否清晰可辨。

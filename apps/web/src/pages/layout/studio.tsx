@@ -1,137 +1,104 @@
-import { cn } from '@ai-workflow/ui/lib/utils'
-import { Bot, ChevronDown, GitBranch, MessageSquare, Plus, Search, Upload } from 'lucide-react'
+import { FileUp } from 'lucide-react'
+import { useState } from 'react'
 
-import { Button } from '@ai-workflow/ui/components/button'
-import { Input } from '@ai-workflow/ui/components/input'
+import {
+  CreateBlankAppDialog,
+  ImportAppDialog,
+  initialStudioApps,
+  StudioAppGrid,
+  StudioToolbar,
+  type CreateStudioAppInput,
+} from '@/features/studio'
 
-type AppType = 'workflow' | 'chatflow'
+const editedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
 
-interface StudioApp {
-  id: string
-  name: string
-  type: AppType
-  editedAt: string
-}
+export default function StudioPage() {
+  const [apps, setApps] = useState(initialStudioApps)
+  const [search, setSearch] = useState('')
+  const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
-const mockApps: StudioApp[] = [
-  {
-    id: '1',
-    name: 'work flow',
-    type: 'workflow',
-    editedAt: '2024/04/30 11:30',
-  },
-  {
-    id: '2',
-    name: 'chat flow',
-    type: 'chatflow',
-    editedAt: '2024/04/30 11:30',
-  },
-]
-
-function FilterButton({ label }: { label: string }) {
-  return (
-    <button
-      type="button"
-      className="border-border bg-background text-foreground hover:bg-muted inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-sm shadow-xs transition-colors"
-    >
-      {label}
-      <ChevronDown className="text-muted-foreground size-3.5" />
-    </button>
-  )
-}
-
-function AppTypeBadge({ type }: { type: AppType }) {
-  if (type === 'workflow') {
+  const normalizedQuery = search.trim().toLowerCase()
+  const visibleApps = apps.filter((app) => {
+    if (!normalizedQuery) return true
     return (
-      <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-        <GitBranch className="size-3" />
-        工作流
-      </span>
+      app.title.toLowerCase().includes(normalizedQuery) ||
+      app.kindLabel.toLowerCase().includes(normalizedQuery)
     )
+  })
+
+  function handleCreateApp(input: CreateStudioAppInput) {
+    setApps((currentApps) => [
+      {
+        id: `local-${Date.now()}`,
+        title: input.title,
+        kind: 'workflow',
+        kindLabel: '工作流',
+        author: 'AI Workflow',
+        editedAtLabel: editedAtFormatter.format(new Date()),
+        description: input.description,
+        icon: input.icon,
+      },
+      ...currentApps,
+    ])
+  }
+
+  function handleImportApp(file: File) {
+    setApps((currentApps) => [
+      {
+        id: `local-import-${Date.now()}`,
+        title: file.name.replace(/\.ya?ml$/i, ''),
+        kind: 'workflow',
+        kindLabel: '工作流',
+        author: 'AI Workflow',
+        editedAtLabel: editedAtFormatter.format(new Date()),
+        description: `由 ${file.name} 导入`,
+        icon: '📦',
+      },
+      ...currentApps,
+    ])
   }
 
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs uppercase">
-      <MessageSquare className="size-3" />
-      Chatflow
-    </span>
-  )
-}
-
-function StudioAppCard({ app }: { app: StudioApp }) {
-  return (
-    <article className="border-border bg-card hover:border-border/80 group flex flex-col rounded-xl border p-4 shadow-xs transition-colors hover:shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-violet-500 via-fuchsia-500 to-orange-400 text-white shadow-sm">
-          <Bot className="size-5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-sm font-semibold">{app.name}</h3>
-            <AppTypeBadge type={app.type} />
-          </div>
+    <div className="flex min-h-full flex-col">
+      <div className="flex h-6 min-w-0 items-center">
+        <div className="flex items-center">
+          <h1 className="text-text-primary text-[18px] font-semibold">工作室</h1>
         </div>
       </div>
 
-      <button
-        type="button"
-        className="border-border text-muted-foreground hover:text-foreground hover:border-border mt-4 inline-flex w-fit items-center gap-1 rounded-md border border-dashed px-2 py-1 text-xs transition-colors"
-      >
-        <Plus className="size-3" />
-        添加标签
-      </button>
+      <StudioToolbar
+        search={search}
+        onSearchChange={setSearch}
+        onCreateBlankApp={() => setCreateDialogOpen(true)}
+        onImportApp={() => setImportDialogOpen(true)}
+      />
 
-      <p className="text-muted-foreground mt-auto pt-4 text-xs">
-        AI Workflow · 编辑于 {app.editedAt}
-      </p>
-    </article>
-  )
-}
+      <CreateBlankAppDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onCreate={handleCreateApp}
+      />
 
-export default function StudioPage() {
-  return (
-    <div className="flex min-h-full flex-col px-8 py-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">工作室</h1>
-      </header>
+      <ImportAppDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportApp}
+      />
 
-      <div className="mb-6 flex flex-wrap items-center gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <FilterButton label="类型" />
-          <FilterButton label="标签" />
-          <FilterButton label="创建者" />
-          <button
-            type="button"
-            className="border-border bg-background text-foreground hover:bg-muted inline-flex h-8 items-center gap-1 rounded-lg border px-2.5 text-sm shadow-xs transition-colors"
-          >
-            <span className="text-muted-foreground">排序方式</span>
-            最近修改
-            <ChevronDown className="text-muted-foreground size-3.5" />
-          </button>
-        </div>
+      <StudioAppGrid apps={visibleApps} />
 
-        <div className="relative min-w-[180px] flex-1 sm:max-w-xs">
-          <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input className="bg-background pl-8" placeholder="搜索" />
-        </div>
-
-        <Button className={cn('ml-auto shrink-0 gap-1 rounded-lg')}>
-          <Plus className="size-4" />
-          创建
-          <ChevronDown className="size-3.5 opacity-80" />
-        </Button>
-      </div>
-
-      <div className="grid flex-1 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-        {mockApps.map((app) => (
-          <StudioAppCard key={app.id} app={app} />
-        ))}
-      </div>
-
-      <footer className="text-muted-foreground mt-10 flex items-center justify-center gap-2 py-6 text-sm">
-        <Upload className="size-4" />
+      <p className="text-muted-foreground mt-auto flex items-center justify-center gap-1.5 px-8 pt-10 pb-2 text-xs">
+        <FileUp className="size-3.5 shrink-0 opacity-80" />
         拖放 DSL 文件到此处创建应用
-      </footer>
+      </p>
     </div>
   )
 }

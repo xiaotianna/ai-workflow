@@ -1,13 +1,8 @@
-import { useState } from 'react'
-
-import { Button } from '@ai-workflow/ui/components/button'
-import { Input } from '@ai-workflow/ui/components/input'
 import { Separator } from '@ai-workflow/ui/components/separator'
 
-export default function AuthPage() {
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
+import { AuthForm } from '@/features/auth'
 
+export default function AuthPage() {
   return (
     <main className="h-svh w-svw bg-[#edeef2] p-3 sm:p-6">
       <div className="border-border/50 bg-background relative flex h-full w-full shrink-0 items-center justify-center rounded-2xl border px-5">
@@ -30,48 +25,7 @@ export default function AuthPage() {
             </p>
           </header>
 
-          <form className="space-y-2" onSubmit={(event) => event.preventDefault()}>
-            <div className="flex flex-col space-y-1">
-              <label htmlFor="phone" className="text-foreground text-sm font-medium">
-                手机号
-              </label>
-              <Input
-                id="phone"
-                name="phone"
-                type="tel"
-                inputMode="tel"
-                autoComplete="tel"
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="输入手机号"
-                className="bg-muted/80 focus-visible:bg-background h-8 rounded-lg border-transparent px-3 text-sm shadow-none"
-              />
-            </div>
-
-            <div className="flex flex-col space-y-1">
-              <label htmlFor="password" className="text-foreground text-sm font-medium">
-                密码
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="输入密码"
-                className="bg-muted/80 focus-visible:bg-background h-8 rounded-lg border-transparent px-3 text-sm shadow-none"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              disabled={!phone.trim() || !password}
-              className="h-8 w-full rounded-lg text-sm font-medium disabled:bg-[#dce3ff] disabled:opacity-100"
-            >
-              登录
-            </Button>
-          </form>
+          <AuthForm />
           <Separator
             className="mx-auto mt-4 w-[20%]"
             style={{

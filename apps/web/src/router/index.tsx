@@ -1,4 +1,5 @@
 import { lazy } from 'react'
+import { BookMarked, Computer, ToolCase } from 'lucide-react'
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
 
 import App from '../App'
@@ -59,6 +60,7 @@ export const routes = [
               meta: {
                 title: '工作室',
                 requiresAuth: true,
+                icon: Computer,
               },
             },
           },
@@ -74,6 +76,7 @@ export const routes = [
               meta: {
                 title: '知识库',
                 requiresAuth: true,
+                icon: BookMarked,
               },
             },
           },
@@ -89,6 +92,7 @@ export const routes = [
               meta: {
                 title: '插件',
                 requiresAuth: true,
+                icon: ToolCase,
               },
             },
           },
