@@ -19,6 +19,7 @@
     "@ai-workflow/nodes-ui": "workspace:*",
     "@ai-workflow/shared": "workspace:*",
     "@ai-workflow/ui": "workspace:*",
+    "@xyflow/react": "^12.11.2",
     "class-variance-authority": "^0.7.1",
     "radix-ui": "^1.4.3",
     "react": "^19.2.5",

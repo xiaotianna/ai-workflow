@@ -94,7 +94,7 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
                 <Link to="/studio" aria-label="返回">
                   <ChevronLeft aria-hidden />
                   <span className="mr-1">/</span>
-                  <span>工作室</span>
+                  <span className="pr-1.5">工作室</span>
                 </Link>
               </Button>
               <div className="hover:bg-muted flex w-full items-start gap-2 rounded-xl p-2 transition-colors">

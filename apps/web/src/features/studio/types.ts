@@ -1,4 +1,4 @@
-import type { ResourceKind } from '@/components/resource-card'
+import type { ResourceKind } from '@/components/card/resource-card'
 
 export interface StudioAppListItem {
   id: string

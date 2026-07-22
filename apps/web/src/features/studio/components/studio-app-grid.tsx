@@ -1,4 +1,4 @@
-import { ResourceCard } from '@/components/resource-card'
+import { ResourceCard } from '@/components/card/resource-card'
 
 import type { StudioAppActionHandler, StudioAppListItem } from '../types'
 import { getStudioAppActions } from './studio-app-actions'

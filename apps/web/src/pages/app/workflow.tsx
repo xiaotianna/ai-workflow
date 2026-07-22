@@ -1,47 +1,166 @@
-import { Button } from '@ai-workflow/ui/components/button'
-import { Play, Plus, Sparkles } from 'lucide-react'
+import type { WorkflowCanvasNode } from '@/components/workflow/types'
+import { WorkflowCanvas } from '@/components/workflow/workflow-canvas'
+import { createDemoWorkflowDocument } from '@/features/workflow/data'
+import { canConnect } from '@/utils/workflow/can-connect'
+import { toCanvasNodes } from '@/utils/workflow/to-canvas-nodes'
+import type { WorkflowEdge } from '@ai-workflow/core'
+import {
+  useEdgesState,
+  useNodesState,
+  type Connection,
+  type EdgeChange,
+  type NodeChange,
+  type Viewport,
+} from '@xyflow/react'
+import { useState } from 'react'
+
+const initialDocument = createDemoWorkflowDocument('1')
+
+function handleConnect(_connection: Connection) {
+  // if (!canConnect(connection, initialDocument.workflow, nodes, edges)) return
+  // const nextEdge = createWorkflowEdge(connection)
+  // if (!nextEdge) return
+  // setEdges((currentEdges) => [...currentEdges, nextEdge])
+  // setDirty(true)
+}
 
 export default function AppWorkflowPage() {
-  return (
-    <section className="flex min-h-full flex-col">
-      <header className="flex shrink-0 items-center justify-between px-6 pt-5 pb-4">
-        <div>
-          <h2 className="text-lg font-semibold">编排</h2>
-          <p className="text-muted-foreground mt-0.5 text-xs">设计并调试工作流节点</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm">
-            <Play aria-hidden data-icon="inline-start" />
-            运行
-          </Button>
-          <Button variant="confirm" size="sm">
-            发布
-          </Button>
-        </div>
-      </header>
+  const [nodes, , applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
+    toCanvasNodes(initialDocument),
+  )
+  const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
+    ...initialDocument.workflow.edges,
+  ])
+  const [, setViewport] = useState<Viewport | undefined>(initialDocument.layout.viewport)
+  const [selectedNodeId, setSelectedNodeId] = useState<string>()
+  // const [dirty, setDirty] = useState(false)
+  // const [saving, setSaving] = useState(false)
+  // const [errors, setErrors] = useState<string[]>([])
+  // const updateNodeInternals = useUpdateNodeInternals()
 
-      <div className="flex min-h-0 flex-1 p-4 pt-0">
-        <div className="border-border bg-muted/25 relative flex min-h-[min(640px,calc(100svh-12rem))] flex-1 items-center justify-center overflow-hidden rounded-2xl border [background-image:radial-gradient(var(--border)_1px,transparent_1px)] [background-size:18px_18px]">
-          <div className="border-border bg-card relative z-1 w-72 rounded-2xl border p-4 shadow-xs">
-            <div className="flex items-center gap-3">
-              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-xl">
-                <Sparkles aria-hidden className="size-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold">开始</h3>
-                <p className="text-muted-foreground text-xs">配置工作流输入变量</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="border-border text-muted-foreground hover:bg-muted focus-visible:bg-muted mt-4 flex h-9 w-full cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed text-xs outline-hidden transition-colors"
-            >
-              <Plus aria-hidden className="size-3.5" />
-              添加节点
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
+  // const availableNodeTypes = nodeRegistry.list()
+  // const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
+  // const selectedNode: WorkflowNode | undefined = selectedCanvasNode
+  //   ? {
+  //       id: selectedCanvasNode.id,
+  //       type: selectedCanvasNode.type,
+  //       config: selectedCanvasNode.data
+  //     }
+  //   : undefined
+
+  function handleNodesChange(changes: NodeChange<WorkflowCanvasNode>[]) {
+    applyNodeChanges(changes)
+    // if (hasNodeMutation(changes)) setDirty(true)
+  }
+
+  function handleEdgesChange(changes: EdgeChange<WorkflowEdge>[]) {
+    applyEdgeChanges(changes)
+    // if (hasEdgeMutation(changes)) setDirty(true)
+  }
+
+  function handleNodesDelete(deletedNodes: WorkflowCanvasNode[]) {
+    const deletedNodeIds = new Set(deletedNodes.map((node) => node.id))
+
+    setEdges((currentEdges) =>
+      currentEdges.filter(
+        (edge) => !deletedNodeIds.has(edge.source) && !deletedNodeIds.has(edge.target),
+      ),
+    )
+
+    if (selectedNodeId && deletedNodeIds.has(selectedNodeId)) {
+      setSelectedNodeId(undefined)
+    }
+
+    // setDirty(true)
+  }
+
+  // function handleDeleteSelectedNode() {
+  //   if (!selectedNodeId) return
+
+  //   setNodes((currentNodes) =>
+  //     currentNodes.filter((node) => node.id !== selectedNodeId)
+  //   )
+  //   setEdges((currentEdges) =>
+  //     currentEdges.filter(
+  //       (edge) =>
+  //         edge.source !== selectedNodeId && edge.target !== selectedNodeId
+  //     )
+  //   )
+  //   setSelectedNodeId(undefined)
+  //   setDirty(true)
+  // }
+
+  // function handleApplyNode(nextNode: WorkflowNode) {
+  //   setNodes((currentNodes) =>
+  //     currentNodes.map((canvasNode) =>
+  //       canvasNode.id === nextNode.id
+  //         ? { ...canvasNode, type: nextNode.type, data: nextNode.config }
+  //         : canvasNode
+  //     )
+  //   )
+  //   // setEdges((currentEdges) => removeDanglingEdges(nextNode, currentEdges))
+  //   setDirty(true)
+
+  //   requestAnimationFrame(() => updateNodeInternals(nextNode.id))
+  // }
+
+  function handleViewportChange(nextViewport: Viewport, _userInitiated: boolean) {
+    setViewport(nextViewport)
+    // if (userInitiated) setDirty(true)
+  }
+
+  // async function handleSave() {
+  //   const rawWorkflow = toWorkflow(initialDocument.workflow, nodes, edges)
+  //   const parsedWorkflow = workflowSchema.safeParse(rawWorkflow)
+
+  //   if (!parsedWorkflow.success) {
+  //     setErrors(
+  //       parsedWorkflow.error.issues.map(
+  //         (issue) => `${issue.path.join('.') || 'workflow'}：${issue.message}`
+  //       )
+  //     )
+  //     return
+  //   }
+
+  //   // const validationIssues = validateWorkflow(parsedWorkflow.data, nodeRegistry)
+
+  //   if (validationIssues.length > 0) {
+  //     setErrors(validationIssues.map((issue) => issue.message))
+  //     return
+  //   }
+
+  //   setSaving(true)
+  //   setErrors([])
+
+  //   try {
+  //     // await onSave({
+  //     //   workflow: parsedWorkflow.data,
+  //     //   layout: toEditorLayout(nodes, viewport)
+  //     // })
+  //     setDirty(false)
+  //   } catch (error) {
+  //     setErrors([error instanceof Error ? error.message : '保存工作流失败'])
+  //   } finally {
+  //     setSaving(false)
+  //   }
+  // }
+
+  return (
+    <>
+      <WorkflowCanvas
+        nodes={nodes}
+        edges={edges}
+        initialViewport={initialDocument.layout.viewport}
+        onNodesChange={handleNodesChange}
+        onEdgesChange={handleEdgesChange}
+        onConnect={handleConnect}
+        isValidConnection={(connection) =>
+          canConnect(connection, initialDocument.workflow, nodes, edges)
+        }
+        onNodesDelete={handleNodesDelete}
+        onSelectedNodeChange={setSelectedNodeId}
+        onViewportChange={handleViewportChange}
+      />
+    </>
   )
 }
