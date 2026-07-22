@@ -28,7 +28,8 @@ export interface WorkflowEditorSnapshot {
      }
    */
   layout: {
-    positions?: Record<string, XYPosition>
+    // 'id': { x: xx, y: xx }
+    positions: Record<string, XYPosition>
     viewport?: Viewport
   }
 }

@@ -1,6 +1,10 @@
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { conditionNode, startNode } from '@ai-workflow/core'
 
+/**
+ * 为指定应用创建一份本地演示文档。
+ * appId 只用于描述归属，Workflow.id 始终单独生成。
+ */
 export function createDemoWorkflowDocument(appId: string): WorkflowEditorSnapshot {
   const workflowId = crypto.randomUUID()
   const startId = crypto.randomUUID()
