@@ -2,3 +2,8 @@
 
 /* @source 是 Tailwind v4 的“扫描路径声明” */
 @source './';
+
+.workflow-editor .react-flow__panel {
+  /* 1rem -> 16px -> m-4 */
+  margin: 0.5rem;
+}
