@@ -4,8 +4,14 @@ import { WorkflowCanvasToolbar } from './workflow-canvas-toolbar'
 import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
+import type { NodeType } from '@ai-workflow/core'
 
-export const WorkflowPanel = () => {
+interface WorkflowPanelProps {
+  nodeTypes: readonly NodeType[]
+  onAddNode: (type: string) => void
+}
+
+export const WorkflowPanel = ({ nodeTypes, onAddNode }: WorkflowPanelProps) => {
   return (
     <>
       {/* 左上状态栏 */}
@@ -18,7 +24,7 @@ export const WorkflowPanel = () => {
       </Panel>
       {/* 底部工具栏 */}
       <Panel position="bottom-center">
-        <WorkflowCanvasToolbar />
+        <WorkflowCanvasToolbar nodeTypes={nodeTypes} onAddNode={onAddNode} />
       </Panel>
       {/* 左下角视图调整 */}
       <Panel position="bottom-left">

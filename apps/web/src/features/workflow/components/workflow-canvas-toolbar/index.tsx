@@ -2,6 +2,7 @@ import type { ComponentProps } from 'react'
 import { AddNode } from './add-node'
 import { OpenAIPanel } from './open-ai-panel'
 import { cn } from '@ai-workflow/ui/lib/utils'
+import type { NodeType } from '@ai-workflow/core'
 
 export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'div'>) => (
   <div
@@ -16,11 +17,16 @@ export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'di
   />
 )
 
-export const WorkflowCanvasToolbar = () => {
+interface WorkflowCanvasToolbarProps {
+  nodeTypes: readonly NodeType[]
+  onAddNode: (type: string) => void
+}
+
+export const WorkflowCanvasToolbar = ({ nodeTypes, onAddNode }: WorkflowCanvasToolbarProps) => {
   return (
     <WorkflowToolbarGroup aria-label="运行操作">
       {/* 添加节点按钮 */}
-      <AddNode />
+      <AddNode nodeTypes={nodeTypes} onAddNode={onAddNode} />
       {/* 打开ai面板 */}
       <OpenAIPanel />
     </WorkflowToolbarGroup>

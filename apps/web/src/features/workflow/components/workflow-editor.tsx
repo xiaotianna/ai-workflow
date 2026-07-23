@@ -4,6 +4,7 @@ import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import type { WorkflowEdge } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
+import { useRef } from 'react'
 import '@xyflow/react/dist/style.css'
 
 interface WorkflowEditorProps {
@@ -12,9 +13,12 @@ interface WorkflowEditorProps {
 }
 
 export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps) {
-  const editor = useWorkflowEditor({ initialSnapshot, onSave })
+  const canvasRef = useRef<HTMLDivElement>(null)
+  const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
+
   return (
     <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
+      ref={canvasRef}
       nodes={editor.nodes}
       edges={editor.edges}
       nodeTypes={workflowNodeTypes}
@@ -38,7 +42,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
       className="bg-muted/30 workflow-editor"
     >
       {/* 总面板组件 */}
-      <WorkflowPanel />
+      <WorkflowPanel nodeTypes={editor.availableNodeTypes} onAddNode={editor.addNode} />
       {/* 背景 */}
       <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
     </ReactFlow>
