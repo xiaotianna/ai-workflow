@@ -7,3 +7,11 @@
   /* 1rem -> 16px -> m-4 */
   margin: 0.5rem;
 }
+
+.workflow-editor.react-flow {
+  --xy-edge-stroke: var(--workflow-edge);
+  --xy-edge-stroke-width: 2.5;
+  --xy-edge-stroke-selected: var(--primary);
+  --xy-connectionline-stroke: var(--workflow-edge);
+  --xy-connectionline-stroke-width: 2.5;
+}

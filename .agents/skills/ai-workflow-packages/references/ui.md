@@ -24,6 +24,7 @@ import '@ai-workflow/ui/globals.css'
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`。
 - 布局与反馈：`Sidebar`、`Separator`、`Skeleton`。
 - Hook：`useIsMobile`。
+- 业务界面共享 token：`--workflow-edge` 用于工作流画布普通连线。
 
 ## 使用规范
 

@@ -103,6 +103,7 @@
 | `--input` / `bg-input`                           | 输入控件失焦背景             |
 | `--input-focus` / `border-input-focus`           | 输入控件与通用控件的聚焦边框 |
 | `--input-placeholder` / `text-input-placeholder` | 输入提示文字                 |
+| `--workflow-edge` / `text-workflow-edge`         | 工作流画布普通连线           |
 | `--background` / `bg-background`                 | 输入控件聚焦背景             |
 | `--border` / `border-border`                     | 容器、浮层的静态细边框       |
 | `--destructive` / `border-destructive`           | 错误与危险状态               |

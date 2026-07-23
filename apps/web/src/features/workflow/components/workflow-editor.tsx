@@ -1,5 +1,5 @@
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
-import { Background, ReactFlow, ReactFlowProvider } from '@xyflow/react'
+import { Background, ConnectionLineType, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import type { WorkflowEdge } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
@@ -18,6 +18,8 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
       nodes={editor.nodes}
       edges={editor.edges}
       nodeTypes={workflowNodeTypes}
+      defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
+      connectionLineType={ConnectionLineType.Bezier}
       proOptions={{ hideAttribution: true }}
       onNodesChange={editor.handleNodesChange}
       // defaultViewport={initialViewport}

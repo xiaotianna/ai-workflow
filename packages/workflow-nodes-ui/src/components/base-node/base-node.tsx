@@ -56,8 +56,8 @@ export function BaseNode({
     >
       <div
         className={cn(
-          'bg-card border-border overflow-hidden rounded-[15px] border transition-[border-color,background-color]',
-          selected && 'border-primary',
+          'bg-card border-border/30 overflow-hidden rounded-[15px] border shadow-xs transition-[border-color,background-color]',
+          selected && 'border-primary border-[1.5px]',
         )}
       >
         {/* Header */}

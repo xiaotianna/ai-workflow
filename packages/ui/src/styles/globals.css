@@ -37,6 +37,7 @@
   --color-input-focus: var(--input-focus);
   --color-input-placeholder: var(--input-placeholder);
   --color-input: var(--input);
+  --color-workflow-edge: var(--workflow-edge);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
@@ -84,6 +85,7 @@
   --input: oklch(0.965 0.006 260);
   --input-focus: oklch(0.855 0.012 260);
   --input-placeholder: oklch(0.69 0.03 257);
+  --workflow-edge: oklch(0.88 0.012 260);
   --ring: var(--input-focus);
   --button-primary-disabled: #dce3ff;
   --button-secondary-border: oklch(0.9 0.006 260 / 90%);
@@ -131,6 +133,7 @@
   --input: oklch(1 0 0 / 10%);
   --input-focus: oklch(1 0 0 / 24%);
   --input-placeholder: oklch(0.72 0.02 257);
+  --workflow-edge: oklch(1 0 0 / 26%);
   --ring: var(--input-focus);
   --button-primary-disabled: oklch(0.38 0.09 263);
   --button-secondary-border: oklch(1 0 0 / 14%);

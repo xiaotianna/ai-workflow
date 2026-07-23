@@ -1,5 +1,5 @@
-import { PortMap } from '@ai-workflow/core'
-import { NodePortRender } from '../../contracts/node-content'
+import type { PortMap } from '@ai-workflow/core'
+import type { NodePortRender } from '../../contracts/node-content'
 import { cn } from '@ai-workflow/ui/lib/utils'
 
 interface NodePortsRenderProps {
@@ -17,7 +17,7 @@ export const NodePortsRender = ({ nodeId, direction, ports, renderPort }: NodePo
         return (
           <div
             key={`${direction}:${portId}`}
-            className={cn('absolute z-10', direction === 'input' ? '-left-1.5' : '-right-1.5')}
+            className={cn('absolute z-10', direction === 'input' ? 'left-0' : 'right-0')}
             style={{ top: `${56 + index * 28}px` }}
           >
             {renderPort ? (
@@ -30,7 +30,10 @@ export const NodePortsRender = ({ nodeId, direction, ports, renderPort }: NodePo
             ) : (
               <span
                 title={port.label ?? portId}
-                className="block h-3 w-3 rounded-full border-2 border-white bg-blue-500 shadow"
+                className={cn(
+                  'bg-primary block h-5 w-1 -translate-y-1/2 rounded-[1px]',
+                  direction === 'input' ? '-translate-x-1/2' : 'translate-x-1/2',
+                )}
               />
             )}
           </div>
