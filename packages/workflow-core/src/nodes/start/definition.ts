@@ -7,6 +7,7 @@ export const startNodeDefinition = {
   label: '开始',
   description: '工作流的起始节点',
   icon: 'play',
+  theme: '#3072ff',
   ports: {
     // 开始节点没有上游
     inputs: {},

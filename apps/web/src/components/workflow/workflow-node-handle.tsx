@@ -9,8 +9,7 @@ export const WorkflowNodeHandle = ({ direction, port, portId }: NodePortRenderPr
       type={direction === 'input' ? 'target' : 'source'}
       position={direction === 'input' ? Position.Left : Position.Right}
       title={port.label ?? portId}
-      style={direction === 'input' ? { left: -2 } : { right: -2 }}
-      className="bg-primary! h-3.5! min-h-0! w-1! min-w-0! rounded-[1.5px]! border-0! after:absolute after:-inset-x-2 after:-inset-y-1.5 after:content-['']"
+      className="bg-primary! h-2! min-h-0! w-0.75! min-w-0! rounded-[1px]! border-0! after:absolute after:-inset-x-2 after:-inset-y-1.5 after:content-['']"
     />
   )
 }
