@@ -6,7 +6,7 @@ export const conditionNodeDefinition = {
   type: BuiltinNodeType.CONDITION,
   label: '条件分支',
   description: '根据条件将工作流路由到不同分支',
-  icon: 'git-branch',
+  icon: BuiltinNodeType.CONDITION,
   ports: {
     // 左侧handler只有一个端点，叫做entry
     inputs: {

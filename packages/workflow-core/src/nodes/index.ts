@@ -6,7 +6,7 @@ import { startNode } from './start'
 
 export const builtinNodeStrategies = {
   [BuiltinNodeType.START]: startNode,
-  //   [BuiltinNodeType.END]: endNode,
+  // [BuiltinNodeType.END]: endNode,
   //   [BuiltinNodeType.LLM]: llmNode,
   //   [BuiltinNodeType.HTTP]: httpNode,
   [BuiltinNodeType.CONDITION]: conditionNode,

@@ -6,8 +6,8 @@ export const startNodeDefinition = {
   type: BuiltinNodeType.START,
   label: '开始',
   description: '工作流的起始节点',
-  icon: 'play',
-  theme: '#3072ff',
+  icon: BuiltinNodeType.START,
+  theme: '#085afc',
   ports: {
     // 开始节点没有上游
     inputs: {},
