@@ -42,6 +42,7 @@
     "import/consistent-type-specifier-style": "off",
     "unicorn/no-null": "off",
     "eslint/no-new": "off",
+    "eslint/no-continue": "off",
     "eslint/no-unused-vars": [
       "error",
       {

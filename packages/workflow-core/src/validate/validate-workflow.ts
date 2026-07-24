@@ -2,6 +2,7 @@ import { NodeRegistry } from '../node'
 import type { Workflow } from '../workflow/workflow-schema'
 import { validateAcyclicWorkflow } from './validate-cycle'
 import { validateEdges } from './validate-edge'
+import { validateLoopStructure } from './validate-loop-structure'
 import { validateNodes, validateRequiredNodeInputs } from './validate-node'
 import type {
   EdgeValidationResult,
@@ -25,6 +26,9 @@ const collectWorkflowValidationResult = (
   const report: ReportValidationIssueFn = (issue) => issues.push(issue)
   const nodes = validateNodes(workflow.nodes, registry, report)
   const edges = validateEdges(workflow.edges, nodes, report)
+
+  // 校验loop是否合法
+  validateLoopStructure(workflow.nodes, workflow.edges, report)
 
   return { issues, nodes, edges }
 }

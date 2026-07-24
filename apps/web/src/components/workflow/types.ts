@@ -31,6 +31,8 @@ export interface WorkflowEditorSnapshot {
     // 'id': { x: xx, y: xx }
     positions: Record<string, XYPosition>
     viewport?: Viewport
+    // 只需要保存loop容器尺寸
+    sizes?: Record<string, { width: number; height: number }>
   }
 }
 

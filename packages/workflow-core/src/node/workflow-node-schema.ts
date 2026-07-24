@@ -27,6 +27,8 @@ export const workflowNodeSchema = z.object({
    * chatNode.schema.parse(node.config) -> schema.parse由zod提供，可以用safeParse
    */
   config: z.record(z.string(), z.unknown()).default({}),
+  // 节点所属的父容器节点id，当前仅用于表示loop内的子节点，值为对应loop节点的id
+  parentId: z.string().min(1).optional()
 })
 
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>
