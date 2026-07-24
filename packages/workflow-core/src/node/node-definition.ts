@@ -8,8 +8,6 @@ export interface NodeDefinition {
   description?: string
   // icon如果在map中没有注册，就渲染成img
   icon?: string
-  // 节点颜色
-  theme?: string
 
   // 输入输出端口
   ports: {

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { workflowNodeSchema } from '../node/workflow-node-schema'
 import { workflowEdgeSchema } from '../edge/workflow-edge-schema'
+import { workflowOutputsSchema } from './workflow-output-schema'
 
 // 整个工作流实例
 export const workflowSchema = z.object({
@@ -9,6 +10,7 @@ export const workflowSchema = z.object({
   description: z.string().optional(),
   nodes: z.array(workflowNodeSchema),
   edges: z.array(workflowEdgeSchema),
+  outputs: workflowOutputsSchema.default([]),
 })
 
 export type Workflow = z.infer<typeof workflowSchema>

@@ -27,6 +27,10 @@ import {
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
+- 变量设计提案中的 `VariableValue` 只区分直接值和引用值；节点引用通过
+  `nodeId + portId + path` 定位，`path: []` 读取整个端口值，非空 `path` 读取嵌套字段。
+- 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
+  End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段。
 - 当前正式注册的内置节点只有 `start` 和 `condition`；end、http、llm 目录中的空文件或草稿不代表可用节点。
 
 ## 新增节点
@@ -55,6 +59,9 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 ## 注意事项
 
 - Core 不依赖 React、NestJS、Prisma、Redis 或具体运行时。
+- `src/variable/workflow-node-port-variable-design.md` 仍是设计提案，变量值解析 Runtime 尚未实现。
+- `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
+  `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
 - `package.json` 当前未声明源码直接使用的 Zod 依赖；维护 manifest 时应补齐直接依赖，不能依靠根目录提升。
 - `BaseFieldSchema.defaultValue` 已废弃，实际节点默认配置来源是 `NodeType.createInitialConfig()`。
 - `src/node/get-node-ports使用文档.md` 和 `src/validate/validate使用.md` 是补充示例；示例与当前 API 不一致时以源码为准并同步更新文档。

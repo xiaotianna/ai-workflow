@@ -24,6 +24,10 @@
 
 - 执行器通过注册表扩展，不在调度循环中硬编码节点类型。
 - 使用 edge 的 source、target 和 handle 显式传值，不依赖数组顺序。
+- 最终结果直接解析 `Workflow.outputs[].value` 并按字段 `key` 组装；End 只表示当前路径结束，
+  不重复保存最终输出配置。
+- 子工作流执行结果必须符合被调用 Workflow 的公开输出字段，调用方不能读取其内部
+  `value` 引用或依赖内部 End 实现。
 - 运行时不修改已保存的 Workflow 或节点配置。
 - 外部副作用、日志、持久化和检查点通过显式接口注入。
 - NestJS 负责应用生命周期和依赖注入；Prisma、Redis、LangGraph 通过适配器接入。

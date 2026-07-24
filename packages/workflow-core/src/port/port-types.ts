@@ -2,7 +2,7 @@ import { DataType } from './data-types'
 
 // 端口定义
 export interface PortDefinition {
-  // 上游的值
+  // 上游的值类型
   readonly dataType: DataType
   // 是否必填
   readonly required?: boolean

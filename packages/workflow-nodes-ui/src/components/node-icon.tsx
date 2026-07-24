@@ -1,5 +1,5 @@
 import type { LucideProps } from 'lucide-react'
-import { NODE_ICONS, NodeIconName } from './icon-map'
+import { NODE_ICONS, NodeIconName } from '../common/node-icon-map'
 
 export interface NodeIconProps extends Omit<LucideProps, 'ref'> {
   icon?: string

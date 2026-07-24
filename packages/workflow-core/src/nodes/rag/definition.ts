@@ -1,10 +1,22 @@
-import { NodeDefinition } from '../../node/node-definition'
+import { createNodeDefinition } from '../../node/create-node-definition'
+import { DATA_TYPE_KINDS } from '../../port/data-types'
 import { BuiltinNodeType } from '../builtin-node-types'
 
-export const ragNodeDefinition = {
+export const ragNodeDefinition = createNodeDefinition({
   type: BuiltinNodeType.RAG,
   label: '知识库检索',
-  description: '',
+  description: '从指定知识库中检索相关内容',
   icon: BuiltinNodeType.RAG,
-  theme: '#B9E6C7',
-} satisfies NodeDefinition
+  inputPort: {
+    id: 'query',
+    label: '检索内容',
+    dataType: DATA_TYPE_KINDS.STRING,
+    required: true,
+  },
+  outputPort: {
+    id: 'documents',
+    label: '检索结果',
+    dataType: DATA_TYPE_KINDS.JSON,
+    multiple: true,
+  },
+})
