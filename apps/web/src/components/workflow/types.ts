@@ -45,12 +45,20 @@ export interface WorkflowEditorSnapshot {
   type: 'start',
   position: { x: 100, y: 100 },
   data: {
-    ...(core node).config
+    config: (core node).config,
+    inputs: (core node).inputs,
+    outputs: (core node).outputs,
   },
 
-  WorkflowNode['config'] => 节点定义的schema
+  data.config => 节点定义的schema
 }
  */
-export interface WorkflowCanvasNode extends Node<WorkflowNode['config']> {
+export interface WorkflowCanvasNodeData extends Record<string, unknown> {
+  config: WorkflowNode['config']
+  inputs: WorkflowNode['inputs']
+  outputs: WorkflowNode['outputs']
+}
+
+export interface WorkflowCanvasNode extends Node<WorkflowCanvasNodeData> {
   type: WorkflowNode['type']
 }

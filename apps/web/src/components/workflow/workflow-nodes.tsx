@@ -15,7 +15,14 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
 
   return (
     <RenderNode
-      node={{ id, type, config: data, parentId }}
+      node={{
+        id,
+        type,
+        config: data.config,
+        inputs: data.inputs,
+        outputs: data.outputs,
+        parentId,
+      }}
       nodeRegistry={nodeRegistry}
       uiRegistry={nodeUIRegistry}
       selected={selected}

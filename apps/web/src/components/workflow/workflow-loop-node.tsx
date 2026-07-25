@@ -27,7 +27,7 @@ function LoopAddNodeMenu({ loopId }: { loopId: string }) {
 }
 
 export function WorkflowLoopNode({ id, data, selected }: NodeProps<WorkflowCanvasNode>) {
-  const ports = getNodePorts(loopNode, data)
+  const ports = getNodePorts(loopNode, data.config)
   const inputPort = ports.inputs.input
   const resultPort = ports.outputs.result
 
@@ -46,7 +46,7 @@ export function WorkflowLoopNode({ id, data, selected }: NodeProps<WorkflowCanva
         <div>
           <div className="text-sm font-semibold">循环</div>
           <div className="text-muted-foreground text-xs">
-            最大循环次数：{String(data.maxIterations ?? 100)}
+            最大循环次数：{String(data.config.maxIterations ?? 100)}
           </div>
         </div>
       </header>

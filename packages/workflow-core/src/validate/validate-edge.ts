@@ -133,27 +133,6 @@ const resolveEdgePorts = (
   return output && input ? { output, input } : undefined
 }
 
-// 校验源输出和目标输出的数据类型是否一致
-const validateSameDataTypes = (
-  edge: WorkflowEdge,
-  ports: ResolveEdgePorts,
-  report: ReportValidationIssueFn,
-): boolean => {
-  if (ports.output.dataType === ports.input.dataType) {
-    return true
-  }
-
-  report({
-    scope: 'edge',
-    edgeId: edge.id,
-    field: 'targetHandle',
-    nodeId: edge.target,
-    portId: edge.targetHandle,
-    message: `端口数据类型不兼容：${ports.output.dataType} -> ${ports.input.dataType}`,
-  })
-  return false
-}
-
 // 将指定端点的连接数加一，并返回递增后的连接数【辅助函数】
 const addPortConnectionCount = (
   counts: PortConnectionCounts,
@@ -227,7 +206,7 @@ const validateEdge = (
   }
 
   const ports = resolveEdgePorts(edge, nodes, report)
-  if (!ports || !validateSameDataTypes(edge, ports, report)) {
+  if (!ports) {
     return false
   }
 

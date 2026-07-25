@@ -7,7 +7,7 @@ const variablePathSchema = z.array(z.string().trim().min(1)).default([])
 const nodeVariableReferenceSchema = z.object({
   scope: z.literal('node'),
   nodeId: z.string().trim().min(1),
-  portId: z.string().trim().min(1),
+  outputKey: z.string().trim().min(1),
   path: variablePathSchema,
 })
 

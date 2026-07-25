@@ -4,6 +4,7 @@ import { validateAcyclicWorkflow } from './validate-cycle'
 import { validateEdges } from './validate-edge'
 import { validateLoopStructure } from './validate-loop-structure'
 import { validateNodes, validateRequiredNodeInputs } from './validate-node'
+import { validateVariableReferences } from './validate-variable-references'
 import type {
   EdgeValidationResult,
   NodeValidationResult,
@@ -29,6 +30,8 @@ const collectWorkflowValidationResult = (
 
   // 校验loop是否合法
   validateLoopStructure(workflow.nodes, workflow.edges, report)
+  // 校验节点输入只能引用执行路径中的上游输出变量
+  validateVariableReferences(workflow.nodes, edges.resolvedEdges, nodes, report)
 
   return { issues, nodes, edges }
 }

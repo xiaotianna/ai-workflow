@@ -46,7 +46,11 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
           id: workflowNode.id,
           type: workflowNode.type,
           position: snapshot.layout.positions[workflowNode.id] ?? getDefaultNodePosition(index),
-          data: workflowNode.config,
+          data: {
+            config: workflowNode.config,
+            inputs: workflowNode.inputs,
+            outputs: workflowNode.outputs,
+          },
           parentId: workflowNode.parentId,
           // extent、expandParent都react flow支持的属性
           // 限制子节点在父容器内（不能拖拽出容器）
@@ -74,7 +78,9 @@ export const toWorkflowNode = (node: WorkflowCanvasNode): WorkflowNode => {
   return {
     id: node.id,
     type: node.type,
-    config: node.data,
+    config: node.data.config,
+    inputs: node.data.inputs,
+    outputs: node.data.outputs,
     ...(node.parentId ? { parentId: node.parentId } : {}),
   }
 }

@@ -32,12 +32,19 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         connectionLineType={ConnectionLineType.Bezier}
         proOptions={{ hideAttribution: true }}
         onNodesChange={editor.handleNodesChange}
-        // defaultViewport={editor.initialViewport}
-        // fitView={!editor.initialViewport}
-        // deleteKeyCode={['Backspace', 'Delete']}
-        // onEdgesChange={editor.handleEdgesChange}
-        // onConnect={editor.handleConnect}
-        // isValidConnection={editor.isValidConnection}
+        // 设置画布的初始视口
+        defaultViewport={editor.initialViewport}
+        // editor.initialViewport为空，自动展示全部节点
+        fitView={!editor.initialViewport}
+        // 自动适配设置最大缩放
+        fitViewOptions={{
+          padding: 0.2,
+          maxZoom: 1,
+        }}
+        deleteKeyCode={['Backspace', 'Delete']}
+        onEdgesChange={editor.handleEdgesChange}
+        onConnect={editor.handleConnect}
+        isValidConnection={editor.isValidConnection}
         // onBeforeDelete={editor.handleBeforeDelete}
         // onNodesDelete={editor.handleNodesDelete}
         // onSelectionChange={({ nodes: selectedNodes }) =>

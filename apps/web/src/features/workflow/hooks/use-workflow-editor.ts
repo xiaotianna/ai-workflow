@@ -212,7 +212,15 @@ export function useWorkflowEditor({
     setNodes((currentNodes) =>
       currentNodes.map((canvasNode) =>
         canvasNode.id === nextNode.id
-          ? { ...canvasNode, type: nextNode.type, data: nextNode.config }
+          ? {
+              ...canvasNode,
+              type: nextNode.type,
+              data: {
+                config: nextNode.config,
+                inputs: nextNode.inputs,
+                outputs: nextNode.outputs,
+              },
+            }
           : canvasNode,
       ),
     )
@@ -285,7 +293,11 @@ export function useWorkflowEditor({
       extent: 'parent',
       expandParent: true,
       position,
-      data: nodeType.createInitialConfig(),
+      data: {
+        config: nodeType.createInitialConfig(),
+        inputs: {},
+        outputs: [],
+      },
     }
 
     setNodes((currentNodes) => [...currentNodes, nextNode])

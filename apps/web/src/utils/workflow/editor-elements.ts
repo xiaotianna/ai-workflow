@@ -20,7 +20,11 @@ export const createCanvasNode = (type: string, position: XYPosition): WorkflowCa
     id: generateUuid(),
     type: nodeType.definition.type,
     position,
-    data: nodeType.createInitialConfig(),
+    data: {
+      config: nodeType.createInitialConfig(),
+      inputs: {},
+      outputs: [],
+    },
   }
 }
 
@@ -102,7 +106,11 @@ export const createLoopCanvasNodes = ({
     id: loopId,
     type: BuiltinNodeType.LOOP,
     position,
-    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
+    data: {
+      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
+      inputs: {},
+      outputs: [],
+    },
     ...(parentId
       ? {
           parentId,
@@ -124,7 +132,11 @@ export const createLoopCanvasNodes = ({
       x: 32,
       y: 96,
     },
-    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
+    data: {
+      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
+      inputs: {},
+      outputs: [],
+    },
   }
 
   // 创建loop的子退出节点
@@ -137,7 +149,11 @@ export const createLoopCanvasNodes = ({
       x: 260,
       y: 96,
     },
-    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
+    data: {
+      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
+      inputs: {},
+      outputs: [],
+    },
   }
 
   return [loopNode, loopStartNode, loopExitNode]

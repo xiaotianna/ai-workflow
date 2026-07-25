@@ -3,6 +3,7 @@ import type { DataType } from './data-types'
 // 端口定义
 export interface PortDefinition {
   // 上游的值类型
+  // 当前仅作为固定输出变量的类型元数据，不用于限制画布连线
   readonly dataType: DataType
   // 是否必填
   readonly required?: boolean

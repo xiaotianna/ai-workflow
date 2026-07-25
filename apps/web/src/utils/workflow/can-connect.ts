@@ -34,8 +34,8 @@ export const canConnect = (
   const sourceType = nodeRegistry.get(sourceNode.type)
   const targetType = nodeRegistry.get(targetNode.type)
 
-  if (!sourceType || !sourceType.schema.safeParse(sourceNode.data).success) return false
-  if (!targetType || !targetType.schema.safeParse(targetNode.data).success) return false
+  if (!sourceType || !sourceType.schema.safeParse(sourceNode.data.config).success) return false
+  if (!targetType || !targetType.schema.safeParse(targetNode.data.config).success) return false
 
   // 构造一个临时边
   const candidateEdge: WorkflowEdge = {

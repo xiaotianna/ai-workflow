@@ -23,12 +23,15 @@ import {
 ## 核心模型
 
 - `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes 和 edges。
-- `workflowNodeSchema` 只校验通用节点字段，具体 config 由对应 `NodeType.schema` 校验。
+- `workflowNodeSchema` 校验通用节点字段、`inputs` 变量绑定和实例动态 `outputs`，具体
+  `config` 仍由对应 `NodeType.schema` 校验。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
-- 变量设计提案中的 `VariableValue` 只区分直接值和引用值；节点引用通过
-  `nodeId + portId + path` 定位，`path: []` 读取整个端口值，非空 `path` 读取嵌套字段。
+- `VariableValue` 只区分直接值和引用值；节点引用通过
+  `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
+- Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
+- 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
   End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段。
 - 当前正式注册的内置节点只有 `start` 和 `condition`；end、http、llm 目录中的空文件或草稿不代表可用节点。
@@ -59,7 +62,7 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 ## 注意事项
 
 - Core 不依赖 React、NestJS、Prisma、Redis 或具体运行时。
-- `src/variable/workflow-node-port-variable-design.md` 仍是设计提案，变量值解析 Runtime 尚未实现。
+- 节点 `inputs`/`outputs` 已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
 - `package.json` 当前未声明源码直接使用的 Zod 依赖；维护 manifest 时应补齐直接依赖，不能依靠根目录提升。

@@ -14,7 +14,7 @@ import { variableReferenceSchema } from './variable-reference-schema'
       reference: {
         scope: 'node',
         nodeId: 'user-1',
-        portId: 'result',
+        outputKey: 'result',
         path: ['name'],
       },
     }

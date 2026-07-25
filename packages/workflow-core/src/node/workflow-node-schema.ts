@@ -1,10 +1,49 @@
 import { z } from 'zod'
+import { DATA_TYPE_VALUES } from '../port/data-types'
+import { variableValueSchema } from '../variable/variable-value-schema'
+
+// 每个节点通用的输入变量绑定，值可以直接填写，也可以引用上游节点的输出变量
+export const nodeInputBindingsSchema = z
+  .record(z.string().trim().min(1, '输入变量名不能为空'), variableValueSchema)
+  .default({})
+
+// 节点对外公开的输出变量定义，dataType只描述变量，不再限制画布连线
+export const nodeOutputDefinitionSchema = z.object({
+  key: z
+    .string()
+    .trim()
+    .min(1, '输出变量名不能为空')
+    .regex(/^[a-zA-Z_]\w*$/, '输出变量名格式不正确'),
+  label: z.string().trim().min(1, '输出变量显示名称不能为空'),
+  dataType: z.enum(DATA_TYPE_VALUES),
+  description: z.string().trim().optional(),
+})
+
+export const nodeOutputDefinitionsSchema = z
+  .array(nodeOutputDefinitionSchema)
+  .default([])
+  .superRefine((outputs, context) => {
+    const keys = new Set<string>()
+
+    outputs.forEach((output, index) => {
+      if (keys.has(output.key)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'key'],
+          message: `节点输出变量不能重复：${output.key}`,
+        })
+      }
+      keys.add(output.key)
+    })
+  })
 
 /**
  * 工作流中实际保存的节点实例，是前端传递的的内容，获取到前端配置进行校验，大致思路如下：
 const workflowNode: WorkflowNode = {
   id: 'chat-1',
   type: 'chat',
+  inputs: {},
+  outputs: [],
   config: {
     prompt: '你好',
   },
@@ -19,6 +58,10 @@ const config = nodeType.schema.parse(workflowNode.config)
 export const workflowNodeSchema = z.object({
   id: z.string().min(1, '节点 ID 不能为空'),
   type: z.string().min(1, '节点类型不能为空'),
+  // 当前节点使用的变量
+  inputs: nodeInputBindingsSchema,
+  // 节点输出变量
+  outputs: nodeOutputDefinitionsSchema,
   /**
    * 节点配置
    * 这里只做通用约束，具体配置由对应节点的 schema 参数的校验
@@ -28,7 +71,9 @@ export const workflowNodeSchema = z.object({
    */
   config: z.record(z.string(), z.unknown()).default({}),
   // 节点所属的父容器节点id，当前仅用于表示loop内的子节点，值为对应loop节点的id
-  parentId: z.string().min(1).optional()
+  parentId: z.string().min(1).optional(),
 })
 
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>
+export type NodeInputBindings = z.output<typeof nodeInputBindingsSchema>
+export type NodeOutputDefinition = z.output<typeof nodeOutputDefinitionSchema>

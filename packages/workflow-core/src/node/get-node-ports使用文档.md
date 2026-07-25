@@ -3,7 +3,7 @@
 适用范围包括：
 
 - React 节点 Handle 渲染
-- 创建连线时的数据类型校验
+- 创建连线时的端口存在性校验
 - 删除分支时检查受影响的连线
 - 工作流运行前校验
 - 服务端执行工作流
@@ -51,7 +51,8 @@ function canConnect(
     return false
   }
 
-  return output.dataType === input.dataType
+  // 连线只表达执行依赖和条件分支，不按dataType阻止连接
+  return true
 }
 ```
 
@@ -104,5 +105,11 @@ schema.parse()
     ↓
 resolvePorts(config)
     ↓
-画布渲染 / 连线校验 / 运行时取值
+画布渲染 / Handle校验
+
+node.inputs
+    ↓
+直接值 / 上游输出变量引用
+    ↓
+运行时解析节点输入
 ```
