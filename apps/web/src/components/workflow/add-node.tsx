@@ -12,7 +12,9 @@ interface AddNodeProps {
   onAddNode: (type: string) => void
 }
 
-function getAddNodeErrorMessage(error: unknown) {
+function getAddNodeErrorMessage(error: unknown, nodeLabel: string) {
+  const prefix = `无法添加「${nodeLabel}」节点`
+
   if (typeof error === 'object' && error !== null && 'issues' in error) {
     const issues = (error as { issues?: unknown }).issues
     if (Array.isArray(issues)) {
@@ -24,11 +26,13 @@ function getAddNodeErrorMessage(error: unknown) {
           typeof issue.message === 'string',
       )?.message
 
-      if (firstMessage) return firstMessage
+      if (firstMessage) return `${prefix}：${firstMessage}`
     }
   }
 
-  return error instanceof Error && error.message ? error.message : '添加节点失败，请稍后重试'
+  return error instanceof Error && error.message
+    ? `${prefix}：${error.message}`
+    : `${prefix}，请稍后重试`
 }
 
 export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
@@ -46,12 +50,15 @@ export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
   }
 
   function handleSelect(type: string) {
+    const nodeLabel =
+      nodeTypes.find(({ definition }) => definition.type === type)?.definition.label ?? type
+
     try {
       onAddNode(type)
       handleOpenChange(false)
     } catch (error) {
       handleOpenChange(false)
-      showToast('error', getAddNodeErrorMessage(error))
+      showToast('error', getAddNodeErrorMessage(error, nodeLabel))
     }
   }
 
