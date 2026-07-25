@@ -1,8 +1,8 @@
 import type { NodeRegistry } from '@ai-workflow/core'
-import type { NodeContentComponent, NodeUIRegistration } from '../contracts/node-content'
+import type { NodeUIRegistration } from '../contracts/node-content'
 
 export class NodeUIRegistry {
-  private readonly components = new Map<string, NodeContentComponent<any>>()
+  private readonly registrations = new Map<string, NodeUIRegistration>()
 
   constructor(registrations: Iterable<NodeUIRegistration> = []) {
     for (const registration of registrations) {
@@ -11,20 +11,20 @@ export class NodeUIRegistry {
   }
 
   register(registration: NodeUIRegistration): this {
-    if (this.components.has(registration.type)) {
+    if (this.registrations.has(registration.type)) {
       throw new Error(`节点 UI 已注册：${registration.type}`)
     }
 
-    this.components.set(registration.type, registration.component)
+    this.registrations.set(registration.type, registration)
     return this
   }
 
-  get(type: string): NodeContentComponent<any> | undefined {
-    return this.components.get(type)
+  get(type: string): NodeUIRegistration | undefined {
+    return this.registrations.get(type)
   }
 
   has(type: string): boolean {
-    return this.components.has(type)
+    return this.registrations.has(type)
   }
 
   /**
@@ -32,7 +32,7 @@ export class NodeUIRegistry {
    * Core 节点没有专属 UI 是允许的，RenderNode 会使用默认内容组件
    */
   assertCompatible(nodeRegistry: NodeRegistry): this {
-    for (const type of this.components.keys()) {
+    for (const type of this.registrations.keys()) {
       if (!nodeRegistry.has(type)) {
         throw new Error(`节点 UI 没有对应的 Core 定义：${type}`)
       }

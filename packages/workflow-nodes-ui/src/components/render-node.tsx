@@ -1,6 +1,6 @@
 import { getNodePorts } from '@ai-workflow/core'
 import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
-import type { NodePortRender } from '../contracts/node-content'
+import type { NodeEditorCapabilities, NodePortRender } from '../contracts/node-content'
 import type { NodeUIRegistry } from '../registry'
 import { BaseNode } from './base-node'
 import { DefaultNodeContent } from './default-node-content'
@@ -14,6 +14,10 @@ export interface RenderNodeProps {
   onSelect?: (nodeId: string) => void
   onDelete?: (nodeId: string) => void
   renderPort?: NodePortRender
+  // 提供给节点的操作能力（给完整自定义节点使用，非base-node基础组件）
+  editorCapabilities?: NodeEditorCapabilities
+  // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
+  dragHandleClassName?: string
 }
 
 const EMPTY_PORTS = {
@@ -30,6 +34,8 @@ export const RenderNode = ({
   onSelect,
   onDelete,
   renderPort,
+  editorCapabilities,
+  dragHandleClassName,
 }: RenderNodeProps) => {
   const nodeType = nodeRegistry.get(node.type)
 
@@ -60,8 +66,33 @@ export const RenderNode = ({
     )
   }
 
+  const config = nodeType.schema.parse(node.config)
   const ports = getNodePorts(nodeType, node.config)
-  const Content = uiRegistry.get(node.type) ?? DefaultNodeContent
+  const registration = uiRegistry.get(node.type)
+  const selectNode = onSelect ? () => onSelect(node.id) : undefined
+  const deleteNode = onDelete ? () => onDelete(node.id) : undefined
+
+  if (registration?.kind === 'renderer') {
+    const Renderer = registration.component
+
+    return (
+      <Renderer
+        node={node}
+        definition={nodeType.definition}
+        ports={ports}
+        config={config}
+        selected={selected}
+        disabled={disabled}
+        onSelect={selectNode}
+        onDelete={deleteNode}
+        renderPort={renderPort}
+        editorCapabilities={editorCapabilities}
+        dragHandleClassName={dragHandleClassName}
+      />
+    )
+  }
+
+  const Content = registration?.component ?? DefaultNodeContent
 
   return (
     <BaseNode
@@ -70,11 +101,11 @@ export const RenderNode = ({
       ports={ports}
       selected={selected}
       disabled={disabled}
-      onSelect={onSelect ? () => onSelect(node.id) : undefined}
-      onDelete={onDelete ? () => onDelete(node.id) : undefined}
+      onSelect={selectNode}
+      onDelete={deleteNode}
       renderPort={renderPort}
     >
-      <Content node={node} definition={nodeType.definition} ports={ports} config={node.config} />
+      <Content node={node} definition={nodeType.definition} ports={ports} config={config} />
     </BaseNode>
   )
 }

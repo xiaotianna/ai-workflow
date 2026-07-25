@@ -1,4 +1,11 @@
 import { Button } from '@ai-workflow/ui/components/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@ai-workflow/ui/components/dropdown-menu'
 import { Input } from '@ai-workflow/ui/components/input'
 import {
   Select,
@@ -7,12 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Plus, Search } from 'lucide-react'
+import { ChevronDown, FileUp, Plus, Search, SquarePlus } from 'lucide-react'
 import { useState } from 'react'
 
 interface StudioToolbarProps {
   search: string
   onCreateBlankApp: () => void
+  onImportApp: () => void
   onSearchChange: (search: string) => void
 }
 
@@ -45,7 +53,12 @@ function StudioSortSelect() {
   )
 }
 
-export function StudioToolbar({ search, onCreateBlankApp, onSearchChange }: StudioToolbarProps) {
+export function StudioToolbar({
+  search,
+  onCreateBlankApp,
+  onImportApp,
+  onSearchChange,
+}: StudioToolbarProps) {
   return (
     <div className="mt-5 flex flex-wrap items-center gap-2">
       <StudioSortSelect />
@@ -60,14 +73,46 @@ export function StudioToolbar({ search, onCreateBlankApp, onSearchChange }: Stud
         />
       </div>
 
-      <Button
-        type="button"
-        className="ml-auto h-8 shrink-0 rounded-lg px-3 text-sm"
-        onClick={onCreateBlankApp}
-      >
-        <Plus className="size-4" />
-        创建
-      </Button>
+      <DropdownMenu>
+        <div className="ml-auto flex shrink-0 overflow-hidden rounded-lg">
+          <Button
+            type="button"
+            className="h-8 rounded-none rounded-l-lg px-3 text-sm"
+            onClick={onCreateBlankApp}
+          >
+            <Plus className="size-4" />
+            创建
+          </Button>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              aria-label="更多创建选项"
+              className="border-primary-foreground/15 h-8 rounded-none rounded-r-lg border-l px-2"
+            >
+              <ChevronDown className="size-4 transition-transform group-aria-expanded/button:rotate-180" />
+            </Button>
+          </DropdownMenuTrigger>
+        </div>
+
+        <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuItem onSelect={onCreateBlankApp}>
+            <SquarePlus className="text-muted-foreground size-4" />
+            <span>创建空白应用</span>
+          </DropdownMenuItem>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuItem className="items-start" onSelect={onImportApp}>
+            <FileUp className="text-muted-foreground mt-0.5 size-4" />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span>导入 DSL 文件</span>
+              <span className="text-muted-foreground text-xs font-normal">
+                拖放 DSL 文件到此处创建应用
+              </span>
+            </span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }

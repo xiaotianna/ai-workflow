@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import {
   CreateBlankAppDialog,
+  ImportDslDialog,
   initialStudioApps,
   StudioAppGrid,
   StudioToolbar,
@@ -26,6 +27,7 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
   const [apps, setApps] = useState(initialStudioApps)
   const [search, setSearch] = useState('')
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   const normalizedQuery = search.trim().toLowerCase()
   const visibleApps = apps.filter((app) => {
@@ -52,6 +54,22 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
     ])
   }
 
+  function handleImportApp(file: File) {
+    setApps((currentApps) => [
+      {
+        id: `local-import-${Date.now()}`,
+        title: file.name.replace(/\.ya?ml$/i, ''),
+        kind: 'workflow',
+        kindLabel: '工作流',
+        author: 'AI Workflow',
+        editedAtLabel: editedAtFormatter.format(new Date()),
+        description: `由 ${file.name} 导入`,
+        icon: '📦',
+      },
+      ...currentApps,
+    ])
+  }
+
   return (
     <div className="flex min-h-full flex-col">
       <div className="flex h-6 min-w-0 items-center">
@@ -64,12 +82,19 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
         search={search}
         onSearchChange={setSearch}
         onCreateBlankApp={() => setCreateDialogOpen(true)}
+        onImportApp={() => setImportDialogOpen(true)}
       />
 
       <CreateBlankAppDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onCreate={handleCreateApp}
+      />
+
+      <ImportDslDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onImport={handleImportApp}
       />
 
       <StudioAppGrid apps={visibleApps} onAppAction={onAppAction} />

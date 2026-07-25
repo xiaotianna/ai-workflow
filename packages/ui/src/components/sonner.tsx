@@ -19,7 +19,7 @@ function ToastStatusIcon({ className, icon: Icon }: ToastStatusIconProps) {
       )}
       aria-hidden
     >
-      <Icon className="!m-0 size-3" strokeWidth={2.25} />
+      <Icon className="m-0! size-3" strokeWidth={2.25} />
     </span>
   )
 }

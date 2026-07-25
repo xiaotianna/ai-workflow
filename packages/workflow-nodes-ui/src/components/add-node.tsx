@@ -1,11 +1,13 @@
 import type { NodeType } from '@ai-workflow/core'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { Plus, Search } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useState } from 'react'
+
+import { getNodeThemeColor } from '../common/node-theme-map'
+import { NodeIcon } from './node-icon'
 
 interface AddNodeProps {
   nodeTypes: readonly NodeType[]

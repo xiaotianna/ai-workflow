@@ -3,15 +3,18 @@ import type { WorkflowCanvasNode } from './types'
 import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
 import { BuiltinNodeType, nodeRegistry } from '@ai-workflow/core'
 import { WorkflowNodeHandle } from './workflow-node-handle'
-import { WorkflowLoopNode } from './workflow-loop-node'
+import { useWorkflowEditorActions } from './workflow-editor-actions-context'
+import { LOOP_UNAVAILABLE_NODE_TYPES } from '@/utils/workflow/node-type-visibility'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
+// loop子容器内可以使用的节点类型
+const LOOP_AVAILABLE_NODE_TYPES = nodeRegistry
+  .list()
+  .filter((nodeType) => !LOOP_UNAVAILABLE_NODE_TYPES.has(nodeType.definition.type))
 
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
-  if (type === BuiltinNodeType.LOOP) {
-    return <WorkflowLoopNode {...props} />
-  }
+  const { addNodeToLoop } = useWorkflowEditorActions()
 
   return (
     <RenderNode
@@ -27,6 +30,16 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
       uiRegistry={nodeUIRegistry}
       selected={selected}
       renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
+      dragHandleClassName="drag-handle"
+      // 给完整自定义节点使用的特殊属性
+      editorCapabilities={{
+        [BuiltinNodeType.LOOP]: {
+          addChildNode: {
+            nodeTypes: LOOP_AVAILABLE_NODE_TYPES,
+            onAddNode: (parentNodeId, childType) => addNodeToLoop(childType, parentNodeId),
+          },
+        },
+      }}
     />
   )
 }

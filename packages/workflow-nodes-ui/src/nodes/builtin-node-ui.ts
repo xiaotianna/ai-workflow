@@ -1,13 +1,15 @@
-import { conditionNode, nodeRegistry, startNode } from '@ai-workflow/core'
+import { conditionNode, loopNode, nodeRegistry, startNode } from '@ai-workflow/core'
 import type { NodeRegistry } from '@ai-workflow/core'
-import { defineNodeUI } from '../contracts/node-content'
+import { defineNodeRendererUI, defineNodeUI } from '../contracts/node-content'
 import { NodeUIRegistry } from '../registry'
 import { ConditionNodeContent } from './condition'
+import { LoopNode } from './loop'
 import { StartNodeContent } from './start'
 
 export const builtinNodeUIRegistrations = [
   defineNodeUI(startNode, StartNodeContent),
   defineNodeUI(conditionNode, ConditionNodeContent),
+  defineNodeRendererUI(loopNode, LoopNode),
 ]
 
 export function createBuiltinNodeUIRegistry(
