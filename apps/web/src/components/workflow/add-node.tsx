@@ -2,6 +2,7 @@ import type { NodeType } from '@ai-workflow/core'
 import { NodeIcon } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import { Plus, Search } from 'lucide-react'
 import { Popover } from 'radix-ui'
 import { useState } from 'react'
@@ -9,6 +10,25 @@ import { useState } from 'react'
 interface AddNodeProps {
   nodeTypes: readonly NodeType[]
   onAddNode: (type: string) => void
+}
+
+function getAddNodeErrorMessage(error: unknown) {
+  if (typeof error === 'object' && error !== null && 'issues' in error) {
+    const issues = (error as { issues?: unknown }).issues
+    if (Array.isArray(issues)) {
+      const firstMessage = issues.find(
+        (issue): issue is { message: string } =>
+          typeof issue === 'object' &&
+          issue !== null &&
+          'message' in issue &&
+          typeof issue.message === 'string',
+      )?.message
+
+      if (firstMessage) return firstMessage
+    }
+  }
+
+  return error instanceof Error && error.message ? error.message : '添加节点失败，请稍后重试'
 }
 
 export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
@@ -26,8 +46,13 @@ export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
   }
 
   function handleSelect(type: string) {
-    onAddNode(type)
-    handleOpenChange(false)
+    try {
+      onAddNode(type)
+      handleOpenChange(false)
+    } catch (error) {
+      handleOpenChange(false)
+      showToast('error', getAddNodeErrorMessage(error))
+    }
   }
 
   return (

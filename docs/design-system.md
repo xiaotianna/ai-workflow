@@ -106,6 +106,9 @@
 | `--workflow-edge` / `text-workflow-edge`         | 工作流画布普通连线           |
 | `--background` / `bg-background`                 | 输入控件聚焦背景             |
 | `--border` / `border-border`                     | 容器、浮层的静态细边框       |
+| `--info` / `bg-info`                             | 信息状态与信息通知           |
+| `--warning` / `bg-warning`                       | 警告状态与警告通知           |
+| `--success` / `bg-success`                       | 成功状态与成功通知           |
 | `--destructive` / `border-destructive`           | 错误与危险状态               |
 | `--button-primary-disabled`                      | 主操作按钮禁用背景           |
 | `--button-secondary-*`                           | 次级按钮各交互状态           |

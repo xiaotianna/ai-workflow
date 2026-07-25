@@ -12,6 +12,7 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
 import { useIsMobile } from '@ai-workflow/ui/hooks/use-mobile'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import '@ai-workflow/ui/globals.css'
 ```
@@ -22,9 +23,12 @@ import '@ai-workflow/ui/globals.css'
 - 表单布局：`Form`、`Form.Field`。
 - 上传：单文件受控 `FileDropzone`。
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`。
-- 布局与反馈：`Sidebar`、`Separator`、`Skeleton`。
+- 布局与反馈：`Sidebar`、`Separator`、`Skeleton`、基于 Sonner 的 `Toaster` 与
+  `showToast`。
 - Hook：`useIsMobile`。
 - 业务界面共享 token：`--workflow-edge` 用于工作流画布普通连线。
+- 状态 token：`--success`、`--warning`、`--info` 分别用于成功、警告、信息通知和
+  对应状态，错误状态继续使用 `--destructive`。
 
 ## 使用规范
 
@@ -35,6 +39,10 @@ import '@ai-workflow/ui/globals.css'
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。
 - 单文件选择使用 `FileDropzone`，业务校验保留在调用方。
 - `SelectContent` 与 `DropdownMenuContent` 统一使用半透明背景、0.5px 语义边框、`shadow-lg`、圆角和背景模糊，不在调用方分别覆盖阴影。
+- 应用根节点挂载一次 `Toaster`，业务侧通过 `@ai-workflow/ui/lib/toast` 的
+  `showToast(type, message, duration?)` 展示通知；`type` 支持 `success`、`error`、
+  `warning`、`info`，可选 `duration` 使用毫秒。不要在业务组件中直接依赖 Sonner
+  或重复实现通知容器。
 - 使用 `cn()` 合并类名，变体较多时使用 CVA，不在调用方重做基础状态。
 
 ## 新增组件
