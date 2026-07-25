@@ -30,6 +30,9 @@
 
 ## 工作流画布
 
+- 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
+  `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
+  `NODE_THEMES` 或固定使用主色。
 - 节点输入、输出 Handle 使用贴合节点左右边缘的主色短竖条，视觉尺寸为 `4px × 20px`；可在不放大可见图形的前提下扩展透明命中区。
 - 普通边与连接预览线使用 `--workflow-edge`，宽度为 `2.5px`，路径使用 Bezier 曲线；选中边使用 `--primary`。
 

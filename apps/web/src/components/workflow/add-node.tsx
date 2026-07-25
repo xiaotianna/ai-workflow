@@ -1,5 +1,5 @@
 import type { NodeType } from '@ai-workflow/core'
-import { NodeIcon } from '@ai-workflow/nodes-ui'
+import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { showToast } from '@ai-workflow/ui/lib/toast'
@@ -99,7 +99,10 @@ export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
                   className="hover:bg-accent focus-visible:bg-accent flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left outline-hidden transition-colors"
                   onClick={() => handleSelect(definition.type)}
                 >
-                  <span className="bg-primary text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md">
+                  <span
+                    className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md"
+                    style={{ backgroundColor: getNodeThemeColor(definition.type) }}
+                  >
                     <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
                   </span>
                   <span className="min-w-0 truncate text-sm font-medium">{definition.label}</span>

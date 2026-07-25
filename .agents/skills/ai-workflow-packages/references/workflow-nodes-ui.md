@@ -12,6 +12,8 @@ import {
   NodeUIRegistry,
   defineNodeUI,
   createBuiltinNodeUIRegistry,
+  getNodeThemeColor,
+  NODE_THEMES,
 } from '@ai-workflow/nodes-ui'
 ```
 
@@ -44,6 +46,8 @@ import {
 ## 当前注意事项
 
 - `BaseNode` 的选中态使用节点实体自身的 `border-primary` 和轻量语义阴影，不使用会向外扩张的 ring，避免轮廓与圆角错位。
+- 节点卡片、节点选择器和 MiniMap 的节点标识色统一来自 `NODE_THEMES`；调用方使用
+  `getNodeThemeColor(type)` 获取带默认回退的颜色，不复制映射或硬编码节点色。
 - `NodePortsRender` 将端口锚点贴在节点左右边缘，默认端口视觉为 `4px × 20px` 的主色短竖条；Web 注入 Handle 时应保持相同尺寸，并可额外扩大透明命中区。
 - `RenderNode` 调用 `getNodePorts` 完成配置解析，但传给内容组件的仍是原始 `node.config`；在契约修正前，不要假设内容组件一定收到 Zod 默认值处理后的配置。
 - 内容组件必须处理长文本和空数据，不能改变端口 id 或节点定义。

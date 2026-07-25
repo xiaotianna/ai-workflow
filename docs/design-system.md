@@ -96,6 +96,13 @@
 - Sidebar floating 变体采用 `border-sidebar-border shadow-sm`。
 - 禁止用 `ring-1` 模拟静态边框；需要轮廓时应使用真实 border。
 
+## 工作流节点
+
+- 节点卡片、节点选择器和 MiniMap 使用 `@ai-workflow/nodes-ui` 的
+  `NODE_THEMES` 作为唯一节点标识色来源，并通过 `getNodeThemeColor(type)` 获取未知
+  类型的默认回退色。
+- 节点输入、输出 Handle 保持使用 `--primary`，不跟随节点标识色变化。
+
 ## 语义 Token
 
 | Token                                            | 用途                         |

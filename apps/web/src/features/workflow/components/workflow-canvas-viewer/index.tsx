@@ -1,6 +1,6 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { nodeRegistry } from '@ai-workflow/core'
-import { NodeIcon } from '@ai-workflow/nodes-ui'
+import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
 import {
   MiniMap,
   type MiniMapNodeProps,
@@ -16,7 +16,6 @@ const zoomSelector = (state: { transform: [number, number, number] }) => state.t
 
 const WorkflowMiniMapNode = ({
   className,
-  color,
   height,
   id,
   onClick,
@@ -26,9 +25,9 @@ const WorkflowMiniMapNode = ({
   y,
 }: MiniMapNodeProps) => {
   const internalNode = useInternalNode<WorkflowCanvasNode>(id)
-  const icon = internalNode
-    ? nodeRegistry.get(internalNode.internals.userNode.type)?.definition.icon
-    : undefined
+  const nodeType = internalNode?.internals.userNode.type
+  const icon = nodeType ? nodeRegistry.get(nodeType)?.definition.icon : undefined
+  const themeColor = getNodeThemeColor(nodeType)
   const radius = Math.min(width, height) * 0.18
   const iconSize = Math.min(width, height) * 0.5
   const iconX = x + (width - iconSize) / 2
@@ -43,7 +42,7 @@ const WorkflowMiniMapNode = ({
         height={height}
         rx={radius}
         ry={radius}
-        fill={color ?? 'var(--primary)'}
+        fill={themeColor}
         stroke={selected ? 'var(--primary-foreground)' : 'transparent'}
         strokeWidth={selected ? 3 : 0}
         shapeRendering="geometricPrecision"
@@ -76,7 +75,6 @@ export const WorkflowCanvasViewer = () => {
         style={{ width: 152, height: 88 }}
         bgColor="var(--background)"
         maskColor="color-mix(in oklab, var(--muted) 60%, transparent)"
-        nodeColor="var(--primary)"
         nodeComponent={WorkflowMiniMapNode}
         nodeStrokeWidth={0}
         pannable

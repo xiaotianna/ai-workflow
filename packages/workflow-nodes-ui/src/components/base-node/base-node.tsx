@@ -3,6 +3,7 @@ import { NodeIcon } from '../node-icon'
 import type { NodeDefinition } from '@ai-workflow/core'
 import type { NodePortRender } from '../../contracts/node-content'
 import { cn } from '@ai-workflow/ui/lib/utils'
+import { getNodeThemeColor } from '../../common/node-theme-map'
 import { NodePortsRender } from './node-ports-render'
 
 export interface BaseNodeProps {
@@ -63,7 +64,10 @@ export function BaseNode({
         {/* Header */}
         <div className="flex items-start justify-between px-4 pt-3 pb-3">
           <div className="flex min-w-0 items-center">
-            <div className="mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-blue-600 text-white">
+            <div
+              className="text-primary-foreground mr-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px]"
+              style={{ backgroundColor: getNodeThemeColor(definition.type) }}
+            >
               <NodeIcon icon={definition.icon} className="h-4 w-4" />
             </div>
             <div className="min-w-0">

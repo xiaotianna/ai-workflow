@@ -1,3 +1,4 @@
+export * from './common/node-theme-map'
 export * from './contracts/node-content'
 export * from './registry'
 export * from './components/render-node'

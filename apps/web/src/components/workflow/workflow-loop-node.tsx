@@ -1,5 +1,5 @@
 import { BuiltinNodeType, getNodePorts, loopNode, nodeRegistry } from '@ai-workflow/core'
-import { NodeIcon } from '@ai-workflow/nodes-ui'
+import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import type { NodeProps } from '@xyflow/react'
 
@@ -42,7 +42,12 @@ export function WorkflowLoopNode({ id, data, selected }: NodeProps<WorkflowCanva
       )}
     >
       <header className="drag-handle flex h-16 items-center gap-3 px-5">
-        <NodeIcon icon={BuiltinNodeType.LOOP} />
+        <span
+          className="text-primary-foreground flex size-8 shrink-0 items-center justify-center rounded-[10px]"
+          style={{ backgroundColor: getNodeThemeColor(BuiltinNodeType.LOOP) }}
+        >
+          <NodeIcon icon={BuiltinNodeType.LOOP} className="size-4" aria-hidden />
+        </span>
         <div>
           <div className="text-sm font-semibold">循环</div>
           <div className="text-muted-foreground text-xs">
