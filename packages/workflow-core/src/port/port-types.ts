@@ -1,4 +1,4 @@
-import { DataType } from './data-types'
+import type { DataType } from './data-types'
 
 // 端口定义
 export interface PortDefinition {

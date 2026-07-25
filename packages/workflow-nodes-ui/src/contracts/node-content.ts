@@ -6,7 +6,7 @@ import type {
   NodeType,
   WorkflowNode,
 } from '@ai-workflow/core'
-import { ComponentType, ReactNode } from 'react'
+import type { ComponentType, ReactNode } from 'react'
 
 // 统一节点内容组件的入参
 export interface NodeContentProps<TConfig = unknown> {

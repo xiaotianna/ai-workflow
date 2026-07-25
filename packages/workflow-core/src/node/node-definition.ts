@@ -1,4 +1,4 @@
-import { PortMap } from '../port/port-types'
+import type { PortMap } from '../port/port-types'
 import type { z } from 'zod'
 
 // 节点定义

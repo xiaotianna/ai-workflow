@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'react'
-import { AddNode } from './add-node'
+import { AddNode } from '@/components/workflow/add-node'
 import { OpenAIPanel } from './open-ai-panel'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import type { NodeType } from '@ai-workflow/core'

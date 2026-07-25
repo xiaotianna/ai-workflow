@@ -1,4 +1,4 @@
-import { NodeDefinition } from '../../node/node-definition'
+import type { NodeDefinition } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import { BuiltinNodeType } from '../builtin-node-types'
 
@@ -14,8 +14,8 @@ export const loopStartNodeDefinition = {
         label: '循环输入',
         description: '输出 Loop 节点接收到的输入',
         dataType: DATA_TYPE_KINDS.JSON,
-        multiple: true
+        multiple: true,
       },
-    }
-  }
+    },
+  },
 } satisfies NodeDefinition

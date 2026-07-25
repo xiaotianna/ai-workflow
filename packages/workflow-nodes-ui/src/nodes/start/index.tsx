@@ -1,5 +1,5 @@
-import { StartNodeConfig } from '@ai-workflow/core'
-import { NodeContentProps } from '../../contracts/node-content'
+import type { StartNodeConfig } from '@ai-workflow/core'
+import type { NodeContentProps } from '../../contracts/node-content'
 
 export const StartNodeContent = ({ config }: NodeContentProps<StartNodeConfig>) => {
   const variables = config.variables

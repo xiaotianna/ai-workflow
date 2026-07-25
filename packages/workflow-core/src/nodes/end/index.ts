@@ -1,7 +1,7 @@
 import { createInitialConfig } from '../../node/create-initial-config'
-import { NodeType } from '../../node/node-definition'
+import type { NodeType } from '../../node/node-definition'
 import { endNodeDefinition } from './definition'
-import { endNodeSchema, EndNodeConfig } from './schema'
+import { endNodeSchema } from './schema'
 
 export const endNode = {
   schema: endNodeSchema,

@@ -8,6 +8,6 @@ export const NODE_THEMES = {
   [BuiltinNodeType.HTTP]: '',
   [BuiltinNodeType.LOOP]: '',
   [BuiltinNodeType.CONDITION]: '',
-  [BuiltinNodeType.WORKFLOW]: '',
+  [BuiltinNodeType.SUB_WORKFLOW]: '',
   unknown: '',
 } satisfies Record<string, string>

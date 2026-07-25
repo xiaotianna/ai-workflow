@@ -36,6 +36,7 @@ export function createDemoWorkflowDocument(appId: string): WorkflowEditorSnapsho
           targetHandle: 'entry',
         },
       ],
+      outputs: [],
     },
     layout: {
       positions: {

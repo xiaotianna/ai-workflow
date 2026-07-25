@@ -3,7 +3,13 @@
  */
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
-import { getNodePorts, nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  getNodePorts,
+  nodeRegistry,
+  type WorkflowEdge,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 import type { Connection, XYPosition } from '@xyflow/react'
 
@@ -70,4 +76,91 @@ export const removeDanglingEdges = (
     if (edge.target === node.id && !ports.inputs[edge.targetHandle]) return false
     return true
   })
+}
+
+// 默认loop容器大小
+const DEFAULT_LOOP_SIZE = {
+  width: 680,
+  height: 420,
+}
+
+/**
+ * 创建loop画布节点
+ * 必须一次生成三个节点，避免产生暂时不合法的 Loop
+ */
+export const createLoopCanvasNodes = ({
+  position,
+  parentId,
+}: {
+  position: XYPosition
+  parentId?: string
+}): WorkflowCanvasNode[] => {
+  const loopId = generateUuid()
+
+  // 创建loop节点
+  const loopNode: WorkflowCanvasNode = {
+    id: loopId,
+    type: BuiltinNodeType.LOOP,
+    position,
+    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
+    ...(parentId
+      ? {
+          parentId,
+          extent: 'parent',
+          expandParent: true,
+        }
+      : {}),
+    style: DEFAULT_LOOP_SIZE,
+    dragHandle: '.drag-handle',
+  }
+
+  // 创建loop的子开始节点
+  const loopStartNode: WorkflowCanvasNode = {
+    id: generateUuid(),
+    type: BuiltinNodeType.LOOP_START,
+    parentId: loopId,
+    extent: 'parent',
+    position: {
+      x: 32,
+      y: 96,
+    },
+    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
+  }
+
+  // 创建loop的子退出节点
+  const loopExitNode: WorkflowCanvasNode = {
+    id: generateUuid(),
+    type: BuiltinNodeType.LOOP_EXIT,
+    parentId: loopId,
+    extent: 'parent',
+    position: {
+      x: 260,
+      y: 96,
+    },
+    data: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
+  }
+
+  return [loopNode, loopStartNode, loopExitNode]
+}
+
+// 删除节点（删除 Loop 时必须递归删除全部后代节点）
+export const collectDescendantNodeIds = (
+  rootNodeIds: ReadonlySet<string>,
+  nodes: readonly WorkflowCanvasNode[],
+): Set<string> => {
+  const result = new Set(rootNodeIds)
+  let changed = true
+
+  while (changed) {
+    changed = false
+
+    for (const node of nodes) {
+      if (node.parentId && result.has(node.parentId) && !result.has(node.id)) {
+        result.add(node.id)
+        changed = true
+      }
+    }
+  }
+
+  return result
 }

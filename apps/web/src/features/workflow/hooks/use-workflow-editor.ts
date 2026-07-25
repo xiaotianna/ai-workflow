@@ -1,4 +1,9 @@
-import { nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  nodeRegistry,
+  type WorkflowEdge,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import {
   useEdgesState,
   useNodesState,
@@ -7,6 +12,7 @@ import {
   type Connection,
   type EdgeChange,
   type NodeChange,
+  type OnBeforeDelete,
   type XYPosition,
   type Viewport,
 } from '@xyflow/react'
@@ -15,7 +21,9 @@ import { useState, type RefObject } from 'react'
 import { canConnect } from '@/utils/workflow/can-connect'
 import { hasEdgeMutation, hasNodeMutation } from '@/utils/workflow/editor-change'
 import {
+  collectDescendantNodeIds,
   createCanvasNode,
+  createLoopCanvasNodes,
   createWorkflowEdge,
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
@@ -27,6 +35,12 @@ import {
   toCanvasNodes,
   toWorkflowNode,
 } from '@/utils/workflow/editor-transform'
+import { generateUuid } from '@ai-workflow/shared/utils/uuid'
+import {
+  LOOP_UNAVAILABLE_NODE_TYPES,
+  ROOT_HIDDEN_NODE_TYPES,
+} from '@/utils/workflow/node-type-visibility'
+import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
@@ -187,11 +201,7 @@ export function useWorkflowEditor({
   function deleteSelectedNode() {
     if (!selectedNodeId) return
 
-    const deletedNodeIds = new Set([selectedNodeId])
-    setNodes((currentNodes) => currentNodes.filter((node) => node.id !== selectedNodeId))
-    setEdges((currentEdges) => removeEdgesConnectedToNodes(currentEdges, deletedNodeIds))
-    setSelectedNodeId(undefined)
-    setDirty(true)
+    deleteNodes(new Set([selectedNodeId]))
   }
 
   /**
@@ -223,14 +233,143 @@ export function useWorkflowEditor({
     setSelectedNodeId(nodeId)
   }
 
+  // 在loop内添加节点
+  function addNodeToLoop(type: string, loopId: string) {
+    if (LOOP_UNAVAILABLE_NODE_TYPES.has(type)) {
+      return
+    }
+
+    const parentLoop = nodes.find(
+      (node) => node.id === loopId && node.type === BuiltinNodeType.LOOP,
+    )
+
+    if (!parentLoop) {
+      return
+    }
+
+    const position = getNextLoopChildPosition(loopId, nodes)
+
+    if (type === BuiltinNodeType.LOOP) {
+      const createdNodes = createLoopCanvasNodes({
+        position,
+        parentId: loopId,
+      })
+
+      const createdLoop = createdNodes[0]
+
+      if (!createdLoop) {
+        return
+      }
+
+      setNodes((currentNodes) => [...currentNodes, ...createdNodes])
+      setSelectedNodeId(createdLoop.id)
+      setDirty(true)
+
+      requestAnimationFrame(() => {
+        updateNodeInternals(loopId)
+      })
+
+      return
+    }
+
+    const nodeType = nodeRegistry.get(type)
+
+    if (!nodeType) {
+      return
+    }
+
+    const nextNode: WorkflowCanvasNode = {
+      id: generateUuid(),
+      type: nodeType.definition.type,
+      parentId: loopId,
+      extent: 'parent',
+      expandParent: true,
+      position,
+      data: nodeType.createInitialConfig(),
+    }
+
+    setNodes((currentNodes) => [...currentNodes, nextNode])
+    setSelectedNodeId(nextNode.id)
+    setDirty(true)
+
+    requestAnimationFrame(() => {
+      updateNodeInternals(loopId)
+    })
+  }
+
+  // 删除
+  function deleteNodes(requestedNodeIds: ReadonlySet<string>) {
+    const protectedTypes: ReadonlySet<string> = new Set([
+      BuiltinNodeType.LOOP_START,
+      BuiltinNodeType.LOOP_EXIT,
+    ])
+
+    const allowedRootIds = new Set(
+      nodes
+        .filter((node) => requestedNodeIds.has(node.id) && !protectedTypes.has(node.type))
+        .map((node) => node.id),
+    )
+
+    const deletedNodeIds = collectDescendantNodeIds(allowedRootIds, nodes)
+    if (deletedNodeIds.size === 0) return
+
+    setNodes((current) => current.filter((node) => !deletedNodeIds.has(node.id)))
+    setEdges((current) => removeEdgesConnectedToNodes(current, deletedNodeIds))
+    if (selectedNodeId && deletedNodeIds.has(selectedNodeId)) {
+      setSelectedNodeId(undefined)
+    }
+    setDirty(true)
+  }
+
+  /**
+   * 在 React Flow 真正删除前扩展删除集合。
+   * 删除 Loop 时加入全部后代；单独删除 Loop Start/Exit 时拒绝该节点。
+   */
+  const handleBeforeDelete: OnBeforeDelete<WorkflowCanvasNode, WorkflowEdge> = async ({
+    nodes: requestedNodes,
+    edges: requestedEdges,
+  }) => {
+    const protectedTypes: ReadonlySet<string> = new Set([
+      BuiltinNodeType.LOOP_START,
+      BuiltinNodeType.LOOP_EXIT,
+    ])
+    const requestedRootIds = new Set(
+      requestedNodes.filter((node) => !protectedTypes.has(node.type)).map((node) => node.id),
+    )
+    const deletedNodeIds = collectDescendantNodeIds(requestedRootIds, nodes)
+    const requestedEdgeIds = new Set(requestedEdges.map((edge) => edge.id))
+    const deletedNodes = nodes.filter((node) => deletedNodeIds.has(node.id))
+    const deletedEdges = edges.filter(
+      (edge) =>
+        requestedEdgeIds.has(edge.id) ||
+        deletedNodeIds.has(edge.source) ||
+        deletedNodeIds.has(edge.target),
+    )
+
+    if (deletedNodes.length === 0 && deletedEdges.length === 0) {
+      return false
+    }
+
+    return {
+      nodes: deletedNodes,
+      edges: deletedEdges,
+    }
+  }
+
+  // 外层画布（非loop内）展示的节点
+  const availableNodeTypes = nodeRegistry
+    .list()
+    .filter((nodeType) => !ROOT_HIDDEN_NODE_TYPES.has(nodeType.definition.type))
+
   return {
     addNode,
     applyNodeConfig,
-    availableNodeTypes: nodeRegistry.list(),
+    availableNodeTypes,
     deleteSelectedNode,
     dirty,
     edges,
     errors,
+    handleBeforeDelete,
     handleConnect,
     handleEdgesChange,
     handleNodesChange,
@@ -244,5 +383,6 @@ export function useWorkflowEditor({
     selectedNode,
     selectedNodeId,
     selectNode,
+    addNodeToLoop,
   }
 }

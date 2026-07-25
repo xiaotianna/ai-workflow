@@ -1,19 +1,25 @@
 import type { NodeProps, NodeTypes } from '@xyflow/react'
 import type { WorkflowCanvasNode } from './types'
 import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
-import { nodeRegistry } from '@ai-workflow/core'
+import { BuiltinNodeType, nodeRegistry } from '@ai-workflow/core'
 import { WorkflowNodeHandle } from './workflow-node-handle'
+import { WorkflowLoopNode } from './workflow-loop-node'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 
-const WorkflowNode = ({ data, id, selected, type }: NodeProps<WorkflowCanvasNode>) => {
+const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
+  const { data, id, parentId, selected, type } = props
+  if (type === BuiltinNodeType.LOOP) {
+    return <WorkflowLoopNode {...props} />
+  }
+
   return (
     <RenderNode
-      node={{ id, type, config: data }}
+      node={{ id, type, config: data, parentId }}
       nodeRegistry={nodeRegistry}
       uiRegistry={nodeUIRegistry}
       selected={selected}
-      renderPort={(props) => <WorkflowNodeHandle {...props} />}
+      renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
     />
   )
 }

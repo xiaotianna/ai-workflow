@@ -1,4 +1,4 @@
-import { NodeType } from './node-definition'
+import type { NodeType } from './node-definition'
 
 export class NodeRegistry {
   private readonly nodes = new Map<string, NodeType>()

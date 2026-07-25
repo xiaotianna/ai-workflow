@@ -6,11 +6,11 @@ import {
   CirclePlay,
   CircleStop,
   Globe,
-  LucideIcon,
   Network,
   Repeat,
   Split,
 } from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
 export const NODE_ICONS = {
   [BuiltinNodeType.START]: CirclePlay,
@@ -20,7 +20,7 @@ export const NODE_ICONS = {
   [BuiltinNodeType.HTTP]: Globe,
   [BuiltinNodeType.LOOP]: Repeat,
   [BuiltinNodeType.CONDITION]: Split,
-  [BuiltinNodeType.WORKFLOW]: Network,
+  [BuiltinNodeType.SUB_WORKFLOW]: Network,
   unknown: CircleHelpIcon,
 } satisfies Record<string, LucideIcon>
 

@@ -1,12 +1,12 @@
-import { DataType } from '../port/data-types'
+import type { DataType } from '../port/data-types'
 import {
   DEFAULT_INPUT_PORT,
   DEFAULT_INPUT_PORT_ID,
   DEFAULT_OUTPUT_PORT,
   DEFAULT_OUTPUT_PORT_ID,
 } from '../port/port-resets'
-import { PortDefinition, PortMap } from '../port/port-types'
-import { NodeDefinition } from './node-definition'
+import type { PortDefinition, PortMap } from '../port/port-types'
+import type { NodeDefinition } from './node-definition'
 
 interface PortOptions extends Omit<PortDefinition, 'dataType'> {
   id?: string

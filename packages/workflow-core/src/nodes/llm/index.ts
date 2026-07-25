@@ -1,5 +1,5 @@
 import { createInitialConfig } from '../../node/create-initial-config'
-import { NodeType } from '../../node/node-definition'
+import type { NodeType } from '../../node/node-definition'
 import { llmNodeDefinition } from './definition'
 import { llmNodeSchema } from './schema'
 

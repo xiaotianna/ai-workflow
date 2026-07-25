@@ -6,6 +6,7 @@ import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
 import { useRef } from 'react'
 import '@xyflow/react/dist/style.css'
+import { WorkflowEditorActionsProvider } from '@/components/workflow/workflow-editor-actions-context'
 
 interface WorkflowEditorProps {
   initialSnapshot: WorkflowEditorSnapshot
@@ -17,35 +18,42 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
 
   return (
-    <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
-      ref={canvasRef}
-      nodes={editor.nodes}
-      edges={editor.edges}
-      nodeTypes={workflowNodeTypes}
-      defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
-      connectionLineType={ConnectionLineType.Bezier}
-      proOptions={{ hideAttribution: true }}
-      onNodesChange={editor.handleNodesChange}
-      // defaultViewport={initialViewport}
-      // fitView={!initialViewport}
-      // deleteKeyCode={['Backspace', 'Delete']}
-      // onEdgesChange={onEdgesChange}
-      // onConnect={onConnect}
-      // isValidConnection={isValidConnection}
-      // onNodesDelete={onNodesDelete}
-      // onSelectionChange={({ nodes: selectedNodes }) =>
-      //   onSelectedNodeChange(selectedNodes.at(-1)?.id)
-      // }
-      // onMoveEnd={(event, viewport) =>
-      //   onViewportChange(viewport, event !== null)
-      // }
-      className="bg-muted/30 workflow-editor"
+    <WorkflowEditorActionsProvider
+      value={{
+        addNodeToLoop: editor.addNodeToLoop,
+      }}
     >
-      {/* 总面板组件 */}
-      <WorkflowPanel nodeTypes={editor.availableNodeTypes} onAddNode={editor.addNode} />
-      {/* 背景 */}
-      <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
-    </ReactFlow>
+      <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
+        ref={canvasRef}
+        nodes={editor.nodes}
+        edges={editor.edges}
+        nodeTypes={workflowNodeTypes}
+        defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
+        connectionLineType={ConnectionLineType.Bezier}
+        proOptions={{ hideAttribution: true }}
+        onNodesChange={editor.handleNodesChange}
+        // defaultViewport={editor.initialViewport}
+        // fitView={!editor.initialViewport}
+        // deleteKeyCode={['Backspace', 'Delete']}
+        // onEdgesChange={editor.handleEdgesChange}
+        // onConnect={editor.handleConnect}
+        // isValidConnection={editor.isValidConnection}
+        // onBeforeDelete={editor.handleBeforeDelete}
+        // onNodesDelete={editor.handleNodesDelete}
+        // onSelectionChange={({ nodes: selectedNodes }) =>
+        //   editor.selectNode(selectedNodes.at(-1)?.id)
+        // }
+        // onMoveEnd={(event, viewport) =>
+        //   editor.handleViewportChange(viewport, event !== null)
+        // }
+        className="bg-muted/30 workflow-editor"
+      >
+        {/* 总面板组件 */}
+        <WorkflowPanel nodeTypes={editor.availableNodeTypes} onAddNode={editor.addNode} />
+        {/* 背景 */}
+        <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
+      </ReactFlow>
+    </WorkflowEditorActionsProvider>
   )
 }
 

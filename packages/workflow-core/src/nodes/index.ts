@@ -1,4 +1,4 @@
-import { NodeType } from '../node/node-definition'
+import type { NodeType } from '../node/node-definition'
 import { NodeRegistry } from '../node/node-registry'
 import { BuiltinNodeType } from './builtin-node-types'
 import { codeNode } from './code'
@@ -27,6 +27,6 @@ export const builtinNodeStrategies = {
   [BuiltinNodeType.SUB_WORKFLOW]: subWorkflowNode,
 } satisfies Record<BuiltinNodeType, NodeType>
 
-export const nodeRegistry = new NodeRegistry(
-  Object.values(builtinNodeStrategies)
-)
+export const nodeRegistry = new NodeRegistry(Object.values(builtinNodeStrategies))
+
+export * from './loop'

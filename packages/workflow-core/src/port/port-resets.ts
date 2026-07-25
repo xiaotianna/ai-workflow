@@ -1,5 +1,5 @@
 import { DATA_TYPE_KINDS } from './data-types'
-import { PortDefinition } from './port-types'
+import type { PortDefinition } from './port-types'
 
 // 普通节点默认输入handle id
 export const DEFAULT_INPUT_PORT_ID = 'input'
