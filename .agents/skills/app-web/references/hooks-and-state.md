@@ -32,3 +32,10 @@
 2. 兄弟组件共享时提升到最近共同父级。
 3. 同一业务功能多处共享时建立业务 Hook 或 Context。
 4. 只有跨业务、生命周期和缓存需求明确时，再评估应用级状态方案。
+
+## 工作流编辑器
+
+- 根画布和 Loop 容器内新增节点都通过 `createCanvasNodes` 创建；新增 Loop 必须在同一次
+  状态更新中原子生成 Loop 容器、Loop Start 和 Loop Exit。
+- Loop Start 与 Loop Exit 是自动维护的系统节点，初始化和新建时均设置为不可单独删除；
+  删除 Loop 时通过 React Flow 的删除拦截器递归删除全部后代节点及关联边。

@@ -13,8 +13,8 @@ import {
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 import type { Connection, XYPosition } from '@xyflow/react'
 
-// 创建节点（调用core的createInitialConfig工厂函数）
-export const createCanvasNode = (type: string, position: XYPosition): WorkflowCanvasNode => {
+// 创建单个普通节点（调用core的createInitialConfig工厂函数）
+const createCanvasNode = (type: string, position: XYPosition): WorkflowCanvasNode => {
   const nodeType = nodeRegistry.getOrThrow(type)
   return {
     id: generateUuid(),
@@ -92,13 +92,13 @@ const DEFAULT_LOOP_SIZE = {
  * 创建loop画布节点
  * 必须一次生成三个节点，避免产生暂时不合法的 Loop
  */
-export const createLoopCanvasNodes = ({
+const createLoopCanvasNodes = ({
   position,
   parentId,
 }: {
   position: XYPosition
   parentId?: string
-}): WorkflowCanvasNode[] => {
+}): [WorkflowCanvasNode, WorkflowCanvasNode, WorkflowCanvasNode] => {
   const loopId = generateUuid()
 
   // 创建loop节点
@@ -128,6 +128,7 @@ export const createLoopCanvasNodes = ({
     type: BuiltinNodeType.LOOP_START,
     parentId: loopId,
     extent: 'parent',
+    deletable: false,
     position: {
       x: 32,
       y: 96,
@@ -145,6 +146,7 @@ export const createLoopCanvasNodes = ({
     type: BuiltinNodeType.LOOP_EXIT,
     parentId: loopId,
     extent: 'parent',
+    deletable: false,
     position: {
       x: 260,
       y: 96,
@@ -157,6 +159,39 @@ export const createLoopCanvasNodes = ({
   }
 
   return [loopNode, loopStartNode, loopExitNode]
+}
+
+/**
+ * 创建可直接加入画布的完整节点集合。
+ * Loop 始终原子生成容器、Loop Start 与 Loop Exit，普通节点只生成一个。
+ */
+export const createCanvasNodes = ({
+  type,
+  position,
+  parentId,
+}: {
+  type: string
+  position: XYPosition
+  parentId?: string
+}): [WorkflowCanvasNode, ...WorkflowCanvasNode[]] => {
+  if (type === BuiltinNodeType.LOOP) {
+    return createLoopCanvasNodes({ position, parentId })
+  }
+
+  const node = createCanvasNode(type, position)
+
+  if (!parentId) {
+    return [node]
+  }
+
+  return [
+    {
+      ...node,
+      parentId,
+      extent: 'parent',
+      expandParent: true,
+    },
+  ]
 }
 
 // 删除节点（删除 Loop 时必须递归删除全部后代节点）

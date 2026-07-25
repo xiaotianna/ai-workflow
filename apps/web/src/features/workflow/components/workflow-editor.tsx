@@ -45,8 +45,8 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         onEdgesChange={editor.handleEdgesChange}
         onConnect={editor.handleConnect}
         isValidConnection={editor.isValidConnection}
-        // onBeforeDelete={editor.handleBeforeDelete}
-        // onNodesDelete={editor.handleNodesDelete}
+        onBeforeDelete={editor.handleBeforeDelete}
+        onNodesDelete={editor.handleNodesDelete}
         // onSelectionChange={({ nodes: selectedNodes }) =>
         //   editor.selectNode(selectedNodes.at(-1)?.id)
         // }

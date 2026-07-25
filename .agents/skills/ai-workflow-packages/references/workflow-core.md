@@ -34,7 +34,10 @@ import {
 - 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
   End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段。
-- 当前正式注册的内置节点只有 `start` 和 `condition`；end、http、llm 目录中的空文件或草稿不代表可用节点。
+- 当前正式注册的内置节点包括 `start`、`end`、`llm`、`rag`、`code`、`http`、
+  `loop`、`loop_start`、`loop_exit`、`condition` 和 `sub_workflow`。
+- 每个 Loop 必须恰好直接包含一个 `loop_start` 和一个 `loop_exit`；两者不能脱离 Loop，
+  边也不能跨越 Loop 作用域。
 
 ## 新增节点
 

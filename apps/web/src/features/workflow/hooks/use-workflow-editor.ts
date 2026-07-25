@@ -22,8 +22,7 @@ import { canConnect } from '@/utils/workflow/can-connect'
 import { hasEdgeMutation, hasNodeMutation } from '@/utils/workflow/editor-change'
 import {
   collectDescendantNodeIds,
-  createCanvasNode,
-  createLoopCanvasNodes,
+  createCanvasNodes,
   createWorkflowEdge,
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
@@ -35,8 +34,8 @@ import {
   toCanvasNodes,
   toWorkflowNode,
 } from '@/utils/workflow/editor-transform'
-import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 import {
+  isLoopSystemNodeType,
   LOOP_UNAVAILABLE_NODE_TYPES,
   ROOT_HIDDEN_NODE_TYPES,
 } from '@/utils/workflow/node-type-visibility'
@@ -149,17 +148,18 @@ export function useWorkflowEditor({
             y: canvasBounds.top + canvasBounds.height / 2,
           })
         : undefined
-    const nextNode = createCanvasNode(
+    const createdNodes = createCanvasNodes({
       type,
-      viewportCenter
+      position: viewportCenter
         ? {
             x: viewportCenter.x - INITIAL_NODE_SIZE.width / 2,
             y: viewportCenter.y - INITIAL_NODE_SIZE.height / 2,
           }
         : getDefaultNodePosition(nodes.length),
-    )
+    })
+    const nextNode = createdNodes[0]
 
-    setNodes((currentNodes) => [...currentNodes, nextNode])
+    setNodes((currentNodes) => [...currentNodes, ...createdNodes])
     setSelectedNodeId(nextNode.id)
     setDirty(true)
 
@@ -257,50 +257,20 @@ export function useWorkflowEditor({
 
     const position = getNextLoopChildPosition(loopId, nodes)
 
-    if (type === BuiltinNodeType.LOOP) {
-      const createdNodes = createLoopCanvasNodes({
-        position,
-        parentId: loopId,
-      })
-
-      const createdLoop = createdNodes[0]
-
-      if (!createdLoop) {
-        return
-      }
-
-      setNodes((currentNodes) => [...currentNodes, ...createdNodes])
-      setSelectedNodeId(createdLoop.id)
-      setDirty(true)
-
-      requestAnimationFrame(() => {
-        updateNodeInternals(loopId)
-      })
-
-      return
-    }
-
     const nodeType = nodeRegistry.get(type)
 
     if (!nodeType) {
       return
     }
 
-    const nextNode: WorkflowCanvasNode = {
-      id: generateUuid(),
+    const createdNodes = createCanvasNodes({
       type: nodeType.definition.type,
       parentId: loopId,
-      extent: 'parent',
-      expandParent: true,
       position,
-      data: {
-        config: nodeType.createInitialConfig(),
-        inputs: {},
-        outputs: [],
-      },
-    }
+    })
+    const nextNode = createdNodes[0]
 
-    setNodes((currentNodes) => [...currentNodes, nextNode])
+    setNodes((currentNodes) => [...currentNodes, ...createdNodes])
     setSelectedNodeId(nextNode.id)
     setDirty(true)
 
@@ -311,14 +281,9 @@ export function useWorkflowEditor({
 
   // 删除
   function deleteNodes(requestedNodeIds: ReadonlySet<string>) {
-    const protectedTypes: ReadonlySet<string> = new Set([
-      BuiltinNodeType.LOOP_START,
-      BuiltinNodeType.LOOP_EXIT,
-    ])
-
     const allowedRootIds = new Set(
       nodes
-        .filter((node) => requestedNodeIds.has(node.id) && !protectedTypes.has(node.type))
+        .filter((node) => requestedNodeIds.has(node.id) && !isLoopSystemNodeType(node.type))
         .map((node) => node.id),
     )
 
@@ -341,12 +306,8 @@ export function useWorkflowEditor({
     nodes: requestedNodes,
     edges: requestedEdges,
   }) => {
-    const protectedTypes: ReadonlySet<string> = new Set([
-      BuiltinNodeType.LOOP_START,
-      BuiltinNodeType.LOOP_EXIT,
-    ])
     const requestedRootIds = new Set(
-      requestedNodes.filter((node) => !protectedTypes.has(node.type)).map((node) => node.id),
+      requestedNodes.filter((node) => !isLoopSystemNodeType(node.type)).map((node) => node.id),
     )
     const deletedNodeIds = collectDescendantNodeIds(requestedRootIds, nodes)
     const requestedEdgeIds = new Set(requestedEdges.map((edge) => edge.id))

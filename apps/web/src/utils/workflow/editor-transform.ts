@@ -6,6 +6,7 @@ import {
   type WorkflowNode,
 } from '@ai-workflow/core'
 import type { Viewport, XYPosition } from '@xyflow/react'
+import { isLoopSystemNodeType } from './node-type-visibility'
 
 // 提供默认节点位置
 export const getDefaultNodePosition = (index: number): XYPosition => {
@@ -57,6 +58,8 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
           extent: workflowNode.parentId ? 'parent' : undefined,
           // 允许父容器自动扩展
           expandParent: workflowNode.parentId ? true : undefined,
+          // Loop Start/Exit 是容器自动维护的系统节点，不能单独删除。
+          deletable: !isLoopSystemNodeType(workflowNode.type),
           // Loop 只允许通过 Header 拖动，避免操作内部节点时带动容器。
           dragHandle: workflowNode.type === BuiltinNodeType.LOOP ? '.drag-handle' : undefined,
           // 保存loop容器尺寸
