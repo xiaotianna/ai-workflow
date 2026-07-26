@@ -1,9 +1,4 @@
-import {
-  BuiltinNodeType,
-  nodeRegistry,
-  type WorkflowEdge,
-  type WorkflowNode,
-} from '@ai-workflow/core'
+import { nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
 import {
   useEdgesState,
   useNodesState,
@@ -28,18 +23,14 @@ import {
   removeEdgesConnectedToNodes,
 } from '@/utils/workflow/editor-elements'
 import { useWorkflowSave } from './use-workflow-save'
+import { useWorkflowLoopEditor } from './use-workflow-loop-editor'
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import {
   getDefaultNodePosition,
   toCanvasNodes,
   toWorkflowNode,
 } from '@/utils/workflow/editor-transform'
-import {
-  isLoopSystemNodeType,
-  LOOP_UNAVAILABLE_NODE_TYPES,
-  ROOT_HIDDEN_NODE_TYPES,
-} from '@/utils/workflow/node-type-visibility'
-import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
+import { ROOT_HIDDEN_NODE_TYPES } from '@/utils/workflow/node-type-visibility'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
@@ -94,9 +85,19 @@ export function useWorkflowEditor({
     viewport,
   })
 
+  const loopEditor = useWorkflowLoopEditor({
+    nodes,
+    edges,
+    setNodes,
+    setSelectedNodeId,
+    markDirty: () => setDirty(true),
+    updateNodeInternals,
+  })
+
   /** 应用 React Flow 节点变更，并只对可持久化变化设置 dirty */
   function handleNodesChange(changes: NodeChange<WorkflowCanvasNode>[]) {
     applyNodeChanges(changes)
+
     if (hasNodeMutation(changes)) setDirty(true)
   }
 
@@ -241,51 +242,9 @@ export function useWorkflowEditor({
     setSelectedNodeId(nodeId)
   }
 
-  // 在loop内添加节点
-  function addNodeToLoop(type: string, loopId: string) {
-    if (LOOP_UNAVAILABLE_NODE_TYPES.has(type)) {
-      return
-    }
-
-    const parentLoop = nodes.find(
-      (node) => node.id === loopId && node.type === BuiltinNodeType.LOOP,
-    )
-
-    if (!parentLoop) {
-      return
-    }
-
-    const position = getNextLoopChildPosition(loopId, nodes)
-
-    const nodeType = nodeRegistry.get(type)
-
-    if (!nodeType) {
-      return
-    }
-
-    const createdNodes = createCanvasNodes({
-      type: nodeType.definition.type,
-      parentId: loopId,
-      position,
-    })
-    const nextNode = createdNodes[0]
-
-    setNodes((currentNodes) => [...currentNodes, ...createdNodes])
-    setSelectedNodeId(nextNode.id)
-    setDirty(true)
-
-    requestAnimationFrame(() => {
-      updateNodeInternals(loopId)
-    })
-  }
-
   // 删除
   function deleteNodes(requestedNodeIds: ReadonlySet<string>) {
-    const allowedRootIds = new Set(
-      nodes
-        .filter((node) => requestedNodeIds.has(node.id) && !isLoopSystemNodeType(node.type))
-        .map((node) => node.id),
-    )
+    const allowedRootIds = loopEditor.getDeletableRootIds(requestedNodeIds)
 
     const deletedNodeIds = collectDescendantNodeIds(allowedRootIds, nodes)
     if (deletedNodeIds.size === 0) return
@@ -305,29 +264,7 @@ export function useWorkflowEditor({
   const handleBeforeDelete: OnBeforeDelete<WorkflowCanvasNode, WorkflowEdge> = async ({
     nodes: requestedNodes,
     edges: requestedEdges,
-  }) => {
-    const requestedRootIds = new Set(
-      requestedNodes.filter((node) => !isLoopSystemNodeType(node.type)).map((node) => node.id),
-    )
-    const deletedNodeIds = collectDescendantNodeIds(requestedRootIds, nodes)
-    const requestedEdgeIds = new Set(requestedEdges.map((edge) => edge.id))
-    const deletedNodes = nodes.filter((node) => deletedNodeIds.has(node.id))
-    const deletedEdges = edges.filter(
-      (edge) =>
-        requestedEdgeIds.has(edge.id) ||
-        deletedNodeIds.has(edge.source) ||
-        deletedNodeIds.has(edge.target),
-    )
-
-    if (deletedNodes.length === 0 && deletedEdges.length === 0) {
-      return false
-    }
-
-    return {
-      nodes: deletedNodes,
-      edges: deletedEdges,
-    }
-  }
+  }) => loopEditor.resolveBeforeDelete(requestedNodes, requestedEdges)
 
   // 外层画布（非loop内）展示的节点
   const availableNodeTypes = nodeRegistry
@@ -356,6 +293,6 @@ export function useWorkflowEditor({
     selectedNode,
     selectedNodeId,
     selectNode,
-    addNodeToLoop,
+    loopEditor,
   }
 }

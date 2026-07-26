@@ -11,7 +11,7 @@ import {
   type WorkflowNode,
 } from '@ai-workflow/core'
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
-import type { Connection, XYPosition } from '@xyflow/react'
+import type { Connection, CoordinateExtent, XYPosition } from '@xyflow/react'
 
 // 创建单个普通节点（调用core的createInitialConfig工厂函数）
 const createCanvasNode = (type: string, position: XYPosition): WorkflowCanvasNode => {
@@ -83,9 +83,62 @@ export const removeDanglingEdges = (
 }
 
 // 默认loop容器大小
-const DEFAULT_LOOP_SIZE = {
+export const DEFAULT_LOOP_SIZE = {
   width: 680,
   height: 420,
+}
+
+const LOOP_CONTENT_INSET = {
+  top: 48,
+  right: 12,
+  bottom: 12,
+  left: 12,
+}
+
+const LOOP_CHILD_PADDING = 20
+
+// Loop 子节点只允许出现在点阵背景的安全边距内。
+export const getLoopChildExtent = ({
+  width,
+  height,
+}: {
+  width: number
+  height: number
+}): CoordinateExtent => [
+  [LOOP_CONTENT_INSET.left + LOOP_CHILD_PADDING, LOOP_CONTENT_INSET.top + LOOP_CHILD_PADDING],
+  [
+    width - LOOP_CONTENT_INSET.right - LOOP_CHILD_PADDING,
+    height - LOOP_CONTENT_INSET.bottom - LOOP_CHILD_PADDING,
+  ],
+]
+
+export function getLoopNodeSize(node: WorkflowCanvasNode) {
+  return {
+    width:
+      node.measured?.width ??
+      (typeof node.style?.width === 'number' ? node.style.width : DEFAULT_LOOP_SIZE.width),
+    height:
+      node.measured?.height ??
+      (typeof node.style?.height === 'number' ? node.style.height : DEFAULT_LOOP_SIZE.height),
+  }
+}
+
+/** Loop 容器尺寸变化后，同步更新其内部子节点的可拖拽范围。 */
+export function syncLoopChildExtents(nodes: WorkflowCanvasNode[]) {
+  const loopSizeById = new Map(
+    nodes
+      .filter((node) => node.type === BuiltinNodeType.LOOP)
+      .map((node) => [node.id, getLoopNodeSize(node)]),
+  )
+
+  return nodes.map((node) =>
+    node.parentId && loopSizeById.has(node.parentId)
+      ? {
+          ...node,
+          extent: getLoopChildExtent(loopSizeById.get(node.parentId)!),
+        }
+      : node,
+  )
 }
 
 /**
@@ -95,11 +148,14 @@ const DEFAULT_LOOP_SIZE = {
 const createLoopCanvasNodes = ({
   position,
   parentId,
+  parentSize,
 }: {
   position: XYPosition
   parentId?: string
+  parentSize?: { width: number; height: number }
 }): [WorkflowCanvasNode, WorkflowCanvasNode, WorkflowCanvasNode] => {
   const loopId = generateUuid()
+  const loopChildExtent = getLoopChildExtent(DEFAULT_LOOP_SIZE)
 
   // 创建loop节点
   const loopNode: WorkflowCanvasNode = {
@@ -114,8 +170,7 @@ const createLoopCanvasNodes = ({
     ...(parentId
       ? {
           parentId,
-          extent: 'parent',
-          expandParent: true,
+          extent: getLoopChildExtent(parentSize ?? DEFAULT_LOOP_SIZE),
         }
       : {}),
     style: DEFAULT_LOOP_SIZE,
@@ -127,7 +182,7 @@ const createLoopCanvasNodes = ({
     id: generateUuid(),
     type: BuiltinNodeType.LOOP_START,
     parentId: loopId,
-    extent: 'parent',
+    extent: loopChildExtent,
     deletable: false,
     position: {
       x: 32,
@@ -145,7 +200,7 @@ const createLoopCanvasNodes = ({
     id: generateUuid(),
     type: BuiltinNodeType.LOOP_EXIT,
     parentId: loopId,
-    extent: 'parent',
+    extent: loopChildExtent,
     deletable: false,
     position: {
       x: 260,
@@ -169,13 +224,15 @@ export const createCanvasNodes = ({
   type,
   position,
   parentId,
+  parentSize,
 }: {
   type: string
   position: XYPosition
   parentId?: string
+  parentSize?: { width: number; height: number }
 }): [WorkflowCanvasNode, ...WorkflowCanvasNode[]] => {
   if (type === BuiltinNodeType.LOOP) {
-    return createLoopCanvasNodes({ position, parentId })
+    return createLoopCanvasNodes({ position, parentId, parentSize })
   }
 
   const node = createCanvasNode(type, position)
@@ -188,8 +245,7 @@ export const createCanvasNodes = ({
     {
       ...node,
       parentId,
-      extent: 'parent',
-      expandParent: true,
+      extent: getLoopChildExtent(parentSize ?? DEFAULT_LOOP_SIZE),
     },
   ]
 }

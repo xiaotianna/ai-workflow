@@ -7,7 +7,7 @@ export interface NodeWrapperProps {
   disabled?: boolean
   onSelect?: () => void
   ariaLabel?: string
-  variant?: 'default' | 'container'
+  wrapperClassName?: string
   className?: string
 }
 
@@ -18,7 +18,7 @@ export function NodeWrapper({
   disabled = false,
   onSelect,
   ariaLabel,
-  variant = 'default',
+  wrapperClassName,
   className,
 }: NodeWrapperProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -45,15 +45,15 @@ export function NodeWrapper({
         'hover:shadow-lg hover:shadow-black/5',
         selected && 'shadow-primary/10 shadow-lg',
         disabled && 'pointer-events-none opacity-50',
-        className,
+        wrapperClassName,
       )}
     >
       <div
         className={cn(
           'relative border shadow-xs transition-[border-color,background-color]',
-          variant === 'default' && 'bg-card border-border/30 w-60 rounded-[15px]',
-          variant === 'container' && 'bg-card/80 size-full min-h-105 min-w-170 rounded-[28px]',
+          'bg-card border-border/30 w-60 rounded-[15px]',
           selected && 'border-primary border-[1.5px]',
+          className,
         )}
       >
         {children}

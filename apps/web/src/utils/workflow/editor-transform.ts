@@ -6,6 +6,7 @@ import {
   type WorkflowNode,
 } from '@ai-workflow/core'
 import type { Viewport, XYPosition } from '@xyflow/react'
+import { DEFAULT_LOOP_SIZE, getLoopChildExtent } from './editor-elements'
 import { isLoopSystemNodeType } from './node-type-visibility'
 
 // 提供默认节点位置
@@ -35,6 +36,11 @@ const getNodeDepth = (node: WorkflowNode, nodeById: ReadonlyMap<string, Workflow
 export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasNode[] => {
   // 建立节点索引
   const nodeById = new Map(snapshot.workflow.nodes.map((node) => [node.id, node]))
+  const loopSizeById = new Map(
+    snapshot.workflow.nodes
+      .filter((node) => node.type === BuiltinNodeType.LOOP)
+      .map((node) => [node.id, snapshot.layout.sizes?.[node.id] ?? DEFAULT_LOOP_SIZE]),
+  )
 
   return (
     [...snapshot.workflow.nodes]
@@ -53,11 +59,10 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
             outputs: workflowNode.outputs,
           },
           parentId: workflowNode.parentId,
-          // extent、expandParent都react flow支持的属性
-          // 限制子节点在父容器内（不能拖拽出容器）
-          extent: workflowNode.parentId ? 'parent' : undefined,
-          // 允许父容器自动扩展
-          expandParent: workflowNode.parentId ? true : undefined,
+          // 子节点只能在父 Loop 的点阵背景区域内移动。
+          extent: workflowNode.parentId
+            ? getLoopChildExtent(loopSizeById.get(workflowNode.parentId) ?? DEFAULT_LOOP_SIZE)
+            : undefined,
           // Loop Start/Exit 是容器自动维护的系统节点，不能单独删除。
           deletable: !isLoopSystemNodeType(workflowNode.type),
           // Loop 只允许通过 Header 拖动，避免操作内部节点时带动容器。

@@ -39,3 +39,6 @@
   状态更新中原子生成 Loop 容器、Loop Start 和 Loop Exit。
 - Loop Start 与 Loop Exit 是自动维护的系统节点，初始化和新建时均设置为不可单独删除；
   删除 Loop 时通过 React Flow 的删除拦截器递归删除全部后代节点及关联边。
+- Loop 容器相关行为（子节点添加、缩放边界同步、删除拦截）集中在
+  `features/workflow/hooks/use-workflow-loop-editor.ts`；`useWorkflowEditor` 只组合该
+  Hook 并通过 `WorkflowLoopEditorProvider` 向节点组件注入能力。

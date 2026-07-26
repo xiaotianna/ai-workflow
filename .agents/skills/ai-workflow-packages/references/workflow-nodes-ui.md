@@ -39,11 +39,16 @@ import {
 `builtinNodeUIRegistrations`，由 `RenderNode` 自动选择完整节点渲染器。`LoopNode`
 自行渲染通用 `AddNode` 选择器；画布层通过 `editorCapabilities` 提供不同容器类型的
 候选节点和添加回调，不再判断节点应渲染什么操作或组件。能力按照
-`editorCapabilities[parentNodeType].addChildNode` 组织，方便后续为不同节点类型扩展其他能力。
+`editorCapabilities[parentNodeType]` 组织，例如 `addChildNode` 提供子节点添加能力、
+`resizeControl` 注入画布缩放控件；Loop 节点的缩放外壳与 hover 交互留在
+`LoopNode` 内，具体 `NodeResizeControl` 仍由 Web 层注入，避免本包依赖画布库。
 普通节点与完整节点渲染器统一复用 `NodeWrapper`、`NodeHeader` 和 `NodePortsRender`。
 `NodeWrapper` 统一管理外层交互容器和内层卡片样式，并处理选择、禁用和键盘交互；
-普通节点使用默认样式，容器节点使用 `variant="container"`；特殊场景可以传入 `className`，
-由 `cn` 与 Wrapper 的默认外层样式合并；
+普通节点使用默认卡片尺寸；容器节点等特殊场景通过 `className` 覆盖内层卡片的尺寸和圆角，
+由 `cn` 与卡片默认样式合并，并通过 `wrapperClassName` 让外层跟随画布节点尺寸；
+不在通用 Wrapper 中维护节点类型对应的 variant；
+`NodeHeader` 通过 `actions` 提供右侧操作插槽，容器节点的添加操作放在 Header 内；
+循环节点的内部区域使用与主画布相同间距和颜色的 CSS 点阵背景，不嵌套 React Flow；
 `NodePortsRender` 默认纵向排列端口，容器节点可以使用 `layout="centered"` 将端口放在垂直中线。
 
 ## 新增节点界面

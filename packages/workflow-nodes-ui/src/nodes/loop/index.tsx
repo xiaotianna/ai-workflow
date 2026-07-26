@@ -17,47 +17,54 @@ export function LoopNode({
   dragHandleClassName,
   renderPort,
 }: NodeRendererProps<LoopNodeConfig>) {
-  const addChildNodeAction = editorCapabilities?.[node.type]?.addChildNode
+  const nodeCapabilities = editorCapabilities?.[node.type]
+  const addChildNodeAction = nodeCapabilities?.addChildNode
+  const resizeControl = nodeCapabilities?.resizeControl
 
   return (
-    <NodeWrapper
-      ariaLabel="循环节点"
-      variant="container"
-      selected={selected}
-      disabled={disabled}
-      onSelect={onSelect}
-    >
-      <NodeHeader
-        definition={definition}
-        onDelete={onDelete}
-        className={cn('h-16 items-center px-5 py-0', dragHandleClassName)}
-      />
+    <div className="group/loop relative size-full">
+      <NodeWrapper
+        ariaLabel="循环节点"
+        selected={selected}
+        disabled={disabled}
+        onSelect={onSelect}
+        wrapperClassName="size-full"
+        className="flex size-full min-h-105 min-w-170 flex-col"
+      >
+        <NodeHeader
+          definition={definition}
+          onDelete={onDelete}
+          className={cn('shrink-0', dragHandleClassName)}
+          actions={
+            addChildNodeAction && addChildNodeAction.nodeTypes.length > 0 ? (
+              <div className="nodrag nopan nowheel">
+                <AddNode
+                  nodeTypes={addChildNodeAction.nodeTypes}
+                  onAddNode={(childType) => addChildNodeAction.onAddNode(node.id, childType)}
+                />
+              </div>
+            ) : null
+          }
+        />
 
-      <div className="bg-muted/30 mx-3 mb-3 h-[calc(100%-76px)] rounded-[22px]">
-        {addChildNodeAction && addChildNodeAction.nodeTypes.length > 0 ? (
-          <div className="nodrag nopan nowheel absolute top-20 right-5 z-10">
-            <AddNode
-              nodeTypes={addChildNodeAction.nodeTypes}
-              onAddNode={(childType) => addChildNodeAction.onAddNode(node.id, childType)}
-            />
-          </div>
-        ) : null}
-      </div>
+        <div className="mx-3 mb-3 min-h-0 flex-1 rounded-xl bg-[#f2f4f7] bg-[radial-gradient(#e3e4ec_1px,transparent_1px)] bg-size-[20px_20px]" />
 
-      <NodePortsRender
-        nodeId={node.id}
-        direction="input"
-        ports={ports.inputs}
-        renderPort={renderPort}
-        layout="centered"
-      />
-      <NodePortsRender
-        nodeId={node.id}
-        direction="output"
-        ports={ports.outputs}
-        renderPort={renderPort}
-        layout="centered"
-      />
-    </NodeWrapper>
+        <NodePortsRender
+          nodeId={node.id}
+          direction="input"
+          ports={ports.inputs}
+          renderPort={renderPort}
+          layout="centered"
+        />
+        <NodePortsRender
+          nodeId={node.id}
+          direction="output"
+          ports={ports.outputs}
+          renderPort={renderPort}
+          layout="centered"
+        />
+      </NodeWrapper>
+      {resizeControl}
+    </div>
   )
 }

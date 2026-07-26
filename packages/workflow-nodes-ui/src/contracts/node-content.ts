@@ -43,6 +43,8 @@ export interface AddChildNodeAction {
 // 单个节点类型可以消费的画布能力集合
 export interface NodeCapabilities {
   readonly addChildNode?: AddChildNodeAction
+  // 由画布层注入的缩放控件，例如 React Flow NodeResizeControl
+  readonly resizeControl?: ReactNode
   // ...后续的其他扩展
 }
 

@@ -6,7 +6,7 @@ import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
 import { useRef } from 'react'
 import '@xyflow/react/dist/style.css'
-import { WorkflowEditorActionsProvider } from '@/components/workflow/workflow-editor-actions-context'
+import { WorkflowLoopEditorProvider } from '@/components/workflow/workflow-loop-editor-context'
 
 interface WorkflowEditorProps {
   initialSnapshot: WorkflowEditorSnapshot
@@ -18,11 +18,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
 
   return (
-    <WorkflowEditorActionsProvider
-      value={{
-        addNodeToLoop: editor.addNodeToLoop,
-      }}
-    >
+    <WorkflowLoopEditorProvider value={editor.loopEditor}>
       <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
         ref={canvasRef}
         nodes={editor.nodes}
@@ -60,7 +56,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         {/* 背景 */}
         <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
       </ReactFlow>
-    </WorkflowEditorActionsProvider>
+    </WorkflowLoopEditorProvider>
   )
 }
 
