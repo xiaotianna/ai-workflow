@@ -15,11 +15,44 @@
 
 - Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；应用侧栏通过 `onImportDsl` 追加“导入 DSL”并打开文件选择弹窗，Studio 页面与资源卡片不提供导入入口。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
 - 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示知识库条目；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内。
-- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 TanStack Form 管理 `FileDropzone` 字段校验与提交。
+- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 TanStack Form 管理 `FileDropzone` 字段校验与提交。表格与分页的详细约定见下方「知识库文档表格」。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
+
+## 知识库文档表格
+
+参考实现：`features/knowledge-base/components/document-table.tsx`、`document-action-menu.tsx`、`document-pagination.tsx`。
+
+### 页面高度与滚动
+
+- 文档页根容器使用 `flex h-full min-h-0 flex-col overflow-hidden`，占满详情布局主内容区剩余高度，不在页面级滚动。
+- `PageContent` 与 `DocumentTable` 沿 flex 链传递 `flex-1 min-h-0 overflow-hidden`；表格主体区域单独 `flex-1 overflow-auto`，行数超出时在表格内部滚动；底部分页器固定于表格外，不参与滚动。
+- 详情布局主内容区默认 `overflow-auto`；需要表格内滚动的页面须用 `h-full overflow-hidden` 约束自身高度，避免整页与表格双层滚动。
+
+### 列结构
+
+- 使用 TanStack Table 管理列定义、排序、分页与行选择；表格设置 `minWidth` 保证窄屏时可横向滚动。
+- 「操作」列与 dot 菜单列分离：操作列表头为「操作」，内容为 `Switch`；其后为**无表头**的 dot 列，内容为 `DocumentActionMenu`（`MoreHorizontal`）。
+- dot 列 `sticky right-0`，横向滚动时始终贴在右侧；默认 `bg-background` 遮挡下层内容，行态背景与其他列保持一致（见下方行背景）。
+- dot 列左侧使用**短竖线**分隔，不用整列 `border-l`；在数据行单元格用 `before` 伪元素实现，高度约 `h-3.5`，垂直居中；表头对应单元格不显示竖线。
+
+### 行背景与 sticky 一致
+
+- 表格行使用 `group/row`；**关闭** `<tr>` 上的 `hover:bg-*` 与 `data-[state=selected]:bg-*`，改由**所有** body 单元格统一承担行态背景，避免 sticky 列与其他列不同步。
+- 单元格共用：`group-hover/row:bg-input`、`group-data-[state=selected]/row:bg-input`、`group-has-[[data-state=open]]/row:bg-input`；下拉打开、鼠标移入 Portal 菜单时整行背景保持，不因失焦消失。
+- 需要 sticky 与横向遮罩时，dot 列单元格额外保留默认 `bg-background`，行态类名与其他列相同。
+
+### dot 操作菜单
+
+- `DocumentActionMenu` **始终渲染** dot 按钮，禁止在无操作项时用空白占位替代图标；无操作项时按钮 `disabled`，有操作项时正常展开 `ActionMenuContent`。
+- `getDocumentActions` 不因缺少 handler 返回空数组；页面应提供默认 `onDocumentAction`，路由未注入时使用页面内 handler。
+- dot 按钮在行未 hover 时，hover / focus 使用 `bg-muted`；行已 hover 或菜单已打开（行背景为 `bg-input`）时，hover / focus / `aria-expanded` 使用 `bg-button-secondary-bg-active`，比行背景略深、可分辨；不得使用比行背景更浅的 `bg-background` 作为激活态。
+
+### 分页
+
+- 分页器使用 `@ai-workflow/ui/components/pagination`，独立于表格滚动容器，位于 `DocumentTable` 底部；支持页码与每页条数切换。
 
 ## 详情页布局
 

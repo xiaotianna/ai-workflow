@@ -28,3 +28,4 @@
 - 主布局保持 `min-w-0` 和可滚动内容区域，避免子页面撑破横向布局。
 - 页面级空态、错误态和局部加载态靠近数据消费区域；只有路由代码块加载使用全页 `LazyLoad`。
 - 新增嵌套路由时让父页面保留 `Outlet`，不要手工根据路径切换组件。
+- 详情子页面若含「占满剩余高度、内容区内部滚动」的表格或列表，页面根使用 `h-full min-h-0 overflow-hidden` 与 flex 高度链，见 `$app-web` 的 [design-and-components.md](design-and-components.md) 中「知识库文档表格」。

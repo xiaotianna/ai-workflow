@@ -10,10 +10,6 @@ interface DocumentActionMenuProps {
 }
 
 export function DocumentActionMenu({ title, actions }: DocumentActionMenuProps) {
-  if (!actions.length) {
-    return <span className="size-8 shrink-0" aria-hidden />
-  }
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -22,13 +18,14 @@ export function DocumentActionMenu({ title, actions }: DocumentActionMenuProps) 
           variant="ghost"
           size="icon-sm"
           aria-label={`${title} 的更多操作`}
-          className="text-muted-foreground"
+          className="text-muted-foreground hover:bg-muted focus-visible:bg-muted aria-expanded:bg-button-secondary-bg-active group-hover/row:[&:hover]:bg-button-secondary-bg-active group-hover/row:focus-visible:bg-button-secondary-bg-active group-hover/row:aria-expanded:bg-button-secondary-bg-active"
+          disabled={!actions.length}
         >
           <MoreHorizontal aria-hidden className="size-4" />
         </Button>
       </DropdownMenuTrigger>
 
-      <ActionMenuContent actions={actions} sideOffset={6} />
+      {actions.length ? <ActionMenuContent actions={actions} sideOffset={6} /> : null}
     </DropdownMenu>
   )
 }

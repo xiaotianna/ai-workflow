@@ -22,7 +22,7 @@ import {
   type RowSelectionState,
   type SortingState,
 } from '@tanstack/react-table'
-import { ArrowDown, FileText, Puzzle } from 'lucide-react'
+import { FileText, Puzzle } from 'lucide-react'
 import { useMemo } from 'react'
 
 import { documentFileTypeIconBackground } from '../constants'
@@ -31,6 +31,38 @@ import type { DocumentActionHandler, KnowledgeBaseDocument } from '../types'
 import { DocumentActionMenu } from './document-action-menu'
 import { getDocumentActions } from './document-actions'
 import { DocumentPagination } from './document-pagination'
+
+const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 168 + 88 + 72 + 48
+
+const documentTableRowCellClassName =
+  'group-hover/row:bg-input group-data-[state=selected]/row:bg-input group-has-[[data-state=open]]/row:bg-input'
+
+const stickyMenuColumnClassName = 'bg-background sticky right-0'
+
+const stickyMenuBodyColumnClassName =
+  'before:bg-border relative before:absolute before:top-1/2 before:left-0 before:h-3.5 before:w-px before:-translate-y-1/2'
+
+function getDocumentColumnStyle(
+  columnId: string,
+  size: number,
+  minSize?: number,
+  maxSize?: number,
+) {
+  const resolvedMinSize = minSize ?? size
+
+  if (columnId === 'name') {
+    return {
+      width: '22%',
+      minWidth: resolvedMinSize,
+      ...(maxSize !== undefined ? { maxWidth: maxSize } : {}),
+    }
+  }
+
+  return {
+    width: size,
+    minWidth: resolvedMinSize,
+  }
+}
 
 interface DocumentTableProps {
   documents: KnowledgeBaseDocument[]
@@ -51,7 +83,15 @@ function DocumentStatusBadge({
   statusLabel,
 }: Pick<KnowledgeBaseDocument, 'status' | 'statusLabel'>) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm">
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5',
+        status === 'available' && 'text-success',
+        status === 'indexing' && 'text-info',
+        status === 'error' && 'text-destructive',
+        status === 'disabled' && 'text-muted-foreground',
+      )}
+    >
       <span
         aria-hidden
         className={cn(
@@ -63,20 +103,6 @@ function DocumentStatusBadge({
         )}
       />
       {statusLabel}
-    </span>
-  )
-}
-
-function SortableHeader({ label, sorted }: { label: string; sorted: false | 'asc' | 'desc' }) {
-  return (
-    <span className="inline-flex items-center gap-1">
-      {label}
-      {sorted ? (
-        <ArrowDown
-          aria-hidden
-          className={cn('text-muted-foreground size-3.5', sorted === 'asc' && 'rotate-180')}
-        />
-      ) : undefined}
     </span>
   )
 }
@@ -97,39 +123,42 @@ export function DocumentTable({
   const columns = useMemo<ColumnDef<KnowledgeBaseDocument>[]>(
     () => [
       {
-        id: 'select',
+        id: 'selectIndex',
         header: ({ table }) => (
-          <Checkbox
-            aria-label="全选当前页文档"
-            checked={
-              table.getIsAllPageRowsSelected()
-                ? true
-                : table.getIsSomePageRowsSelected()
-                  ? 'indeterminate'
-                  : false
-            }
-            onCheckedChange={(value) => table.toggleAllPageRowsSelected(Boolean(value))}
-          />
+          <div className="flex items-center gap-3 whitespace-nowrap">
+            <Checkbox
+              aria-label="全选当前页文档"
+              checked={
+                table.getIsAllPageRowsSelected()
+                  ? true
+                  : table.getIsSomePageRowsSelected()
+                    ? 'indeterminate'
+                    : false
+              }
+              onCheckedChange={(value) => table.toggleAllPageRowsSelected(Boolean(value))}
+            />
+            <span className="text-muted-foreground">#</span>
+          </div>
         ),
-        cell: ({ row }) => (
-          <Checkbox
-            aria-label={`选择 ${row.original.name}`}
-            checked={row.getIsSelected()}
-            onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
-          />
-        ),
-        enableSorting: false,
-        size: 40,
-      },
-      {
-        id: 'index',
-        header: '#',
         cell: ({ row, table }) => {
           const pagination = table.getState().pagination
-          return pagination.pageIndex * pagination.pageSize + row.index + 1
+          const index = pagination.pageIndex * pagination.pageSize + row.index + 1
+
+          return (
+            <div className="flex items-center gap-3">
+              <Checkbox
+                aria-label={`选择 ${row.original.name}`}
+                checked={row.getIsSelected()}
+                onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+              />
+              <span>{index}</span>
+            </div>
+          )
         },
         enableSorting: false,
-        size: 48,
+        size: 72,
+        minSize: 72,
+        maxSize: 72,
       },
       {
         accessorKey: 'name',
@@ -138,46 +167,63 @@ export function DocumentTable({
           <div className="flex min-w-0 items-center gap-2">
             <span
               aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center rounded-lg"
+              className="flex size-6 shrink-0 items-center justify-center rounded-md"
               style={{ backgroundColor: documentFileTypeIconBackground }}
             >
-              <FileText className="text-primary size-4" />
+              <FileText className="text-primary size-3.5" />
             </span>
-            <span className="truncate font-medium">{row.original.name}</span>
+            <span className="truncate">{row.original.name}</span>
           </div>
         ),
+        size: 240,
+        minSize: 160,
+        maxSize: 320,
       },
       {
         accessorKey: 'segmentationModeLabel',
         header: '分段模式',
         cell: ({ row }) => (
-          <Badge variant="secondary" className="bg-muted text-muted-foreground gap-1 rounded-md">
+          <Badge
+            variant="secondary"
+            className="bg-muted text-muted-foreground h-6 gap-1 rounded-full border-0 px-2 font-normal"
+          >
             <Puzzle aria-hidden className="size-3" />
             {row.original.segmentationModeLabel}
           </Badge>
         ),
         enableSorting: false,
+        size: 112,
+        minSize: 112,
+        maxSize: 112,
       },
       {
         accessorKey: 'characterCount',
         header: '字符数',
         cell: ({ row }) => formatDocumentCharacterCount(row.original.characterCount),
+        enableSorting: false,
+        size: 88,
+        minSize: 88,
+        maxSize: 88,
       },
       {
         accessorKey: 'recallCount',
-        header: ({ column }) => (
-          <SortableHeader label="召回次数" sorted={column.getIsSorted() || false} />
-        ),
+        header: '召回次数',
         cell: ({ row }) => row.original.recallCount,
+        enableSorting: false,
+        size: 96,
+        minSize: 96,
+        maxSize: 96,
       },
       {
         accessorKey: 'uploadedAt',
-        header: ({ column }) => (
-          <SortableHeader label="上传时间" sorted={column.getIsSorted() || false} />
-        ),
+        header: '上传时间',
         cell: ({ row }) => (
           <span className="text-muted-foreground">{row.original.uploadedAtLabel}</span>
         ),
+        enableSorting: false,
+        size: 168,
+        minSize: 168,
+        maxSize: 168,
       },
       {
         accessorKey: 'statusLabel',
@@ -189,26 +235,40 @@ export function DocumentTable({
           />
         ),
         enableSorting: false,
+        size: 88,
+        minSize: 88,
+        maxSize: 88,
       },
       {
-        id: 'actions',
+        id: 'enabled',
         header: '操作',
         cell: ({ row }) => (
-          <div className="flex items-center justify-end gap-1">
-            <Switch
-              aria-label={`${row.original.enabled ? '禁用' : '启用'} ${row.original.name}`}
-              checked={row.original.enabled}
-              onCheckedChange={(checked) =>
-                onDocumentEnabledChange(row.original.id, Boolean(checked))
-              }
-            />
-            <DocumentActionMenu
-              title={row.original.name}
-              actions={getDocumentActions(row.original, onDocumentAction)}
-            />
-          </div>
+          <Switch
+            aria-label={`${row.original.enabled ? '禁用' : '启用'} ${row.original.name}`}
+            checked={row.original.enabled}
+            onCheckedChange={(checked) =>
+              onDocumentEnabledChange(row.original.id, Boolean(checked))
+            }
+          />
         ),
         enableSorting: false,
+        size: 72,
+        minSize: 72,
+        maxSize: 72,
+      },
+      {
+        id: 'menu',
+        header: () => null,
+        cell: ({ row }) => (
+          <DocumentActionMenu
+            title={row.original.name}
+            actions={getDocumentActions(row.original, onDocumentAction)}
+          />
+        ),
+        enableSorting: false,
+        size: 48,
+        minSize: 48,
+        maxSize: 48,
       },
     ],
     [onDocumentAction, onDocumentEnabledChange],
@@ -230,7 +290,13 @@ export function DocumentTable({
       rowSelection,
       sorting,
     },
+    defaultColumn: {
+      size: 150,
+      minSize: 44,
+      maxSize: 9999,
+    },
     enableRowSelection: true,
+    enableSorting: false,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -248,9 +314,13 @@ export function DocumentTable({
   })
 
   return (
-    <div className="border-border bg-card relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border">
-      <div className="min-h-0 flex-1 overflow-auto">
-        <Table>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+      <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
+        <Table
+          containerClassName="overflow-visible"
+          className="w-full table-fixed border-separate border-spacing-0"
+          style={{ minWidth: documentTableMinWidth }}
+        >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
@@ -258,11 +328,17 @@ export function DocumentTable({
                   <TableHead
                     key={header.id}
                     className={cn(
-                      header.column.id === 'actions' && 'text-right',
-                      header.column.getCanSort() && 'cursor-pointer select-none',
+                      (header.column.id === 'enabled' || header.column.id === 'menu') &&
+                        'text-center',
+                      header.column.id === 'menu' && 'z-20 px-1',
+                      header.column.id === 'menu' && stickyMenuColumnClassName,
                     )}
-                    style={{ width: header.getSize() !== 150 ? header.getSize() : undefined }}
-                    onClick={header.column.getToggleSortingHandler()}
+                    style={getDocumentColumnStyle(
+                      header.column.id,
+                      header.column.getSize(),
+                      header.column.columnDef.minSize,
+                      header.column.columnDef.maxSize,
+                    )}
                   >
                     {header.isPlaceholder
                       ? null
@@ -276,11 +352,28 @@ export function DocumentTable({
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() ? 'selected' : undefined}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() ? 'selected' : undefined}
+                  className="group/row cursor-pointer hover:bg-transparent data-[state=selected]:bg-transparent"
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={cn(cell.column.id === 'actions' && 'text-right')}
+                      className={cn(
+                        documentTableRowCellClassName,
+                        (cell.column.id === 'enabled' || cell.column.id === 'menu') &&
+                          'text-center',
+                        cell.column.id === 'menu' && 'z-10 px-1',
+                        cell.column.id === 'menu' && stickyMenuColumnClassName,
+                        cell.column.id === 'menu' && stickyMenuBodyColumnClassName,
+                      )}
+                      style={getDocumentColumnStyle(
+                        cell.column.id,
+                        cell.column.getSize(),
+                        cell.column.columnDef.minSize,
+                        cell.column.columnDef.maxSize,
+                      )}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

@@ -20,7 +20,9 @@ import '@ai-workflow/ui/globals.css'
 ## 现有能力
 
 - 基础输入：`Input`、`Textarea`、`Select`、`Slider`、`Checkbox`、`Switch`。
-- 数据展示：`Table`、`Badge`。
+- 数据展示：`Table`、`Badge`、`Pagination`。
+- `Table` 采用无边框容器，仅保留行间细分隔线；表头与行高均为 `h-9`（36px），表头使用 `text-xs/8 font-normal`、`text-muted-foreground` 与 `whitespace-nowrap`，单元格使用 `text-[13px] leading-4` 与 `px-3` 间距；行 Hover 与选中态默认在 `TableRow` 上使用 `bg-input`。容器默认 `overflow-x-auto`；需要 sticky 列或由外层统一滚动时，传 `containerClassName="overflow-visible"`，滚动交给外层单一容器，表格本体加 `border-separate border-spacing-0`。
+- 含 sticky 列的表格：sticky 单元格需默认实底（通常 `bg-background`）以遮挡横向滚动内容；行 hover、选中、行内 Dropdown 打开等态应在**单元格**上用命名 group（如 `group/row`）与其他列同步，不要仅依赖 `<tr>` 背景，也不要让 sticky 列单独维护一套 hover 规则。
 - 表单布局：`Form`、`Form.Field`。
 - 上传：单文件受控 `FileDropzone`。
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`。
@@ -45,6 +47,7 @@ import '@ai-workflow/ui/globals.css'
   `warning`、`info`，可选 `duration` 使用毫秒。不要在业务组件中直接依赖 Sonner
   或重复实现通知容器。
 - 使用 `cn()` 合并类名，变体较多时使用 CVA，不在调用方重做基础状态。
+- 表格或列表底部分页使用 `Pagination`；传入 `pageSizeOptions` 与 `onPageSizeChange` 时显示每页条数切换，否则只保留页码导航。分页器独立于表格容器，不带顶部分隔线。
 
 ## 新增组件
 

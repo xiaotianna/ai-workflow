@@ -11,7 +11,9 @@ import {
   DocumentToolbar,
   initialDocuments,
   type AddDocumentInput,
+  type DocumentAction,
   type DocumentActionHandler,
+  type KnowledgeBaseDocument,
 } from '@/features/knowledge-base'
 import { documentPageSizeOptions } from '@/features/knowledge-base/constants'
 
@@ -108,6 +110,22 @@ export default function KnowledgeBaseDocumentsPage({
     )
   }
 
+  function handleDocumentAction(action: DocumentAction, document: KnowledgeBaseDocument) {
+    if (action === 'delete') {
+      setDocuments((currentDocuments) => currentDocuments.filter((item) => item.id !== document.id))
+      setRowSelection((currentSelection) => {
+        const nextSelection = { ...currentSelection }
+        delete nextSelection[document.id]
+        return nextSelection
+      })
+      return
+    }
+
+    if (action === 'rename' || action === 'reindex') {
+      return
+    }
+  }
+
   function handleAddDocument(input: AddDocumentInput) {
     const uploadedAt = new Date()
     const extension = input.file.name.split('.').pop()?.toLowerCase() ?? 'other'
@@ -142,7 +160,7 @@ export default function KnowledgeBaseDocumentsPage({
   }
 
   return (
-    <div className="flex min-h-full flex-col px-6 pt-4 pb-2">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden px-6 pt-4 pb-2">
       <PageTitle title="文档" subtitle="管理知识库中的文档与分段内容" />
 
       <PageHeaderActions>
@@ -173,14 +191,14 @@ export default function KnowledgeBaseDocumentsPage({
         onAdd={handleAddDocument}
       />
 
-      <PageContent className="mt-4 flex min-h-0 flex-1 flex-col">
+      <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <DocumentTable
           documents={visibleDocuments}
           pageIndex={pageIndex}
           pageSize={pageSize}
           rowSelection={rowSelection}
           sorting={sorting}
-          onDocumentAction={onDocumentAction}
+          onDocumentAction={onDocumentAction ?? handleDocumentAction}
           onDocumentEnabledChange={handleDocumentEnabledChange}
           onPageChange={setPageIndex}
           onPageSizeChange={(nextPageSize) => {

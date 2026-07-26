@@ -8,10 +8,8 @@ export function getDocumentActions(
   document: KnowledgeBaseDocument,
   onDocumentAction?: DocumentActionHandler,
 ): ActionMenuAction[] {
-  if (!onDocumentAction) return []
-
   function createHandler(action: DocumentAction) {
-    return () => onDocumentAction!(action, document)
+    return () => onDocumentAction?.(action, document)
   }
 
   return [
