@@ -2,6 +2,8 @@ import { lazy } from 'react'
 import {
   BookMarked,
   Computer,
+  FileText,
+  Target,
   ScrollText,
   SquareMousePointer,
   SquareTerminal,
@@ -21,6 +23,9 @@ const AppPage = lazy(() => import('../pages/app'))
 const AppWorkflowPage = lazy(() => import('../pages/app/workflow'))
 const AppApiPage = lazy(() => import('../pages/app/api'))
 const AppLogsPage = lazy(() => import('../pages/app/logs'))
+const KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base'))
+const KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents'))
+const KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test'))
 
 export const routes = [
   {
@@ -104,6 +109,66 @@ export const routes = [
                 title: '插件',
                 requiresAuth: true,
                 icon: ToolCase,
+              },
+            },
+          },
+        ],
+      },
+      {
+        id: 'knowledge-base-detail',
+        path: 'knowledge-base/:id',
+        element: (
+          <LazyLoad>
+            <KnowledgeBaseDetailPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '知识库',
+            requiresAuth: true,
+          },
+        },
+        children: [
+          {
+            id: 'knowledge-base-detail-index',
+            index: true,
+            element: <Navigate to="documents" replace />,
+            handle: {
+              meta: {
+                title: '知识库',
+                requiresAuth: true,
+              },
+            },
+          },
+          {
+            id: 'knowledge-base-documents',
+            path: 'documents',
+            element: (
+              <LazyLoad>
+                <KnowledgeBaseDocumentsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '文档',
+                requiresAuth: true,
+                icon: FileText,
+              },
+            },
+          },
+          {
+            id: 'knowledge-base-recall-test',
+            path: 'recall-test',
+            element: (
+              <LazyLoad>
+                <KnowledgeBaseRecallTestPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '召回测试',
+                requiresAuth: true,
+                icon: Target,
               },
             },
           },

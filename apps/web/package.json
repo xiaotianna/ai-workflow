@@ -19,6 +19,8 @@
     "@ai-workflow/nodes-ui": "workspace:*",
     "@ai-workflow/shared": "workspace:*",
     "@ai-workflow/ui": "workspace:*",
+    "@tanstack/react-form": "^1.33.2",
+    "@tanstack/react-table": "^8.21.3",
     "@xyflow/react": "^12.11.2",
     "class-variance-authority": "^0.7.1",
     "radix-ui": "^1.4.3",

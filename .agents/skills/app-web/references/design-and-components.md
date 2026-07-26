@@ -14,19 +14,24 @@
 ## Studio 资源卡片
 
 - Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；应用侧栏通过 `onImportDsl` 追加“导入 DSL”并打开文件选择弹窗，Studio 页面与资源卡片不提供导入入口。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
+- 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示知识库条目；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内。
+- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 TanStack Form 管理 `FileDropzone` 字段校验与提交。
+- `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
 
-## App 内部布局
+## 详情页布局
 
-- 首页和应用详情页都在各自的 `pages` 布局中直接组合侧栏；侧栏外壳统一复用 `components/layout-sidebar`，固定 `w-60`，两个页面都使用 `h-svh overflow-hidden p-1` 的满高 flex 父容器拉伸侧栏，保证底部账户菜单在页面切换时坐标不偏移；通过 `header` 与导航项 props 注入页面内容，应用侧栏不包含“监测”入口。
+- 应用与知识库详情页复用 `components/detail-layout`，统一提供返回链接、左侧 `LayoutSidebar` 与右侧内容容器；页面通过 `backTo`/`backLabel` 设置返回目标，通过 `resourceIdentity` 插槽注入各 feature 的资源标识组件。
+- 资源标识区使用 `components/resource-identity` 封装图标、标题、类型标签与右侧 `actions` 插槽；通用操作菜单触发器使用 `components/resource-action-menu`，各 feature 在 `AppDetailIdentity`、`KnowledgeBaseDetailIdentity` 等组件中组装业务操作项并注入插槽。
+- 侧栏外壳固定 `w-60`，外层使用 `h-svh overflow-hidden p-1` 的满高 flex 容器，保证底部账户菜单在页面切换时坐标不偏移。
 - 侧栏底部账户菜单的触发区域按头像与用户名内容宽度收缩，不占满侧栏；用户名使用 `pl-2` 与头像保持间距，Hover、Focus、Active 和展开态背景只覆盖该内容区域。
-- 应用侧栏导航从 `/app/:id` 子路由的 `handle.meta` 派生，当前提供“编排”“访问 API”“日志”，不得在侧栏复制另一份导航配置。
-- 应用侧栏导航项连续排列，不在“访问 API”和“日志”之间添加分割线。
-- 应用侧栏顶部使用 `w-fit self-start` 的返回按钮，返回 `/studio` 并显示 `< / 工作室`；Hover 和 Focus 背景只覆盖内容区域，不铺满侧栏。
-- 返回按钮下方为应用标识区：与 Studio `ResourceCard` 标题行一致（40px 圆角图标底、默认桃色背景、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行为可 Hover 的 `rounded-xl` 容器；右侧均衡器图标按钮触发与资源卡片一致的操作菜单，并提供准确的无障碍名称。
-- App 页面使用浅色页面底衬分隔侧栏与内容区；应用侧栏沿用首页布局侧栏样式，内容区使用真实边框、低对比阴影与圆角容器。
+- 详情页导航从对应父路由子项的 `handle.meta` 派生，通过 `router/navigation` 的 `getNavigationItemsFromRoute` 生成，不得在侧栏复制另一份导航配置。
+- 详情页侧栏导航项连续排列，不在导航项之间添加分割线。
+- 详情页侧栏顶部使用 `w-fit self-start` 的返回按钮，显示 `< / {列表页名称}`；Hover 和 Focus 背景只覆盖内容区域，不铺满侧栏。
+- 返回按钮下方为资源标识区：由 `ResourceIdentity` 提供与 Studio `ResourceCard` 标题行一致的样式（40px 圆角图标底、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行为可 Hover 的 `rounded-xl` 容器；操作菜单通过 `actions` 插槽由各 feature 注入，应用默认桃色图标底，知识库默认蓝色图标底。
+- 详情页使用浅色页面底衬分隔侧栏与内容区；侧栏沿用首页布局侧栏样式，内容区使用真实边框、低对比阴影与圆角容器。
 
 ## 工作流画布
 

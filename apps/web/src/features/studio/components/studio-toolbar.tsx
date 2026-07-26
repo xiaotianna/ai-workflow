@@ -60,7 +60,7 @@ export function StudioToolbar({
   onSearchChange,
 }: StudioToolbarProps) {
   return (
-    <div className="mt-5 flex flex-wrap items-center gap-2">
+    <>
       <StudioSortSelect />
 
       <div className="relative min-w-0 max-sm:w-full sm:min-w-44">
@@ -113,6 +113,6 @@ export function StudioToolbar({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </>
   )
 }

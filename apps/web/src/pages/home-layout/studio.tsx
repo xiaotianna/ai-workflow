@@ -1,5 +1,8 @@
 import { useState } from 'react'
 
+import { PageContent } from '@/components/page-content'
+import { PageHeaderActions } from '@/components/page-header-actions'
+import { PageTitle } from '@/components/page-title'
 import {
   CreateBlankAppDialog,
   ImportDslDialog,
@@ -72,18 +75,16 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
 
   return (
     <div className="flex min-h-full flex-col">
-      <div className="flex h-6 min-w-0 items-center">
-        <div className="flex items-center">
-          <h1 className="text-text-primary text-[18px] font-semibold">工作室</h1>
-        </div>
-      </div>
+      <PageTitle title="工作室" />
 
-      <StudioToolbar
-        search={search}
-        onSearchChange={setSearch}
-        onCreateBlankApp={() => setCreateDialogOpen(true)}
-        onImportApp={() => setImportDialogOpen(true)}
-      />
+      <PageHeaderActions>
+        <StudioToolbar
+          search={search}
+          onSearchChange={setSearch}
+          onCreateBlankApp={() => setCreateDialogOpen(true)}
+          onImportApp={() => setImportDialogOpen(true)}
+        />
+      </PageHeaderActions>
 
       <CreateBlankAppDialog
         open={createDialogOpen}
@@ -97,7 +98,9 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
         onImport={handleImportApp}
       />
 
-      <StudioAppGrid apps={visibleApps} onAppAction={onAppAction} />
+      <PageContent>
+        <StudioAppGrid apps={visibleApps} onAppAction={onAppAction} />
+      </PageContent>
     </div>
   )
 }

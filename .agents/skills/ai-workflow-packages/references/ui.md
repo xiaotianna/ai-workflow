@@ -19,7 +19,8 @@ import '@ai-workflow/ui/globals.css'
 
 ## 现有能力
 
-- 基础输入：`Input`、`Textarea`、`Select`、`Slider`。
+- 基础输入：`Input`、`Textarea`、`Select`、`Slider`、`Checkbox`、`Switch`。
+- 数据展示：`Table`、`Badge`。
 - 表单布局：`Form`、`Form.Field`。
 - 上传：单文件受控 `FileDropzone`。
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`。
