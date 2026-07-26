@@ -1,0 +1,26 @@
+{
+  "extends": ["../../configs/oxc/.oxlintrc.json"],
+  "env": {
+    "node": true
+  },
+  "plugins": ["node"],
+  "rules": {
+    "typescript/no-floating-promises": "warn",
+    "eslint/new-cap": "off",
+    "typescript/no-extraneous-class": [
+      "error",
+      {
+        "allowWithDecorator": true
+      }
+    ],
+    "typescript/parameter-properties": "off"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.spec.ts", "test/**/*.ts"],
+      "rules": {
+        "eslint/init-declarations": "off"
+      }
+    }
+  ]
+}
