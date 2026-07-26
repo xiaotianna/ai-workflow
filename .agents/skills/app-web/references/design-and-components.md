@@ -35,8 +35,8 @@
 
 - 使用 TanStack Table 管理列定义、排序、分页与行选择；表格设置 `minWidth` 保证窄屏时可横向滚动。
 - 「操作」列与 dot 菜单列分离：操作列表头为「操作」，内容为 `Switch`；其后为**无表头**的 dot 列，内容为 `DocumentActionMenu`（`MoreHorizontal`）。
-- dot 列 `sticky right-0`，横向滚动时始终贴在右侧；默认 `bg-background` 遮挡下层内容，行态背景与其他列保持一致（见下方行背景）。
-- dot 列左侧使用**短竖线**分隔，不用整列 `border-l`；在数据行单元格用 `before` 伪元素实现，高度约 `h-3.5`，垂直居中；表头对应单元格不显示竖线。
+- dot 列 `sticky right-0`；横向滚动时两列始终贴在右侧。默认 `bg-background` 遮挡下层内容，行态背景与其他列保持一致（见下方行背景）。
+- dot 列左侧使用**短竖线**分隔，不用整列 `border-l`；在数据行单元格**内部容器**上用 `before` 伪元素实现，高度约 `h-3.5`，垂直居中；表头对应单元格不显示竖线。sticky 单元格本身不可加 `relative`，否则会覆盖 `sticky` 定位。
 
 ### 行背景与 sticky 一致
 

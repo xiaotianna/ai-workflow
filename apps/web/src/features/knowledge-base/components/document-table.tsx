@@ -39,8 +39,10 @@ const documentTableRowCellClassName =
 
 const stickyMenuColumnClassName = 'bg-background sticky right-0'
 
-const stickyMenuBodyColumnClassName =
-  'before:bg-border relative before:absolute before:top-1/2 before:left-0 before:h-3.5 before:w-px before:-translate-y-1/2'
+const stickyEnabledColumnClassName = 'bg-background sticky right-[48px]'
+
+const stickyMenuBodySeparatorClassName =
+  'before:bg-border relative flex justify-center before:absolute before:top-1/2 before:left-0 before:h-3.5 before:w-px before:-translate-y-1/2'
 
 function getDocumentColumnStyle(
   columnId: string,
@@ -330,6 +332,8 @@ export function DocumentTable({
                     className={cn(
                       (header.column.id === 'enabled' || header.column.id === 'menu') &&
                         'text-center',
+                      header.column.id === 'enabled' && 'z-20',
+                      header.column.id === 'enabled' && stickyEnabledColumnClassName,
                       header.column.id === 'menu' && 'z-20 px-1',
                       header.column.id === 'menu' && stickyMenuColumnClassName,
                     )}
@@ -364,9 +368,10 @@ export function DocumentTable({
                         documentTableRowCellClassName,
                         (cell.column.id === 'enabled' || cell.column.id === 'menu') &&
                           'text-center',
+                        cell.column.id === 'enabled' && 'z-10',
+                        cell.column.id === 'enabled' && stickyEnabledColumnClassName,
                         cell.column.id === 'menu' && 'z-10 px-1',
                         cell.column.id === 'menu' && stickyMenuColumnClassName,
-                        cell.column.id === 'menu' && stickyMenuBodyColumnClassName,
                       )}
                       style={getDocumentColumnStyle(
                         cell.column.id,
@@ -375,7 +380,13 @@ export function DocumentTable({
                         cell.column.columnDef.maxSize,
                       )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {cell.column.id === 'menu' ? (
+                        <div className={stickyMenuBodySeparatorClassName}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </div>
+                      ) : (
+                        flexRender(cell.column.columnDef.cell, cell.getContext())
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
