@@ -1,16 +1,16 @@
-import type { CodeEditorFieldSchema } from '@ai-workflow/core'
-import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
+import type { TextareaFieldSchema } from '@ai-workflow/core'
 import { Form } from '@ai-workflow/ui/components/form'
+import { Textarea } from '@ai-workflow/ui/components/textarea'
 import type { FieldRendererProps } from '../../contracts/field-renderer'
 
-export function CodeField({
+export function TextareaField({
   name,
   field,
   value,
   error,
   disabled,
   onChange,
-}: FieldRendererProps<CodeEditorFieldSchema, string>) {
+}: FieldRendererProps<TextareaFieldSchema, string>) {
   return (
     <Form.Field
       label={field.label}
@@ -18,15 +18,14 @@ export function CodeField({
       error={error}
       required={field.required}
     >
-      <CodeEditor
+      <Textarea
         name={name}
-        value={value ?? field.content}
+        value={value ?? ''}
         required={field.required}
         disabled={disabled}
-        language={field.language}
         aria-label={field.label}
         aria-invalid={Boolean(error)}
-        onChange={onChange}
+        onChange={(event) => onChange(event.currentTarget.value)}
       />
     </Form.Field>
   )

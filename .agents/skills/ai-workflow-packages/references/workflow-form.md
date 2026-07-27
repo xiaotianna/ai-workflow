@@ -2,98 +2,108 @@
 
 ## 职责
 
-基于 Core 字段契约提供节点配置表单渲染、强类型 renderer 注册、字段错误展示和 Zod
-错误映射。Form 只管理受控的配置草稿，不保存工作流、不请求接口，也不执行节点。
+基于 Core 字段 schema 提供节点配置字段 renderer 和内置字段映射。Form 负责组合
+`@ai-workflow/ui` 基础控件与字段标签、说明、错误、禁用态和值转换，不把字段表单语义下沉到
+UI 包。
 
 ## 公开入口
 
-包只暴露根入口：
+字段 renderer 与契约从根入口导入：
 
 ```ts
 import {
-  NodeConfigForm,
-  FieldRendererRegistry,
-  builtinFieldRegistry,
-  createBuiltinFieldRegistry,
-  validateNodeConfig,
+  FIELD_UI_TYPES,
+  builtinFields,
+  CodeField,
+  NumberField,
+  SelectField,
+  SliderField,
+  SwitchField,
+  TextField,
+  TextareaField,
+  type AnyFieldRenderer,
   type FieldRenderer,
   type FieldRendererProps,
-  type NodeConfigDraft,
 } from '@ai-workflow/form'
+```
+
+`src/components/*.tsx` 通过 `./components/*` 通配子路径公开：
+
+```ts
+import {
+  NodeConfigFields,
+  type NodeConfigFieldErrors,
+  type NodeConfigFieldMap,
+  type NodeConfigFieldValues,
+} from '@ai-workflow/form/components/node-config-fields'
 ```
 
 不要从 `packages/workflow-form/src/*` 深层导入。
 
-## 字段类型与 renderer
+## 目录结构
 
-- Core 的 `FieldSchemaByUI` 负责 `ui -> field schema` 类型映射。
-- Form 的 `FieldValueByUI` 负责 `ui -> renderer value` 类型映射。
-- `FieldRendererProps<TUI>` 同时收窄 `field`、`value` 和 `onChange`；例如
-  `FieldRendererProps<'slider'>` 的字段是 `SliderFieldSchema`，值和回调参数是 `number`。
-- `FieldRendererRegistry.register(ui, renderer)` 会按 `ui` 推导 renderer props，重复注册会抛错。
-- `builtinFieldRegistry` 已注册 `text`、`number`、`textarea`、`select`、`switch`、`slider`
-  和 `code_editor`。
-- `NumberInputField` 不接收 `min`、`max` 或 `step`；这些 UI 参数只属于 `SliderField`。
-- 当前 `CodeEditorField` 是明确命名并公开的基础代码输入 renderer，使用等宽多行输入，
-  支持 `language` 元数据，但尚无语法高亮、自动补全或格式化能力。
+```text
+src/components/
+└── node-config-fields.tsx
+src/fields/
+├── code-field/
+├── number-field/
+├── select-field/
+├── slider-field/
+├── switch-field/
+├── text-field/
+├── textarea-field/
+├── builtin-fields.ts
+└── index.ts
+```
 
-自定义 renderer 可以从空 registry 开始注册，避免修改全局内置实例：
+每种字段 renderer 独立维护。Text 与 Number 虽然都复用 UI `Input`，但不合并为一个字段
+renderer；带字段语义的组合组件也不移动到 `@ai-workflow/ui`。
+
+## 字段组合
+
+`NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从 `builtinFields` 选择
+renderer，并把字段当前值、错误、禁用态和变更回调传给对应组件。它不读取节点注册表，
+不管理配置校验、提交或工作流状态；这些内容由使用方负责。
+
+## 内置映射
+
+`src/fields/builtin-fields.ts` 直接复用 Core 的 `FIELD_UI_TYPES`，不重复声明枚举或维护
+`FieldValueByUI`：
 
 ```ts
-import { FIELD_UI_TYPES } from '@ai-workflow/core'
-import { FieldRendererRegistry, type FieldRendererProps } from '@ai-workflow/form'
-
-function CustomTextField(props: FieldRendererProps<typeof FIELD_UI_TYPES.TEXT>) {
-  // 自定义实现
-}
-
-const registry = new FieldRendererRegistry().register(FIELD_UI_TYPES.TEXT, CustomTextField)
+export const builtinFields = {
+  [FIELD_UI_TYPES.TEXT]: TextField,
+  [FIELD_UI_TYPES.NUMBER]: NumberField,
+  [FIELD_UI_TYPES.TEXTAREA]: TextareaField,
+  [FIELD_UI_TYPES.SELECT]: SelectField,
+  [FIELD_UI_TYPES.SWITCH]: SwitchField,
+  [FIELD_UI_TYPES.SLIDER]: SliderField,
+  [FIELD_UI_TYPES.CODE_EDITOR]: CodeField,
+} satisfies Record<FieldUIType, AnyFieldRenderer>
 ```
 
-## 节点配置表单
+- `Record<FieldUIType, AnyFieldRenderer>` 保证 Core 每个字段 UI 枚举都有 renderer。
+- `AnyFieldRenderer` 只用于异构组件 map 的动态边界。
+- 每个组件通过 `FieldRendererProps<TField, TValue>` 保留具体 schema 和值类型，例如
+  `NumberField` 使用 `FieldRendererProps<NumberFieldSchema, number>`。
 
-`NodeConfigForm` 接收 `nodeType`、受控配置草稿和 `onChange`：
+## 字段行为
 
-```tsx
-<NodeConfigForm
-  nodeType={httpNode}
-  value={draft}
-  errors={validation.success ? undefined : validation.fieldErrors}
-  onChange={setDraft}
-/>
-```
-
-- `NodeConfigDraft<TNode>` 从 `InferNodeConfig<TNode>` 推导，并使用 `Partial` 允许输入过程中的
-  暂时缺失值。
-- 表单只渲染 `NodeType.form`；没有 form 的节点返回 `null`。
-- 可通过 `registry` 注入独立 renderer registry，默认使用 `builtinFieldRegistry`。
-- renderer 缺失时显示明确错误，不替换成其他控件。
-- `errors` 按配置字段名展示；是否允许提交由消费层决定。
-
-## 校验
-
-`validateNodeConfig(nodeType, draft)` 调用节点 Zod schema，并返回可判别联合：
-
-```ts
-const validation = validateNodeConfig(httpNode, draft)
-
-if (validation.success) {
-  save(validation.data)
-} else {
-  setErrors(validation.fieldErrors)
-  showFormErrors(validation.formErrors)
-}
-```
-
-- 字段路径的第一段会映射到 `fieldErrors`，每个字段保留第一条错误。
-- 根级错误或没有字符串字段名的错误进入 `formErrors`。
-- 校验成功后的 `data` 是 Zod 解析后的 `InferNodeConfig<TNode>`，包括默认值和转换结果。
+- `TextField`、`NumberField` 分别处理字符串和数字输入。
+- `TextareaField` 处理多行字符串。
+- `SelectField` 使用 option 索引作为 Radix Select 内部字符串值，回调返回原始
+  string、number 或 boolean option value。
+- `SwitchField` 使用 boolean 受控值。
+- `SliderField` 使用 schema 的 `min`、`max`、`step`，并展示当前值。
+- `CodeField` 使用 UI 包的 Monaco `CodeEditor`，空值回退到 schema 的 `content`，并把
+  `language` 元数据传给编辑器以提供对应的语法高亮和编辑能力。
+- 所有 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
+  实际控件提供 `aria-label`、`aria-invalid` 与 disabled 状态。
 
 ## 边界与注意事项
 
-- Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或执行逻辑。
-- `required`、字段说明和 Slider 范围属于展示信息，最终值合法性始终以节点 Zod schema 为准。
-- Select 使用 option 索引作为 Radix Select 的内部字符串值，避免字符串、数字和布尔值序列化冲突；
-  `onChange` 返回原始 option value。
-- Start 变量列表、Condition 条件列表、动态远程选项和完整代码编辑器属于专用复杂字段，
-  需要真实需求出现后再扩展 Core UI 类型和 Form renderer。
+- Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或节点执行。
+- 节点配置最终合法性始终由对应 Core Zod schema 判断，renderer 只负责输入值转换。
+- 新增字段 UI 类型时，在 Form 增加独立字段目录，并更新 `builtinFields`；不要复制
+  Core 的 `FIELD_UI_TYPES`。

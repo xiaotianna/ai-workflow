@@ -1,16 +1,16 @@
-import type { CodeEditorFieldSchema } from '@ai-workflow/core'
-import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
+import type { SwitchFieldSchema } from '@ai-workflow/core'
 import { Form } from '@ai-workflow/ui/components/form'
+import { Switch } from '@ai-workflow/ui/components/switch'
 import type { FieldRendererProps } from '../../contracts/field-renderer'
 
-export function CodeField({
+export function SwitchField({
   name,
   field,
   value,
   error,
   disabled,
   onChange,
-}: FieldRendererProps<CodeEditorFieldSchema, string>) {
+}: FieldRendererProps<SwitchFieldSchema, boolean>) {
   return (
     <Form.Field
       label={field.label}
@@ -18,15 +18,14 @@ export function CodeField({
       error={error}
       required={field.required}
     >
-      <CodeEditor
+      <Switch
         name={name}
-        value={value ?? field.content}
+        checked={value ?? false}
         required={field.required}
         disabled={disabled}
-        language={field.language}
         aria-label={field.label}
         aria-invalid={Boolean(error)}
-        onChange={onChange}
+        onCheckedChange={onChange}
       />
     </Form.Field>
   )

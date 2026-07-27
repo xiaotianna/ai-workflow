@@ -1,17 +1,26 @@
-import { WorkflowConfigPanel } from '@/components/workflow/workflow-config-panel'
+import { WorkflowConfigPanel } from './workflow-config-panel'
 import { WorkflowActionBar } from './workflow-action-bar'
 import { WorkflowCanvasToolbar } from './workflow-canvas-toolbar'
 import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
-import type { NodeType } from '@ai-workflow/core'
+import type { NodeType, WorkflowNode } from '@ai-workflow/core'
 
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
+  selectedNode?: WorkflowNode
   onAddNode: (type: string) => void
+  onApplyNodeConfig: (node: WorkflowNode) => void
+  onCloseNodeConfig: () => void
 }
 
-export const WorkflowPanel = ({ nodeTypes, onAddNode }: WorkflowPanelProps) => {
+export const WorkflowPanel = ({
+  nodeTypes,
+  selectedNode,
+  onAddNode,
+  onApplyNodeConfig,
+  onCloseNodeConfig,
+}: WorkflowPanelProps) => {
   return (
     <>
       {/* 左上状态栏 */}
@@ -31,9 +40,16 @@ export const WorkflowPanel = ({ nodeTypes, onAddNode }: WorkflowPanelProps) => {
         <WorkflowCanvasViewer />
       </Panel>
       {/* 右侧配置面板 */}
-      <Panel position="center-right">
-        <WorkflowConfigPanel />
-      </Panel>
+      {selectedNode ? (
+        <Panel position="center-right">
+          <WorkflowConfigPanel
+            key={selectedNode.id}
+            node={selectedNode}
+            onApply={onApplyNodeConfig}
+            onClose={onCloseNodeConfig}
+          />
+        </Panel>
+      ) : null}
     </>
   )
 }

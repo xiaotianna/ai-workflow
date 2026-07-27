@@ -5,7 +5,8 @@
   "private": true,
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./components/*": "./src/components/*.tsx"
   },
   "scripts": {},
   "dependencies": {

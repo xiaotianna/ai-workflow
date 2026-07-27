@@ -71,6 +71,10 @@
 - 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
   `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
   `NODE_THEMES` 或固定使用主色。
+- 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
+  面板开关和配置校验；配置字段列表使用
+  `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
+  中复制字段类型分发逻辑。
 - 节点输入、输出 Handle 使用贴合节点左右边缘的主色短竖条，视觉尺寸为 `4px × 20px`；可在不放大可见图形的前提下扩展透明命中区。
 - 普通边与连接预览线使用 `--workflow-edge`，宽度为 `2.5px`，路径使用 Bezier 曲线；选中边使用 `--primary`。
 - Loop 容器只通过右下角悬停显示的缩放控件调整尺寸，并以默认 Loop 尺寸作为最小宽高；

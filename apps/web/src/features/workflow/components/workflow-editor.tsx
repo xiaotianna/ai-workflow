@@ -43,16 +43,21 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         isValidConnection={editor.isValidConnection}
         onBeforeDelete={editor.handleBeforeDelete}
         onNodesDelete={editor.handleNodesDelete}
-        // onSelectionChange={({ nodes: selectedNodes }) =>
-        //   editor.selectNode(selectedNodes.at(-1)?.id)
-        // }
+        onNodeClick={(_event, node) => editor.selectNode(node.id)}
+        onPaneClick={() => editor.selectNode(undefined)}
         // onMoveEnd={(event, viewport) =>
         //   editor.handleViewportChange(viewport, event !== null)
         // }
         className="bg-muted/30 workflow-editor"
       >
         {/* 总面板组件 */}
-        <WorkflowPanel nodeTypes={editor.availableNodeTypes} onAddNode={editor.addNode} />
+        <WorkflowPanel
+          nodeTypes={editor.availableNodeTypes}
+          selectedNode={editor.selectedNode}
+          onAddNode={editor.addNode}
+          onApplyNodeConfig={editor.applyNodeConfig}
+          onCloseNodeConfig={() => editor.selectNode(undefined)}
+        />
         {/* 背景 */}
         <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
       </ReactFlow>
