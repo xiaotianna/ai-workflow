@@ -35,6 +35,8 @@
 - schema 是表单数据结构的唯一事实来源。编辑态使用 `z.input<typeof schema>`，通过
   `validateFormByZod` 后使用 `z.output<typeof schema>`；不要重复声明字段 interface，也不要
   使用类型断言跳过解析。
+- 业务表单的 schema、编辑态/提交类型和初始值放在对应 feature 根目录的 `schema.ts`；
+  对外需要的 `z.output` 类型从 feature `index.ts` 导出，不在 `types.ts` 复制一份接口。
 - 使用 `updateFormField` 更新单个字段，使用 `updateForm` 原子更新多个相关字段或动态字段，
   使用 `resetForm` 恢复初始值。禁止把一个表单拆成多个字段级 `useState`，也禁止另建功能相同
   的业务 Hook。
@@ -113,6 +115,9 @@ function ExampleForm() {
   `label 3`，并通过现有节点更新入口写回实例 label。
 - 新增节点只更新画布节点与脏状态，不修改 `selectedNodeId`：配置面板关闭时不得因新增而
   自动打开，正在配置其他节点时也不得自动切换；只有用户点击节点时才切换面板目标。
+- `selectedNodeId` 是节点配置面板目标与画布节点选中效果的唯一状态源：点击节点时打开或
+  切换配置面板，关闭面板时同步清除选中效果；React Flow 产生的节点选择变更不写入编辑器
+  状态，拖动节点不得将其设为选中。
 - Loop Start 与 Loop Exit 是自动维护的系统节点，初始化和新建时均设置为不可单独删除；
   删除 Loop 时通过 React Flow 的删除拦截器递归删除全部后代节点及关联边。
 - 节点实例名称、描述和配置共用 `useWorkflowEditor` 的节点更新入口；修改后同步更新画布节点

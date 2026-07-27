@@ -1,3 +1,5 @@
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import {
   Dialog,
@@ -19,9 +21,13 @@ import {
 import { Textarea } from '@ai-workflow/ui/components/textarea'
 import { useRef, useState, type FormEvent } from 'react'
 
-import type { CreateStudioAppInput } from '../types'
-
-const appIcons = ['🤖', '✨', '💡', '🚀', '🧩', '📊'] as const
+import {
+  CREATE_STUDIO_APP_INITIAL_VALUES,
+  createStudioAppSchema,
+  studioAppIcons,
+  type CreateStudioAppFormInput,
+  type CreateStudioAppInput,
+} from '../schema'
 
 interface CreateBlankAppDialogProps {
   open: boolean
@@ -30,33 +36,48 @@ interface CreateBlankAppDialogProps {
 }
 
 export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBlankAppDialogProps) {
-  const [appName, setAppName] = useState('')
-  const [appIcon, setAppIcon] = useState<(typeof appIcons)[number]>('🤖')
-  const [appDescription, setAppDescription] = useState('')
+  const { form, updateFormField, resetForm } = useFormData<CreateStudioAppFormInput>(
+    CREATE_STUDIO_APP_INITIAL_VALUES,
+  )
+  const [touchedFields, setTouchedFields] = useState<
+    Partial<Record<keyof CreateStudioAppFormInput, boolean>>
+  >({})
   const appNameInputRef = useRef<HTMLInputElement>(null)
-  const isFormValid = Boolean(appName.trim())
+  const validationResult = validateFormByZod(createStudioAppSchema, form)
+  const formErrors = validationResult.errors
 
-  function resetForm() {
-    setAppName('')
-    setAppIcon('🤖')
-    setAppDescription('')
+  function markFieldTouched(field: keyof CreateStudioAppFormInput) {
+    setTouchedFields((currentFields) => ({
+      ...currentFields,
+      [field]: true,
+    }))
+  }
+
+  function resetDialogForm() {
+    resetForm()
+    setTouchedFields({})
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) resetForm()
+    if (!nextOpen) resetDialogForm()
     onOpenChange(nextOpen)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!isFormValid) return
 
-    onCreate({
-      title: appName.trim(),
-      icon: appIcon,
-      description: appDescription.trim() || undefined,
-    })
-    resetForm()
+    const result = validateFormByZod(createStudioAppSchema, form)
+    if (!result.success) {
+      setTouchedFields({
+        title: true,
+        icon: true,
+        description: true,
+      })
+      return
+    }
+
+    onCreate(result.data)
+    resetDialogForm()
     onOpenChange(false)
   }
 
@@ -74,11 +95,17 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
         </DialogHeader>
 
         <Form onSubmit={handleSubmit}>
-          <Form.Field required label="应用名称 & 图标">
+          <Form.Field
+            required
+            label="应用名称 & 图标"
+            error={touchedFields.title ? formErrors.title : undefined}
+          >
             <div className="flex items-center gap-2">
               <Select
-                value={appIcon}
-                onValueChange={(value) => setAppIcon(value as (typeof appIcons)[number])}
+                value={form.icon}
+                onValueChange={(value) =>
+                  updateFormField('icon', value as CreateStudioAppFormInput['icon'])
+                }
               >
                 <SelectTrigger
                   size="sm"
@@ -88,7 +115,7 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent position="popper" align="start" className="min-w-28">
-                  {appIcons.map((icon) => (
+                  {studioAppIcons.map((icon) => (
                     <SelectItem key={icon} value={icon}>
                       <span className="text-base leading-none">{icon}</span>
                     </SelectItem>
@@ -98,9 +125,11 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
 
               <Input
                 ref={appNameInputRef}
-                value={appName}
-                onChange={(event) => setAppName(event.target.value)}
+                value={form.title}
+                onChange={(event) => updateFormField('title', event.target.value)}
+                onBlur={() => markFieldTouched('title')}
                 aria-label="应用名称"
+                aria-invalid={Boolean(touchedFields.title && formErrors.title)}
                 autoComplete="off"
                 maxLength={40}
                 placeholder="输入应用名称"
@@ -109,11 +138,16 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
             </div>
           </Form.Field>
 
-          <Form.Field label="描述">
+          <Form.Field
+            label="描述"
+            error={touchedFields.description ? formErrors.description : undefined}
+          >
             <Textarea
-              value={appDescription}
-              onChange={(event) => setAppDescription(event.target.value)}
+              value={form.description}
+              onChange={(event) => updateFormField('description', event.target.value)}
+              onBlur={() => markFieldTouched('description')}
               aria-label="应用描述（可选）"
+              aria-invalid={Boolean(touchedFields.description && formErrors.description)}
               maxLength={200}
               placeholder="输入应用描述"
               className="bg-muted/80 focus-visible:bg-background min-h-24 resize-none rounded-lg border-transparent px-3 py-2 text-sm shadow-none"
@@ -126,7 +160,7 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
                 取消
               </Button>
             </DialogClose>
-            <Button type="submit" variant="confirm" size="sm" disabled={!isFormValid}>
+            <Button type="submit" variant="confirm" size="sm" disabled={!validationResult.success}>
               创建
             </Button>
           </DialogFooter>

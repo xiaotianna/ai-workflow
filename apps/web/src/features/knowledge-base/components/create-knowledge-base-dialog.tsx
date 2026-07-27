@@ -1,3 +1,5 @@
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import {
   Dialog,
@@ -19,9 +21,13 @@ import {
 import { Textarea } from '@ai-workflow/ui/components/textarea'
 import { useRef, useState, type FormEvent } from 'react'
 
-import type { CreateKnowledgeBaseInput } from '../types'
-
-const knowledgeBaseIcons = ['📚', '📄', '📁', '🔍', '💡', '🧠'] as const
+import {
+  CREATE_KNOWLEDGE_BASE_INITIAL_VALUES,
+  createKnowledgeBaseSchema,
+  knowledgeBaseIcons,
+  type CreateKnowledgeBaseFormInput,
+  type CreateKnowledgeBaseInput,
+} from '../schema'
 
 interface CreateKnowledgeBaseDialogProps {
   open: boolean
@@ -34,34 +40,48 @@ export function CreateKnowledgeBaseDialog({
   onCreate,
   onOpenChange,
 }: CreateKnowledgeBaseDialogProps) {
-  const [knowledgeBaseName, setKnowledgeBaseName] = useState('')
-  const [knowledgeBaseIcon, setKnowledgeBaseIcon] =
-    useState<(typeof knowledgeBaseIcons)[number]>('📚')
-  const [knowledgeBaseDescription, setKnowledgeBaseDescription] = useState('')
+  const { form, updateFormField, resetForm } = useFormData<CreateKnowledgeBaseFormInput>(
+    CREATE_KNOWLEDGE_BASE_INITIAL_VALUES,
+  )
+  const [touchedFields, setTouchedFields] = useState<
+    Partial<Record<keyof CreateKnowledgeBaseFormInput, boolean>>
+  >({})
   const knowledgeBaseNameInputRef = useRef<HTMLInputElement>(null)
-  const isFormValid = Boolean(knowledgeBaseName.trim())
+  const validationResult = validateFormByZod(createKnowledgeBaseSchema, form)
+  const formErrors = validationResult.errors
 
-  function resetForm() {
-    setKnowledgeBaseName('')
-    setKnowledgeBaseIcon('📚')
-    setKnowledgeBaseDescription('')
+  function markFieldTouched(field: keyof CreateKnowledgeBaseFormInput) {
+    setTouchedFields((currentFields) => ({
+      ...currentFields,
+      [field]: true,
+    }))
+  }
+
+  function resetDialogForm() {
+    resetForm()
+    setTouchedFields({})
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) resetForm()
+    if (!nextOpen) resetDialogForm()
     onOpenChange(nextOpen)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!isFormValid) return
 
-    onCreate({
-      title: knowledgeBaseName.trim(),
-      icon: knowledgeBaseIcon,
-      description: knowledgeBaseDescription.trim() || undefined,
-    })
-    resetForm()
+    const result = validateFormByZod(createKnowledgeBaseSchema, form)
+    if (!result.success) {
+      setTouchedFields({
+        title: true,
+        icon: true,
+        description: true,
+      })
+      return
+    }
+
+    onCreate(result.data)
+    resetDialogForm()
     onOpenChange(false)
   }
 
@@ -79,12 +99,16 @@ export function CreateKnowledgeBaseDialog({
         </DialogHeader>
 
         <Form onSubmit={handleSubmit}>
-          <Form.Field required label="知识库名称 & 图标">
+          <Form.Field
+            required
+            label="知识库名称 & 图标"
+            error={touchedFields.title ? formErrors.title : undefined}
+          >
             <div className="flex items-center gap-2">
               <Select
-                value={knowledgeBaseIcon}
+                value={form.icon}
                 onValueChange={(value) =>
-                  setKnowledgeBaseIcon(value as (typeof knowledgeBaseIcons)[number])
+                  updateFormField('icon', value as CreateKnowledgeBaseFormInput['icon'])
                 }
               >
                 <SelectTrigger
@@ -105,9 +129,11 @@ export function CreateKnowledgeBaseDialog({
 
               <Input
                 ref={knowledgeBaseNameInputRef}
-                value={knowledgeBaseName}
-                onChange={(event) => setKnowledgeBaseName(event.target.value)}
+                value={form.title}
+                onChange={(event) => updateFormField('title', event.target.value)}
+                onBlur={() => markFieldTouched('title')}
                 aria-label="知识库名称"
+                aria-invalid={Boolean(touchedFields.title && formErrors.title)}
                 autoComplete="off"
                 maxLength={40}
                 placeholder="输入知识库名称"
@@ -116,11 +142,16 @@ export function CreateKnowledgeBaseDialog({
             </div>
           </Form.Field>
 
-          <Form.Field label="描述">
+          <Form.Field
+            label="描述"
+            error={touchedFields.description ? formErrors.description : undefined}
+          >
             <Textarea
-              value={knowledgeBaseDescription}
-              onChange={(event) => setKnowledgeBaseDescription(event.target.value)}
+              value={form.description}
+              onChange={(event) => updateFormField('description', event.target.value)}
+              onBlur={() => markFieldTouched('description')}
               aria-label="知识库描述（可选）"
+              aria-invalid={Boolean(touchedFields.description && formErrors.description)}
               maxLength={200}
               placeholder="输入知识库描述"
               className="bg-muted/80 focus-visible:bg-background min-h-24 resize-none rounded-lg border-transparent px-3 py-2 text-sm shadow-none"
@@ -133,7 +164,7 @@ export function CreateKnowledgeBaseDialog({
                 取消
               </Button>
             </DialogClose>
-            <Button type="submit" variant="confirm" size="sm" disabled={!isFormValid}>
+            <Button type="submit" variant="confirm" size="sm" disabled={!validationResult.success}>
               创建
             </Button>
           </DialogFooter>

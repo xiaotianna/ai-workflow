@@ -5,9 +5,5 @@ export { ImportDslDialog } from './components/import-dsl-dialog'
 export { StudioAppGrid } from './components/studio-app-grid'
 export { StudioToolbar } from './components/studio-toolbar'
 export { initialStudioApps } from './data'
-export type {
-  CreateStudioAppInput,
-  StudioAppAction,
-  StudioAppActionHandler,
-  StudioAppListItem,
-} from './types'
+export type { CreateStudioAppInput } from './schema'
+export type { StudioAppAction, StudioAppActionHandler, StudioAppListItem } from './types'

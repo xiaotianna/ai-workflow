@@ -80,6 +80,12 @@ export function useWorkflowEditor({
 
   // 画布选中节点
   const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
+  // 节点选中效果只由当前打开的配置面板决定，不接收 React Flow 自身的临时选择态
+  const renderedNodes = nodes.map((node) => {
+    const selected = node.id === selectedNodeId
+
+    return Boolean(node.selected) === selected ? node : { ...node, selected }
+  })
   // core中的节点数据
   const selectedNode: WorkflowNode | undefined = selectedCanvasNode
     ? toWorkflowNode(selectedCanvasNode)
@@ -107,9 +113,13 @@ export function useWorkflowEditor({
 
   /** 应用 React Flow 节点变更，并只对可持久化变化设置 dirty */
   function handleNodesChange(changes: NodeChange<WorkflowCanvasNode>[]) {
-    applyNodeChanges(changes)
+    const nonSelectionChanges = changes.filter((change) => change.type !== 'select')
 
-    if (hasNodeMutation(changes)) setDirty(true)
+    if (nonSelectionChanges.length > 0) {
+      applyNodeChanges(nonSelectionChanges)
+    }
+
+    if (hasNodeMutation(nonSelectionChanges)) setDirty(true)
   }
 
   // 边变化事件，忽略纯选择态等展示事件
@@ -268,7 +278,7 @@ export function useWorkflowEditor({
     handleViewportChange,
     initialViewport: initialSnapshot.layout.viewport,
     isValidConnection,
-    nodes,
+    nodes: renderedNodes,
     saveWorkflow,
     saving,
     selectedNode,

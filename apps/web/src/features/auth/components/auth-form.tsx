@@ -1,45 +1,101 @@
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
 import { Input } from '@ai-workflow/ui/components/input'
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 
-export function AuthForm() {
-  const [phone, setPhone] = useState('')
-  const [password, setPassword] = useState('')
-  const isFormValid = Boolean(phone.trim() && password)
+import {
+  AUTH_FORM_INITIAL_VALUES,
+  authFormSchema,
+  type AuthFormInput,
+  type AuthFormValues,
+} from '../schema'
+
+interface AuthFormProps {
+  onSubmit?: (values: AuthFormValues) => void
+}
+
+export function AuthForm({ onSubmit }: AuthFormProps) {
+  const { form, updateFormField } = useFormData<AuthFormInput>(AUTH_FORM_INITIAL_VALUES)
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<keyof AuthFormInput, boolean>>>(
+    {},
+  )
+  const validationResult = validateFormByZod(authFormSchema, form)
+  const formErrors = validationResult.errors
+
+  function markFieldTouched(field: keyof AuthFormInput) {
+    setTouchedFields((currentFields) => ({
+      ...currentFields,
+      [field]: true,
+    }))
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    const result = validateFormByZod(authFormSchema, form)
+    if (!result.success) {
+      setTouchedFields({
+        phone: true,
+        password: true,
+      })
+      return
+    }
+
+    onSubmit?.(result.data)
+  }
 
   return (
-    <Form onSubmit={(event) => event.preventDefault()}>
-      <Form.Field required label="手机号">
+    <Form onSubmit={handleSubmit}>
+      <Form.Field
+        required
+        label="手机号"
+        error={touchedFields.phone ? formErrors.phone : undefined}
+      >
         <Input
           id="phone"
           name="phone"
           type="tel"
           inputMode="tel"
           autoComplete="tel"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
+          value={form.phone}
+          onChange={(event) => updateFormField('phone', event.target.value)}
+          onBlur={() => markFieldTouched('phone')}
           aria-label="手机号"
+          aria-invalid={Boolean(touchedFields.phone && formErrors.phone)}
           placeholder="输入手机号"
           className="bg-muted/80 focus-visible:bg-background h-8 rounded-lg border-transparent px-3 text-sm shadow-none"
         />
       </Form.Field>
 
-      <Form.Field required label="密码">
+      <Form.Field
+        required
+        label="密码"
+        error={touchedFields.password ? formErrors.password : undefined}
+      >
         <Input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          value={form.password}
+          onChange={(event) => updateFormField('password', event.target.value)}
+          onBlur={() => markFieldTouched('password')}
           aria-label="密码"
+          aria-invalid={Boolean(touchedFields.password && formErrors.password)}
           placeholder="输入密码"
           className="bg-muted/80 focus-visible:bg-background h-8 rounded-lg border-transparent px-3 text-sm shadow-none"
         />
       </Form.Field>
 
-      <Button type="submit" variant="confirm" size="sm" disabled={!isFormValid} className="w-full">
+      <Button
+        type="submit"
+        variant="confirm"
+        size="sm"
+        disabled={!validationResult.success}
+        className="w-full"
+      >
         登录
       </Button>
     </Form>

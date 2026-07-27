@@ -18,12 +18,6 @@ export type KnowledgeBaseActionHandler = (
   knowledgeBase: KnowledgeBaseListItem,
 ) => void
 
-export interface CreateKnowledgeBaseInput {
-  title: string
-  icon: string
-  description?: string
-}
-
 export type DocumentSegmentationMode = 'general' | 'qa' | 'parent-child'
 
 export type DocumentStatus = 'available' | 'indexing' | 'error' | 'disabled'

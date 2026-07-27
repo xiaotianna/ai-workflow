@@ -30,7 +30,10 @@
 ## 新增业务功能
 
 1. 创建 `src/features/<feature-name>/`。
-2. 按实际需要创建 `components`、`hooks`、`types.ts` 或 `data.ts`，不要预建空目录。
+2. 按实际需要创建 `components`、`hooks`、`types.ts`、`schema.ts` 或 `data.ts`，不要预建空目录。
+   业务表单的 Zod schema、`z.input` 编辑态类型、`z.output` 提交类型和初始值统一放在
+   feature 根目录的 `schema.ts`；跨 feature 使用的提交类型通过该 feature 的 `index.ts`
+   导出，不在 `types.ts` 重复声明 interface。
 3. 在根 `index.ts` 中只导出外部需要使用的入口。
 4. 让页面负责路由和页面级组合，让业务功能负责业务交互与展示。
 5. 模拟数据、领域类型和组件职责变复杂后及时拆分，不长期堆在同一文件。

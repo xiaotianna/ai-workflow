@@ -38,6 +38,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
           maxZoom: 1,
         }}
         deleteKeyCode={['Backspace', 'Delete']}
+        selectNodesOnDrag={false}
         onEdgesChange={editor.handleEdgesChange}
         onConnect={editor.handleConnect}
         isValidConnection={editor.isValidConnection}
