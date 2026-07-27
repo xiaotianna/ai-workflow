@@ -1,8 +1,8 @@
 import type { ConditionNodeConfig } from '@ai-workflow/core'
 import type { NodeContentProps } from '../../contracts/node-content'
 
-export function ConditionNodeContent({ config }: NodeContentProps<ConditionNodeConfig>) {
-  const conditions = config.conditions
+export function ConditionNodeContent({ node }: NodeContentProps<ConditionNodeConfig>) {
+  const conditions = node.config.conditions
 
   return (
     <div className="space-y-1.5">

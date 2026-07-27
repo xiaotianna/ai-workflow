@@ -56,6 +56,9 @@ import {
 1. 先在 Core 中完成节点 schema、definition、初始配置和注册。
 2. 普通节点实现 `NodeContentProps<TConfig>` 内容组件；需要替换完整外壳的容器节点实现
    `NodeRendererProps<TConfig>`。
+   `RenderNode` 会把节点原始 `config` 经过对应 schema 解析后放回 `node.config`；
+   内容组件统一从 `node.config`、`node.inputs` 和 `node.outputs` 读取节点数据，
+   Props 不再额外提供独立的 `config` 字段。
 3. 普通内容使用 `defineNodeUI(coreNodeType, Component)`；完整外壳使用
    `defineNodeRendererUI(coreNodeType, Renderer)`，两者都保持配置类型关联。
 4. 加入内置 UI 注册列表，或由插件创建独立 `NodeUIRegistry`。
@@ -80,6 +83,6 @@ import {
   开始并以 `28px` 间距排列；默认端口视觉为 `4px × 20px` 的主色短竖条，
   Web 注入 Handle 时应让端口内侧贴住节点边界并整体向外突出，同时可以扩大透明命中区；
   节点卡片不得使用 `overflow-hidden` 裁剪突出边界的端口。
-- `RenderNode` 统一解析配置和端口，内容组件与完整节点渲染器都会收到经过 schema
-  解析、已应用默认值的 `config`。
+- `RenderNode` 统一解析配置和端口，内容组件与完整节点渲染器收到的 `node.config`
+  已经过 schema 解析并应用默认值；不要再从 Props 中增加独立配置副本。
 - 内容组件必须处理长文本和空数据，不能改变端口 id 或节点定义。

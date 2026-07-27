@@ -1,23 +1,26 @@
 import type { StartNodeConfig } from '@ai-workflow/core'
 import type { NodeContentProps } from '../../contracts/node-content'
 
-export const StartNodeContent = ({ config }: NodeContentProps<StartNodeConfig>) => {
-  const variables = config.variables
-  return (
-    <>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between rounded-md bg-slate-100/80 px-2.5 py-2">
-          <span className="truncate text-sm text-slate-700">输入变量</span>
-          <span className="shrink-0 text-xs font-medium text-slate-500">{variables.length} 个</span>
-        </div>
+export const StartNodeContent = ({ node }: NodeContentProps<StartNodeConfig>) => {
+  const outputs = node.outputs
 
-        {variables.map((variable) => (
-          <div key={variable.key} className="flex items-center justify-between text-xs">
-            <span className="truncate text-slate-600">{variable.label}</span>
-            <span className="text-slate-400">{variable.dataType}</span>
-          </div>
-        ))}
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between rounded-md bg-slate-100/80 px-2.5 py-2">
+        <span className="truncate text-sm text-slate-700">输出变量</span>
+        <span className="shrink-0 text-xs font-medium text-slate-500">{outputs.length} 个</span>
       </div>
-    </>
+
+      {outputs.length > 0 ? (
+        outputs.map((output) => (
+          <div key={output.key} className="flex items-center justify-between text-xs">
+            <span className="truncate text-slate-600">{output.label}</span>
+            <span className="text-slate-400">{output.dataType}</span>
+          </div>
+        ))
+      ) : (
+        <div className="text-xs text-slate-400">暂未配置输出变量</div>
+      )}
+    </div>
   )
 }

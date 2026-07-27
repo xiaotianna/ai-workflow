@@ -1,61 +1,66 @@
-import { FIELD_UI_TYPES } from './field-ui-constants'
+import type { z } from 'zod'
+import { FIELD_UI_TYPES, type FieldUIType } from './field-ui-constants'
 
-// 基础字段
-export interface BaseFieldSchema<TValue> {
+export type FieldValue = string | number | boolean
+
+export interface BaseFieldSchema {
   label: string
   description?: string
   required?: boolean
-  /** @deprecated 节点默认值统一由 NodeDefinition.defaultConfig 提供。 */
-  defaultValue?: TValue
 }
 
-/** 扩展类型 */
-// string
-export interface StringFieldSchema<TValue extends string = string> extends BaseFieldSchema<TValue> {
-  type: 'string'
-  ui: typeof FIELD_UI_TYPES.INPUT | typeof FIELD_UI_TYPES.TEXTAREA
+export interface TextFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.TEXT
 }
 
-// number
-export interface NumberFieldSchema<TValue extends number = number> extends BaseFieldSchema<TValue> {
-  type: 'number'
-  ui: typeof FIELD_UI_TYPES.INPUT | typeof FIELD_UI_TYPES.SLIDER
+export interface NumberFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.NUMBER
+}
+
+export interface TextareaFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.TEXTAREA
+}
+
+export interface SelectFieldSchema<TValue extends FieldValue = FieldValue> extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.SELECT
+  options: ReadonlyArray<{
+    label: string
+    value: TValue
+  }>
+}
+
+export interface SwitchFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.SWITCH
+}
+
+export interface SliderFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.SLIDER
   min?: number
   max?: number
   step?: number
 }
 
-// boolean
-export interface BooleanFieldSchema<
-  TValue extends boolean = boolean,
-> extends BaseFieldSchema<TValue> {
-  type: 'boolean'
-  ui: typeof FIELD_UI_TYPES.SWITCH
-}
-
-// select
-export interface SelectFieldSchema<
-  TValue extends string | number | boolean,
-> extends BaseFieldSchema<TValue> {
-  type: 'select'
-  ui: typeof FIELD_UI_TYPES.SELECT
-  options: Array<{ label: string; value: TValue }>
-}
-
-// code
-export interface CodeFieldSchema<TValue extends string = string> extends BaseFieldSchema<TValue> {
-  type: 'code'
+export interface CodeEditorFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CODE_EDITOR
   language?: string
+  content: string
 }
 
-export type FieldSchema =
-  | StringFieldSchema
-  | NumberFieldSchema
-  | BooleanFieldSchema
-  | SelectFieldSchema<string | number | boolean>
-  | CodeFieldSchema
+export interface FieldSchemaByUI {
+  [FIELD_UI_TYPES.TEXT]: TextFieldSchema
+  [FIELD_UI_TYPES.NUMBER]: NumberFieldSchema
+  [FIELD_UI_TYPES.TEXTAREA]: TextareaFieldSchema
+  [FIELD_UI_TYPES.SELECT]: SelectFieldSchema
+  [FIELD_UI_TYPES.SWITCH]: SwitchFieldSchema
+  [FIELD_UI_TYPES.SLIDER]: SliderFieldSchema
+  [FIELD_UI_TYPES.CODE_EDITOR]: CodeEditorFieldSchema
+}
+
+export type FieldSchema<TUI extends FieldUIType = FieldUIType> = FieldSchemaByUI[TUI]
 
 export type FieldSchemaMap<TConfig extends object> = {
-  [K in keyof TConfig]?: FieldSchema
+  [K in keyof TConfig]-?: FieldSchema
 }
+
+export type NodeFormSchema<TSchema extends z.ZodType> =
+  z.output<TSchema> extends object ? FieldSchemaMap<z.output<TSchema>> : never

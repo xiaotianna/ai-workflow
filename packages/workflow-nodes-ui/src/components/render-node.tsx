@@ -67,6 +67,11 @@ export const RenderNode = ({
   }
 
   const config = nodeType.schema.parse(node.config)
+  // 合并解析成功后的config参数
+  const resolvedNode = {
+    ...node,
+    config,
+  }
   const ports = getNodePorts(nodeType, node.config)
   const registration = uiRegistry.get(node.type)
   const selectNode = onSelect ? () => onSelect(node.id) : undefined
@@ -77,10 +82,9 @@ export const RenderNode = ({
 
     return (
       <Renderer
-        node={node}
+        node={resolvedNode}
         definition={nodeType.definition}
         ports={ports}
-        config={config}
         selected={selected}
         disabled={disabled}
         onSelect={selectNode}
@@ -105,7 +109,7 @@ export const RenderNode = ({
       onDelete={deleteNode}
       renderPort={renderPort}
     >
-      <Content node={node} definition={nodeType.definition} ports={ports} config={config} />
+      <Content node={resolvedNode} definition={nodeType.definition} ports={ports} />
     </BaseNode>
   )
 }

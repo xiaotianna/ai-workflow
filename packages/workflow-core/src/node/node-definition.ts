@@ -1,3 +1,4 @@
+import { NodeFormSchema } from '../form/field-schema-types'
 import type { PortMap } from '../port/port-types'
 import type { z } from 'zod'
 
@@ -22,6 +23,8 @@ export interface NodeType<TSchema extends z.ZodType = z.ZodType<any, any>> {
   schema: TSchema
   // 节点的静态元信息，主要供工作流 UI、端口渲染、节点菜单和连线校验使用
   definition: NodeDefinition
+  // 当前节点的表单配置（不包含node.inputs、node.outputs，仅有node.input数据），start、end节点没有config数据可以为空
+  form?: NodeFormSchema<TSchema>
   /**
    * 每次创建节点时生成一份独立的初始配置（根据zod类型自动创建，采用工厂函数）
    * 示例：

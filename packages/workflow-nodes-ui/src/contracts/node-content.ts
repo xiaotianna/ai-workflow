@@ -8,13 +8,18 @@ import type {
 } from '@ai-workflow/core'
 import type { ComponentType, ReactNode } from 'react'
 
+// 节点进入 UI 渲染层后，config 已经过对应节点 schema 解析
+export type ResolvedWorkflowNode<TConfig = unknown> = Readonly<
+  Omit<WorkflowNode, 'config'> & {
+    readonly config: Readonly<TConfig>
+  }
+>
+
 // 统一节点内容组件的入参
 export interface NodeContentProps<TConfig = unknown> {
-  readonly node: Readonly<WorkflowNode>
+  readonly node: ResolvedWorkflowNode<TConfig>
   readonly definition: NodeDefinition
   readonly ports: NodeDefinition['ports']
-  // config 只有校验通过才有值
-  readonly config: Readonly<TConfig>
 }
 
 // 组件children类型

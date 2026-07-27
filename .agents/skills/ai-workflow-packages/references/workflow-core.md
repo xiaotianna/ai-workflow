@@ -12,9 +12,12 @@
 import {
   workflowSchema,
   nodeRegistry,
+  FIELD_UI_TYPES,
   getNodePorts,
   validateWorkflow,
   validateExecutorWorkflow,
+  type FieldSchema,
+  type NodeFormSchema,
 } from '@ai-workflow/core'
 ```
 
@@ -27,6 +30,18 @@ import {
   `config` 仍由对应 `NodeType.schema` 校验。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
+- `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`
+  和 `code_editor` 作为字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
+- `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
+  `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
+- `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
+  `SwitchFieldSchema`、`SliderFieldSchema` 和 `CodeEditorFieldSchema` 都继承
+  `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
+- `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
+  负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
+- 当前 `llm`、`http`、`loop` 和 `code` 已声明通用节点配置 form；Code 使用
+  `FIELD_UI_TYPES.CODE_EDITOR` 并携带 `language: 'javascript'`。
+- 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过
   `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
@@ -43,10 +58,12 @@ import {
 
 1. 定义 Zod 配置 schema，并导出推导后的配置类型。
 2. 定义稳定唯一的 type、标签、说明、图标和静态端口。
-3. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，不要继续使用已废弃的字段默认值。
-4. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
-5. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
-6. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
+3. 需要通用配置表单时使用 `NodeFormSchema<typeof nodeSchema>` 声明 form，以
+   `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
+4. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
+5. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
+6. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
+7. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
 
 ## 校验顺序
 
@@ -69,5 +86,5 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
 - `package.json` 当前未声明源码直接使用的 Zod 依赖；维护 manifest 时应补齐直接依赖，不能依靠根目录提升。
-- `BaseFieldSchema.defaultValue` 已废弃，实际节点默认配置来源是 `NodeType.createInitialConfig()`。
+- 字段契约不再提供 `defaultValue`，节点默认配置唯一来源是 `NodeType.createInitialConfig()`。
 - `src/node/get-node-ports使用文档.md` 和 `src/validate/validate使用.md` 是补充示例；示例与当前 API 不一致时以源码为准并同步更新文档。

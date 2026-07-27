@@ -1,5 +1,6 @@
 export const FIELD_UI_TYPES = {
-  INPUT: 'input',
+  TEXT: 'text',
+  NUMBER: 'number',
   TEXTAREA: 'textarea',
   SELECT: 'select',
   SWITCH: 'switch',
