@@ -13,14 +13,99 @@ import {
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 import type { Connection, CoordinateExtent, XYPosition } from '@xyflow/react'
 
+function getNodeLabelIndex(label: string, defaultLabel: string): number | undefined {
+  if (label === defaultLabel) {
+    return 1
+  }
+
+  const numberedLabelPrefix = `${defaultLabel} `
+
+  if (!label.startsWith(numberedLabelPrefix)) {
+    return undefined
+  }
+
+  const suffix = label.slice(numberedLabelPrefix.length)
+  const index = Number(suffix)
+
+  return Number.isSafeInteger(index) && index >= 2 && String(index) === suffix ? index : undefined
+}
+
+function formatNodeDefaultLabel(defaultLabel: string, index: number): string {
+  return index > 1 ? `${defaultLabel} ${index}` : defaultLabel
+}
+
+/**
+ * 获取节点实例清空自定义名称后应恢复的默认名称。
+ * 优先保留创建时已生成的标准编号；旧节点没有编号时按同类型节点顺序推导。
+ */
+export function getCanvasNodeDefaultLabel(
+  nodeId: string,
+  nodes: readonly WorkflowCanvasNode[],
+): string | undefined {
+  const node = nodes.find((candidate) => candidate.id === nodeId)
+
+  if (!node) {
+    return undefined
+  }
+
+  const nodeType = nodeRegistry.get(node.type)
+
+  if (!nodeType) {
+    return node.data.label ?? node.type
+  }
+
+  const defaultLabel = nodeType.definition.label
+  const sameTypeNodes = nodes.filter((candidate) => candidate.type === node.type)
+  const ordinal = sameTypeNodes.findIndex((candidate) => candidate.id === nodeId) + 1
+  const storedLabelIndex = node.data.label
+    ? getNodeLabelIndex(node.data.label, defaultLabel)
+    : undefined
+  const defaultLabelIndex =
+    storedLabelIndex !== undefined && storedLabelIndex > 1 ? storedLabelIndex : ordinal
+
+  return formatNodeDefaultLabel(defaultLabel, defaultLabelIndex)
+}
+
+/**
+ * 同类型首个节点沿用类型默认名称，后续实例使用“默认名称 2”“默认名称 3”。
+ * 同时参考实例数量和已使用的最大编号，避免删除或自定义名称后生成重复编号。
+ */
+function getNextNodeLabel(
+  type: string,
+  existingNodes: readonly WorkflowCanvasNode[],
+): string | undefined {
+  const defaultLabel = nodeRegistry.getOrThrow(type).definition.label
+  const sameTypeNodes = existingNodes.filter((node) => node.type === type)
+
+  if (sameTypeNodes.length === 0) {
+    return undefined
+  }
+
+  const maxUsedIndex = sameTypeNodes.reduce((maxIndex, node) => {
+    const labelIndex = getNodeLabelIndex(node.data.label ?? defaultLabel, defaultLabel)
+
+    return labelIndex === undefined ? maxIndex : Math.max(maxIndex, labelIndex)
+  }, 0)
+  const nextIndex = Math.max(sameTypeNodes.length + 1, maxUsedIndex + 1)
+
+  return formatNodeDefaultLabel(defaultLabel, nextIndex)
+}
+
 // 创建单个普通节点（调用core的createInitialConfig工厂函数）
-const createCanvasNode = (type: string, position: XYPosition): WorkflowCanvasNode => {
+const createCanvasNode = (
+  type: string,
+  position: XYPosition,
+  existingNodes: readonly WorkflowCanvasNode[],
+): WorkflowCanvasNode => {
   const nodeType = nodeRegistry.getOrThrow(type)
+  const label = getNextNodeLabel(type, existingNodes)
+
   return {
     id: generateUuid(),
     type: nodeType.definition.type,
     position,
     data: {
+      ...(label ? { label } : {}),
       config: nodeType.createInitialConfig(),
       inputs: {},
       outputs: [],
@@ -149,13 +234,18 @@ const createLoopCanvasNodes = ({
   position,
   parentId,
   parentSize,
+  existingNodes,
 }: {
   position: XYPosition
   parentId?: string
   parentSize?: { width: number; height: number }
+  existingNodes: readonly WorkflowCanvasNode[]
 }): [WorkflowCanvasNode, WorkflowCanvasNode, WorkflowCanvasNode] => {
   const loopId = generateUuid()
   const loopChildExtent = getLoopChildExtent(DEFAULT_LOOP_SIZE)
+  const loopLabel = getNextNodeLabel(BuiltinNodeType.LOOP, existingNodes)
+  const loopStartLabel = getNextNodeLabel(BuiltinNodeType.LOOP_START, existingNodes)
+  const loopExitLabel = getNextNodeLabel(BuiltinNodeType.LOOP_EXIT, existingNodes)
 
   // 创建loop节点
   const loopNode: WorkflowCanvasNode = {
@@ -163,6 +253,7 @@ const createLoopCanvasNodes = ({
     type: BuiltinNodeType.LOOP,
     position,
     data: {
+      ...(loopLabel ? { label: loopLabel } : {}),
       config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
       inputs: {},
       outputs: [],
@@ -189,6 +280,7 @@ const createLoopCanvasNodes = ({
       y: 96,
     },
     data: {
+      ...(loopStartLabel ? { label: loopStartLabel } : {}),
       config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
       inputs: {},
       outputs: [],
@@ -207,6 +299,7 @@ const createLoopCanvasNodes = ({
       y: 96,
     },
     data: {
+      ...(loopExitLabel ? { label: loopExitLabel } : {}),
       config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
       inputs: {},
       outputs: [],
@@ -225,17 +318,19 @@ export const createCanvasNodes = ({
   position,
   parentId,
   parentSize,
+  existingNodes,
 }: {
   type: string
   position: XYPosition
   parentId?: string
   parentSize?: { width: number; height: number }
+  existingNodes: readonly WorkflowCanvasNode[]
 }): [WorkflowCanvasNode, ...WorkflowCanvasNode[]] => {
   if (type === BuiltinNodeType.LOOP) {
-    return createLoopCanvasNodes({ position, parentId, parentSize })
+    return createLoopCanvasNodes({ position, parentId, parentSize, existingNodes })
   }
 
-  const node = createCanvasNode(type, position)
+  const node = createCanvasNode(type, position, existingNodes)
 
   if (!parentId) {
     return [node]

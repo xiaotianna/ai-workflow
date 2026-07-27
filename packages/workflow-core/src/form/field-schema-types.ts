@@ -42,7 +42,6 @@ export interface SliderFieldSchema extends BaseFieldSchema {
 
 export interface CodeEditorFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CODE_EDITOR
-  language?: string
   content: string
 }
 

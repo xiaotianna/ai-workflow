@@ -24,6 +24,26 @@
 
 标准输入框采用 `h-9 rounded-md px-2.5`。页面可以按密度调整高度和圆角，但不得改变上述状态语言。Hover 与 Focus visible 的视觉必须一致；状态切换使用 `transition-[background-color,border-color]`，避免尺寸或布局跳动。
 
+工作流节点名称、描述等需要与静态文字视觉一致的内联编辑是输入状态语言的局部例外：仍使用
+原生 `Input` 和准确的 `aria-label`，但同时移除边框、背景、圆角、阴影、内外边距以及
+Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不得用于常规表单字段。
+
+## 代码编辑器
+
+- UI 包的 `CodeEditor` 只提供 Monaco 编辑器核心，语言通过 props 指定，内层背景保持透明；
+  顶栏、边框、固定尺寸、操作入口和 Dialog 由具体使用场景组合。
+- 节点配置的代码字段使用 `bg-input` 作为顶栏、行号区和代码区的统一背景；Hover 与
+  Focus visible 只切换到 `border-input-focus`，不把编辑区背景切成白色。
+- 代码字段顶栏展示当前语言，不提供语言下拉、AI 生成或复制操作；右侧只保留弹窗编辑
+  按钮。按钮使用 Ghost 样式，默认背景透明；Hover 与 Focus visible 使用
+  `bg-button-secondary-bg-active`，确保在 `bg-input` 顶栏上仍有清晰反馈；点击后打开大尺寸
+  Dialog 编辑代码，并提供准确的无障碍名称。
+- Dialog 内使用临时草稿，点击“确定”才回写代码字段；取消、关闭或按 Esc 均丢弃本次
+  修改。Dialog 继续复用同一套 Monaco 配置，不在弹窗内展示第二个放大入口。
+- Monaco 代码与行号统一使用 `12px` 字号；行号区按当前最大行号位数自适应宽度，并始终
+  额外预留一个字符的左侧留白。关闭 glyph margin、代码折叠、MiniMap、Overview Ruler 和
+  Sticky Scroll；滚动条使用紧凑尺寸，避免在节点配置面板内占用过多空间。
+
 ## 按钮与可点击控件
 
 - 可点击且提供 Hover 反馈的控件必须使用 `cursor-pointer`；拖拽、缩放等专用交互使用对应的 `cursor-grab`、`cursor-*-resize`，禁用态使用 `cursor-not-allowed`。Input、Textarea 等文本编辑控件不适用此规则。
@@ -102,6 +122,8 @@
   `NODE_THEMES` 作为唯一节点标识色来源，并通过 `getNodeThemeColor(type)` 获取未知
   类型的默认回退色。
 - 节点输入、输出 Handle 保持使用 `--primary`，不跟随节点标识色变化。
+- 节点没有可见 Body 内容时只显示 Header，不保留 Body 的水平或底部间距；默认描述为空时
+  不渲染空 Body 容器，专属节点可以保留有明确文案的空状态。
 
 ## 语义 Token
 

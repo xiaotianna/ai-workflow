@@ -12,16 +12,18 @@ const MotionPanel = motion.create(Panel)
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
   selectedNode?: WorkflowNode
+  selectedNodeDefaultLabel?: string
   onAddNode: (type: string) => void
-  onApplyNodeConfig: (node: WorkflowNode) => void
+  onApplyNode: (node: WorkflowNode) => void
   onCloseNodeConfig: () => void
 }
 
 export const WorkflowPanel = ({
   nodeTypes,
   selectedNode,
+  selectedNodeDefaultLabel,
   onAddNode,
-  onApplyNodeConfig,
+  onApplyNode,
   onCloseNodeConfig,
 }: WorkflowPanelProps) => {
   return (
@@ -58,7 +60,8 @@ export const WorkflowPanel = ({
               <WorkflowConfigPanel
                 key={selectedNode.id}
                 node={selectedNode}
-                onApply={onApplyNodeConfig}
+                defaultLabel={selectedNodeDefaultLabel}
+                onApply={onApplyNode}
                 onClose={onCloseNodeConfig}
               />
             </MotionPanel>

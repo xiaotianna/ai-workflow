@@ -24,6 +24,7 @@ import {
   createCanvasNodes,
   createWorkflowEdge,
   DEFAULT_LOOP_SIZE,
+  getCanvasNodeDefaultLabel,
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
 } from '@/utils/workflow/editor-elements'
@@ -83,6 +84,9 @@ export function useWorkflowEditor({
   const selectedNode: WorkflowNode | undefined = selectedCanvasNode
     ? toWorkflowNode(selectedCanvasNode)
     : undefined
+  const selectedNodeDefaultLabel = selectedCanvasNode
+    ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes)
+    : undefined
 
   const { errors, saveWorkflow, saving } = useWorkflowSave({
     baseWorkflow: initialSnapshot.workflow,
@@ -127,6 +131,7 @@ export function useWorkflowEditor({
     const placementSize = getNodePlacementSize(type)
     const createdNodes = createCanvasNodes({
       type,
+      existingNodes: nodes,
       position: viewportCenter
         ? {
             x: viewportCenter.x - placementSize.width / 2,
@@ -176,10 +181,12 @@ export function useWorkflowEditor({
   }
 
   /**
-   * 提交通过 schema 校验的节点配置，清理失效端口边
-   * 并通知 React Flow 重新测量动态 Handle
+   * 更新节点实例元信息和通过 schema 校验的配置；配置变化时清理失效端口边，
+   * 并通知 React Flow 重新测量动态 Handle。
    */
-  function applyNodeConfig(nextNode: WorkflowNode) {
+  function applyNode(nextNode: WorkflowNode) {
+    const configChanged = nextNode.config !== selectedNode?.config
+
     setNodes((currentNodes) =>
       currentNodes.map((canvasNode) =>
         canvasNode.id === nextNode.id
@@ -187,6 +194,8 @@ export function useWorkflowEditor({
               ...canvasNode,
               type: nextNode.type,
               data: {
+                label: nextNode.label,
+                description: nextNode.description,
                 config: nextNode.config,
                 inputs: nextNode.inputs,
                 outputs: nextNode.outputs,
@@ -195,10 +204,12 @@ export function useWorkflowEditor({
           : canvasNode,
       ),
     )
-    setEdges((currentEdges) => removeDanglingEdges(nextNode, currentEdges))
     setDirty(true)
 
-    requestAnimationFrame(() => updateNodeInternals(nextNode.id))
+    if (configChanged) {
+      setEdges((currentEdges) => removeDanglingEdges(nextNode, currentEdges))
+      requestAnimationFrame(() => updateNodeInternals(nextNode.id))
+    }
   }
 
   // 记录最新视口；只有用户主动移动画布时才设置 dirty
@@ -243,7 +254,7 @@ export function useWorkflowEditor({
 
   return {
     addNode,
-    applyNodeConfig,
+    applyNode,
     availableNodeTypes,
     deleteSelectedNode,
     dirty,
@@ -261,6 +272,7 @@ export function useWorkflowEditor({
     saveWorkflow,
     saving,
     selectedNode,
+    selectedNodeDefaultLabel,
     selectedNodeId,
     selectNode,
     loopEditor,

@@ -7,16 +7,17 @@ import { NodeIcon } from '../node-icon'
 
 export interface NodeHeaderProps {
   definition: NodeDefinition
+  label?: ReactNode
   actions?: ReactNode
   onDelete?: () => void
   className?: string
 }
 
 // 统一渲染节点头部，完整节点渲染器可以通过className适配自身布局
-export function NodeHeader({ definition, actions, onDelete, className }: NodeHeaderProps) {
+export function NodeHeader({ definition, label, actions, onDelete, className }: NodeHeaderProps) {
   return (
     <header className={cn('flex items-center justify-between p-3', className)}>
-      <div className="flex min-w-0 items-center">
+      <div className="flex min-w-0 flex-1 items-center">
         <span
           className="text-primary-foreground mr-2 flex size-6 shrink-0 items-center justify-center rounded-[0.5rem] shadow-md"
           style={{ backgroundColor: getNodeThemeColor(definition.type) }}
@@ -24,8 +25,10 @@ export function NodeHeader({ definition, actions, onDelete, className }: NodeHea
           <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
         </span>
 
-        <div className="min-w-0">
-          <div className="text-foreground truncate text-sm font-semibold">{definition.label}</div>
+        <div className="min-w-0 flex-1">
+          {label ?? (
+            <div className="text-foreground truncate text-sm font-semibold">{definition.label}</div>
+          )}
         </div>
       </div>
 

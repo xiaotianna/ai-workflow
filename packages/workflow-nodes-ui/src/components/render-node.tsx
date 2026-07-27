@@ -3,7 +3,7 @@ import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/co
 import type { NodeEditorCapabilities, NodePortRender } from '../contracts/node-content'
 import type { NodeUIRegistry } from '../registry'
 import { BaseNode } from './base-node'
-import { DefaultNodeContent } from './default-node-content'
+import { DefaultNodeContent, hasDefaultNodeContent } from './default-node-content'
 
 export interface RenderNodeProps {
   node: Readonly<WorkflowNode>
@@ -42,8 +42,8 @@ export const RenderNode = ({
   if (!nodeType) {
     const unknownDefinition: NodeDefinition = {
       type: node.type,
-      label: `未知节点：${node.type}`,
-      description: '当前节点类型没有注册到 workflow-core',
+      label: node.label?.trim() || `未知节点：${node.type}`,
+      description: node.description ?? '当前节点类型没有注册到 workflow-core',
       icon: 'unknown',
       ports: EMPTY_PORTS,
     }
@@ -72,6 +72,11 @@ export const RenderNode = ({
     ...node,
     config,
   }
+  const resolvedDefinition: NodeDefinition = {
+    ...nodeType.definition,
+    label: node.label?.trim() || nodeType.definition.label,
+    description: node.description ?? nodeType.definition.description,
+  }
   const ports = getNodePorts(nodeType, node.config)
   const registration = uiRegistry.get(node.type)
   const selectNode = onSelect ? () => onSelect(node.id) : undefined
@@ -83,7 +88,7 @@ export const RenderNode = ({
     return (
       <Renderer
         node={resolvedNode}
-        definition={nodeType.definition}
+        definition={resolvedDefinition}
         ports={ports}
         selected={selected}
         disabled={disabled}
@@ -96,12 +101,17 @@ export const RenderNode = ({
     )
   }
 
-  const Content = registration?.component ?? DefaultNodeContent
+  const Content = registration?.component
+  const body = Content ? (
+    <Content node={resolvedNode} definition={resolvedDefinition} ports={ports} />
+  ) : hasDefaultNodeContent(resolvedDefinition) ? (
+    <DefaultNodeContent node={resolvedNode} definition={resolvedDefinition} ports={ports} />
+  ) : null
 
   return (
     <BaseNode
       nodeId={node.id}
-      definition={nodeType.definition}
+      definition={resolvedDefinition}
       ports={ports}
       selected={selected}
       disabled={disabled}
@@ -109,7 +119,7 @@ export const RenderNode = ({
       onDelete={deleteNode}
       renderPort={renderPort}
     >
-      <Content node={resolvedNode} definition={nodeType.definition} ports={ports} />
+      {body}
     </BaseNode>
   )
 }

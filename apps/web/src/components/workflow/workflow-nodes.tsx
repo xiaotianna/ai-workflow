@@ -17,6 +17,8 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
       node={{
         id,
         type,
+        ...(data.label !== undefined ? { label: data.label } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
         config: data.config,
         inputs: data.inputs,
         outputs: data.outputs,

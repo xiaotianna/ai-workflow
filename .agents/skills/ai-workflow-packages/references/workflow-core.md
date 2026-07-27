@@ -26,8 +26,9 @@ import {
 ## 核心模型
 
 - `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes 和 edges。
-- `workflowNodeSchema` 校验通用节点字段、`inputs` 变量绑定和实例动态 `outputs`，具体
-  `config` 仍由对应 `NodeType.schema` 校验。
+- `workflowNodeSchema` 校验通用节点字段、可选的实例 `label` / `description`、
+  `inputs` 变量绑定和实例动态 `outputs`；实例名称和描述覆盖 `NodeDefinition` 的默认展示
+  文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`
@@ -40,7 +41,8 @@ import {
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
 - 当前 `llm`、`http`、`loop` 和 `code` 已声明通用节点配置 form；Code 使用
-  `FIELD_UI_TYPES.CODE_EDITOR` 并携带 `language: 'javascript'`。
+  `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
+  语言元数据。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过

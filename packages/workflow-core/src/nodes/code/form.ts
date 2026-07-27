@@ -8,7 +8,6 @@ export const codeNodeForm = {
     label: '代码',
     description: '输入节点需要执行的代码',
     required: true,
-    language: 'javascript',
     content: '',
   },
 } satisfies NodeFormSchema<typeof codeNodeSchema>

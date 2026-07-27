@@ -64,6 +64,7 @@ export function useWorkflowLoopEditor({
 
     const createdNodes = createCanvasNodes({
       type: nodeType.definition.type,
+      existingNodes: nodes,
       parentId: loopId,
       position: getNextLoopChildPosition(loopId, nodes),
       parentSize: getLoopNodeSize(parentLoop),

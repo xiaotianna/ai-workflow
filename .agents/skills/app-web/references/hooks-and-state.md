@@ -38,10 +38,18 @@
 - 根画布和 Loop 容器内新增节点都通过 `createCanvasNodes` 创建；新增 Loop 必须在同一次
   状态更新中原子生成 Loop 容器、Loop Start 和 Loop Exit。根画布新增节点通过预设尺寸
   一次计算初始位置，Loop 使用默认容器尺寸；不得在渲染测量后再次修正坐标造成视觉跳动。
+- 新增节点按整个工作流内的节点类型生成实例名称：首个实例沿用类型默认 label，后续实例写入
+  `默认 label 2`、`默认 label 3`。编号同时参考同类型实例数量和已存在的最大标准编号，
+  避免节点删除或改成自定义名称后生成重复名称；根画布与 Loop 内新增必须共用该规则。
+- 名称输入清空并确认时恢复该节点的实例默认名称，而不是一律恢复裸的类型 label；已生成
+  标准编号的节点保留原编号，旧数据没有编号时按工作流内同类型节点顺序推导 `label 2`、
+  `label 3`，并通过现有节点更新入口写回实例 label。
 - 新增节点只更新画布节点与脏状态，不修改 `selectedNodeId`：配置面板关闭时不得因新增而
   自动打开，正在配置其他节点时也不得自动切换；只有用户点击节点时才切换面板目标。
 - Loop Start 与 Loop Exit 是自动维护的系统节点，初始化和新建时均设置为不可单独删除；
   删除 Loop 时通过 React Flow 的删除拦截器递归删除全部后代节点及关联边。
+- 节点实例名称、描述和配置共用 `useWorkflowEditor` 的节点更新入口；修改后同步更新画布节点
+  数据并设置脏状态，保存时统一转换回 Core `WorkflowNode`，不得维护只存在于配置面板的副本。
 - Loop 容器相关行为（子节点添加、缩放边界同步、删除拦截）集中在
   `features/workflow/hooks/use-workflow-loop-editor.ts`；`useWorkflowEditor` 只组合该
   Hook 并通过 `WorkflowLoopEditorProvider` 向节点组件注入能力。

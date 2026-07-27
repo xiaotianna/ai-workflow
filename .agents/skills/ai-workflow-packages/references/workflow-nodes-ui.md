@@ -30,9 +30,11 @@ import {
 
 1. `RenderNode` 从 Core `NodeRegistry` 查找节点类型。
 2. 未知类型显示可诊断的默认节点，不让整个画布直接崩溃。
-3. 使用 Core `getNodePorts` 解析静态或动态端口。
+3. 将节点实例的 `label` / `description` 覆盖到类型定义的默认展示文案，再使用 Core
+   `getNodePorts` 解析静态或动态端口。
 4. 从 `NodeUIRegistry` 获取注册项：`content` 复用 `BaseNode`，`renderer` 接管完整节点。
-5. 未注册专属 UI 时使用默认内容；普通内容由 `BaseNode` 负责外壳、选择、删除和端口区域。
+5. 未注册专属 UI 时只在实例有效描述非空时使用默认内容；普通内容由 `BaseNode` 负责外壳、
+   选择、删除和端口区域。
 6. 画布通过 `renderPort` 注入具体 Handle，不让本包依赖某个画布库。
 
 循环容器通过 `defineNodeRendererUI(loopNode, LoopNode)` 加入
@@ -43,6 +45,11 @@ import {
 `resizeControl` 注入画布缩放控件；Loop 节点的缩放外壳与 hover 交互留在
 `LoopNode` 内，具体 `NodeResizeControl` 仍由 Web 层注入，避免本包依赖画布库。
 普通节点与完整节点渲染器统一复用 `NodeWrapper`、`NodeHeader` 和 `NodePortsRender`。
+`NodeHeader.label` 接受自定义 React 节点，供配置面板等场景在不复制图标与操作区的前提下
+注入名称编辑控件；未传入时展示 definition label。
+`BaseNode` 通过内部 `NodeBody` 管理 `px-3 pb-3`；没有实际可见内容时 `RenderNode`
+传入 `null`，`NodeBody` 完全省略容器，避免仅有 Header 的节点残留底部空白。专属 content
+注册仍可渲染自己的数据摘要或明确空状态，不用 Core 字段数量代替实际 UI 内容判断。
 `NodeWrapper` 统一管理外层交互容器和内层卡片样式，并处理选择、禁用和键盘交互；
 普通节点使用默认卡片尺寸；容器节点等特殊场景通过 `className` 覆盖内层卡片的尺寸和圆角，
 由 `cn` 与卡片默认样式合并，并通过 `wrapperClassName` 让外层跟随画布节点尺寸；
@@ -85,4 +92,5 @@ import {
   节点卡片不得使用 `overflow-hidden` 裁剪突出边界的端口。
 - `RenderNode` 统一解析配置和端口，内容组件与完整节点渲染器收到的 `node.config`
   已经过 schema 解析并应用默认值；不要再从 Props 中增加独立配置副本。
-- 内容组件必须处理长文本和空数据，不能改变端口 id 或节点定义。
+- 内容组件必须处理长文本和空数据，不能改变端口 id 或节点定义；没有可见内容时不得使用
+  空元素占住 Body 间距。

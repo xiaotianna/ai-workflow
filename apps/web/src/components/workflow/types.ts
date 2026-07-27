@@ -45,6 +45,8 @@ export interface WorkflowEditorSnapshot {
   type: 'start',
   position: { x: 100, y: 100 },
   data: {
+    label?: string,
+    description?: string,
     config: (core node).config,
     inputs: (core node).inputs,
     outputs: (core node).outputs,
@@ -54,6 +56,8 @@ export interface WorkflowEditorSnapshot {
 }
  */
 export interface WorkflowCanvasNodeData extends Record<string, unknown> {
+  label?: WorkflowNode['label']
+  description?: WorkflowNode['description']
   config: WorkflowNode['config']
   inputs: WorkflowNode['inputs']
   outputs: WorkflowNode['outputs']

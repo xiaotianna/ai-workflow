@@ -1,4 +1,4 @@
-import { NodeFormSchema } from '../form/field-schema-types'
+import type { NodeFormSchema } from '../form/field-schema-types'
 import type { PortMap } from '../port/port-types'
 import type { z } from 'zod'
 

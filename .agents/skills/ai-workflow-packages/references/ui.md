@@ -21,8 +21,11 @@ import '@ai-workflow/ui/globals.css'
 ## 现有能力
 
 - 基础输入：`Input`、`Textarea`、`CodeEditor`、`Select`、`Slider`、`Checkbox`、`Switch`。
-- `CodeEditor` 基于 Monaco Editor，提供受控值、语言模式、明暗主题自动适配、本地 Web
-  Worker、加载态、禁用态与错误态；业务包只传字段语义，不直接依赖 Monaco。
+- `CodeEditor` 是基于 Monaco Editor 的无外壳编辑器核心，通过必填 `language` props 支持
+  Monaco 语言，内置 JavaScript/TypeScript、CSS、HTML、JSON 与通用 Editor Worker；
+  提供 12px 代码字号、随行号位数自适应并额外预留一个字符左侧留白的行号区、透明主题、
+  明暗主题自动适配、加载态和禁用态。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等
+  场景 UI 由使用方组合，不下沉到 UI 包。
 - 数据展示：`Table`、`Badge`、`Pagination`。
 - `Table` 采用无边框容器，仅保留行间细分隔线；表头与行高均为 `h-9`（36px），表头使用 `text-xs/8 font-normal`、`text-muted-foreground` 与 `whitespace-nowrap`，单元格使用 `text-[13px] leading-4` 与 `px-3` 间距；行 Hover 与选中态默认在 `TableRow` 上使用 `bg-input`。容器默认 `overflow-x-auto`；需要 sticky 列或由外层统一滚动时，传 `containerClassName="overflow-visible"`，滚动交给外层单一容器，表格本体加 `border-separate border-spacing-0`。
 - 含 sticky 列的表格：sticky 单元格需默认实底（通常 `bg-background`）以遮挡横向滚动内容；行 hover、选中、行内 Dropdown 打开等态应在**单元格**上用命名 group（如 `group/row`）与其他列同步，不要仅依赖 `<tr>` 背景，也不要让 sticky 列单独维护一套 hover 规则。
@@ -42,9 +45,10 @@ import '@ai-workflow/ui/globals.css'
 - 可点击且有 Hover 反馈的组件使用 `cursor-pointer`；拖拽、缩放和禁用态使用对应的专用光标，文本编辑控件除外。
 - 禁止重新引入 `ring-*` 交互样式；Button 等可点击组件通过内部背景或文字变化表达聚焦，不增加聚焦边框或阴影，输入型组件使用语义边框。
 - 表单使用 `Form` 与 `Form.Field`；实际控件提供 `aria-label`。
-- 代码输入使用 `CodeEditor`，通过 `value`、`onChange` 管理受控值，通过 `language`
-  选择 Monaco 语言模式；需要调整 Monaco 行为时传 `options`，不要在业务包重复初始化
-  Worker 或 Loader。Monaco Worker 从 `monaco-editor/editor/*` 和
+- 代码输入使用 `CodeEditor`，通过 `language` 指定 Monaco 语言，通过 `value`、`onChange`
+  管理受控值；需要调整 Monaco 行为时传 `options`，不要在业务包重复初始化 Worker 或
+  Loader，也不要把业务顶栏、弹窗或提交语义加入编辑器核心。Monaco Worker 从
+  `monaco-editor/editor/*` 和
   `monaco-editor/language/*` 公开子路径导入，不使用会绕过 0.56 `exports` 映射的
   `monaco-editor/esm/vs/*` 深路径。
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。

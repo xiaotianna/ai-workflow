@@ -96,8 +96,11 @@ export const builtinFields = {
   string、number 或 boolean option value。
 - `SwitchField` 使用 boolean 受控值。
 - `SliderField` 使用 schema 的 `min`、`max`、`step`，并展示当前值。
-- `CodeField` 使用 UI 包的 Monaco `CodeEditor`，空值回退到 schema 的 `content`，并把
-  `language` 元数据传给编辑器以提供对应的语法高亮和编辑能力。
+- `CodeField` 按需加载代码字段内容，只在代码字段实际挂载时下载 UI 包的 Monaco
+  `CodeEditor` 分块；空值回退到 schema 的 `content`，默认语言为 JavaScript，也可通过
+  可选 `language` props 复用其他 Monaco 语言。字段目录自行组合语言顶栏、边框、尺寸与
+  放大入口；`code-field-dialog.tsx` 独立承载大尺寸 Dialog，确认后回写字段值，取消或关闭
+  时丢弃弹窗草稿。
 - 所有 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
   实际控件提供 `aria-label`、`aria-invalid` 与 disabled 状态。
 

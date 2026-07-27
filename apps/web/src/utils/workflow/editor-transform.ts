@@ -54,6 +54,10 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
           type: workflowNode.type,
           position: snapshot.layout.positions[workflowNode.id] ?? getDefaultNodePosition(index),
           data: {
+            ...(workflowNode.label !== undefined ? { label: workflowNode.label } : {}),
+            ...(workflowNode.description !== undefined
+              ? { description: workflowNode.description }
+              : {}),
             config: workflowNode.config,
             inputs: workflowNode.inputs,
             outputs: workflowNode.outputs,
@@ -86,6 +90,8 @@ export const toWorkflowNode = (node: WorkflowCanvasNode): WorkflowNode => {
   return {
     id: node.id,
     type: node.type,
+    ...(node.data.label !== undefined ? { label: node.data.label } : {}),
+    ...(node.data.description !== undefined ? { description: node.data.description } : {}),
     config: node.data.config,
     inputs: node.data.inputs,
     outputs: node.data.outputs,

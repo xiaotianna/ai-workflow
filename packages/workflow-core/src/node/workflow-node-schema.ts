@@ -58,6 +58,9 @@ const config = nodeType.schema.parse(workflowNode.config)
 export const workflowNodeSchema = z.object({
   id: z.string().min(1, '节点 ID 不能为空'),
   type: z.string().min(1, '节点类型不能为空'),
+  // 节点实例可覆盖类型定义中的默认名称和描述
+  label: z.string().trim().min(1, '节点名称不能为空').optional(),
+  description: z.string().trim().optional(),
   // 当前节点使用的变量
   inputs: nodeInputBindingsSchema,
   // 节点输出变量

@@ -5,9 +5,6 @@ import { Editor, loader, type EditorProps } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 /* eslint-disable import/default -- Vite 将 ?worker 模块转换为默认导出的 Worker 构造器。 */
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
-import CssWorker from 'monaco-editor/language/css/css.worker?worker'
-import HtmlWorker from 'monaco-editor/language/html/html.worker?worker'
-import JsonWorker from 'monaco-editor/language/json/json.worker?worker'
 import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker'
 /* eslint-enable import/default */
 import * as React from 'react'
@@ -24,18 +21,6 @@ const workerScope = globalThis as typeof globalThis & {
 
 workerScope.MonacoEnvironment ??= {
   getWorker(_workerId, label) {
-    if (label === 'json') {
-      return new JsonWorker()
-    }
-
-    if (label === 'css' || label === 'scss' || label === 'less') {
-      return new CssWorker()
-    }
-
-    if (label === 'html' || label === 'handlebars' || label === 'razor') {
-      return new HtmlWorker()
-    }
-
     if (label === 'typescript' || label === 'javascript') {
       return new TsWorker()
     }
@@ -45,6 +30,32 @@ workerScope.MonacoEnvironment ??= {
 }
 
 loader.config({ monaco })
+
+const CODE_EDITOR_THEMES = {
+  dark: 'ai-workflow-code-dark',
+  light: 'ai-workflow-code-light',
+} as const
+
+const transparentEditorColors = {
+  'editor.background': '#00000000',
+  'editorGutter.background': '#00000000',
+  'editorStickyScroll.background': '#00000000',
+  'editorStickyScrollGutter.background': '#00000000',
+}
+
+monaco.editor.defineTheme(CODE_EDITOR_THEMES.light, {
+  base: 'vs',
+  inherit: true,
+  rules: [],
+  colors: transparentEditorColors,
+})
+
+monaco.editor.defineTheme(CODE_EDITOR_THEMES.dark, {
+  base: 'vs-dark',
+  inherit: true,
+  rules: [],
+  colors: transparentEditorColors,
+})
 
 function subscribeToColorScheme(onStoreChange: () => void) {
   if (typeof document === 'undefined') {
@@ -62,13 +73,15 @@ function subscribeToColorScheme(onStoreChange: () => void) {
 
 function getColorScheme() {
   if (typeof document === 'undefined') {
-    return 'light' as const
+    return CODE_EDITOR_THEMES.light
   }
 
   return document.documentElement.classList.contains('dark')
-    ? ('vs-dark' as const)
-    : ('light' as const)
+    ? CODE_EDITOR_THEMES.dark
+    : CODE_EDITOR_THEMES.light
 }
+
+type CodeEditorLanguage = NonNullable<EditorProps['language']>
 
 interface CodeEditorProps extends Omit<
   React.ComponentProps<'div'>,
@@ -76,12 +89,10 @@ interface CodeEditorProps extends Omit<
 > {
   disabled?: boolean
   height?: EditorProps['height']
-  language?: string
+  language: CodeEditorLanguage
   loading?: React.ReactNode
-  name?: string
   onChange?: (value: string) => void
   options?: EditorProps['options']
-  required?: boolean
   theme?: EditorProps['theme']
   value?: string
 }
@@ -89,28 +100,52 @@ interface CodeEditorProps extends Omit<
 const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
   (
     {
-      'aria-invalid': ariaInvalid,
       'aria-label': ariaLabel,
       className,
       disabled = false,
       height = '100%',
-      language = 'plaintext',
+      language,
       loading,
-      name,
       onChange,
       options,
-      required,
       theme,
       value = '',
       ...props
     },
     ref,
   ) => {
+    const lineNumberLayoutSubscriptionRef = React.useRef<monaco.IDisposable>(null)
+    const [lineNumbersMinChars, setLineNumbersMinChars] = React.useState(3)
     const colorScheme = React.useSyncExternalStore(
       subscribeToColorScheme,
       getColorScheme,
-      () => 'light',
+      () => CODE_EDITOR_THEMES.light,
     )
+
+    React.useEffect(
+      () => () => {
+        lineNumberLayoutSubscriptionRef.current?.dispose()
+      },
+      [],
+    )
+
+    function handleEditorMount(editor: monaco.editor.IStandaloneCodeEditor) {
+      let lineNumberDigitCount = 0
+
+      function updateLineNumberWidth() {
+        const nextDigitCount = String(editor.getModel()?.getLineCount() ?? 1).length
+
+        if (nextDigitCount === lineNumberDigitCount) return
+
+        lineNumberDigitCount = nextDigitCount
+        setLineNumbersMinChars(Math.max(3, nextDigitCount + 1))
+      }
+
+      lineNumberLayoutSubscriptionRef.current?.dispose()
+      updateLineNumberWidth()
+      lineNumberLayoutSubscriptionRef.current =
+        editor.onDidChangeModelContent(updateLineNumberWidth)
+    }
 
     return (
       <div
@@ -121,15 +156,8 @@ const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
         data-language={language}
         aria-disabled={disabled}
         aria-label={ariaLabel}
-        aria-invalid={ariaInvalid}
-        aria-required={required}
-        className={cn(
-          'bg-input hover:border-input-focus hover:bg-background focus-within:border-input-focus focus-within:bg-background aria-invalid:border-destructive dark:bg-input dark:hover:bg-background dark:focus-within:bg-background dark:aria-invalid:border-destructive/70 h-48 w-full overflow-hidden rounded-md border border-transparent shadow-none transition-[background-color,border-color] outline-none',
-          disabled && 'cursor-not-allowed opacity-50',
-          className,
-        )}
+        className={cn('min-h-0', className)}
       >
-        {name ? <input type="hidden" name={name} value={value} disabled={disabled} /> : null}
         <Editor
           height={height}
           language={language}
@@ -143,25 +171,38 @@ const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
           options={{
             automaticLayout: true,
             fixedOverflowWidgets: true,
+            folding: false,
             fontFamily:
               'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-            fontSize: 13,
+            fontSize: 12,
+            glyphMargin: false,
+            lineDecorationsWidth: 8,
             lineHeight: 20,
             minimap: { enabled: false },
             overviewRulerBorder: false,
             overviewRulerLanes: 0,
-            padding: { top: 8, bottom: 8 },
+            padding: { top: 6, bottom: 8 },
+            renderLineHighlight: 'none',
             scrollBeyondLastLine: false,
+            scrollbar: {
+              horizontalScrollbarSize: 6,
+              useShadows: false,
+              verticalScrollbarSize: 6,
+            },
+            stickyScroll: { enabled: false },
             wordWrap: 'on',
             ...options,
             ariaLabel: ariaLabel ?? options?.ariaLabel,
             domReadOnly: disabled || options?.domReadOnly,
+            lineNumbersMinChars,
             readOnly: disabled || options?.readOnly,
             tabIndex: disabled ? -1 : options?.tabIndex,
           }}
+          keepCurrentModel={false}
           theme={theme ?? colorScheme}
           value={value}
           onChange={(nextValue) => onChange?.(nextValue ?? '')}
+          onMount={handleEditorMount}
         />
       </div>
     )
@@ -171,4 +212,4 @@ const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
 CodeEditor.displayName = 'CodeEditor'
 
 export { CodeEditor }
-export type { CodeEditorProps }
+export type { CodeEditorLanguage, CodeEditorProps }
