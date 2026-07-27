@@ -2,6 +2,7 @@ export * from './node'
 export * from './nodes'
 export * from './nodes/builtin-node-types'
 export * from './nodes/start'
+export * from './nodes/code'
 export * from './nodes/condition'
 export * from './validate'
 

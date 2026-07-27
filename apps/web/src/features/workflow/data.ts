@@ -30,12 +30,7 @@ export function createDemoWorkflowDocument(appId: string): WorkflowEditorSnapsho
           type: startNode.definition.type,
           inputs: {},
           outputs: startOutputs,
-          config: {
-            variables: startOutputs.map((output) => ({
-              ...output,
-              required: true,
-            })),
-          },
+          config: startNode.createInitialConfig(),
         },
         {
           id: codeId,

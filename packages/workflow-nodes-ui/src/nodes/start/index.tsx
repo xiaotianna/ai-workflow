@@ -1,11 +1,15 @@
 import type { StartNodeConfig } from '@ai-workflow/core'
 import type { NodeContentProps } from '../../contracts/node-content'
 
-export const StartNodeContent = ({ node }: NodeContentProps<StartNodeConfig>) => {
+export const StartNodeContent = ({ node, definition }: NodeContentProps<StartNodeConfig>) => {
   const outputs = node.outputs
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      {definition.description?.trim() ? (
+        <p className="text-xs text-slate-500">{definition.description}</p>
+      ) : null}
+
       <div className="flex items-center justify-between rounded-md bg-slate-100/80 px-2.5 py-2">
         <span className="truncate text-sm text-slate-700">输出变量</span>
         <span className="shrink-0 text-xs font-medium text-slate-500">{outputs.length} 个</span>

@@ -57,6 +57,13 @@ import {
 `NodeHeader` 通过 `actions` 提供右侧操作插槽，容器节点的添加操作放在 Header 内；
 循环节点的内部区域使用与主画布相同间距和颜色的 CSS 点阵背景，不嵌套 React Flow；
 `NodePortsRender` 默认纵向排列端口，容器节点可以使用 `layout="centered"` 将端口放在垂直中线。
+开始节点的专属 `StartNodeContent` 同时展示解析后的实例描述和 `node.outputs` 摘要；专属内容
+不得因为接管默认 Body 而丢失节点描述。
+Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容，读取经过 Code schema
+解析后的 `node.config.code`，在保留实例描述的同时展示 JavaScript 标识、总行数和前三行
+代码预览；预览保留空格与 Tab 缩进，并通过轻量 JavaScript token 着色区分关键字、字符串、
+数字、字面量、内置对象、函数与方法、括号、运算符和注释。预览只负责画布摘要，不加载或
+复制 Form 包的 Monaco 编辑能力。
 
 ## 新增节点界面
 
@@ -83,7 +90,9 @@ import {
 
 ## 当前注意事项
 
-- `BaseNode` 的选中态使用节点实体自身的 `border-primary` 和轻量语义阴影，不使用会向外扩张的 ring，避免轮廓与圆角错位。
+- `BaseNode` 默认态与选中态保持相同的 `1.5px` 实体边框宽度，选中时只切换
+  `border-primary` 和轻量语义阴影；不使用会向外扩张的 ring，也不在状态切换时修改边框
+  宽度，避免节点内容区尺寸变化和圆角错位。
 - 节点卡片、节点选择器和 MiniMap 的节点标识色统一来自 `NODE_THEMES`；调用方使用
   `getNodeThemeColor(type)` 获取带默认回退的颜色，不复制映射或硬编码节点色。
 - `NodePortsRender` 将端口锚点贴在节点左右边缘，`stacked` 布局从卡片顶部 `20px`

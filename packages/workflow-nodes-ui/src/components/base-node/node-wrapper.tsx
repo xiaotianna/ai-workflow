@@ -50,9 +50,9 @@ export function NodeWrapper({
     >
       <div
         className={cn(
-          'relative border shadow-xs transition-[border-color,background-color]',
+          'relative border-[1.5px] shadow-xs transition-[border-color,background-color]',
           'bg-card border-border/30 w-60 rounded-[15px]',
-          selected && 'border-primary border-[1.5px]',
+          selected && 'border-primary',
           className,
         )}
       >

@@ -10,6 +10,7 @@
 
 ```ts
 import {
+  codeNode,
   workflowSchema,
   nodeRegistry,
   FIELD_UI_TYPES,
@@ -22,6 +23,8 @@ import {
 ```
 
 不要从 `packages/workflow-core/src/*` 深层导入。
+需要由其他 package 实现专属界面的内置节点通过根入口导出节点对象及其配置类型；当前
+Code 节点公开 `codeNode` 与 `CodeNodeConfig`，供 Nodes UI 保持 schema 与组件类型关联。
 
 ## 核心模型
 
@@ -31,6 +34,9 @@ import {
   文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
+- `NodeType.variableForm` 声明配置面板中输入/输出字段分区的数据源、显隐与编辑能力；
+  `resolveNodeVariableForm` 为未声明的普通节点补齐“输入读取 `node.inputs`、输出读取
+  `node.outputs`”的默认配置。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`
   和 `code_editor` 作为字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
@@ -56,16 +62,34 @@ import {
 - 每个 Loop 必须恰好直接包含一个 `loop_start` 和一个 `loop_exit`；两者不能脱离 Loop，
   边也不能跨越 Loop 作用域。
 
+## 节点变量表单
+
+`NodeType.variableForm` 只描述节点配置面板如何解释通用变量字段，不改变
+`workflowNodeSchema` 的存储结构：
+
+- 未声明时默认同时显示输入和输出；输入分区读取 `node.inputs`，输出分区读取
+  `node.outputs`。
+- 分区设置为 `false` 时不渲染；设置 `source` 可以把面板语义映射到实际数据源。
+- `source: 'outputs'` 的分区可以设置 `editable: true`，由应用提供经过 Core schema 校验的
+  `node.outputs` 更新入口。
+- 开始节点只声明输入分区，但用户输入进入运行图后需要供下游引用，所以映射到
+  `node.outputs` 并允许编辑。
+- 结束节点只声明输出分区，最终值来自上游绑定，所以映射到 `node.inputs`。
+- Web 和 Form 不按节点 type 判断分区；新增特殊节点时在对应 `NodeType` 上覆盖
+  `variableForm`。
+
 ## 新增节点
 
 1. 定义 Zod 配置 schema，并导出推导后的配置类型。
 2. 定义稳定唯一的 type、标签、说明、图标和静态端口。
 3. 需要通用配置表单时使用 `NodeFormSchema<typeof nodeSchema>` 声明 form，以
    `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
-4. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
-5. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
-6. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
-7. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
+4. 输入/输出字段分区不同于普通节点时声明 `NodeType.variableForm`，不在应用层增加节点类型
+   判断。
+5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
+6. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
+7. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
+8. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
 
 ## 校验顺序
 

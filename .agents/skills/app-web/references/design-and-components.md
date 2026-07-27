@@ -74,7 +74,12 @@
 - 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
-  中复制字段类型分发逻辑。
+  中复制字段类型分发逻辑。每个节点固定存在的 `inputs` / `outputs` 分别使用 Form 包的
+  `NodeInputFields` / `NodeOutputFields` 渲染，与节点类型特有的 `config` 分区展示；Web
+  通过 Core 的 `resolveNodeVariableForm(nodeType.variableForm)` 获取分区显隐、数据源和编辑
+  能力，并在通过 Core schema 校验后走统一节点更新入口，不得按节点 type 硬编码开始、结束
+  或其他特殊节点。开始节点的输入字段映射到 `node.outputs`，结束节点的输出字段映射到
+  `node.inputs`，普通节点默认展示两者。
 - 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
   `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；
   不在 Web 层复制节点标识色或图标。节点实例名称通过 `NodeHeader.label` 插槽渲染原生

@@ -1,13 +1,26 @@
-import { nodeRegistry, type WorkflowNode } from '@ai-workflow/core'
+import {
+  NODE_VARIABLE_SOURCES,
+  nodeOutputDefinitionsSchema,
+  nodeRegistry,
+  resolveNodeVariableForm,
+  type NodeVariableSection,
+  type WorkflowNode,
+} from '@ai-workflow/core'
+import { NodeInputFields } from '@ai-workflow/form/components/node-input-fields'
+import {
+  NodeOutputFields,
+  type NodeOutputFieldErrors,
+} from '@ai-workflow/form/components/node-output-fields'
 import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
 import { NodeHeader } from '@ai-workflow/nodes-ui'
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { X } from 'lucide-react'
-import { useState } from 'react'
 
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
@@ -27,12 +40,15 @@ export const WorkflowConfigPanel = ({
 }: WorkflowConfigPanelProps) => {
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
-  const [labelDraft, setLabelDraft] = useState(() => node.label ?? resolvedDefaultLabel)
-  const [descriptionDraft, setDescriptionDraft] = useState(
-    () => node.description ?? nodeType?.definition.description ?? '',
-  )
-  const [draft, setDraft] = useState<Record<string, unknown>>(() => ({ ...node.config }))
-  const [errors, setErrors] = useState<NodeConfigFieldErrors>({})
+  const { form, updateFormField } = useFormData<WorkflowNode>({
+    ...node,
+    label: node.label ?? resolvedDefaultLabel,
+    description: node.description ?? nodeType?.definition.description ?? '',
+  })
+  const configValidation = nodeType ? validateFormByZod(nodeType.schema, form.config) : undefined
+  const configErrors: NodeConfigFieldErrors = configValidation?.errors ?? {}
+  const outputValidation = validateFormByZod(nodeOutputDefinitionsSchema, form.outputs)
+  const outputErrors: NodeOutputFieldErrors = outputValidation.errors
 
   if (!nodeType) {
     return (
@@ -54,7 +70,7 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleLabelChange(value: string) {
-    setLabelDraft(value)
+    updateFormField('label', value)
 
     if (value.trim()) {
       onApply({
@@ -65,13 +81,13 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleLabelBlur() {
-    const nextLabel = labelDraft.trim()
+    const nextLabel = form.label?.trim() ?? ''
 
     if (!nextLabel) {
       const resetLabel =
         resolvedDefaultLabel === nodeType!.definition.label ? undefined : resolvedDefaultLabel
 
-      setLabelDraft(resolvedDefaultLabel)
+      updateFormField('label', resolvedDefaultLabel)
 
       if (node.label !== resetLabel) {
         onApply({
@@ -82,7 +98,7 @@ export const WorkflowConfigPanel = ({
       return
     }
 
-    setLabelDraft(nextLabel)
+    updateFormField('label', nextLabel)
 
     if (nextLabel !== (node.label ?? resolvedDefaultLabel)) {
       onApply({
@@ -93,7 +109,7 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleDescriptionChange(value: string) {
-    setDescriptionDraft(value)
+    updateFormField('description', value)
     onApply({
       ...node,
       description: value,
@@ -101,9 +117,9 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleDescriptionBlur() {
-    const nextDescription = descriptionDraft.trim()
+    const nextDescription = form.description?.trim() ?? ''
 
-    setDescriptionDraft(nextDescription)
+    updateFormField('description', nextDescription)
 
     if (nextDescription !== (node.description ?? nodeType!.definition.description ?? '')) {
       onApply({
@@ -114,37 +130,58 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleFieldChange(name: string, value: unknown) {
-    const nextDraft = {
-      ...draft,
+    const nextConfig = {
+      ...form.config,
       [name]: value,
     }
-    const parsedConfig = nodeType!.schema.safeParse(nextDraft)
+    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
 
-    setDraft(nextDraft)
-
+    updateFormField('config', nextConfig)
     if (!parsedConfig.success) {
-      const nextErrors: Record<string, string> = {}
-
-      for (const issue of parsedConfig.error.issues) {
-        const fieldName = issue.path[0]
-        const errorKey = typeof fieldName === 'string' ? fieldName : '$form'
-
-        nextErrors[errorKey] ??= issue.message
-      }
-
-      setErrors(nextErrors)
       return
     }
 
-    setErrors({})
     onApply({
       ...node,
-      config: parsedConfig.data as WorkflowNode['config'],
+      config: parsedConfig.data,
+    })
+  }
+
+  function handleOutputsChange(outputs: WorkflowNode['outputs']) {
+    const result = validateFormByZod(nodeOutputDefinitionsSchema, outputs)
+
+    updateFormField('outputs', outputs)
+    if (!result.success) return
+
+    onApply({
+      ...node,
+      outputs: result.data,
     })
   }
 
   const formFields = nodeType.form
   const hasFields = formFields && Object.keys(formFields).length > 0
+  const variableForm = resolveNodeVariableForm(nodeType.variableForm)
+
+  function renderVariableSection(section: NodeVariableSection | false, title: string) {
+    if (!section) return null
+
+    if (section.source === NODE_VARIABLE_SOURCES.INPUTS) {
+      return (
+        <NodeInputFields inputs={form.inputs} title={title} emptyText={`当前节点没有${title}`} />
+      )
+    }
+
+    return (
+      <NodeOutputFields
+        outputs={form.outputs}
+        errors={outputErrors}
+        title={title}
+        emptyText={`当前节点没有${title}`}
+        onChange={section.editable ? handleOutputsChange : undefined}
+      />
+    )
+  }
 
   return (
     <aside className="nodrag nowheel bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
@@ -153,7 +190,7 @@ export const WorkflowConfigPanel = ({
         className="px-4 pt-4 pb-1"
         label={
           <Input
-            value={labelDraft}
+            value={form.label ?? ''}
             onChange={(event) => handleLabelChange(event.target.value)}
             onBlur={handleLabelBlur}
             onKeyDown={(event) => {
@@ -183,7 +220,7 @@ export const WorkflowConfigPanel = ({
 
       <div className="px-4 py-2">
         <Input
-          value={descriptionDraft}
+          value={form.description ?? ''}
           onChange={(event) => handleDescriptionChange(event.target.value)}
           onBlur={handleDescriptionBlur}
           onKeyDown={(event) => {
@@ -199,20 +236,27 @@ export const WorkflowConfigPanel = ({
         <span className="border-primary inline-flex border-b-2 pb-2 text-sm font-medium">设置</span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+      <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-3">
         {hasFields ? (
-          <NodeConfigFields
-            fields={formFields}
-            values={draft}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
-        ) : (
-          <p className="text-muted-foreground text-sm">当前节点暂无可配置项</p>
-        )}
+          <section className="space-y-2">
+            <h3 className="text-foreground min-h-8 py-1.5 text-sm font-semibold">节点配置</h3>
+            <NodeConfigFields
+              fields={formFields}
+              values={form.config}
+              errors={configErrors}
+              onChange={handleFieldChange}
+            />
+          </section>
+        ) : null}
 
-        {errors.$form ? (
-          <p className="text-destructive mt-3 text-xs leading-4">{errors.$form}</p>
+        {renderVariableSection(variableForm.input, '输入字段')}
+        {renderVariableSection(variableForm.output, '输出字段')}
+
+        {configErrors.form ? (
+          <p className="text-destructive text-xs leading-4">{configErrors.form}</p>
+        ) : null}
+        {outputErrors.form ? (
+          <p className="text-destructive text-xs leading-4">{outputErrors.form}</p>
         ) : null}
       </div>
     </aside>
