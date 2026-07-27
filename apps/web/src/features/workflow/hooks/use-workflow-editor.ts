@@ -1,4 +1,9 @@
-import { nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  nodeRegistry,
+  type WorkflowEdge,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import {
   useEdgesState,
   useNodesState,
@@ -8,7 +13,6 @@ import {
   type EdgeChange,
   type NodeChange,
   type OnBeforeDelete,
-  type XYPosition,
   type Viewport,
 } from '@xyflow/react'
 import { useState, type RefObject } from 'react'
@@ -19,6 +23,7 @@ import {
   collectDescendantNodeIds,
   createCanvasNodes,
   createWorkflowEdge,
+  DEFAULT_LOOP_SIZE,
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
 } from '@/utils/workflow/editor-elements'
@@ -38,11 +43,14 @@ interface UseWorkflowEditorOptions {
   onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
 }
 
-const INITIAL_NODE_SIZE = {
+const DEFAULT_NODE_PLACEMENT_SIZE = {
   width: 240,
-  height: 140,
+  height: 100,
 }
-const MAX_NODE_MEASURE_ATTEMPTS = 5
+
+function getNodePlacementSize(type: string) {
+  return type === BuiltinNodeType.LOOP ? DEFAULT_LOOP_SIZE : DEFAULT_NODE_PLACEMENT_SIZE
+}
 
 /**
  * 维护 Workflow 编辑会话并向视图暴露明确的状态和操作
@@ -67,7 +75,7 @@ export function useWorkflowEditor({
   // 当节点的内部结构变了，需要它的端口位置和连线，就调用通知react flow更新
   const updateNodeInternals = useUpdateNodeInternals()
   // 到屏幕中间
-  const { getInternalNode, screenToFlowPosition } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
+  const { screenToFlowPosition } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
 
   // 画布选中节点
   const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
@@ -89,7 +97,6 @@ export function useWorkflowEditor({
     nodes,
     edges,
     setNodes,
-    setSelectedNodeId,
     markDirty: () => setDirty(true),
     updateNodeInternals,
   })
@@ -107,39 +114,7 @@ export function useWorkflowEditor({
     if (hasEdgeMutation(changes)) setDirty(true)
   }
 
-  // 将新节点的实际尺寸中心对齐到用户点击添加时的视口中心
-  function centerNodeAfterMeasurement(
-    nodeId: string,
-    viewportCenter: XYPosition,
-    attemptsLeft = MAX_NODE_MEASURE_ATTEMPTS,
-  ) {
-    requestAnimationFrame(() => {
-      const measured = getInternalNode(nodeId)?.measured
-
-      if (!measured?.width || !measured.height) {
-        if (attemptsLeft > 1) {
-          centerNodeAfterMeasurement(nodeId, viewportCenter, attemptsLeft - 1)
-        }
-        return
-      }
-
-      setNodes((currentNodes) =>
-        currentNodes.map((node) =>
-          node.id === nodeId
-            ? {
-                ...node,
-                position: {
-                  x: viewportCenter.x - measured.width! / 2,
-                  y: viewportCenter.y - measured.height! / 2,
-                },
-              }
-            : node,
-        ),
-      )
-    })
-  }
-
-  // 使用 Core 初始配置创建节点，并把新节点设为当前选择
+  // 使用预设尺寸一次确定新增位置，避免渲染后重新测量导致节点跳动
   function addNode(type: string) {
     const canvasBounds = canvasRef.current?.getBoundingClientRect()
     const viewportCenter =
@@ -149,24 +124,19 @@ export function useWorkflowEditor({
             y: canvasBounds.top + canvasBounds.height / 2,
           })
         : undefined
+    const placementSize = getNodePlacementSize(type)
     const createdNodes = createCanvasNodes({
       type,
       position: viewportCenter
         ? {
-            x: viewportCenter.x - INITIAL_NODE_SIZE.width / 2,
-            y: viewportCenter.y - INITIAL_NODE_SIZE.height / 2,
+            x: viewportCenter.x - placementSize.width / 2,
+            y: viewportCenter.y - placementSize.height / 2,
           }
         : getDefaultNodePosition(nodes.length),
     })
-    const nextNode = createdNodes[0]
 
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
-    setSelectedNodeId(nextNode.id)
     setDirty(true)
-
-    if (viewportCenter) {
-      centerNodeAfterMeasurement(nextNode.id, viewportCenter)
-    }
   }
 
   // 连接事件，需要校验是否能够连接

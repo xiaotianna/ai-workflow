@@ -18,7 +18,6 @@ interface UseWorkflowLoopEditorOptions {
   nodes: readonly WorkflowCanvasNode[]
   edges: readonly WorkflowEdge[]
   setNodes: Dispatch<SetStateAction<WorkflowCanvasNode[]>>
-  setSelectedNodeId: (nodeId: string | undefined) => void
   markDirty: () => void
   updateNodeInternals: (nodeId: string) => void
 }
@@ -31,7 +30,6 @@ export function useWorkflowLoopEditor({
   nodes,
   edges,
   setNodes,
-  setSelectedNodeId,
   markDirty,
   updateNodeInternals,
 }: UseWorkflowLoopEditorOptions) {
@@ -70,10 +68,8 @@ export function useWorkflowLoopEditor({
       position: getNextLoopChildPosition(loopId, nodes),
       parentSize: getLoopNodeSize(parentLoop),
     })
-    const nextNode = createdNodes[0]
 
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
-    setSelectedNodeId(nextNode.id)
     markDirty()
 
     requestAnimationFrame(() => {
