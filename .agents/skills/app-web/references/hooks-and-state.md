@@ -26,6 +26,73 @@
 - 表单有效性优先由当前字段值推导，不额外维护重复的 `isValid` 状态。
 - 受控浮层关闭时统一重置临时状态，避免不同关闭路径产生残留。
 
+## 表单状态与校验
+
+- 前端表单值必须由 `@ai-workflow/shared/hooks/use-form-data` 的 `useFormData` 管理，表单
+  schema 和校验必须使用 Zod 与
+  `@ai-workflow/shared/utils/validate-form-by-zod` 的 `validateFormByZod`。新增或修改表单时，
+  同时读取 `$ai-workflow-packages` 的 Shared 引用。
+- schema 是表单数据结构的唯一事实来源。编辑态使用 `z.input<typeof schema>`，通过
+  `validateFormByZod` 后使用 `z.output<typeof schema>`；不要重复声明字段 interface，也不要
+  使用类型断言跳过解析。
+- 使用 `updateFormField` 更新单个字段，使用 `updateForm` 原子更新多个相关字段或动态字段，
+  使用 `resetForm` 恢复初始值。禁止把一个表单拆成多个字段级 `useState`，也禁止另建功能相同
+  的业务 Hook。
+- 需要实时校验时，在 `useFormData` 的 `onChange` 中调用 `validateFormByZod`；无论是否实时
+  校验，提交入口都必须重新调用一次。校验失败时停止提交并消费 `errors`/`message`，校验成功
+  时只使用结果中的 `data`。
+- 字段错误直接来自 Zod issue 映射，不额外维护重复的 `isValid` 或另一套手写规则。是否已经
+  触碰、是否展示错误等交互状态可以独立管理，但不得复制表单值。
+- 修改尚未使用统一方案的已有表单时，当前表单必须整体迁移，不只迁移本次新增字段，也不得
+  暂时并存 `useFormData`、字段级 `useState` 或第三方表单库。
+- Dialog 开关、加载、网络请求和分页等纯 UI 状态不属于表单数据，可以继续使用局部状态。
+- 普通表单不得引入 TanStack Form、Formik 或 React Hook Form。字段数量超过 20 个或输入更新
+  频率极高时，如确需替换 `useFormData`，必须先取得用户明确同意；Zod schema 和统一校验工具
+  仍为强制要求。
+
+基础模式：
+
+```tsx
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
+import { z } from 'zod'
+
+const formSchema = z.object({
+  name: z.string().trim().min(1, '名称不能为空'),
+  description: z.string().trim().optional(),
+})
+
+type FormInput = z.input<typeof formSchema>
+type FormOutput = z.output<typeof formSchema>
+
+function ExampleForm() {
+  const { form, updateFormField, updateForm, resetForm } = useFormData<FormInput>(
+    {
+      name: '',
+      description: '',
+    },
+    {
+      onChange: (values) => {
+        const result = validateFormByZod(formSchema, values)
+        if (!result.success) {
+          // 使用 result.errors 更新实时错误反馈
+        }
+      },
+    },
+  )
+
+  function handleSubmit() {
+    const result = validateFormByZod(formSchema, form)
+    if (!result.success) return
+
+    const values: FormOutput = result.data
+    // 仅提交 values
+  }
+
+  // 使用 form、updateFormField、updateForm、resetForm 和 handleSubmit 渲染表单
+}
+```
+
 ## 状态升级顺序
 
 1. 先使用组件局部状态。

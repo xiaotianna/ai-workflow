@@ -17,9 +17,9 @@ description: '维护 AI Workflow 仓库的全部 workspace packages。修改或�
 ## 子包导航
 
 - 通用组件、样式、表单基础组件和通用 UI Hooks：读取 [references/ui.md](references/ui.md)。
-- 跨端共享类型、协议、常量和纯工具：读取 [references/shared.md](references/shared.md)。
+- 跨端共享类型、协议、常量、纯工具，以及统一表单状态与 Zod 校验：读取 [references/shared.md](references/shared.md)。
 - 工作流领域模型、节点、端口、schema 和校验：读取 [references/workflow-core.md](references/workflow-core.md)。
-- schema 驱动的节点配置表单：读取 [references/workflow-form.md](references/workflow-form.md)。
+- schema 驱动的节点配置表单：同时读取 [references/workflow-form.md](references/workflow-form.md) 和 [references/shared.md](references/shared.md)。
 - 工作流节点渲染、UI 注册表和端口展示：读取 [references/workflow-nodes-ui.md](references/workflow-nodes-ui.md)。
 - 工作流执行计划、执行器和运行上下文：读取 [references/workflow-runtime.md](references/workflow-runtime.md)。
 
@@ -28,7 +28,11 @@ description: '维护 AI Workflow 仓库的全部 workspace packages。修改或�
 - 从包名或 `package.json#exports` 声明的子路径导入，不引用其他包的 `src` 物理路径。
 - 每个包在自己的 `package.json` 声明直接运行时依赖，不依赖根目录提升的偶然结果。
 - 领域模型放在 Core，React 基础组件放在 UI，节点专属渲染放在 Nodes UI，执行逻辑放在 Runtime。
-- Shared 保持环境无关，Form 负责配置表单组合，不承载工作流保存或执行。
+- Shared 的协议、类型与纯工具保持环境无关；React 表单 Hook 只放在明确的 `hooks` 子路径。
+  Form 负责配置表单组合，不承载工作流保存或执行。
+- 任何 package 中只要组件持有表单值或执行表单校验，就必须使用 Shared 的
+  `useFormData`、`validateFormByZod` 和 Zod schema；无状态 UI primitive 与纯字段 renderer
+  只透传值和错误，不重复管理或校验。
 - 包内只增加当前任务需要的抽象和目录，不预建空结构。
 - 遵守根目录命令约束，不自动运行 `dev`、`build` 或任何 git 命令。
 

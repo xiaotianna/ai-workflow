@@ -199,7 +199,7 @@ export const WorkflowConfigPanel = ({
         <span className="border-primary inline-flex border-b-2 pb-2 text-sm font-medium">设置</span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-5">
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
         {hasFields ? (
           <NodeConfigFields
             fields={formFields}

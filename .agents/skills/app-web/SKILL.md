@@ -17,7 +17,8 @@ description: '维护 AI Workflow 的 Web 前端应用。修改 apps/web 下的�
 ## 按需读取
 
 - 调整目录、职责、依赖方向或业务功能分层：读取 [references/architecture.md](references/architecture.md)。
-- 新增或修改界面、表单、上传和交互组件：读取 [references/design-and-components.md](references/design-and-components.md)，并读取仓库 `docs/design-system.md`；知识库文档表格见该文件「知识库文档表格」。
+- 新增或修改界面、上传和交互组件：读取 [references/design-and-components.md](references/design-and-components.md)，并读取仓库 `docs/design-system.md`；知识库文档表格见该文件「知识库文档表格」。
+- 新增、修改或接手维护任何表单：同时读取 [references/design-and-components.md](references/design-and-components.md) 的「表单」、[references/hooks-and-state.md](references/hooks-and-state.md) 的「表单状态与校验」，并读取 `$ai-workflow-packages` 的 Shared 引用；表单值统一使用 `useFormData` 管理，数据结构和校验统一使用 Zod。
 - 新增 Hook、调整状态归属或副作用：读取 [references/hooks-and-state.md](references/hooks-and-state.md)。
 - 修改路由、布局、导航或页面懒加载：读取 [references/routing-and-layout.md](references/routing-and-layout.md)。
 

@@ -15,7 +15,7 @@
 
 - Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；应用侧栏通过 `onImportDsl` 追加“导入 DSL”并打开文件选择弹窗，Studio 页面与资源卡片不提供导入入口。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
 - 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示知识库条目；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内。
-- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 TanStack Form 管理 `FileDropzone` 字段校验与提交。表格与分页的详细约定见下方「知识库文档表格」。
+- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 `useFormData` 管理 `FileDropzone` 字段，通过 `validateFormByZod` 与对应 Zod schema 完成校验和提交。表格与分页的详细约定见下方「知识库文档表格」。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
@@ -98,8 +98,16 @@
 ## 表单
 
 - 使用 `@ai-workflow/ui/components/form` 提供的 `Form` 与 `Form.Field`。
+- 所有表单都必须先声明 Zod schema；表单值类型使用 `z.input<typeof schema>`，校验成功后的业务数据类型使用 `z.output<typeof schema>`，不得手写一份与 schema 重复的表单类型。
+- 所有表单值状态统一使用 `@ai-workflow/shared/hooks/use-form-data` 的 `useFormData` 管理；单字段、批量和重置操作分别使用 `updateFormField`、`updateForm` 和 `resetForm`，不得为每个字段分别创建 `useState`。
+- 所有表单校验统一使用 `@ai-workflow/shared/utils/validate-form-by-zod` 的 `validateFormByZod`。实时校验可在 `useFormData` 的 `onChange` 中执行；提交前必须再次校验，并且只把成功结果的 `data` 交给请求或业务逻辑，禁止直接提交未经解析的 `form`。
+- `validateFormByZod` 返回的 `errors` 按字段路径传给 `Form.Field error`；表单级错误使用 `errors.form` 或返回的 `message`。不要另外维护与 Zod 结果重复的手写校验规则。
+- 接手修改不符合该约定的已有表单时，必须在同一任务中把该表单的全部字段状态与校验迁移到统一方案，不保留新旧两套表单状态或校验逻辑。
+- 动态字段和相关字段的批量变更仍使用 `useFormData`；复杂对象或数组通过字段函数式更新或 `updateForm` 处理，不切换到另一套表单状态库。
+- 弹窗开关、请求中、分页等不属于表单值的 UI 状态可以使用普通状态管理；字段值、动态字段集合和待提交数据必须留在 `useFormData` 中。
+- 不使用 TanStack Form、Formik、React Hook Form 或零散 `useState` 替代该约定；若字段超过 20 个或更新频率极高，必须先获得用户明确同意才能更换状态方案，Zod schema 与 `validateFormByZod` 仍不可省略。
 - 使用 `<Form.Field required label="名称">` 标记必填；未传 `required` 时自动显示 `（可选）`。
-- 值、校验、提交和业务错误由调用方管理，通过 `Form.Field error` 展示字段错误。
+- 值、校验、提交和业务错误由调用方按上述统一方案管理，通过 `Form.Field error` 展示字段错误。
 - 字段标题不会代理点击，实际输入控件必须提供准确的 `aria-label`。
 - 登录、创建、保存、确认使用 `Button variant="confirm"`；不可提交时传入 `disabled`。
 - 取消、返回使用 `Button variant="secondary"`，不要在页面重复拼接按钮状态样式。

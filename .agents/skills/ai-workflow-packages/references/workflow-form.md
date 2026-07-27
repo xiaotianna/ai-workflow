@@ -64,7 +64,23 @@ renderer；带字段语义的组合组件也不移动到 `@ai-workflow/ui`。
 
 `NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从 `builtinFields` 选择
 renderer，并把字段当前值、错误、禁用态和变更回调传给对应组件。它不读取节点注册表，
-不管理配置校验、提交或工作流状态；这些内容由使用方负责。
+不管理配置校验、提交或工作流状态；这些内容由使用方按统一表单规范负责。
+
+## 表单状态与校验
+
+- 使用 `@ai-workflow/form` 的调用方必须以对应 Core Zod schema 作为表单数据唯一事实来源，
+  通过 `@ai-workflow/shared/hooks/use-form-data` 管理配置值，通过
+  `@ai-workflow/shared/utils/validate-form-by-zod` 执行实时校验和提交校验。
+- 表单编辑态类型使用 `z.input<typeof schema>`，校验成功后的配置使用
+  `z.output<typeof schema>`。传给 `NodeConfigFields` 的 `values` 来自 `useFormData.form`，
+  字段变更通过 `updateFormField` 或 `updateForm` 回写。
+- `validateFormByZod` 返回的字段错误映射为 `NodeConfigFieldErrors` 再传入
+  `NodeConfigFields`；提交或写回节点配置前必须重新校验，只能使用成功结果中的 `data`。
+- 字段 renderer 保持受控和无状态，只接收当前值、错误与 `onChange`，不得各自引入表单库、
+  复制 Zod schema 或维护另一份已提交值。纯 UI 临时状态（例如 Dialog 开关）可以留在
+  renderer 内；一旦内部组合多个待提交字段或承担数据校验，必须改用 `useFormData` 和
+  `validateFormByZod`。
+- 新增或修改配置表单时必须同时读取 Shared 引用中的完整统一表单规范。
 
 ## 内置映射
 
@@ -107,6 +123,7 @@ export const builtinFields = {
 ## 边界与注意事项
 
 - Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或节点执行。
-- 节点配置最终合法性始终由对应 Core Zod schema 判断，renderer 只负责输入值转换。
+- 节点配置最终合法性始终由对应 Core Zod schema 和 `validateFormByZod` 判断，renderer
+  只负责输入值转换。
 - 新增字段 UI 类型时，在 Form 增加独立字段目录，并更新 `builtinFields`；不要复制
   Core 的 `FIELD_UI_TYPES`。
