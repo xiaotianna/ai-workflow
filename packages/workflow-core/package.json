@@ -10,6 +10,7 @@
   },
   "scripts": {},
   "dependencies": {
-    "@ai-workflow/shared": "workspace:*"
+    "@ai-workflow/shared": "workspace:*",
+    "zod": "^4.4.3"
   }
 }

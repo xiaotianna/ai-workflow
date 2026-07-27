@@ -17,6 +17,8 @@ import {
   NodeWrapper,
   NodeHeader,
   NodePortsRender,
+  NodeContentList,
+  NodeContentItem,
   AddNode,
   LoopNode,
   getNodeThemeColor,
@@ -47,9 +49,11 @@ import {
 普通节点与完整节点渲染器统一复用 `NodeWrapper`、`NodeHeader` 和 `NodePortsRender`。
 `NodeHeader.label` 接受自定义 React 节点，供配置面板等场景在不复制图标与操作区的前提下
 注入名称编辑控件；未传入时展示 definition label。
-`BaseNode` 通过内部 `NodeBody` 管理 `px-3 pb-3`；没有实际可见内容时 `RenderNode`
-传入 `null`，`NodeBody` 完全省略容器，避免仅有 Header 的节点残留底部空白。专属 content
-注册仍可渲染自己的数据摘要或明确空状态，不用 Core 字段数量代替实际 UI 内容判断。
+`BaseNode` 只组合 Header、内容和端口，不隐式增加 Body 间距；普通内容组件显式使用
+`NodeContentList` 管理 `px-3 pb-3 space-y-1.5`，为内部 `NodeContentItem` 提供统一的 Body
+间距和条目间距。没有实际可见内容时不渲染 `NodeContentList`，避免仅有 Header 的节点残留
+底部空白。专属 content 注册仍可渲染自己的数据摘要或明确空状态，不用 Core 字段数量代替
+实际 UI 内容判断。
 `NodeWrapper` 统一管理外层交互容器和内层卡片样式，并处理选择、禁用和键盘交互；
 普通节点使用默认卡片尺寸；容器节点等特殊场景通过 `className` 覆盖内层卡片的尺寸和圆角，
 由 `cn` 与卡片默认样式合并，并通过 `wrapperClassName` 让外层跟随画布节点尺寸；
@@ -64,6 +68,14 @@ Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容�
 代码预览；预览保留空格与 Tab 缩进，并通过轻量 JavaScript token 着色区分关键字、字符串、
 数字、字面量、内置对象、函数与方法、括号、运算符和注释。预览只负责画布摘要，不加载或
 复制 Form 包的 Monaco 编辑能力。
+`NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
+`rounded-md bg-muted/60 px-2 py-1.5` 并由内容自然撑开高度。Condition 和其他节点只负责组合
+条目内部信息，不重复维护背景、圆角和间距；Condition 显式使用 `NodeContentList` 包裹并
+排列多个 `NodeContentItem`。
+HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
+表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
+请求地址，不复制 Core 的请求方法配置。方法徽标使用 `bg-background` 和
+`text-muted-foreground` 适配项目明暗主题。
 
 ## 新增节点界面
 

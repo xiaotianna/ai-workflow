@@ -24,7 +24,8 @@ import {
 
 不要从 `packages/workflow-core/src/*` 深层导入。
 需要由其他 package 实现专属界面的内置节点通过根入口导出节点对象及其配置类型；当前
-Code 节点公开 `codeNode` 与 `CodeNodeConfig`，供 Nodes UI 保持 schema 与组件类型关联。
+Code 节点公开 `codeNode` 与 `CodeNodeConfig`，HTTP 节点公开 `httpNode` 与
+`HttpNodeConfig`，供 Nodes UI 保持 schema 与组件类型关联。
 
 ## 核心模型
 
@@ -111,6 +112,6 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 - 节点 `inputs`/`outputs` 已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
-- `package.json` 当前未声明源码直接使用的 Zod 依赖；维护 manifest 时应补齐直接依赖，不能依靠根目录提升。
+- `package.json` 直接声明 Core 源码使用的 Zod 依赖，不依靠根目录提升。
 - 字段契约不再提供 `defaultValue`，节点默认配置唯一来源是 `NodeType.createInitialConfig()`。
 - `src/node/get-node-ports使用文档.md` 和 `src/validate/validate使用.md` 是补充示例；示例与当前 API 不一致时以源码为准并同步更新文档。

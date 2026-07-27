@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import type { NodeDefinition } from '@ai-workflow/core'
 import type { NodePortRender } from '../../contracts/node-content'
-import { NodeBody } from './node-body'
 import { NodeHeader } from './node-header'
 import { NodePortsRender } from './node-ports-render'
 import { NodeWrapper } from './node-wrapper'
@@ -37,7 +36,7 @@ export function BaseNode({
       <NodeHeader definition={definition} onDelete={onDelete} />
 
       {/* Body */}
-      <NodeBody>{children}</NodeBody>
+      {children}
 
       {/* 输入端口样式 */}
       <NodePortsRender

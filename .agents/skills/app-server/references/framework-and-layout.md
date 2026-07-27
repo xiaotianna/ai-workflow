@@ -8,6 +8,7 @@
 
 - 使用仓库 Node.js 22+ 与 TypeScript 6 基线。
 - 首选 NestJS 11（CommonJS + `module: nodenext`），沿用根 `README.md` 的技术方向。
+- `tsconfig.json` 显式加载 `node` 与 `jest` 类型，不依赖 TypeScript 自动发现环境类型；显式设置 `rootDir: "./src"` 与 `outDir: "./dist"`，无路径映射时不设置已在 TypeScript 6 弃用的 `baseUrl`。
 - Lint 使用 oxlint，继承 `configs/oxc/.oxlintrc.json` 并在 `apps/server/.oxlintrc.json` 补充 Node/NestJS 规则。
 - 格式化使用根目录 `configs/prettier` 共享配置。
 - 测试默认使用 Jest（NestJS v12 将切换为 Vitest + oxlint 原生模板，届时再评估升级）。

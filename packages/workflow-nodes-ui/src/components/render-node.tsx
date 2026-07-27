@@ -2,7 +2,7 @@ import { getNodePorts } from '@ai-workflow/core'
 import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
 import type { NodeEditorCapabilities, NodePortRender } from '../contracts/node-content'
 import type { NodeUIRegistry } from '../registry'
-import { BaseNode } from './base-node'
+import { BaseNode, NodeContentList } from './base-node'
 import { DefaultNodeContent, hasDefaultNodeContent } from './default-node-content'
 
 export interface RenderNodeProps {
@@ -59,9 +59,11 @@ export const RenderNode = ({
         onDelete={onDelete ? () => onDelete(node.id) : undefined}
         renderPort={renderPort}
       >
-        <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
-          请检查节点插件或注册配置
-        </div>
+        <NodeContentList>
+          <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
+            请检查节点插件或注册配置
+          </div>
+        </NodeContentList>
       </BaseNode>
     )
   }

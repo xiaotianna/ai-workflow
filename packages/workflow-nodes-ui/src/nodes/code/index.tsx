@@ -1,5 +1,6 @@
 import type { CodeNodeConfig } from '@ai-workflow/core'
 
+import { NodeContentList } from '../../components/base-node'
 import type { NodeContentProps } from '../../contracts/node-content'
 import { JavaScriptSyntaxLine } from './javascript-syntax-line'
 
@@ -11,7 +12,7 @@ export function CodeNodeContent({ node }: NodeContentProps<CodeNodeConfig>) {
   const remainingLineCount = codeLines.length - previewLines.length
 
   return (
-    <div className="space-y-2.5">
+    <NodeContentList>
       <div className="border-border/60 bg-muted/60 overflow-hidden rounded-lg border-[0.5px]">
         <div className="border-border/60 text-muted-foreground flex items-center justify-between border-b-[0.5px] px-2.5 py-1.5 text-[10px] leading-3 font-medium">
           <span>JavaScript</span>
@@ -40,6 +41,6 @@ export function CodeNodeContent({ node }: NodeContentProps<CodeNodeConfig>) {
           ) : null}
         </div>
       </div>
-    </div>
+    </NodeContentList>
   )
 }

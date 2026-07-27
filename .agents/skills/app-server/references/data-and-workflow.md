@@ -1,5 +1,13 @@
 # 数据与工作流接入
 
+## 本地开发基础设施
+
+- 根目录 `compose.dev.yaml` 统一提供 PostgreSQL 17 与 Redis 7.4，NestJS 默认在宿主机运行，不加入 Compose。
+- 服务端本地变量从 `apps/server/.env.example` 复制到未提交的 `.env`；默认使用 `localhost:5432` 和 `localhost:6379`。
+- 根目录通过 `infra:up`、`infra:down`、`infra:logs` 和 `infra:status` 脚本管理开发基础设施。
+- PostgreSQL 与 Redis 数据使用 Docker named volume；日常停止不得隐式删除 volume。
+- 若未来把 NestJS 加入 Compose，数据库和 Redis 主机名改用 Compose service 名称，不继续使用 `localhost`。
+
 ## PostgreSQL 与 Prisma
 
 - 把 Prisma schema、migration 和 client 生命周期放在服务端基础设施边界。
