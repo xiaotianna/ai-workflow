@@ -75,6 +75,14 @@
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
   中复制字段类型分发逻辑。
+- 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
+  `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；
+  不在 Web 层复制节点标识色、图标或 label 样式。当前 Core 没有实例标题字段，不渲染无法
+  持久化的假编辑输入框。节点说明使用 `text-xs leading-4`，与下方标签栏保留 `mt-2`，
+  避免在紧凑面板头部形成大块空白。
+- 节点配置面板通过 Motion 的 `AnimatePresence` 管理开关动画：打开时从右侧滑入并淡入，
+  关闭时向右滑出并淡出；面板使用稳定 key，切换节点只更新配置内容，不重复播放开场动画，
+  并通过 `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。
 - 节点输入、输出 Handle 使用贴合节点左右边缘的主色短竖条，视觉尺寸为 `4px × 20px`；可在不放大可见图形的前提下扩展透明命中区。
 - 普通边与连接预览线使用 `--workflow-edge`，宽度为 `2.5px`，路径使用 Bezier 曲线；选中边使用 `--primary`。
 - Loop 容器只通过右下角悬停显示的缩放控件调整尺寸，并以默认 Loop 尺寸作为最小宽高；

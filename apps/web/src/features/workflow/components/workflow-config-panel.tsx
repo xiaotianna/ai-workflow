@@ -3,7 +3,7 @@ import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { NodeHeader } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { X } from 'lucide-react'
 import { useState } from 'react'
@@ -21,7 +21,7 @@ export const WorkflowConfigPanel = ({ node, onApply, onClose }: WorkflowConfigPa
 
   if (!nodeType) {
     return (
-      <aside className="nodrag nowheel bg-background border-border w-96 rounded-2xl border p-5 shadow-lg">
+      <aside className="nodrag nowheel bg-background border-border/50 h-full w-full rounded-2xl border-[0.5px] p-5 shadow-lg">
         <div className="flex items-center justify-between gap-3">
           <p className="text-destructive text-sm">未知节点类型：{node.type}</p>
           <Button
@@ -72,35 +72,32 @@ export const WorkflowConfigPanel = ({ node, onApply, onClose }: WorkflowConfigPa
   const hasFields = formFields && Object.keys(formFields).length > 0
 
   return (
-    <aside className="nodrag nowheel bg-background border-border flex max-h-[calc(100svh-1rem)] w-96 flex-col overflow-hidden rounded-2xl border shadow-lg">
-      <header className="flex items-center justify-between gap-3 px-5 pt-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <span
-            className="text-primary-foreground flex size-10 shrink-0 items-center justify-center rounded-xl shadow-sm"
-            style={{ backgroundColor: getNodeThemeColor(node.type) }}
-          >
-            <NodeIcon icon={nodeType.definition.icon} className="size-5" aria-hidden />
-          </span>
-          <h2 className="truncate text-base font-semibold">{nodeType.definition.label}</h2>
-        </div>
+    <aside className="nodrag nowheel bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
+      <NodeHeader
+        definition={nodeType.definition}
+        className="px-4 pt-4 pb-1"
+        actions={
+          <>
+            <div className="bg-border/50 h-3.5 w-px" aria-hidden />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              className="text-muted-foreground"
+              aria-label="关闭节点配置"
+              onClick={onClose}
+            >
+              <X className="size-4" aria-hidden />
+            </Button>
+          </>
+        }
+      />
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="text-muted-foreground shrink-0"
-          aria-label="关闭节点配置"
-          onClick={onClose}
-        >
-          <X aria-hidden />
-        </Button>
-      </header>
-
-      <p className="text-muted-foreground px-5 pt-3 text-sm">
+      <p className="text-muted-foreground px-4 pt-1 text-xs leading-4">
         {nodeType.definition.description ?? '暂无描述'}
       </p>
 
-      <div className="border-border mt-5 border-b px-5">
+      <div className="border-border/50 mt-2 border-b-[0.5px] px-4">
         <span className="border-primary inline-flex border-b-2 pb-2 text-sm font-medium">设置</span>
       </div>
 
