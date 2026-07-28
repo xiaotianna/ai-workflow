@@ -22,19 +22,18 @@
 ```text
 apps/server/
 ├── prisma/
+│   ├── migrations/
 │   └── schema.prisma
 ├── src/
-│   ├── main.ts
 │   ├── app.module.ts
-│   ├── app.controller.ts
-│   ├── app.service.ts
+│   ├── main.ts
+│   ├── controllers/
+│   │   └── auth.controller.ts
 │   ├── generated/prisma/
-│   └── infrastructure/prisma/
-│       ├── prisma.module.ts
-│       └── prisma.service.ts
-│   └── app.controller.spec.ts
-├── test/
-│   └── app.e2e-spec.ts
+│   ├── modules/
+│   │   └── auth.module.ts
+│   └── services/
+│       └── auth.service.ts
 ├── .oxlintrc.json
 ├── nest-cli.json
 ├── package.json

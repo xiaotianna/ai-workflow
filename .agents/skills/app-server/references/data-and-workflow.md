@@ -11,8 +11,9 @@
 ## PostgreSQL 与 Prisma
 
 - 使用 Prisma 7 的 `prisma-client` generator，Client 输出到 `apps/server/src/generated/prisma`，该目录由命令生成且不手动修改。
+- Prisma 7 的 `migrate dev` 和 `db push` 不自动生成 Client；schema 或 generator 配置变化后显式执行 `prisma:generate`。`--name init` 只用于创建第一条迁移，已有迁移的项目首次启动使用不带名称的 `prisma:migrate:dev`。
 - Prisma CLI 从 `apps/server/prisma.config.ts` 读取 `DATABASE_URL`，NestJS 通过 `ConfigModule` 加载应用环境变量。
-- PostgreSQL 连接使用 `@prisma/adapter-pg`；`PrismaService` 统一管理连接和关闭生命周期，并由 `PrismaModule` 导出。
+- PostgreSQL driver adapter 依赖已安装，但当前 NestJS 源码尚未提供 Prisma Module/Service；业务开始访问数据库时再补充实际的数据访问入口和连接生命周期管理。
 - 把 Prisma schema、migration 和 client 生命周期放在服务端基础设施边界。
 - 由应用服务定义事务边界，Repository 不自行开启彼此无法组合的事务。
 - JSON 字段保存工作流前，先使用 `@ai-workflow/core` 校验结构和业务规则。
