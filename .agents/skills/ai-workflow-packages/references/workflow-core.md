@@ -58,9 +58,10 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
   标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
   `resolveNodeVariableForm` 返回默认输入绑定区和输出定义区；配置对象存在时只使用其中实际
   声明的方向，缺少某方向就不渲染，不写 `null` 占位。内置 `INPUT_BINDINGS` renderer 编辑
-  `node.inputs`，`OUTPUT_DEFINITIONS` renderer 编辑 `node.outputs`，具体 renderer 由
+  `node.inputs`，`OUTPUT_DEFINITIONS` renderer 编辑 `node.outputs`，
+  `START_INPUT_VARIABLES` renderer 使用 Start 专属 UI 编辑 `node.outputs`，具体 renderer 由
   `@ai-workflow/form` 提供。
-- Start 将产品语义上的“输入变量”声明为 `OUTPUT_DEFINITIONS`，数据写入 `node.outputs`；
+- Start 将产品语义上的“输入变量”声明为 `START_INPUT_VARIABLES`，数据写入 `node.outputs`，
   且不声明 `output`；End 不声明 `input`，只将“输出变量”声明为 `INPUT_BINDINGS`，数据写入
   `node.inputs`。Code 和普通节点不需要重复声明，直接使用默认输入绑定区与输出定义区。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。

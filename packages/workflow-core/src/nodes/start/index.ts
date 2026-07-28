@@ -10,7 +10,7 @@ export const startNode = {
   variableForm: {
     input: {
       label: '输入变量',
-      renderer: NODE_VARIABLE_RENDERER_TYPES.OUTPUT_DEFINITIONS,
+      renderer: NODE_VARIABLE_RENDERER_TYPES.START_INPUT_VARIABLES,
     },
   },
   createInitialConfig: () => createInitialConfig(startNodeSchema),

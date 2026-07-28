@@ -64,6 +64,7 @@ interface WorkflowNode {
 export const NODE_VARIABLE_RENDERER_TYPES = {
   INPUT_BINDINGS: 'input_bindings',
   OUTPUT_DEFINITIONS: 'output_definitions',
+  START_INPUT_VARIABLES: 'start_input_variables',
 } as const
 
 export interface NodeVariableFormSection {
@@ -138,12 +139,14 @@ Start：
 variableForm: {
   input: {
     label: '输入变量',
-    renderer: NODE_VARIABLE_RENDERER_TYPES.OUTPUT_DEFINITIONS,
+    renderer: NODE_VARIABLE_RENDERER_TYPES.START_INPUT_VARIABLES,
   },
 }
 ```
 
-Start 使用输出定义 renderer，但产品标题为“输入变量”，数据写入 `node.outputs`。
+Start 使用专属输入变量 renderer：配置面板显示紧凑变量列表，右上角 `+` 打开新增 Dialog，
+点击已有变量可以打开编辑 Dialog，删除按钮直接移除变量。数据结构仍是
+`NodeOutputDefinition[]`，最终写入 `node.outputs`。
 
 End：
 
@@ -187,6 +190,7 @@ interface NodeVariableSectionProps {
 const builtinNodeVariableRenderers = {
   [NODE_VARIABLE_RENDERER_TYPES.INPUT_BINDINGS]: NodeInputBindingsEditor,
   [NODE_VARIABLE_RENDERER_TYPES.OUTPUT_DEFINITIONS]: NodeOutputDefinitionsEditor,
+  [NODE_VARIABLE_RENDERER_TYPES.START_INPUT_VARIABLES]: StartInputVariablesEditor,
 }
 ```
 
@@ -231,6 +235,20 @@ NodeOutputDefinition[]
 - `description`
 
 不创建第二套输出数据结构或手写校验规则。
+
+### 5.4 Start 输入变量 renderer
+
+`StartInputVariablesEditor` 同样编辑 `NodeOutputDefinition[]`，但使用 Start 专属交互：
+
+- 列表只展示变量 Key、显示名称和数据类型。
+- 点击右上角 `+` 打开“添加输入变量” Dialog。
+- 点击已有变量或编辑按钮打开同一套“编辑输入变量” Dialog。
+- Dialog 字段严格使用现有 `key`、`label`、`dataType`、`description`。
+- 新增和编辑都通过 `nodeOutputDefinitionsSchema` 校验，重复 Key 或非法字段不会写回。
+- Dialog 表单使用 `useFormData` 管理；关闭、取消和提交后重置临时状态。
+
+参考界面中的最大长度、默认值和必填开关不属于当前 `NodeOutputDefinition`，本次不新增这些
+持久化字段。
 
 ## 6. Web 接入
 
@@ -342,12 +360,17 @@ Form 包不遍历工作流，Core 不依赖画布数据。
 
 ### 新增
 
-| 文件                                                                   | 作用                                  |
-| ---------------------------------------------------------------------- | ------------------------------------- |
-| `packages/workflow-core/src/form/node-variable-form.ts`                | `variableForm` 契约、默认值和解析函数 |
-| `packages/workflow-form/src/components/node-variable-section.tsx`      | 变量区入口和两个内置 renderer         |
-| `apps/web/src/features/workflow/utils/get-available-node-variables.ts` | 计算上游变量候选                      |
-| `packages/workflow-nodes-ui/src/nodes/end/index.tsx`                   | End 画布摘要                          |
+| 文件                                                                      | 作用                                  |
+| ------------------------------------------------------------------------- | ------------------------------------- |
+| `packages/workflow-core/src/form/node-variable-form.ts`                   | `variableForm` 契约、默认值和解析函数 |
+| `packages/workflow-form/src/components/node-variable-section.tsx`         | 变量区公共入口和 renderer 契约        |
+| `packages/workflow-form/src/components/variable-section-header.tsx`       | 默认变量编辑器复用的区块标题          |
+| `packages/workflow-form/src/variables/node-input-bindings-editor.tsx`     | 默认输入绑定编辑器                    |
+| `packages/workflow-form/src/variables/node-output-definitions-editor.tsx` | 默认输出定义编辑器                    |
+| `packages/workflow-form/src/variables/start-input-variables-editor.tsx`   | Start 输入变量列表和新增/编辑 Dialog  |
+| `packages/workflow-form/src/variables/node-variable-renderer-registry.ts` | 内置变量 renderer 注册表              |
+| `apps/web/src/features/workflow/utils/get-available-node-variables.ts`    | 计算上游变量候选                      |
+| `packages/workflow-nodes-ui/src/nodes/end/index.tsx`                      | End 画布摘要                          |
 
 ### 修改
 
@@ -383,6 +406,9 @@ Start 或 Code 输出 Key 被重命名、删除后，下游旧引用由现有工
 ### Start
 
 - 只显示“输入变量”。
+- 右上角 `+` 打开新增变量 Dialog。
+- 已有变量可以通过同一 Dialog 编辑，也可以直接删除。
+- Dialog 使用现有变量 Key、显示名称、数据类型和说明字段。
 - 编辑数据写入 `node.outputs`。
 - 画布显示输入变量数量和名称。
 

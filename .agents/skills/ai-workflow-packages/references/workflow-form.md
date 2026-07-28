@@ -27,7 +27,7 @@ import {
 } from '@ai-workflow/form'
 ```
 
-`src/components/*.tsx` 通过 `./components/*` 通配子路径公开：
+组件通过 `./components/*` 通配子路径公开：
 
 ```ts
 import {
@@ -45,14 +45,16 @@ import {
 } from '@ai-workflow/form/components/node-variable-section'
 ```
 
-不要从 `packages/workflow-form/src/*` 深层导入。
+`src/variables` 只维护包内置的变量编辑器和 renderer 注册表，不提供独立公开入口。
+不要从 `variables` 内部文件或 `packages/workflow-form/src/*` 深层导入。
 
 ## 目录结构
 
 ```text
 src/components/
 ├── node-config-fields.tsx
-└── node-variable-section.tsx
+├── node-variable-section.tsx
+└── variable-section-header.tsx
 src/fields/
 ├── code-field/
 ├── number-field/
@@ -63,6 +65,14 @@ src/fields/
 ├── textarea-field/
 ├── builtin-fields.ts
 └── index.ts
+src/utils/
+├── create-unique-key.ts
+└── get-field-error.ts
+src/variables/
+├── node-input-bindings-editor.tsx
+├── node-output-definitions-editor.tsx
+├── node-variable-renderer-registry.ts # 内置 renderer 注册表
+└── start-input-variables-editor.tsx
 ```
 
 每种字段 renderer 独立维护。Text 与 Number 虽然都复用 UI `Input`，但不合并为一个字段
@@ -79,10 +89,14 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
 中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；
-内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key、label、dataType 和 description。
-调用方负责提供当前节点可引用的 `AvailableVariableOption`、Zod 错误、当前值和写回回调，
-Form 不遍历工作流、Edge 或 React Flow。通过可选 `renderers` 注入自定义 renderer 时，
-renderer 名称必须与 Core 节点声明一致。
+内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key、label、dataType 和 description；
+内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
+Dialog 新增或编辑 Start 输入变量。调用方负责提供当前节点可引用的
+`AvailableVariableOption`、Zod 错误、当前值和写回回调，Form 不遍历工作流、Edge 或
+React Flow。通过可选 `renderers` 注入自定义 renderer 时，renderer 名称必须与 Core 节点
+声明一致。内置 renderer 的映射集中维护在
+`src/variables/node-variable-renderer-registry.ts`，容器组件和公共契约维护在
+`src/components/node-variable-section.tsx`，通用变量区 Header 也放在 `src/components`。
 
 ## 表单状态与校验
 
@@ -140,6 +154,9 @@ export const builtinFields = {
   提供的候选，不自行生成系统变量、环境变量或嵌套 Path。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DATA_TYPE_VALUES`，不复制输出 schema。
+- `StartInputVariablesEditor` 使用 `useFormData` 管理 Dialog 临时表单，通过
+  `nodeOutputDefinitionsSchema` 校验新增或编辑后的完整数组；Dialog 关闭、取消和提交后均
+  重置草稿。表单只使用现有 key、label、dataType、description，不添加 Start 私有数据字段。
 - 所有 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
   实际控件提供 `aria-label`、`aria-invalid` 与 disabled 状态。
 

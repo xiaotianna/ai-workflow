@@ -20,17 +20,24 @@
 
 ```text
 apps/server/
+├── prisma/
+│   └── schema.prisma
 ├── src/
 │   ├── main.ts
 │   ├── app.module.ts
 │   ├── app.controller.ts
 │   ├── app.service.ts
+│   ├── generated/prisma/
+│   └── infrastructure/prisma/
+│       ├── prisma.module.ts
+│       └── prisma.service.ts
 │   └── app.controller.spec.ts
 ├── test/
 │   └── app.e2e-spec.ts
 ├── .oxlintrc.json
 ├── nest-cli.json
 ├── package.json
+├── prisma.config.ts
 ├── tsconfig.json
 └── tsconfig.build.json
 ```
@@ -45,6 +52,10 @@ apps/server/
 | ------------------------- | ---------------------- |
 | `start:dev`               | 开发模式启动（watch）  |
 | `build`                   | 编译到 `dist/`         |
+| `prisma:generate`         | 生成 Prisma Client     |
+| `prisma:migrate:dev`      | 创建并执行开发迁移     |
+| `prisma:migrate:deploy`   | 执行已有生产迁移       |
+| `prisma:studio`           | 打开 Prisma Studio     |
 | `lint` / `lint:fix`       | oxlint 检查 / 自动修复 |
 | `format` / `format:check` | Prettier 格式化 / 检查 |
 | `check`                   | format:check + lint    |

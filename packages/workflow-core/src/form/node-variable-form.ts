@@ -2,6 +2,7 @@
 export const NODE_VARIABLE_RENDERER_TYPES = {
   INPUT_BINDINGS: 'input_bindings',
   OUTPUT_DEFINITIONS: 'output_definitions',
+  START_INPUT_VARIABLES: 'start_input_variables',
 } as const
 
 export type NodeVariableRendererType =

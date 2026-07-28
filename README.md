@@ -34,15 +34,15 @@ cp apps/server/.env.example apps/server/.env
 启动基础设施：
 
 ```bash
-pnpm infra:up
+pnpm docker:dev:up
 ```
 
 常用命令：
 
 ```bash
-pnpm infra:status
-pnpm infra:logs
-pnpm infra:down
+pnpm docker:dev:status
+pnpm docker:dev:logs
+pnpm docker:dev:down
 ```
 
 默认连接信息：
@@ -54,4 +54,8 @@ pnpm infra:down
 端口或开发数据库凭据可通过执行 Compose 命令时设置
 `POSTGRES_PORT`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`
 和 `REDIS_PORT` 覆盖。开发数据保存在 Docker named volume 中，
-执行 `infra:down` 不会删除数据。
+执行 `docker:dev:down` 不会删除数据。
+
+## 后端文档
+
+- [Prisma 入门与基础 CRUD](docs/prisma.md)

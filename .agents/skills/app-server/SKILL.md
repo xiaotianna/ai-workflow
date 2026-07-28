@@ -23,7 +23,8 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 ## 当前结论
 
 - 根 `README.md` 暂定后端技术栈为 NestJS、PostgreSQL、Prisma、Redis 和 LangGraph。
-- `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml` 已提供 PostgreSQL 与 Redis 开发基础设施，Prisma Client、Redis 客户端和 LangGraph 尚未接入应用。
+- `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml` 已提供 PostgreSQL 与 Redis 开发基础设施。
+- Prisma 7 已通过 PostgreSQL driver adapter 接入，配置位于 `apps/server/prisma.config.ts` 与 `apps/server/prisma/`，Nest 基础设施入口为 `src/infrastructure/prisma/`；Redis 客户端和 LangGraph 尚未接入应用。
 - 首次实现时补齐明确的依赖、配置、环境变量和 workspace 脚本，不在无关任务中顺手搭建后端。
 - 遵守根目录命令约束，不自动运行 `dev`、`build` 或任何 git 命令。
 

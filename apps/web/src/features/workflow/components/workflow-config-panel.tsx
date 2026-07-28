@@ -273,6 +273,7 @@ export const WorkflowConfigPanel = ({
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
         {hasPanelContent ? (
           <div className="space-y-5">
+            {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
             {inputVariableSection ? (
               <NodeVariableSection
                 section={inputVariableSection}
@@ -295,6 +296,7 @@ export const WorkflowConfigPanel = ({
               />
             ) : null}
 
+            {/* 输出变量配置 */}
             {outputVariableSection ? (
               <NodeVariableSection
                 section={outputVariableSection}
