@@ -89,8 +89,14 @@ function VariableValueEditor({
           sideOffset={4}
           className="w-(--radix-select-trigger-width)"
         >
-          <SelectItem value="value">直接值</SelectItem>
-          <SelectItem value="reference" disabled={availableVariables.length === 0}>
+          <SelectItem value="value" className="text-[13px]">
+            直接值
+          </SelectItem>
+          <SelectItem
+            value="reference"
+            disabled={availableVariables.length === 0}
+            className="text-[13px]"
+          >
             变量引用
           </SelectItem>
         </SelectContent>
@@ -98,7 +104,7 @@ function VariableValueEditor({
 
       {value.type === 'value' ? (
         <Input
-          className="h-8 flex-1 rounded-l-none bg-transparent hover:z-10 focus-visible:z-10"
+          className="h-8 flex-1 rounded-l-none bg-transparent text-[13px] hover:z-10 focus-visible:z-10 md:text-[13px]"
           value={stringifyDirectValue(value.value)}
           disabled={disabled}
           aria-label="变量直接值"
@@ -127,7 +133,7 @@ function VariableValueEditor({
         >
           <SelectTrigger
             size="sm"
-            className="min-w-0 flex-1 rounded-l-none bg-transparent hover:z-10 focus-visible:z-10 [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
+            className="min-w-0 flex-1 rounded-l-none bg-transparent text-[13px] hover:z-10 focus-visible:z-10 [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
             aria-label="上游变量"
             aria-invalid={Boolean(error)}
           >
@@ -146,7 +152,7 @@ function VariableValueEditor({
                 key={option.id}
                 value={option.id}
                 title={option.label}
-                className="min-w-0 [&>span:last-child]:min-w-0 [&>span:last-child]:truncate"
+                className="min-w-0 text-[13px] [&>span:last-child]:min-w-0 [&>span:last-child]:truncate"
               >
                 {option.label}
               </SelectItem>
@@ -228,7 +234,7 @@ export function NodeInputBindingsEditor({
               <div key={index} className="space-y-1">
                 <div className="grid min-w-0 grid-cols-[minmax(96px,120px)_minmax(0,1fr)_24px] items-center gap-1.5">
                   <Input
-                    className="h-8"
+                    className="h-8 text-[13px] md:text-[13px]"
                     value={key}
                     disabled={disabled}
                     aria-label={`${section.label}名称`}
