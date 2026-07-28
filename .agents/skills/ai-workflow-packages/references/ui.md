@@ -35,7 +35,7 @@ import '@ai-workflow/ui/globals.css'
 - 含 sticky 列的表格：sticky 单元格需默认实底（通常 `bg-background`）以遮挡横向滚动内容；行 hover、选中、行内 Dropdown 打开等态应在**单元格**上用命名 group（如 `group/row`）与其他列同步，不要仅依赖 `<tr>` 背景，也不要让 sticky 列单独维护一套 hover 规则。
 - 表单布局：`Form`、`Form.Field`。
 - 上传：单文件受控 `FileDropzone`。
-- 操作与浮层：`Button`、`Dialog`、`Sheet`、`DropdownMenu`、`Tooltip`。
+- 操作与浮层：`Button`、`Dialog`、`Sheet`、`Popover`、`DropdownMenu`、`Tooltip`。
 - 布局与反馈：`Sidebar`、`Separator`、`Skeleton`、基于 Sonner 的 `Toaster` 与
   `showToast`。
 - Hook：`useIsMobile`。
@@ -59,6 +59,9 @@ import '@ai-workflow/ui/globals.css'
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。
 - 单文件选择使用 `FileDropzone`，业务校验保留在调用方。
 - `SelectContent` 与 `DropdownMenuContent` 统一使用半透明背景、0.5px 语义边框、`shadow-lg`、圆角和背景模糊，不在调用方分别覆盖阴影。
+- `PopoverContent` 使用与 Select、Dropdown 一致的半透明背景、0.5px 语义边框、
+  `shadow-lg` 和背景模糊；业务组合组件负责内容尺寸、滚动区域与对齐方式，不在 UI
+  primitive 中写入搜索、选择或表单语义。
 - 标准 `SelectContent` 使用 `position="popper"`、`align="start"`、`sideOffset={4}` 并通过
   `w-(--radix-select-trigger-width)` 匹配 Trigger 宽度，避免 `item-aligned` 将选中项覆盖在
   Trigger 上。

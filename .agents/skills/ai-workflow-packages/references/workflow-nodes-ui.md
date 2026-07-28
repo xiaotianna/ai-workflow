@@ -49,11 +49,14 @@ import {
 普通节点与完整节点渲染器统一复用 `NodeWrapper`、`NodeHeader` 和 `NodePortsRender`。
 `NodeHeader.label` 接受自定义 React 节点，供配置面板等场景在不复制图标与操作区的前提下
 注入名称编辑控件；未传入时展示 definition label。
-`BaseNode` 只组合 Header、内容和端口，不隐式增加 Body 间距；普通内容组件显式使用
-`NodeContentList` 管理 `px-3 pb-3 space-y-1.5`，为内部 `NodeContentItem` 提供统一的 Body
-间距和条目间距。没有实际可见内容时不渲染 `NodeContentList`，避免仅有 Header 的节点残留
-底部空白。专属 content 注册仍可渲染自己的数据摘要或明确空状态，不用 Core 字段数量代替
-实际 UI 内容判断。
+`BaseNode` 统一组合 Header、实例输入/输出变量、专属内容和端口。实例 `inputs` 或 `outputs`
+非空时，通过 `NodeVariables` 和 `NodeContentItem` 自动渲染变量条目；两者都为空时不渲染
+变量区域，也不保留 Body 间距。输出变量直接展示 Key、显示名称、必填状态和数据类型；
+输入绑定展示绑定 Key、引用变量名或直接值，类型优先使用匹配的输入端口，单输入端口作为
+通用回退。普通内容组件显式使用 `NodeContentList` 管理 `px-3 pb-3 space-y-1.5`，为内部
+`NodeContentItem` 提供统一的 Body 间距和条目间距。没有实际可见内容时不渲染
+`NodeContentList`。专属 content 注册仍可追加自己的数据摘要或明确空状态，不用 Core 字段
+数量代替专属 UI 内容判断。
 `NodeWrapper` 统一管理外层交互容器和内层卡片样式，并处理选择、禁用和键盘交互；
 普通节点使用默认卡片尺寸；容器节点等特殊场景通过 `className` 覆盖内层卡片的尺寸和圆角，
 由 `cn` 与卡片默认样式合并，并通过 `wrapperClassName` 让外层跟随画布节点尺寸；
@@ -61,13 +64,10 @@ import {
 `NodeHeader` 通过 `actions` 提供右侧操作插槽，容器节点的添加操作放在 Header 内；
 循环节点的内部区域使用与主画布相同间距和颜色的 CSS 点阵背景，不嵌套 React Flow；
 `NodePortsRender` 默认纵向排列端口，容器节点可以使用 `layout="centered"` 将端口放在垂直中线。
-开始节点的专属 `StartNodeContent` 使用 `NodeContentItem` 逐条展示 `node.outputs` 输入变量；
-条目内容与开始节点配置面板保持一致，包含变量 Key、显示名称、必填状态和数据类型图标。
-条目前导变量标识复用 UI 包基于 `system-icon.svg` 的 `VariableIcon`，并通过
-`text-primary` 跟随主题色，不使用 JSON 数据类型图标。
-产品文案使用“输入变量”，因为这些字段是工作流入口输入，但从 Start 节点方向看仍保存为输出。
-End 节点通过 `EndNodeContent` 展示实例描述、`node.inputs` 中的输出 Key 和数量，不展示
-直接值或引用详情。两种专属内容都不得因为接管默认 Body 而丢失节点描述。
+开始节点和 End 节点分别注册专属内容摘要。工作流入口输入保存为 `node.outputs`，
+Start 摘要展示输入变量的 Key、显示名称、必填状态和数据类型；End 的最终输出绑定保存为
+`node.inputs`，摘要只展示输出 Key，不泄露直接值或引用详情。两者的条目前导变量标识复用
+UI 包基于 `system-icon.svg` 的 `VariableIcon`，并通过 `text-primary` 跟随主题色。
 Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容，读取经过 Code schema
 解析后的 `node.config.code`，在保留实例描述的同时展示 JavaScript 标识、总行数和前三行
 代码预览；预览保留空格与 Tab 缩进，并通过轻量 JavaScript token 着色区分关键字、字符串、
@@ -127,5 +127,7 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
   节点卡片不得使用 `overflow-hidden` 裁剪突出边界的端口。
 - `RenderNode` 统一解析配置和端口，内容组件与完整节点渲染器收到的 `node.config`
   已经过 schema 解析并应用默认值；不要再从 Props 中增加独立配置副本。
+- `RenderNode` 必须把完整节点实例传给专属内容组件；Start 读取 `node.outputs`，
+  End 读取 `node.inputs`，不要按产品区域名称误用存储字段。
 - 内容组件必须处理长文本和空数据，不能改变端口 id 或节点定义；没有可见内容时不得使用
   空元素占住 Body 间距。

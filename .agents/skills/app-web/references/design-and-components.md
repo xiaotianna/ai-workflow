@@ -88,8 +88,10 @@
   绑定 renderer 写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量排列。
   当前节点可
   引用变量由 Web 根据执行 Edge 收集所有可达
-  上游节点的动态输出和静态输出端口，再作为候选传入 Form；首期只支持直接值和完整上游
-  变量引用，不包含系统变量、环境变量和嵌套 Path。名称、描述、`config`、`inputs`、
+  上游节点的动态输出和静态输出端口，并将来源节点、变量名称和数据类型作为结构化候选传入
+  Form；Form 的变量选择器按节点分组，支持搜索并显示变量类型，普通节点输入区与 End 输出区
+  共用该交互。首期只支持直接值和完整上游变量引用，不包含系统变量、环境变量和嵌套 Path。
+  名称、描述、`config`、`inputs`、
   `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
   校验后即时写回节点。动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
   Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从知识库业务

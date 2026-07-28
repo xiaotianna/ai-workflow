@@ -48,7 +48,7 @@ export function getAvailableNodeVariables({
       node.outputs.map((output) => [
         output.key,
         {
-          label: output.label,
+          dataType: output.dataType,
         },
       ]),
     )
@@ -60,7 +60,7 @@ export function getAvailableNodeVariables({
       for (const [outputKey, port] of Object.entries(ports.outputs)) {
         if (!outputs.has(outputKey)) {
           outputs.set(outputKey, {
-            label: port.label ?? outputKey,
+            dataType: port.dataType,
           })
         }
       }
@@ -73,7 +73,11 @@ export function getAvailableNodeVariables({
       optionIds.add(optionId)
       options.push({
         id: optionId,
-        label: `${nodeLabel} / ${output.label}`,
+        label: `${nodeLabel} / ${outputKey}`,
+        sourceId: node.id,
+        sourceLabel: nodeLabel,
+        variableName: outputKey,
+        dataType: output.dataType,
         reference: {
           scope: 'node',
           nodeId: node.id,

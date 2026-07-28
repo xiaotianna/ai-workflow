@@ -2,13 +2,7 @@ import type { VariableValueInput } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
 import { Input } from '@ai-workflow/ui/components/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@ai-workflow/ui/components/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@ai-workflow/ui/components/select'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { Plus, TextCursorInput, Trash2 } from 'lucide-react'
 
@@ -16,6 +10,7 @@ import type {
   AvailableVariableOption,
   NodeVariableSectionRendererProps,
 } from '../components/node-variable-section'
+import { NodeVariablePicker } from './node-variable-picker'
 import { getFieldError } from '../utils/get-field-error'
 import { createUniqueKey } from '../utils/create-unique-key'
 
@@ -80,7 +75,7 @@ function VariableValueEditor({
           {value.type === 'value' ? (
             <TextCursorInput className="text-muted-foreground size-4" aria-hidden />
           ) : (
-            <VariableIcon className="text-muted-foreground size-4" />
+            <VariableIcon className="text-muted-foreground size-4" aria-hidden />
           )}
         </SelectTrigger>
         <SelectContent
@@ -118,47 +113,18 @@ function VariableValueEditor({
           }
         />
       ) : (
-        <Select
+        <NodeVariablePicker
           value={selectedVariable?.id}
+          options={availableVariables}
           disabled={disabled || availableVariables.length === 0}
-          onValueChange={(optionId) => {
-            const option = availableVariables.find((candidate) => candidate.id === optionId)
-            if (!option) return
-
+          invalid={Boolean(error)}
+          onValueChange={(option) => {
             onChange({
               type: 'reference',
               reference: option.reference,
             })
           }}
-        >
-          <SelectTrigger
-            size="sm"
-            className="min-w-0 flex-1 rounded-l-none bg-transparent text-[13px] hover:z-10 focus-visible:z-10 [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
-            aria-label="上游变量"
-            aria-invalid={Boolean(error)}
-          >
-            <SelectValue
-              placeholder={availableVariables.length > 0 ? '设置变量值' : '无可用上游变量'}
-            />
-          </SelectTrigger>
-          <SelectContent
-            position="popper"
-            align="end"
-            sideOffset={4}
-            className="w-[calc(var(--radix-select-trigger-width)+2.25rem)] max-w-[calc(var(--radix-select-trigger-width)+2.25rem)] min-w-0"
-          >
-            {availableVariables.map((option) => (
-              <SelectItem
-                key={option.id}
-                value={option.id}
-                title={option.label}
-                className="min-w-0 text-[13px] [&>span:last-child]:min-w-0 [&>span:last-child]:truncate"
-              >
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        />
       )}
     </div>
   )

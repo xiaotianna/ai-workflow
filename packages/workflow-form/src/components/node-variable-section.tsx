@@ -1,4 +1,5 @@
 import type {
+  DataType,
   NodeInputBindingsInput,
   NodeOutputDefinition,
   NodeVariableFormSection,
@@ -11,6 +12,10 @@ import { builtinNodeVariableRenderers } from '../variables/node-variable-rendere
 export interface AvailableVariableOption {
   id: string
   label: string
+  sourceId: string
+  sourceLabel: string
+  variableName: string
+  dataType: DataType
   reference: VariableReference
 }
 

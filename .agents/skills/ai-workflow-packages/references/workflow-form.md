@@ -47,6 +47,7 @@ import {
 import {
   DataTypeIcon,
   DataTypeSelect,
+  getDataTypeTag,
   type DataTypeIconProps,
   type DataTypeSelectProps,
 } from '@ai-workflow/form/components/data-type-select'
@@ -61,8 +62,7 @@ import {
 src/components/
 ├── data-type-select.tsx
 ├── node-config-fields.tsx
-├── node-variable-section.tsx
-└── variable-section-header.tsx
+└── node-variable-section.tsx
 src/fields/
 ├── code-field/
 ├── number-field/
@@ -80,6 +80,7 @@ src/variables/
 ├── node-input-bindings-editor.tsx
 ├── node-output-definitions-editor.tsx
 ├── node-variable-renderer-registry.ts # 内置 renderer 注册表
+├── node-variable-picker.tsx
 └── start-input-variables-editor.tsx
 ```
 
@@ -97,19 +98,25 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
 中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；
-内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key、label、dataType 和 description；
+内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key 和 dataType，并让 label 与 key
+同步；description 通过数据类型组合控件左侧的说明入口打开 Dialog 编辑；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
 Dialog 新增或编辑 Start 输入变量的 key、label、dataType、defaultValue 和 required；不提供
 最大长度或隐藏预填字段。调用方负责提供当前节点可引用的
 `AvailableVariableOption`、Zod 错误、当前值和写回回调，Form 不遍历工作流、Edge 或
-React Flow。通过可选 `renderers` 注入自定义 renderer 时，renderer 名称必须与 Core 节点
-声明一致。内置 renderer 的映射集中维护在
+React Flow。候选项同时提供 `sourceId`、`sourceLabel`、`variableName` 和 `dataType`，
+供内置选择器按来源分组、搜索并展示类型；`label` 保留完整的“来源 / 变量”文本，不在 Form
+中拆分拼接字符串。`variableName` 必须来自输出变量的 `key` / `outputKey`，不得使用变量的
+显示名称 `label` 替代。通过可选 `renderers` 注入自定义 renderer 时，renderer 名称必须与
+Core 节点声明一致。内置 renderer 的映射集中维护在
 `src/variables/node-variable-renderer-registry.ts`，容器组件和公共契约维护在
 `src/components/node-variable-section.tsx`，通用变量区 Header 也放在 `src/components`。
 Core `DataType` 的受控选择统一复用公开组件 `DataTypeSelect`；组件展示图标、中文名称、
 类型徽标和当前选中态，其中 Core `json` 的徽标文案显示为 `object`；组件通过
-`onValueChange` 返回校验后的 `DataType`。仅需展示类型图标时复用同入口公开的
-`DataTypeIcon`。不要在 renderer 或 Web 中重复维护类型名称、图标和 Select 结构。
+`onValueChange` 返回校验后的 `DataType`。菜单默认与自身 Trigger 等宽并左对齐；组合控件
+可以通过 `contentAlign` 和 `contentClassName` 调整菜单对齐与宽度。仅需展示类型图标时复用
+同入口公开的 `DataTypeIcon`；需要复用类型徽标文案时使用 `getDataTypeTag`。不要在 renderer
+或 Web 中重复维护类型名称、图标和 Select 结构。
 
 ## 表单状态与校验
 
@@ -163,11 +170,20 @@ export const builtinFields = {
   可选 `language` props 复用其他 Monaco 语言。字段目录自行组合语言顶栏、边框、尺寸与
   放大入口；`code-field-dialog.tsx` 独立承载大尺寸 Dialog，确认后回写字段值，取消或关闭
   时丢弃弹窗草稿。
-- `NodeInputBindingsEditor` 以紧凑列表编辑变量 Key、直接值或上游引用；首期只消费调用方
-  提供的候选，不自行生成系统变量、环境变量或嵌套 Path。
+- `NodeInputBindingsEditor` 以紧凑列表编辑变量 Key、直接值或上游引用；变量引用使用内置
+  Popover 选择器，选中态按 `Box 节点图标 + 来源 / VariableIcon 变量名` 展示，两个图标
+  统一为 14px，图标与对应文字间距统一为 4px，不在末尾显示数据类型；文字统一使用 12px。
+  浮层继续提供搜索、来源分组、类型展示与选中高亮。普通节点的输入区和 End 的输出区共用该
+  renderer，交互必须保持一致。首期只消费调用方提供的候选，不自行生成系统变量、环境变量
+  或嵌套 Path。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
-  默认值元数据。
+  默认值元数据。默认输入与默认输出变量区都使用 UI `Form.Field` 统一标题、说明、内容间距
+  和纯图标新增操作；输出项使用“变量名与说明入口、紧凑数据类型、删除按钮”的单行 32px
+  三列布局，不展示独立 label 输入框。变量名列与输入变量区一样使用 96–120px，第二列占据
+  剩余宽度；修改变量名时同步更新 `key` 与 `label`。说明按钮和数据类型下拉组成同一个
+  控件，说明按钮打开 Dialog 编辑 description，有说明时图标使用主色提示；数据类型菜单
+  右对齐并在 Trigger 宽度上增加说明按钮的 36px，与外部组合控件保持等宽。
 - `StartInputVariablesEditor` 使用 `useFormData` 管理 Dialog 临时表单，通过
   Core 字段 schema 派生的本地草稿 schema 转换各类型默认值，再通过
   `nodeOutputDefinitionsSchema` 校验新增或编辑后的完整数组；Dialog 关闭、取消和提交后均

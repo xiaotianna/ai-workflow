@@ -11,7 +11,13 @@ const DATA_TYPE_OPTIONS = {
   json: { label: 'JSON', tag: 'object', icon: Braces },
 } satisfies Record<DataType, { label: string; tag: string; icon: LucideIcon }>
 
+function getDataTypeTag(dataType: DataType) {
+  return DATA_TYPE_OPTIONS[dataType].tag
+}
+
 interface DataTypeSelectProps extends Omit<ComponentProps<typeof SelectTrigger>, 'children'> {
+  contentAlign?: ComponentProps<typeof SelectContent>['align']
+  contentClassName?: string
   value: DataType
   onValueChange: (value: DataType) => void
 }
@@ -44,6 +50,8 @@ function DataTypeDisplay({ dataType }: { dataType: DataType }) {
 function DataTypeSelect({
   value,
   onValueChange,
+  contentAlign = 'start',
+  contentClassName,
   disabled,
   className,
   size = 'default',
@@ -68,9 +76,9 @@ function DataTypeSelect({
       </SelectTrigger>
       <SelectContent
         position="popper"
-        align="start"
+        align={contentAlign}
         sideOffset={4}
-        className="w-(--radix-select-trigger-width)"
+        className={cn('w-(--radix-select-trigger-width)', contentClassName)}
       >
         {DATA_TYPE_VALUES.map((dataType) => (
           <SelectItem
@@ -86,5 +94,5 @@ function DataTypeSelect({
   )
 }
 
-export { DataTypeIcon, DataTypeSelect }
+export { DataTypeIcon, DataTypeSelect, getDataTypeTag }
 export type { DataTypeIconProps, DataTypeSelectProps }
