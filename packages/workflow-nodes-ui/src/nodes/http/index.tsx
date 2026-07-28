@@ -10,13 +10,10 @@ export function HttpNodeContent({ node }: NodeContentProps<HttpNodeConfig>) {
       <NodeContentItem
         content={
           <div className="flex min-w-0 items-center gap-1">
-            <span className="bg-background text-muted-foreground flex h-4 shrink-0 items-center rounded-sm px-1 text-xs font-semibold uppercase">
+            <span className="bg-background flex h-4 shrink-0 items-center rounded-sm px-1 text-xs font-semibold uppercase">
               {node.config.method}
             </span>
-            <span
-              title={node.config.url}
-              className="text-foreground min-w-0 flex-1 truncate text-[11px] leading-3"
-            >
+            <span title={node.config.url} className="min-w-0 flex-1 truncate text-[11px] leading-3">
               {node.config.url}
             </span>
           </div>

@@ -69,13 +69,16 @@ Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容�
 数字、字面量、内置对象、函数与方法、括号、运算符和注释。预览只负责画布摘要，不加载或
 复制 Form 包的 Monaco 编辑能力。
 `NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
-`rounded-md bg-muted/60 px-2 py-1.5` 并由内容自然撑开高度。Condition 和其他节点只负责组合
-条目内部信息，不重复维护背景、圆角和间距；Condition 显式使用 `NodeContentList` 包裹并
-排列多个 `NodeContentItem`。
+`rounded-md bg-muted/60 px-2 py-1.5 text-slate-500` 并由内容自然撑开高度。Condition 和
+其他节点只负责组合条目内部信息，不重复维护背景、圆角、间距和默认文字颜色；Condition
+显式使用 `NodeContentList` 包裹并排列多个 `NodeContentItem`。
 HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
-请求地址，不复制 Core 的请求方法配置。方法徽标使用 `bg-background` 和
-`text-muted-foreground` 适配项目明暗主题。
+请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和
+请求地址都继承 `NodeContentItem` 的默认文字颜色。
+LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，直接读取经过 LLM
+schema 解析后的 `node.config.prompt`，使用 `NodeContentList` 和 `NodeContentItem` 展示
+最多三行的提示词摘要；长文本保留完整 `title`，不在 Nodes UI 中复制配置表单字段。
 
 ## 新增节点界面
 

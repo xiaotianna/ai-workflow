@@ -13,14 +13,10 @@ export function ConditionNodeContent({ node }: NodeContentProps<ConditionNodeCon
           key={condition.portId}
           content={
             <>
-              <div className="truncate text-xs font-medium text-slate-700">
-                {condition.conditionLabel}
-              </div>
+              <div className="truncate text-xs font-medium">{condition.conditionLabel}</div>
 
               {!condition.isFallback && condition.condition && (
-                <div className="mt-0.5 truncate font-mono text-[11px] text-slate-400">
-                  {condition.condition}
-                </div>
+                <div className="mt-0.5 truncate font-mono text-[11px]">{condition.condition}</div>
               )}
             </>
           }

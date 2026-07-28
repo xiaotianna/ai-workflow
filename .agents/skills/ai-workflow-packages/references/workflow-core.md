@@ -25,7 +25,8 @@ import {
 不要从 `packages/workflow-core/src/*` 深层导入。
 需要由其他 package 实现专属界面的内置节点通过根入口导出节点对象及其配置类型；当前
 Code 节点公开 `codeNode` 与 `CodeNodeConfig`，HTTP 节点公开 `httpNode` 与
-`HttpNodeConfig`，供 Nodes UI 保持 schema 与组件类型关联。
+`HttpNodeConfig`，LLM 节点公开 `llmNode` 与 `LlmNodeConfig`，供 Nodes UI 保持 schema
+与组件类型关联。
 
 ## 核心模型
 

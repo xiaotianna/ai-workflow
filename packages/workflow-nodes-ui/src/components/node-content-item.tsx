@@ -5,5 +5,9 @@ export interface NodeContentItemProps {
 }
 
 export function NodeContentItem({ content }: NodeContentItemProps) {
-  return <div className="bg-muted/60 min-w-0 rounded-md px-2 py-1.5">{content}</div>
+  return (
+    <div className="bg-muted/60 text-muted-foreground min-w-0 rounded-md px-2 py-1.5">
+      {content}
+    </div>
+  )
 }
