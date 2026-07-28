@@ -5,6 +5,7 @@ import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
 import type { NodeType, WorkflowNode } from '@ai-workflow/core'
+import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 
 const MotionPanel = motion.create(Panel)
@@ -12,6 +13,7 @@ const MotionPanel = motion.create(Panel)
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
   selectedNode?: WorkflowNode
+  selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
   onAddNode: (type: string) => void
   onApplyNode: (node: WorkflowNode) => void
@@ -21,6 +23,7 @@ interface WorkflowPanelProps {
 export const WorkflowPanel = ({
   nodeTypes,
   selectedNode,
+  selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
   onAddNode,
   onApplyNode,
@@ -61,6 +64,7 @@ export const WorkflowPanel = ({
                 key={selectedNode.id}
                 node={selectedNode}
                 defaultLabel={selectedNodeDefaultLabel}
+                availableVariables={selectedNodeAvailableVariables}
                 onApply={onApplyNode}
                 onClose={onCloseNodeConfig}
               />

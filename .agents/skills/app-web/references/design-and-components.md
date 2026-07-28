@@ -74,10 +74,19 @@
 - 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
-  中复制字段类型分发逻辑。当前配置面板只编辑节点实例名称、描述和节点类型特有的
-  `config`；`WorkflowNode.inputs` / `outputs` 已进入画布数据与保存结构，但尚未提供通用变量
-  编辑组件。面板表单值统一由 `useFormData` 管理，节点 schema 通过 `validateFormByZod`
-  校验；动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
+  中复制字段类型分发逻辑。配置面板通过 Core `resolveNodeVariableForm` 解析
+  `NodeType.variableForm`，再使用
+  `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、
+  输出变量区；整个配置未声明时默认同时显示两区，配置对象存在时只显示其中实际声明的
+  方向，不使用 `null` 占位。Core 只声明区域和 renderer，Form 提供受控组件，Web 不按节点
+  类型复制映射。
+  Start 的“输入变量”通过输出定义 renderer 写入 `node.outputs`，End 的“输出变量”通过输入
+  绑定 renderer 写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量
+  排列。当前节点可引用变量由 Web 根据执行 Edge 收集所有可达
+  上游节点的动态输出和静态输出端口，再作为候选传入 Form；首期只支持直接值和完整上游
+  变量引用，不包含系统变量、环境变量和嵌套 Path。名称、描述、`config`、`inputs`、
+  `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
+  校验后即时写回节点。动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
   Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从知识库业务
   公开数据生成选项，Core 与 Form 不依赖 Web 数据；新增其他动态控件时增加对应 Resolver，
   不扩展 `NodeConfigFields` 的控件专属参数。

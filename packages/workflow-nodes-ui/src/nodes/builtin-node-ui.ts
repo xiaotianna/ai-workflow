@@ -1,6 +1,7 @@
 import {
   codeNode,
   conditionNode,
+  endNode,
   httpNode,
   llmNode,
   loopNode,
@@ -13,6 +14,7 @@ import { defineNodeRendererUI, defineNodeUI } from '../contracts/node-content'
 import { NodeUIRegistry } from '../registry'
 import { CodeNodeContent } from './code'
 import { ConditionNodeContent } from './condition'
+import { EndNodeContent } from './end'
 import { HttpNodeContent } from './http'
 import { LlmNodeContent } from './llm'
 import { LoopNode } from './loop'
@@ -21,6 +23,7 @@ import { StartNodeContent } from './start'
 
 export const builtinNodeUIRegistrations = [
   defineNodeUI(startNode, StartNodeContent),
+  defineNodeUI(endNode, EndNodeContent),
   defineNodeUI(codeNode, CodeNodeContent),
   defineNodeUI(httpNode, HttpNodeContent),
   defineNodeUI(llmNode, LlmNodeContent),

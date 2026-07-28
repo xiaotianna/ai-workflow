@@ -30,6 +30,7 @@ import {
 } from '@/utils/workflow/editor-elements'
 import { useWorkflowSave } from './use-workflow-save'
 import { useWorkflowLoopEditor } from './use-workflow-loop-editor'
+import { getAvailableNodeVariables } from '../utils/get-available-node-variables'
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import {
   getDefaultNodePosition,
@@ -93,6 +94,13 @@ export function useWorkflowEditor({
   const selectedNodeDefaultLabel = selectedCanvasNode
     ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes)
     : undefined
+  const selectedNodeAvailableVariables = selectedNode
+    ? getAvailableNodeVariables({
+        nodeId: selectedNode.id,
+        nodes: nodes.map(toWorkflowNode),
+        edges,
+      })
+    : []
 
   const { errors, saveWorkflow, saving } = useWorkflowSave({
     baseWorkflow: initialSnapshot.workflow,
@@ -282,6 +290,7 @@ export function useWorkflowEditor({
     saveWorkflow,
     saving,
     selectedNode,
+    selectedNodeAvailableVariables,
     selectedNodeDefaultLabel,
     selectedNodeId,
     selectNode,

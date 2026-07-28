@@ -31,3 +31,4 @@ export const variableValueSchema = z.discriminatedUnion('type', [
 ])
 
 export type VariableValue = z.output<typeof variableValueSchema>
+export type VariableValueInput = z.input<typeof variableValueSchema>

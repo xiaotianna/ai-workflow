@@ -11,14 +11,19 @@
 ```ts
 import {
   codeNode,
+  endNode,
   workflowSchema,
   nodeRegistry,
+  DEFAULT_NODE_VARIABLE_FORM,
   FIELD_UI_TYPES,
+  NODE_VARIABLE_RENDERER_TYPES,
   getNodePorts,
+  resolveNodeVariableForm,
   validateWorkflow,
   validateExecutorWorkflow,
   type FieldSchema,
   type NodeFormSchema,
+  type NodeVariableForm,
 } from '@ai-workflow/core'
 ```
 
@@ -49,6 +54,15 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
   语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
   表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
+- `NodeType.variableForm` 以可选的 `input` / `output` 区域声明节点变量表单；每个区域只保存
+  标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
+  `resolveNodeVariableForm` 返回默认输入绑定区和输出定义区；配置对象存在时只使用其中实际
+  声明的方向，缺少某方向就不渲染，不写 `null` 占位。内置 `INPUT_BINDINGS` renderer 编辑
+  `node.inputs`，`OUTPUT_DEFINITIONS` renderer 编辑 `node.outputs`，具体 renderer 由
+  `@ai-workflow/form` 提供。
+- Start 将产品语义上的“输入变量”声明为 `OUTPUT_DEFINITIONS`，数据写入 `node.outputs`；
+  且不声明 `output`；End 不声明 `input`，只将“输出变量”声明为 `INPUT_BINDINGS`，数据写入
+  `node.inputs`。Code 和普通节点不需要重复声明，直接使用默认输入绑定区与输出定义区。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过
   `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
@@ -71,6 +85,8 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
 5. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
 6. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
 7. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
+8. 默认变量区满足需求时不声明 `NodeType.variableForm`；需要自定义时只声明实际显示的方向，
+   缺少的方向不渲染且不写 `null`，不在 Web 中按节点类型维护另一份映射。
 
 ## 校验顺序
 

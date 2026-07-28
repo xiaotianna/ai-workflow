@@ -1,8 +1,20 @@
-import { nodeRegistry, type WorkflowNode } from '@ai-workflow/core'
+import {
+  nodeInputBindingsSchema,
+  nodeOutputDefinitionsSchema,
+  nodeRegistry,
+  resolveNodeVariableForm,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
+import {
+  NodeVariableSection,
+  type AvailableVariableOption,
+  type NodeInputBindingsFormValue,
+  type NodeVariableFieldErrors,
+} from '@ai-workflow/form/components/node-variable-section'
 import { NodeHeader } from '@ai-workflow/nodes-ui'
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
@@ -17,6 +29,7 @@ import { resolveNodeFormFields } from '../node-form-resolvers/registry'
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
   defaultLabel?: string
+  availableVariables?: readonly AvailableVariableOption[]
   onApply: (node: WorkflowNode) => void
   onClose: () => void
 }
@@ -27,6 +40,8 @@ const INLINE_TEXT_INPUT_CLASS_NAME =
 const workflowConfigPanelFormSchema = z.object({
   label: z.string().trim().min(1, '节点名称不能为空'),
   description: z.string().trim(),
+  inputs: nodeInputBindingsSchema,
+  outputs: nodeOutputDefinitionsSchema,
   config: z.record(z.string(), z.unknown()),
 })
 
@@ -35,6 +50,7 @@ type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema
 export const WorkflowConfigPanel = ({
   node,
   defaultLabel,
+  availableVariables = [],
   onApply,
   onClose,
 }: WorkflowConfigPanelProps) => {
@@ -43,6 +59,8 @@ export const WorkflowConfigPanel = ({
   const { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
     label: node.label ?? resolvedDefaultLabel,
     description: node.description ?? nodeType?.definition.description ?? '',
+    inputs: { ...node.inputs },
+    outputs: [...node.outputs],
     config: { ...node.config },
   })
 
@@ -67,6 +85,14 @@ export const WorkflowConfigPanel = ({
 
   const configValidation = validateFormByZod(nodeType.schema, form.config)
   const errors: NodeConfigFieldErrors = configValidation.success ? {} : configValidation.errors
+  const inputs = form.inputs ?? {}
+  const outputs = form.outputs ?? []
+  const inputValidation = validateFormByZod(nodeInputBindingsSchema, inputs)
+  const outputValidation = validateFormByZod(nodeOutputDefinitionsSchema, outputs)
+  const inputErrors: NodeVariableFieldErrors = inputValidation.success ? {} : inputValidation.errors
+  const outputErrors: NodeVariableFieldErrors = outputValidation.success
+    ? {}
+    : outputValidation.errors
 
   function handleLabelChange(value: string) {
     updateFormField('label', value)
@@ -160,8 +186,36 @@ export const WorkflowConfigPanel = ({
     })
   }
 
+  function handleInputsChange(nextInputs: NodeInputBindingsFormValue) {
+    updateFormField('inputs', nextInputs)
+    const parsedInputs = validateFormByZod(nodeInputBindingsSchema, nextInputs)
+
+    if (!parsedInputs.success) return
+
+    onApply({
+      ...node,
+      inputs: parsedInputs.data,
+    })
+  }
+
+  function handleOutputsChange(nextOutputs: WorkflowNode['outputs']) {
+    updateFormField('outputs', nextOutputs)
+    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+
+    if (!parsedOutputs.success) return
+
+    onApply({
+      ...node,
+      outputs: parsedOutputs.data,
+    })
+  }
+
   const formFields = resolveNodeFormFields(nodeType, builtinNodeFormFieldsResolvers)
   const hasFields = formFields && Object.keys(formFields).length > 0
+  const variableForm = resolveNodeVariableForm(nodeType.variableForm)
+  const inputVariableSection = variableForm.input
+  const outputVariableSection = variableForm.output
+  const hasPanelContent = Boolean(inputVariableSection || hasFields || outputVariableSection)
 
   return (
     <aside className="nodrag nowheel bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
@@ -217,13 +271,43 @@ export const WorkflowConfigPanel = ({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
-        {hasFields ? (
-          <NodeConfigFields
-            fields={formFields}
-            values={form.config}
-            errors={errors}
-            onChange={handleFieldChange}
-          />
+        {hasPanelContent ? (
+          <div className="space-y-5">
+            {inputVariableSection ? (
+              <NodeVariableSection
+                section={inputVariableSection}
+                inputs={inputs}
+                outputs={outputs}
+                availableVariables={availableVariables}
+                inputErrors={inputErrors}
+                outputErrors={outputErrors}
+                onInputsChange={handleInputsChange}
+                onOutputsChange={handleOutputsChange}
+              />
+            ) : null}
+
+            {hasFields ? (
+              <NodeConfigFields
+                fields={formFields}
+                values={form.config}
+                errors={errors}
+                onChange={handleFieldChange}
+              />
+            ) : null}
+
+            {outputVariableSection ? (
+              <NodeVariableSection
+                section={outputVariableSection}
+                inputs={inputs}
+                outputs={outputs}
+                availableVariables={availableVariables}
+                inputErrors={inputErrors}
+                outputErrors={outputErrors}
+                onInputsChange={handleInputsChange}
+                onOutputsChange={handleOutputsChange}
+              />
+            ) : null}
+          </div>
         ) : (
           <p className="text-muted-foreground text-sm">当前节点暂无可配置项</p>
         )}

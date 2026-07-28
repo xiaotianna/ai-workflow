@@ -29,6 +29,10 @@
 - 工作流节点表单依赖的知识库、工作流列表等动态业务数据，在
   `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
   `NodeConfigFields` 不增加控件或业务数据专属参数。
+- 节点变量区先通过 Core `resolveNodeVariableForm` 解析 `NodeType.variableForm`；整个配置
+  未声明时默认拥有输入、输出区，配置对象存在时只渲染其中实际声明的方向，不使用 `null`
+  占位。通用编辑组件由 `@ai-workflow/form` 提供；Web 只计算上游变量候选、管理表单状态并
+  写回节点，不按节点类型维护变量区配置表或重复默认规则。
 
 ## 新增业务功能
 

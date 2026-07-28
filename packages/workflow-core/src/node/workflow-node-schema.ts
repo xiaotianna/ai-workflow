@@ -79,4 +79,5 @@ export const workflowNodeSchema = z.object({
 
 export type WorkflowNode = z.infer<typeof workflowNodeSchema>
 export type NodeInputBindings = z.output<typeof nodeInputBindingsSchema>
+export type NodeInputBindingsInput = z.input<typeof nodeInputBindingsSchema>
 export type NodeOutputDefinition = z.output<typeof nodeOutputDefinitionSchema>

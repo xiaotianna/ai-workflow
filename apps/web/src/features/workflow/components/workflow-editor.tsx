@@ -55,6 +55,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         <WorkflowPanel
           nodeTypes={editor.availableNodeTypes}
           selectedNode={editor.selectedNode}
+          selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
           selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
           onAddNode={editor.addNode}
           onApplyNode={editor.applyNode}

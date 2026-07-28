@@ -13,7 +13,7 @@ export const StartNodeContent = ({ node, definition }: NodeContentProps<StartNod
         ) : null}
 
         <div className="flex items-center justify-between rounded-md bg-slate-100/80 px-2.5 py-2">
-          <span className="truncate text-sm text-slate-700">输出变量</span>
+          <span className="truncate text-sm text-slate-700">输入变量</span>
           <span className="shrink-0 text-xs font-medium text-slate-500">{outputs.length} 个</span>
         </div>
 
@@ -25,7 +25,7 @@ export const StartNodeContent = ({ node, definition }: NodeContentProps<StartNod
             </div>
           ))
         ) : (
-          <div className="text-xs text-slate-400">暂未配置输出变量</div>
+          <div className="text-xs text-slate-400">暂未配置输入变量</div>
         )}
       </div>
     </NodeContentList>
