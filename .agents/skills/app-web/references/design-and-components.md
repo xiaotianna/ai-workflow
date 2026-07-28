@@ -68,6 +68,8 @@
 
 ## 工作流画布
 
+- 工作流操作栏的系统变量按钮复用 `@ai-workflow/ui/components/variable-icon`，由图标组件
+  通过 `currentColor` 继承按钮文字色，不在 Web 层直接用 `<img>` 渲染固定色 SVG。
 - 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
   `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
   `NODE_THEMES` 或固定使用主色。
@@ -81,8 +83,10 @@
   方向，不使用 `null` 占位。Core 只声明区域和 renderer，Form 提供受控组件，Web 不按节点
   类型复制映射。
   Start 的“输入变量”通过专属 renderer 展示紧凑列表，右上角加号打开新增 Dialog，已有变量
-  可通过同一 Dialog 编辑，最终仍写入 `node.outputs`；End 的“输出变量”通过输入绑定 renderer
-  写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量排列。当前节点可
+  可通过同一 Dialog 编辑；Dialog 编辑字段类型、变量名称、显示名称、类型匹配的默认值与
+  必填状态，不提供最大长度或隐藏预填，最终仍写入 `node.outputs`；End 的“输出变量”通过输入
+  绑定 renderer 写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量排列。
+  当前节点可
   引用变量由 Web 根据执行 Edge 收集所有可达
   上游节点的动态输出和静态输出端口，再作为候选传入 Form；首期只支持直接值和完整上游
   变量引用，不包含系统变量、环境变量和嵌套 Path。名称、描述、`config`、`inputs`、

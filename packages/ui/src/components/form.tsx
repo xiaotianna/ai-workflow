@@ -3,6 +3,7 @@ import * as React from 'react'
 import { cn } from '../lib/utils'
 
 interface FormFieldProps extends Omit<React.ComponentProps<'fieldset'>, 'children'> {
+  actions?: React.ReactNode
   children: React.ReactNode
   description?: React.ReactNode
   error?: React.ReactNode
@@ -11,6 +12,7 @@ interface FormFieldProps extends Omit<React.ComponentProps<'fieldset'>, 'childre
 }
 
 function FormField({
+  actions,
   children,
   className,
   description,
@@ -21,9 +23,26 @@ function FormField({
 }: FormFieldProps) {
   return (
     <fieldset data-slot="form-field" className={cn('min-w-0 border-0 p-0', className)} {...props}>
-      <legend data-slot="form-label" className="text-foreground text-sm font-medium">
-        {label}
-        {!required && <span className="text-muted-foreground font-normal">（可选）</span>}
+      <legend
+        data-slot="form-label"
+        className={cn('text-foreground text-sm font-medium', actions && 'w-full')}
+      >
+        {actions ? (
+          <span className="flex min-w-0 items-center justify-between gap-2">
+            <span className="min-w-0">
+              {label}
+              {!required && <span className="text-muted-foreground font-normal">（可选）</span>}
+            </span>
+            <span data-slot="form-actions" className="shrink-0">
+              {actions}
+            </span>
+          </span>
+        ) : (
+          <>
+            {label}
+            {!required && <span className="text-muted-foreground font-normal">（可选）</span>}
+          </>
+        )}
       </legend>
       <div data-slot="form-control" className="mt-1">
         {children}

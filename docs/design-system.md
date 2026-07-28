@@ -83,6 +83,7 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 - 通用表单布局使用 `packages/ui/src/components/form.tsx` 中的复合组件 `Form` 与 `Form.Field`。
 - `Form` 是原生 `form` 容器，只统一字段间距，不接管值、校验与提交状态。
 - `Form.Field` 使用非点击激活的分组标题统一标签、控件区域、说明和错误信息。实际 Input、Textarea、Select 或业务组件由外部作为 children 传入，字段容器不得克隆或修改这些控件。
+- 字段标题右侧需要按钮等操作时，通过 `Form.Field` 的 `actions` 插槽传入，由组件统一标题行布局，不在使用方额外添加标题容器样式。
 - 必填字段必须显式传入 `required`；未传入或传入 `false` 时，标签文字后自动添加 `（可选）`。
 - 因字段标题不会代理控件点击，外部控件必须提供准确的 `aria-label`，保证无障碍名称完整。
 - 表单校验由使用方负责。提交型按钮的 `disabled` 状态必须与当前表单是否可提交保持一致。
@@ -94,6 +95,9 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
   </Form.Field>
   <Form.Field label="描述">
     <Textarea aria-label="描述（可选）" />
+  </Form.Field>
+  <Form.Field label="成员" actions={<Button type="button">添加</Button>}>
+    <MemberList />
   </Form.Field>
   <Button type="submit" variant="confirm" disabled={!isValid}>
     创建

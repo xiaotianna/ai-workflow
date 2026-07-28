@@ -233,6 +233,8 @@ NodeOutputDefinition[]
 - `label`
 - `dataType`
 - `description`
+- `defaultValue`（可选元数据，默认编辑器不展示）
+- `required`（可选元数据，默认编辑器不展示）
 
 不创建第二套输出数据结构或手写校验规则。
 
@@ -240,15 +242,24 @@ NodeOutputDefinition[]
 
 `StartInputVariablesEditor` 同样编辑 `NodeOutputDefinition[]`，但使用 Start 专属交互：
 
-- 列表只展示变量 Key、显示名称和数据类型。
-- 点击右上角 `+` 打开“添加输入变量” Dialog。
-- 点击已有变量或编辑按钮打开同一套“编辑输入变量” Dialog。
-- Dialog 字段严格使用现有 `key`、`label`、`dataType`、`description`。
+- 输入变量区使用 UI `Form.Field` 统一标题、说明和内容间距，右侧新增按钮通过 `actions`
+  插槽传入，不在 renderer 中重复实现标题行样式。
+- 列表项为 32px 高的紧凑卡片，默认展示变量 Key、显示名称、必填状态和复用
+  `DataTypeIcon` 的数据类型图标；Hover 或键盘聚焦列表项时隐藏右侧元数据并显示编辑、
+  删除按钮。列表项内容本身不可点击，只有对应操作按钮可以编辑或删除变量。
+- 点击右上角 `+` 打开“新增变量” Dialog。
+- 点击编辑按钮打开同一套“编辑变量” Dialog。
+- Dialog 编辑 `dataType`、`key`、`label`、`defaultValue` 和 `required`。
+- 默认值使用随数据类型变化的控件和转换规则，保存后必须与 `dataType` 匹配。
+- dataType 使用 Form 包公开的 `DataTypeSelect`，统一展示类型图标、中文名称、类型徽标和
+  选中态；Core `json` 的徽标文案显示为 `object`，其他变量编辑场景直接复用，不重复维护
+  选项 UI。
+- 历史 `description` 数据继续保留，但不在 Start 专属 Dialog 中展示。
 - 新增和编辑都通过 `nodeOutputDefinitionsSchema` 校验，重复 Key 或非法字段不会写回。
 - Dialog 表单使用 `useFormData` 管理；关闭、取消和提交后重置临时状态。
 
-参考界面中的最大长度、默认值和必填开关不属于当前 `NodeOutputDefinition`，本次不新增这些
-持久化字段。
+参考界面中的最大长度和隐藏预填不提供；`defaultValue` 与 `required` 作为
+`NodeOutputDefinition` 的可选持久化字段，保持旧工作流兼容。
 
 ## 6. Web 接入
 
@@ -364,6 +375,7 @@ Form 包不遍历工作流，Core 不依赖画布数据。
 | ------------------------------------------------------------------------- | ------------------------------------- |
 | `packages/workflow-core/src/form/node-variable-form.ts`                   | `variableForm` 契约、默认值和解析函数 |
 | `packages/workflow-form/src/components/node-variable-section.tsx`         | 变量区公共入口和 renderer 契约        |
+| `packages/workflow-form/src/components/data-type-select.tsx`              | 通用 DataType 受控选择器              |
 | `packages/workflow-form/src/components/variable-section-header.tsx`       | 默认变量编辑器复用的区块标题          |
 | `packages/workflow-form/src/variables/node-input-bindings-editor.tsx`     | 默认输入绑定编辑器                    |
 | `packages/workflow-form/src/variables/node-output-definitions-editor.tsx` | 默认输出定义编辑器                    |
@@ -377,6 +389,7 @@ Form 包不遍历工作流，Core 不依赖画布数据。
 | 文件                                                                  | 改动                                  |
 | --------------------------------------------------------------------- | ------------------------------------- |
 | `packages/workflow-core/src/node/node-definition.ts`                  | 给 `NodeType` 增加可选 `variableForm` |
+| `packages/workflow-core/src/node/workflow-node-schema.ts`             | 输出定义增加默认值与必填元数据        |
 | `packages/workflow-core/src/nodes/start/index.ts`                     | 声明 Start 输入变量区                 |
 | `packages/workflow-core/src/nodes/end/index.ts`                       | 声明 End 输出变量区                   |
 | `packages/workflow-core/src/nodes/code/index.ts`                      | 使用默认变量区，不保留重复配置        |
@@ -391,7 +404,7 @@ Form 包不遍历工作流，Core 不依赖画布数据。
 
 ## 9. 明确不做
 
-- 不修改 `WorkflowNode` schema。
+- 不修改 `WorkflowNode` 顶层结构；只扩展 `node.outputs` 元数据。
 - 不修改 Start、End、Code 端口。
 - 不修改 Runtime。
 - 不接入 `Workflow.outputs`。
@@ -408,7 +421,8 @@ Start 或 Code 输出 Key 被重命名、删除后，下游旧引用由现有工
 - 只显示“输入变量”。
 - 右上角 `+` 打开新增变量 Dialog。
 - 已有变量可以通过同一 Dialog 编辑，也可以直接删除。
-- Dialog 使用现有变量 Key、显示名称、数据类型和说明字段。
+- Dialog 使用字段类型、变量名称、显示名称、默认值和必填字段。
+- Dialog 不提供最大长度、隐藏预填和说明字段。
 - 编辑数据写入 `node.outputs`。
 - 画布显示输入变量数量和名称。
 

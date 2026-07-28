@@ -12,6 +12,7 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
 import { Form } from '@ai-workflow/ui/components/form'
+import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { useIsMobile } from '@ai-workflow/ui/hooks/use-mobile'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
@@ -27,6 +28,9 @@ import '@ai-workflow/ui/globals.css'
   明暗主题自动适配、加载态和禁用态。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等
   场景 UI 由使用方组合，不下沉到 UI 包。
 - 数据展示：`Table`、`Badge`、`Pagination`。
+- 图标：`VariableIcon` 使用内置 `system-icon.svg` 作为 CSS Mask，通过 `currentColor`
+  继承调用处的语义文字色；需要主题主色时传入 `text-primary`，不要用 `<img>` 固定 SVG
+  原始颜色。
 - `Table` 采用无边框容器，仅保留行间细分隔线；表头与行高均为 `h-9`（36px），表头使用 `text-xs/8 font-normal`、`text-muted-foreground` 与 `whitespace-nowrap`，单元格使用 `text-[13px] leading-4` 与 `px-3` 间距；行 Hover 与选中态默认在 `TableRow` 上使用 `bg-input`。容器默认 `overflow-x-auto`；需要 sticky 列或由外层统一滚动时，传 `containerClassName="overflow-visible"`，滚动交给外层单一容器，表格本体加 `border-separate border-spacing-0`。
 - 含 sticky 列的表格：sticky 单元格需默认实底（通常 `bg-background`）以遮挡横向滚动内容；行 hover、选中、行内 Dropdown 打开等态应在**单元格**上用命名 group（如 `group/row`）与其他列同步，不要仅依赖 `<tr>` 背景，也不要让 sticky 列单独维护一套 hover 规则。
 - 表单布局：`Form`、`Form.Field`。
@@ -44,7 +48,8 @@ import '@ai-workflow/ui/globals.css'
 - 修改组件视觉前读取 `docs/design-system.md`，token 实际值以 `src/styles/globals.css` 为准。
 - 可点击且有 Hover 反馈的组件使用 `cursor-pointer`；拖拽、缩放和禁用态使用对应的专用光标，文本编辑控件除外。
 - 禁止重新引入 `ring-*` 交互样式；Button 等可点击组件通过内部背景或文字变化表达聚焦，不增加聚焦边框或阴影，输入型组件使用语义边框。
-- 表单使用 `Form` 与 `Form.Field`；实际控件提供 `aria-label`。
+- 表单使用 `Form` 与 `Form.Field`；实际控件提供 `aria-label`。字段标题右侧需要操作入口时，
+  通过 `Form.Field` 的 `actions` 插槽传入，不在业务组件中重复实现标题行布局。
 - 代码输入使用 `CodeEditor`，通过 `language` 指定 Monaco 语言，通过 `value`、`onChange`
   管理受控值；需要调整 Monaco 行为时传 `options`，不要在业务包重复初始化 Worker 或
   Loader，也不要把业务顶栏、弹窗或提交语义加入编辑器核心。Monaco Worker 从

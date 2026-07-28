@@ -43,6 +43,13 @@ import {
   type AvailableVariableOption,
   type NodeVariableRendererMap,
 } from '@ai-workflow/form/components/node-variable-section'
+
+import {
+  DataTypeIcon,
+  DataTypeSelect,
+  type DataTypeIconProps,
+  type DataTypeSelectProps,
+} from '@ai-workflow/form/components/data-type-select'
 ```
 
 `src/variables` 只维护包内置的变量编辑器和 renderer 注册表，不提供独立公开入口。
@@ -52,6 +59,7 @@ import {
 
 ```text
 src/components/
+├── data-type-select.tsx
 ├── node-config-fields.tsx
 ├── node-variable-section.tsx
 └── variable-section-header.tsx
@@ -91,12 +99,17 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；
 内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key、label、dataType 和 description；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
-Dialog 新增或编辑 Start 输入变量。调用方负责提供当前节点可引用的
+Dialog 新增或编辑 Start 输入变量的 key、label、dataType、defaultValue 和 required；不提供
+最大长度或隐藏预填字段。调用方负责提供当前节点可引用的
 `AvailableVariableOption`、Zod 错误、当前值和写回回调，Form 不遍历工作流、Edge 或
 React Flow。通过可选 `renderers` 注入自定义 renderer 时，renderer 名称必须与 Core 节点
 声明一致。内置 renderer 的映射集中维护在
 `src/variables/node-variable-renderer-registry.ts`，容器组件和公共契约维护在
 `src/components/node-variable-section.tsx`，通用变量区 Header 也放在 `src/components`。
+Core `DataType` 的受控选择统一复用公开组件 `DataTypeSelect`；组件展示图标、中文名称、
+类型徽标和当前选中态，其中 Core `json` 的徽标文案显示为 `object`；组件通过
+`onValueChange` 返回校验后的 `DataType`。仅需展示类型图标时复用同入口公开的
+`DataTypeIcon`。不要在 renderer 或 Web 中重复维护类型名称、图标和 Select 结构。
 
 ## 表单状态与校验
 
@@ -153,10 +166,18 @@ export const builtinFields = {
 - `NodeInputBindingsEditor` 以紧凑列表编辑变量 Key、直接值或上游引用；首期只消费调用方
   提供的候选，不自行生成系统变量、环境变量或嵌套 Path。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
-  `DATA_TYPE_VALUES`，不复制输出 schema。
+  `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
+  默认值元数据。
 - `StartInputVariablesEditor` 使用 `useFormData` 管理 Dialog 临时表单，通过
+  Core 字段 schema 派生的本地草稿 schema 转换各类型默认值，再通过
   `nodeOutputDefinitionsSchema` 校验新增或编辑后的完整数组；Dialog 关闭、取消和提交后均
-  重置草稿。表单只使用现有 key、label、dataType、description，不添加 Start 私有数据字段。
+  重置草稿。界面编辑 key、label、dataType、defaultValue 和 required，已有 description
+  保留但不在 Start 专属 Dialog 中展示；dataType 复用 `DataTypeSelect`，不添加 Start 私有
+  数据字段。输入变量区使用 UI `Form.Field` 统一标题、说明和内容间距，新增按钮通过
+  `actions` 插槽传入，不手写字段标题布局。变量项使用 32px 高的语义背景、细边框和轻量
+  阴影，默认展示 Key、显示名称、必填状态与 `DataTypeIcon`；Hover 或键盘聚焦项时切换为
+  编辑、删除按钮。条目前导变量标识复用 UI 包的 `VariableIcon` 并使用 `text-primary`，
+  不使用 JSON 数据类型图标。变量项内容本身不触发编辑，只允许对应操作按钮修改或删除变量。
 - 所有 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
   实际控件提供 `aria-label`、`aria-invalid` 与 disabled 状态。
 
@@ -164,8 +185,8 @@ export const builtinFields = {
 
 - Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或节点执行。
 - 节点变量区由 Core `resolveNodeVariableForm` 解析；整个配置缺省时使用 Core 默认输入、
-  输出区，配置对象存在但缺少某方向时调用方不渲染该方向。Form 不合并默认值，也不在 Form
-  或 Web 中维护节点类型白名单。
+  输出区，配置对象存在但缺少某方向时调用方不渲染该方向。Form 不合并缺失的变量区配置，
+  也不在 Form 或 Web 中维护节点类型白名单。
 - 节点配置最终合法性始终由对应 Core Zod schema 和 `validateFormByZod` 判断，renderer
   只负责输入值转换。
 - 新增字段 UI 类型时，在 Form 增加独立字段目录，并更新 `builtinFields`；不要复制

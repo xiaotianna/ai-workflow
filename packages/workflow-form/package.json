@@ -14,6 +14,7 @@
     "@ai-workflow/shared": "workspace:*",
     "@ai-workflow/ui": "workspace:*",
     "lucide-react": "^1.14.0",
-    "react": "^19.2.4"
+    "react": "^19.2.4",
+    "zod": "^4.4.3"
   }
 }

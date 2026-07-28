@@ -2,22 +2,55 @@ import { z } from 'zod'
 import { DATA_TYPE_VALUES } from '../port/data-types'
 import { variableValueSchema } from '../variable/variable-value-schema'
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+
+const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z.lazy(() =>
+  z.union([
+    z.string(),
+    z.number().finite(),
+    z.boolean(),
+    z.null(),
+    z.array(jsonValueSchema),
+    z.record(z.string(), jsonValueSchema),
+  ]),
+)
+
 // 每个节点通用的输入变量绑定，值可以直接填写，也可以引用上游节点的输出变量
 export const nodeInputBindingsSchema = z
   .record(z.string().trim().min(1, '输入变量名不能为空'), variableValueSchema)
   .default({})
 
 // 节点对外公开的输出变量定义，dataType只描述变量，不再限制画布连线
-export const nodeOutputDefinitionSchema = z.object({
-  key: z
-    .string()
-    .trim()
-    .min(1, '输出变量名不能为空')
-    .regex(/^[a-zA-Z_]\w*$/, '输出变量名格式不正确'),
-  label: z.string().trim().min(1, '输出变量显示名称不能为空'),
-  dataType: z.enum(DATA_TYPE_VALUES),
-  description: z.string().trim().optional(),
-})
+export const nodeOutputDefinitionSchema = z
+  .object({
+    key: z
+      .string()
+      .trim()
+      .min(1, '输出变量名不能为空')
+      .regex(/^[a-zA-Z_]\w*$/, '输出变量名格式不正确'),
+    label: z.string().trim().min(1, '输出变量显示名称不能为空'),
+    dataType: z.enum(DATA_TYPE_VALUES),
+    description: z.string().trim().optional(),
+    defaultValue: jsonValueSchema.optional(),
+    required: z.boolean().optional(),
+  })
+  .superRefine((output, context) => {
+    if (output.defaultValue === undefined) return
+
+    const matchesDataType =
+      (output.dataType === 'string' && typeof output.defaultValue === 'string') ||
+      (output.dataType === 'number' && typeof output.defaultValue === 'number') ||
+      (output.dataType === 'boolean' && typeof output.defaultValue === 'boolean') ||
+      output.dataType === 'json'
+
+    if (!matchesDataType) {
+      context.addIssue({
+        code: 'custom',
+        path: ['defaultValue'],
+        message: '默认值与变量类型不匹配',
+      })
+    }
+  })
 
 export const nodeOutputDefinitionsSchema = z
   .array(nodeOutputDefinitionSchema)
@@ -81,3 +114,4 @@ export type WorkflowNode = z.infer<typeof workflowNodeSchema>
 export type NodeInputBindings = z.output<typeof nodeInputBindingsSchema>
 export type NodeInputBindingsInput = z.input<typeof nodeInputBindingsSchema>
 export type NodeOutputDefinition = z.output<typeof nodeOutputDefinitionSchema>
+export type NodeOutputDefinitionInput = z.input<typeof nodeOutputDefinitionSchema>

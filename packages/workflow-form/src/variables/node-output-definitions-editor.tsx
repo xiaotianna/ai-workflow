@@ -1,26 +1,13 @@
-import { DATA_TYPE_VALUES, type DataType, type NodeOutputDefinition } from '@ai-workflow/core'
+import type { NodeOutputDefinition } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@ai-workflow/ui/components/select'
 import { Trash2 } from 'lucide-react'
 
+import { DataTypeSelect } from '../components/data-type-select'
 import type { NodeVariableSectionRendererProps } from '../components/node-variable-section'
 import { VariableSectionHeader } from '../components/variable-section-header'
 import { getFieldError } from '../utils/get-field-error'
 import { createUniqueKey } from '../utils/create-unique-key'
-
-const DATA_TYPE_LABELS = {
-  string: '字符串',
-  number: '数字',
-  boolean: '布尔值',
-  json: 'JSON',
-} satisfies Record<DataType, string>
 
 export function NodeOutputDefinitionsEditor({
   section,
@@ -111,7 +98,7 @@ export function NodeOutputDefinitionsEditor({
                   </Button>
                 </div>
 
-                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_104px] gap-2">
+                <div className="grid min-w-0 grid-cols-2 gap-2">
                   <Input
                     className="h-8"
                     value={output.label}
@@ -121,42 +108,19 @@ export function NodeOutputDefinitionsEditor({
                     placeholder="显示名称"
                     onChange={(event) => updateOutput(index, { label: event.currentTarget.value })}
                   />
-                  <Select
+                  <DataTypeSelect
                     value={output.dataType}
                     disabled={disabled}
+                    size="sm"
+                    aria-label={`${section.label}数据类型`}
+                    aria-invalid={Boolean(dataTypeError)}
                     onValueChange={(dataType) => {
-                      const nextDataType = DATA_TYPE_VALUES.find(
-                        (candidate) => candidate === dataType,
-                      )
-
-                      if (nextDataType) {
-                        updateOutput(index, {
-                          dataType: nextDataType,
-                        })
-                      }
+                      updateOutput(index, {
+                        dataType,
+                        defaultValue: undefined,
+                      })
                     }}
-                  >
-                    <SelectTrigger
-                      size="sm"
-                      className="w-full"
-                      aria-label={`${section.label}数据类型`}
-                      aria-invalid={Boolean(dataTypeError)}
-                    >
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="popper"
-                      align="start"
-                      sideOffset={4}
-                      className="w-(--radix-select-trigger-width)"
-                    >
-                      {DATA_TYPE_VALUES.map((dataType) => (
-                        <SelectItem key={dataType} value={dataType}>
-                          {DATA_TYPE_LABELS[dataType]}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 </div>
 
                 <Input

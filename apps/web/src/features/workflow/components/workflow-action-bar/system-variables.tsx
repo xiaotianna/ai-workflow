@@ -1,7 +1,7 @@
 import { Button } from '@ai-workflow/ui/components/button'
+import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { iconBtnClass } from './icon-button-class'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import Icon from './icon/system-icon.svg'
 
 export const SystemVariables = () => {
   return (
@@ -13,7 +13,7 @@ export const SystemVariables = () => {
         className={cn(iconBtnClass, 'h-8 w-auto px-2.5 text-xs font-semibold tracking-wide')}
         aria-label="系统变量"
       >
-        <img src={Icon} className="size-4" />
+        <VariableIcon />
       </Button>
     </>
   )

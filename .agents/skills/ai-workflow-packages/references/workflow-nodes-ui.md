@@ -61,8 +61,11 @@ import {
 `NodeHeader` 通过 `actions` 提供右侧操作插槽，容器节点的添加操作放在 Header 内；
 循环节点的内部区域使用与主画布相同间距和颜色的 CSS 点阵背景，不嵌套 React Flow；
 `NodePortsRender` 默认纵向排列端口，容器节点可以使用 `layout="centered"` 将端口放在垂直中线。
-开始节点的专属 `StartNodeContent` 同时展示解析后的实例描述和 `node.outputs` 摘要；产品
-文案使用“输入变量”，因为这些字段是工作流入口输入，但从 Start 节点方向看仍保存为输出。
+开始节点的专属 `StartNodeContent` 使用 `NodeContentItem` 逐条展示 `node.outputs` 输入变量；
+条目内容与开始节点配置面板保持一致，包含变量 Key、显示名称、必填状态和数据类型图标。
+条目前导变量标识复用 UI 包基于 `system-icon.svg` 的 `VariableIcon`，并通过
+`text-primary` 跟随主题色，不使用 JSON 数据类型图标。
+产品文案使用“输入变量”，因为这些字段是工作流入口输入，但从 Start 节点方向看仍保存为输出。
 End 节点通过 `EndNodeContent` 展示实例描述、`node.inputs` 中的输出 Key 和数量，不展示
 直接值或引用详情。两种专属内容都不得因为接管默认 Body 而丢失节点描述。
 Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容，读取经过 Code schema

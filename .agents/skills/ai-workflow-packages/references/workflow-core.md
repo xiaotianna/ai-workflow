@@ -38,6 +38,10 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
 - `workflowNodeSchema` 校验通用节点字段、可选的实例 `label` / `description`、
   `inputs` 变量绑定和实例动态 `outputs`；实例名称和描述覆盖 `NodeDefinition` 的默认展示
   文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
+- `NodeOutputDefinition` 除 `key`、`label`、`dataType`、`description` 外，可选保存
+  `defaultValue` 与 `required`；默认值必须是可序列化 JSON 值，并与 string、number、
+  boolean 类型声明一致，json 类型接受任意 JSON 值。两项保持可选以兼容旧工作流和不需要
+  输入元数据的普通节点输出。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`
@@ -110,5 +114,7 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
 - `package.json` 直接声明 Core 源码使用的 Zod 依赖，不依靠根目录提升。
-- 字段契约不再提供 `defaultValue`，节点默认配置唯一来源是 `NodeType.createInitialConfig()`。
+- 节点 `config` 的字段契约不提供 `defaultValue`，配置默认值唯一来源是
+  `NodeType.createInitialConfig()`；这与 `NodeOutputDefinition.defaultValue` 的输入变量元数据
+  语义不同。
 - `src/node/get-node-ports使用文档.md` 和 `src/validate/validate使用.md` 是补充示例；示例与当前 API 不一致时以源码为准并同步更新文档。
