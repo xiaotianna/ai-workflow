@@ -5,6 +5,7 @@ import {
   llmNode,
   loopNode,
   nodeRegistry,
+  ragNode,
   startNode,
 } from '@ai-workflow/core'
 import type { NodeRegistry } from '@ai-workflow/core'
@@ -15,6 +16,7 @@ import { ConditionNodeContent } from './condition'
 import { HttpNodeContent } from './http'
 import { LlmNodeContent } from './llm'
 import { LoopNode } from './loop'
+import { RagNodeContent } from './rag'
 import { StartNodeContent } from './start'
 
 export const builtinNodeUIRegistrations = [
@@ -22,6 +24,7 @@ export const builtinNodeUIRegistrations = [
   defineNodeUI(codeNode, CodeNodeContent),
   defineNodeUI(httpNode, HttpNodeContent),
   defineNodeUI(llmNode, LlmNodeContent),
+  defineNodeUI(ragNode, RagNodeContent),
   defineNodeUI(conditionNode, ConditionNodeContent),
   defineNodeRendererUI(loopNode, LoopNode),
 ]

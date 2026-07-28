@@ -26,6 +26,9 @@
 - 业务功能可以使用 `src/components` 和 workspace package；package 不得依赖 Web。
 - 只有两个以上业务域真实复用时，才把组件提升到 `src/components`。
 - 只有无业务语义且可跨应用复用时，才把能力下沉到 package。
+- 工作流节点表单依赖的知识库、工作流列表等动态业务数据，在
+  `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
+  `NodeConfigFields` 不增加控件或业务数据专属参数。
 
 ## 新增业务功能
 

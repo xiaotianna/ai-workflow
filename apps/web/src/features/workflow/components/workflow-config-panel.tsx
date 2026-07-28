@@ -4,10 +4,15 @@ import {
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
 import { NodeHeader } from '@ai-workflow/nodes-ui'
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { X } from 'lucide-react'
-import { useState } from 'react'
+import { z } from 'zod'
+
+import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
+import { resolveNodeFormFields } from '../node-form-resolvers/registry'
 
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
@@ -19,6 +24,14 @@ interface WorkflowConfigPanelProps {
 const INLINE_TEXT_INPUT_CLASS_NAME =
   'm-0 h-auto rounded-none border-0 bg-transparent p-0 shadow-none transition-none hover:border-transparent hover:bg-transparent focus-visible:border-transparent focus-visible:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent'
 
+const workflowConfigPanelFormSchema = z.object({
+  label: z.string().trim().min(1, '节点名称不能为空'),
+  description: z.string().trim(),
+  config: z.record(z.string(), z.unknown()),
+})
+
+type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema>
+
 export const WorkflowConfigPanel = ({
   node,
   defaultLabel,
@@ -27,12 +40,11 @@ export const WorkflowConfigPanel = ({
 }: WorkflowConfigPanelProps) => {
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
-  const [labelDraft, setLabelDraft] = useState(() => node.label ?? resolvedDefaultLabel)
-  const [descriptionDraft, setDescriptionDraft] = useState(
-    () => node.description ?? nodeType?.definition.description ?? '',
-  )
-  const [draft, setDraft] = useState<Record<string, unknown>>(() => ({ ...node.config }))
-  const [errors, setErrors] = useState<NodeConfigFieldErrors>({})
+  const { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
+    label: node.label ?? resolvedDefaultLabel,
+    description: node.description ?? nodeType?.definition.description ?? '',
+    config: { ...node.config },
+  })
 
   if (!nodeType) {
     return (
@@ -53,25 +65,29 @@ export const WorkflowConfigPanel = ({
     )
   }
 
-  function handleLabelChange(value: string) {
-    setLabelDraft(value)
+  const configValidation = validateFormByZod(nodeType.schema, form.config)
+  const errors: NodeConfigFieldErrors = configValidation.success ? {} : configValidation.errors
 
-    if (value.trim()) {
+  function handleLabelChange(value: string) {
+    updateFormField('label', value)
+    const parsedLabel = validateFormByZod(workflowConfigPanelFormSchema.shape.label, value)
+
+    if (parsedLabel.success) {
       onApply({
         ...node,
-        label: value,
+        label: parsedLabel.data,
       })
     }
   }
 
   function handleLabelBlur() {
-    const nextLabel = labelDraft.trim()
+    const parsedLabel = validateFormByZod(workflowConfigPanelFormSchema.shape.label, form.label)
 
-    if (!nextLabel) {
+    if (!parsedLabel.success) {
       const resetLabel =
         resolvedDefaultLabel === nodeType!.definition.label ? undefined : resolvedDefaultLabel
 
-      setLabelDraft(resolvedDefaultLabel)
+      updateFormField('label', resolvedDefaultLabel)
 
       if (node.label !== resetLabel) {
         onApply({
@@ -82,7 +98,8 @@ export const WorkflowConfigPanel = ({
       return
     }
 
-    setLabelDraft(nextLabel)
+    const nextLabel = parsedLabel.data
+    updateFormField('label', nextLabel)
 
     if (nextLabel !== (node.label ?? resolvedDefaultLabel)) {
       onApply({
@@ -93,17 +110,30 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleDescriptionChange(value: string) {
-    setDescriptionDraft(value)
+    updateFormField('description', value)
+    const parsedDescription = validateFormByZod(
+      workflowConfigPanelFormSchema.shape.description,
+      value,
+    )
+
+    if (!parsedDescription.success) return
+
     onApply({
       ...node,
-      description: value,
+      description: parsedDescription.data,
     })
   }
 
   function handleDescriptionBlur() {
-    const nextDescription = descriptionDraft.trim()
+    const parsedDescription = validateFormByZod(
+      workflowConfigPanelFormSchema.shape.description,
+      form.description,
+    )
 
-    setDescriptionDraft(nextDescription)
+    if (!parsedDescription.success) return
+
+    const nextDescription = parsedDescription.data
+    updateFormField('description', nextDescription)
 
     if (nextDescription !== (node.description ?? nodeType!.definition.description ?? '')) {
       onApply({
@@ -114,36 +144,23 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleFieldChange(name: string, value: unknown) {
-    const nextDraft = {
-      ...draft,
+    const nextConfig = {
+      ...form.config,
       [name]: value,
     }
-    const parsedConfig = nodeType!.schema.safeParse(nextDraft)
+    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
 
-    setDraft(nextDraft)
+    updateFormField('config', nextConfig)
 
-    if (!parsedConfig.success) {
-      const nextErrors: Record<string, string> = {}
+    if (!parsedConfig.success) return
 
-      for (const issue of parsedConfig.error.issues) {
-        const fieldName = issue.path[0]
-        const errorKey = typeof fieldName === 'string' ? fieldName : '$form'
-
-        nextErrors[errorKey] ??= issue.message
-      }
-
-      setErrors(nextErrors)
-      return
-    }
-
-    setErrors({})
     onApply({
       ...node,
-      config: parsedConfig.data as WorkflowNode['config'],
+      config: parsedConfig.data,
     })
   }
 
-  const formFields = nodeType.form
+  const formFields = resolveNodeFormFields(nodeType, builtinNodeFormFieldsResolvers)
   const hasFields = formFields && Object.keys(formFields).length > 0
 
   return (
@@ -153,7 +170,7 @@ export const WorkflowConfigPanel = ({
         className="px-4 pt-4 pb-1"
         label={
           <Input
-            value={labelDraft}
+            value={form.label}
             onChange={(event) => handleLabelChange(event.target.value)}
             onBlur={handleLabelBlur}
             onKeyDown={(event) => {
@@ -183,7 +200,7 @@ export const WorkflowConfigPanel = ({
 
       <div className="px-4 py-2">
         <Input
-          value={descriptionDraft}
+          value={form.description}
           onChange={(event) => handleDescriptionChange(event.target.value)}
           onBlur={handleDescriptionBlur}
           onKeyDown={(event) => {
@@ -203,7 +220,7 @@ export const WorkflowConfigPanel = ({
         {hasFields ? (
           <NodeConfigFields
             fields={formFields}
-            values={draft}
+            values={form.config}
             errors={errors}
             onChange={handleFieldChange}
           />
@@ -211,8 +228,8 @@ export const WorkflowConfigPanel = ({
           <p className="text-muted-foreground text-sm">当前节点暂无可配置项</p>
         )}
 
-        {errors.$form ? (
-          <p className="text-destructive mt-3 text-xs leading-4">{errors.$form}</p>
+        {errors.form ? (
+          <p className="text-destructive mt-3 text-xs leading-4">{errors.form}</p>
         ) : null}
       </div>
     </aside>

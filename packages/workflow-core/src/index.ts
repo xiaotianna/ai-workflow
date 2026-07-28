@@ -5,6 +5,7 @@ export * from './nodes/start'
 export * from './nodes/code'
 export * from './nodes/http'
 export * from './nodes/llm'
+export * from './nodes/rag'
 export * from './nodes/condition'
 export * from './validate'
 

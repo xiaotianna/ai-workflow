@@ -39,7 +39,12 @@ export function SelectField({
         <SelectTrigger className="w-full" aria-label={field.label} aria-invalid={Boolean(error)}>
           <SelectValue placeholder={`请选择${field.label}`} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent
+          position="popper"
+          align="start"
+          sideOffset={4}
+          className="w-(--radix-select-trigger-width)"
+        >
           {field.options.map((option, index) => (
             <SelectItem
               key={`${typeof option.value}:${String(option.value)}:${index}`}

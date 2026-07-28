@@ -36,11 +36,6 @@ import {
   type NodeConfigFieldMap,
   type NodeConfigFieldValues,
 } from '@ai-workflow/form/components/node-config-fields'
-import { NodeInputFields } from '@ai-workflow/form/components/node-input-fields'
-import {
-  NodeOutputFields,
-  type NodeOutputFieldErrors,
-} from '@ai-workflow/form/components/node-output-fields'
 ```
 
 不要从 `packages/workflow-form/src/*` 深层导入。
@@ -49,11 +44,7 @@ import {
 
 ```text
 src/components/
-├── node-config-fields.tsx
-├── node-input-fields.tsx
-├── node-output-fields.tsx
-├── node-output-field-dialog.tsx
-└── node-fields-section.tsx
+└── node-config-fields.tsx
 src/fields/
 ├── code-field/
 ├── number-field/
@@ -74,14 +65,9 @@ renderer；带字段语义的组合组件也不移动到 `@ai-workflow/ui`。
 `NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从 `builtinFields` 选择
 renderer，并把字段当前值、错误、禁用态和变更回调传给对应组件。它不读取节点注册表，
 不管理配置校验、提交或工作流状态；这些内容由使用方按统一表单规范负责。
-
-`NodeInputFields` 和 `NodeOutputFields` 渲染 `workflowNodeSchema` 中每个节点固定存在的
-`inputs` / `outputs`，与节点类型特有的 `config` 表单分离。输入列表负责展示固定值或变量
-引用；输出列表默认只读，传入 `onChange` 后提供新增、编辑和删除入口，并使用
-`nodeOutputDefinitionSchema` 校验单个输出字段。输出数组的重复 key 等集合级校验由调用方使用
-`nodeOutputDefinitionsSchema` 完成，校验成功后再写回工作流节点。两个组件均允许调用方传入
-`title` 与 `emptyText`，以便按照 Core `NodeType.variableForm` 的语义映射展示开始、结束等
-特殊节点；组件本身不判断节点 type。
+传入的 `fields` 必须已经是调用方解析后的完整字段配置；动态选项或其他业务数据由应用层
+Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属的动态数据入口，也不请求或
+持有业务数据。
 
 ## 表单状态与校验
 
@@ -126,7 +112,8 @@ export const builtinFields = {
 - `TextField`、`NumberField` 分别处理字符串和数字输入。
 - `TextareaField` 处理多行字符串。
 - `SelectField` 使用 option 索引作为 Radix Select 内部字符串值，回调返回原始
-  string、number 或 boolean option value。
+  string、number 或 boolean option value；菜单使用 Popper 从 Trigger 下方左对齐展开，
+  保持 4px 间距并匹配 Trigger 宽度。
 - `SwitchField` 使用 boolean 受控值。
 - `SliderField` 使用 schema 的 `min`、`max`、`step`，并展示当前值。
 - `CodeField` 按需加载代码字段内容，只在代码字段实际挂载时下载 UI 包的 Monaco
@@ -142,8 +129,5 @@ export const builtinFields = {
 - Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或节点执行。
 - 节点配置最终合法性始终由对应 Core Zod schema 和 `validateFormByZod` 判断，renderer
   只负责输入值转换。
-- `NodeInputFields` / `NodeOutputFields` 只消费调用方传入的节点字段数据和更新回调，不读取
-  节点注册表或编辑器状态；分区数据源和是否允许编辑由 Core `NodeType.variableForm` 决定，
-  应用只负责解释配置并提供合法更新入口。
 - 新增字段 UI 类型时，在 Form 增加独立字段目录，并更新 `builtinFields`；不要复制
   Core 的 `FIELD_UI_TYPES`。

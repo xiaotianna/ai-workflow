@@ -79,6 +79,10 @@ HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容�
 LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，直接读取经过 LLM
 schema 解析后的 `node.config.prompt`，使用 `NodeContentList` 和 `NodeContentItem` 展示
 最多三行的提示词摘要；长文本保留完整 `title`，不在 Nodes UI 中复制配置表单字段。
+RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，读取经过 RAG schema
+解析后的 `node.config.knowledgeBaseId`，以紧凑条目展示当前知识库标识；未选择时显示明确
+空状态。字段标签和空状态提示复用 Core 的 RAG form 定义；Nodes UI 不读取 Web 的知识库
+列表，也不复制动态 Select 选项或已有 Core 业务文案。
 
 ## 新增节点界面
 
@@ -93,6 +97,8 @@ schema 解析后的 `node.config.prompt`，使用 `NodeContentList` 和 `NodeCon
 4. 加入内置 UI 注册列表，或由插件创建独立 `NodeUIRegistry`。
 5. 调用 `assertCompatible(coreRegistry)`，避免 UI 注册未知 Core 类型。
 6. 动态端口只从 Core `getNodePorts` 获取，不在 UI 中复制端口规则。
+7. Core definition 或 form 已声明的节点业务标签、说明和无障碍名称直接复用对应定义；
+   Nodes UI 只自行维护搜索、删除、空状态和计数等纯界面文案。
 
 ## 依赖与样式
 

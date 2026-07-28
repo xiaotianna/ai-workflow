@@ -54,6 +54,9 @@ import '@ai-workflow/ui/globals.css'
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。
 - 单文件选择使用 `FileDropzone`，业务校验保留在调用方。
 - `SelectContent` 与 `DropdownMenuContent` 统一使用半透明背景、0.5px 语义边框、`shadow-lg`、圆角和背景模糊，不在调用方分别覆盖阴影。
+- 标准 `SelectContent` 使用 `position="popper"`、`align="start"`、`sideOffset={4}` 并通过
+  `w-(--radix-select-trigger-width)` 匹配 Trigger 宽度，避免 `item-aligned` 将选中项覆盖在
+  Trigger 上。
 - 应用根节点挂载一次 `Toaster`，业务侧通过 `@ai-workflow/ui/lib/toast` 的
   `showToast(type, message, duration?)` 展示通知；`type` 支持 `success`、`error`、
   `warning`、`info`，可选 `duration` 使用毫秒。不要在业务组件中直接依赖 Sonner

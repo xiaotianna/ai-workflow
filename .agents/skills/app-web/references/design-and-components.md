@@ -74,12 +74,13 @@
 - 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
-  中复制字段类型分发逻辑。每个节点固定存在的 `inputs` / `outputs` 分别使用 Form 包的
-  `NodeInputFields` / `NodeOutputFields` 渲染，与节点类型特有的 `config` 分区展示；Web
-  通过 Core 的 `resolveNodeVariableForm(nodeType.variableForm)` 获取分区显隐、数据源和编辑
-  能力，并在通过 Core schema 校验后走统一节点更新入口，不得按节点 type 硬编码开始、结束
-  或其他特殊节点。开始节点的输入字段映射到 `node.outputs`，结束节点的输出字段映射到
-  `node.inputs`，普通节点默认展示两者。
+  中复制字段类型分发逻辑。当前配置面板只编辑节点实例名称、描述和节点类型特有的
+  `config`；`WorkflowNode.inputs` / `outputs` 已进入画布数据与保存结构，但尚未提供通用变量
+  编辑组件。面板表单值统一由 `useFormData` 管理，节点 schema 通过 `validateFormByZod`
+  校验；动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
+  Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从知识库业务
+  公开数据生成选项，Core 与 Form 不依赖 Web 数据；新增其他动态控件时增加对应 Resolver，
+  不扩展 `NodeConfigFields` 的控件专属参数。
 - 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
   `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；
   不在 Web 层复制节点标识色或图标。节点实例名称通过 `NodeHeader.label` 插槽渲染原生

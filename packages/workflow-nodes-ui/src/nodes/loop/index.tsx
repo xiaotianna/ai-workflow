@@ -24,7 +24,7 @@ export function LoopNode({
   return (
     <div className="group/loop relative size-full">
       <NodeWrapper
-        ariaLabel="循环节点"
+        ariaLabel={definition.label}
         selected={selected}
         disabled={disabled}
         onSelect={onSelect}

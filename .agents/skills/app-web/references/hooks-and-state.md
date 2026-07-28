@@ -122,12 +122,6 @@ function ExampleForm() {
   删除 Loop 时通过 React Flow 的删除拦截器递归删除全部后代节点及关联边。
 - 节点实例名称、描述和配置共用 `useWorkflowEditor` 的节点更新入口；修改后同步更新画布节点
   数据并设置脏状态，保存时统一转换回 Core `WorkflowNode`，不得维护只存在于配置面板的副本。
-- 配置面板把节点类型特有的 `config` 与通用 `inputs` / `outputs` 分开管理；动态输出字段使用
-  `nodeOutputDefinitionsSchema` 校验，成功后仍通过 `useWorkflowEditor` 的节点更新入口写回。
-  开始节点的 `config` 使用空 schema，工作流输入定义只保存在该节点的 `outputs`，不得再复制
-  到 `config.variables`。
-- 输入/输出字段分区通过 `resolveNodeVariableForm(nodeType.variableForm)` 推导；开始节点、
-  结束节点等例外由 Core 节点配置声明，Web 不维护节点 type 判断或另一份能力映射。
 - Loop 容器相关行为（子节点添加、缩放边界同步、删除拦截）集中在
   `features/workflow/hooks/use-workflow-loop-editor.ts`；`useWorkflowEditor` 只组合该
   Hook 并通过 `WorkflowLoopEditorProvider` 向节点组件注入能力。
