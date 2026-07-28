@@ -56,6 +56,21 @@ pnpm docker:dev:down
 和 `REDIS_PORT` 覆盖。开发数据保存在 Docker named volume 中，
 执行 `docker:dev:down` 不会删除数据。
 
+## 应用开发
+
+通过 Turborepo 从仓库根目录启动应用：
+
+```bash
+# 同时启动 Web 和 Server
+pnpm dev
+
+# 只启动 Web
+pnpm dev:web
+
+# 只启动 Server
+pnpm dev:server
+```
+
 ## 后端文档
 
 - [Prisma 入门与基础 CRUD](docs/prisma.md)

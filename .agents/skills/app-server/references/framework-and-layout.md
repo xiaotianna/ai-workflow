@@ -8,7 +8,8 @@
 
 - 使用仓库 Node.js 22+ 与 TypeScript 6 基线。
 - 首选 NestJS 11（CommonJS + `module: nodenext`），沿用根 `README.md` 的技术方向。
-- `tsconfig.json` 显式加载 `node` 与 `jest` 类型，不依赖 TypeScript 自动发现环境类型；显式设置 `rootDir: "./src"` 与 `outDir: "./dist"`，无路径映射时不设置已在 TypeScript 6 弃用的 `baseUrl`。
+- `tsconfig.json` 显式加载 `node` 与 `jest` 类型，不依赖 TypeScript 自动发现环境类型；显式设置 `rootDir: "./src"` 与 `outDir: "./dist"`，并通过 `paths` 将 `@/*` 映射到 `./src/*`，TypeScript 6 下不额外设置已弃用的 `baseUrl`。
+- 服务端源码内部使用 `@/` 别名导入；Nest CLI 编译器负责将别名转换为相对路径，Jest 通过 `moduleNameMapper` 解析同一别名。
 - Lint 使用 oxlint，继承 `configs/oxc/.oxlintrc.json` 并在 `apps/server/.oxlintrc.json` 补充 Node/NestJS 规则。
 - 格式化使用根目录 `configs/prettier` 共享配置。
 - 测试默认使用 Jest（NestJS v12 将切换为 Vitest + oxlint 原生模板，届时再评估升级）。
@@ -50,7 +51,8 @@ apps/server/
 
 | 命令                      | 说明                   |
 | ------------------------- | ---------------------- |
-| `start:dev`               | 开发模式启动（watch）  |
+| `dev` / `dev:server`      | 开发模式启动（watch）  |
+| `start:dev`               | NestJS 兼容启动入口    |
 | `build`                   | 编译到 `dist/`         |
 | `prisma:generate`         | 生成 Prisma Client     |
 | `prisma:migrate:dev`      | 创建并执行开发迁移     |
@@ -62,6 +64,8 @@ apps/server/
 | `test` / `test:e2e`       | 单元测试 / E2E 测试    |
 
 根目录 `pnpm lint` 会递归 lint 整个 monorepo，包括 `apps/server`。
+根目录 `pnpm dev` 通过 Turbo 同时启动 Web 和 Server，`pnpm dev:server`
+只启动 Server。
 
 ## oxlint 约定
 

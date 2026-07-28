@@ -8,7 +8,9 @@
   },
   "author": "",
   "scripts": {
-    "dev": "pnpm run -F @ai-workflow/web dev",
+    "dev": "turbo dev",
+    "dev:web": "turbo dev:web --filter=@ai-workflow/web",
+    "dev:server": "turbo dev:server --filter=@ai-workflow/server",
     "build": "turbo run build",
     "docker:dev:up": "docker compose -f compose.dev.yaml up -d",
     "docker:dev:down": "docker compose -f compose.dev.yaml down",

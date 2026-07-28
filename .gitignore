@@ -31,3 +31,5 @@ apps/server/src/generated/prisma
 *.njsproj
 *.sln
 *.sw?
+
+tsconfig.build.tsbuildinfo
