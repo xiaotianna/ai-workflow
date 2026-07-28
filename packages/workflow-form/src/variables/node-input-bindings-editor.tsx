@@ -1,5 +1,6 @@
 import type { VariableValueInput } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
+import { Form } from '@ai-workflow/ui/components/form'
 import { Input } from '@ai-workflow/ui/components/input'
 import {
   Select,
@@ -8,13 +9,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Trash2 } from 'lucide-react'
+import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
+import { Plus, TextCursorInput, Trash2 } from 'lucide-react'
 
 import type {
   AvailableVariableOption,
   NodeVariableSectionRendererProps,
 } from '../components/node-variable-section'
-import { VariableSectionHeader } from '../components/variable-section-header'
 import { getFieldError } from '../utils/get-field-error'
 import { createUniqueKey } from '../utils/create-unique-key'
 
@@ -51,7 +52,7 @@ function VariableValueEditor({
   )
 
   return (
-    <div className="grid min-w-0 grid-cols-[104px_minmax(0,1fr)] gap-2">
+    <div className="bg-input flex min-w-0 rounded-md">
       <Select
         value={value.type}
         disabled={disabled}
@@ -72,11 +73,15 @@ function VariableValueEditor({
       >
         <SelectTrigger
           size="sm"
-          className="w-full"
+          className="w-9 shrink-0 rounded-r-none bg-transparent px-2 hover:z-10 focus-visible:z-10 [&>svg:last-child]:hidden"
           aria-label="变量取值方式"
           aria-invalid={Boolean(error)}
         >
-          <SelectValue />
+          {value.type === 'value' ? (
+            <TextCursorInput className="text-muted-foreground size-4" aria-hidden />
+          ) : (
+            <VariableIcon className="text-muted-foreground size-4" />
+          )}
         </SelectTrigger>
         <SelectContent
           position="popper"
@@ -93,11 +98,12 @@ function VariableValueEditor({
 
       {value.type === 'value' ? (
         <Input
-          className="h-8"
+          className="h-8 flex-1 rounded-l-none bg-transparent hover:z-10 focus-visible:z-10"
           value={stringifyDirectValue(value.value)}
           disabled={disabled}
           aria-label="变量直接值"
           aria-invalid={Boolean(error)}
+          placeholder="设置变量值"
           onChange={(event) =>
             onChange({
               type: 'value',
@@ -121,22 +127,27 @@ function VariableValueEditor({
         >
           <SelectTrigger
             size="sm"
-            className="w-full"
+            className="min-w-0 flex-1 rounded-l-none bg-transparent hover:z-10 focus-visible:z-10 [&_[data-slot=select-value]]:min-w-0 [&_[data-slot=select-value]]:truncate"
             aria-label="上游变量"
             aria-invalid={Boolean(error)}
           >
             <SelectValue
-              placeholder={availableVariables.length > 0 ? '请选择上游变量' : '无可用上游变量'}
+              placeholder={availableVariables.length > 0 ? '设置变量值' : '无可用上游变量'}
             />
           </SelectTrigger>
           <SelectContent
             position="popper"
-            align="start"
+            align="end"
             sideOffset={4}
-            className="w-(--radix-select-trigger-width)"
+            className="w-[calc(var(--radix-select-trigger-width)+2.25rem)] max-w-[calc(var(--radix-select-trigger-width)+2.25rem)] min-w-0"
           >
             {availableVariables.map((option) => (
-              <SelectItem key={option.id} value={option.id}>
+              <SelectItem
+                key={option.id}
+                value={option.id}
+                title={option.label}
+                className="min-w-0 [&>span:last-child]:min-w-0 [&>span:last-child]:truncate"
+              >
                 {option.label}
               </SelectItem>
             ))}
@@ -187,14 +198,23 @@ export function NodeInputBindingsEditor({
   }
 
   return (
-    <section className="space-y-3">
-      <VariableSectionHeader
-        label={section.label}
-        description={section.description}
-        disabled={disabled}
-        onAdd={addInput}
-      />
-
+    <Form.Field
+      label={section.label}
+      description={section.description}
+      actions={
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-xs"
+          className="text-muted-foreground"
+          disabled={disabled}
+          aria-label={`添加${section.label}`}
+          onClick={addInput}
+        >
+          <Plus className="size-4" aria-hidden />
+        </Button>
+      }
+    >
       {entries.length === 0 ? (
         <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs">
           暂未配置{section.label}
@@ -205,24 +225,33 @@ export function NodeInputBindingsEditor({
             const error = getFieldError(inputErrors, key)
 
             return (
-              <div
-                key={index}
-                className="border-border/60 space-y-2 rounded-lg border-[0.5px] p-2.5"
-              >
-                <div className="flex items-center gap-2">
+              <div key={index} className="space-y-1">
+                <div className="grid min-w-0 grid-cols-[minmax(96px,120px)_minmax(0,1fr)_24px] items-center gap-1.5">
                   <Input
                     className="h-8"
                     value={key}
                     disabled={disabled}
                     aria-label={`${section.label}名称`}
                     aria-invalid={Boolean(error)}
-                    placeholder="变量 Key"
+                    placeholder="变量名"
                     onChange={(event) => renameInput(index, key, event.currentTarget.value)}
+                  />
+                  <VariableValueEditor
+                    value={value}
+                    availableVariables={availableVariables}
+                    disabled={disabled}
+                    error={error}
+                    onChange={(nextValue) =>
+                      onInputsChange({
+                        ...inputs,
+                        [key]: nextValue,
+                      })
+                    }
                   />
                   <Button
                     type="button"
                     variant="ghost"
-                    size="icon-sm"
+                    size="icon-xs"
                     className="text-muted-foreground hover:text-destructive focus-visible:text-destructive"
                     disabled={disabled}
                     aria-label={`删除变量 ${key || index + 1}`}
@@ -234,22 +263,9 @@ export function NodeInputBindingsEditor({
                       )
                     }
                   >
-                    <Trash2 aria-hidden />
+                    <Trash2 className="size-4" aria-hidden />
                   </Button>
                 </div>
-
-                <VariableValueEditor
-                  value={value}
-                  availableVariables={availableVariables}
-                  disabled={disabled}
-                  error={error}
-                  onChange={(nextValue) =>
-                    onInputsChange({
-                      ...inputs,
-                      [key]: nextValue,
-                    })
-                  }
-                />
 
                 {error ? <p className="text-destructive text-xs leading-4">{error}</p> : null}
               </div>
@@ -257,6 +273,6 @@ export function NodeInputBindingsEditor({
           })}
         </div>
       )}
-    </section>
+    </Form.Field>
   )
 }
