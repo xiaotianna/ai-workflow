@@ -57,9 +57,13 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
           selectedNode={editor.selectedNode}
           selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
           selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
+          canRedo={editor.canRedo}
+          canUndo={editor.canUndo}
           onAddNode={editor.addNode}
           onApplyNode={editor.applyNode}
           onCloseNodeConfig={() => editor.selectNode(undefined)}
+          onRedo={editor.redo}
+          onUndo={editor.undo}
         />
         {/* 背景 */}
         <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />

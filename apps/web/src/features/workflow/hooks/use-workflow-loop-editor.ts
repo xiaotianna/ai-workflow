@@ -18,6 +18,7 @@ interface UseWorkflowLoopEditorOptions {
   nodes: readonly WorkflowCanvasNode[]
   edges: readonly WorkflowEdge[]
   setNodes: Dispatch<SetStateAction<WorkflowCanvasNode[]>>
+  checkpointHistory: () => void
   markDirty: () => void
   updateNodeInternals: (nodeId: string) => void
 }
@@ -30,6 +31,7 @@ export function useWorkflowLoopEditor({
   nodes,
   edges,
   setNodes,
+  checkpointHistory,
   markDirty,
   updateNodeInternals,
 }: UseWorkflowLoopEditorOptions) {
@@ -70,6 +72,7 @@ export function useWorkflowLoopEditor({
       parentSize: getLoopNodeSize(parentLoop),
     })
 
+    checkpointHistory()
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
     markDirty()
 

@@ -15,7 +15,7 @@ import {
   type OnBeforeDelete,
   type Viewport,
 } from '@xyflow/react'
-import { useState, type RefObject } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 
 import { canConnect } from '@/utils/workflow/can-connect'
 import { hasEdgeMutation, hasNodeMutation } from '@/utils/workflow/editor-change'
@@ -29,6 +29,7 @@ import {
   removeEdgesConnectedToNodes,
 } from '@/utils/workflow/editor-elements'
 import { useWorkflowSave } from './use-workflow-save'
+import { useWorkflowHistory } from './use-workflow-history'
 import { useWorkflowLoopEditor } from './use-workflow-loop-editor'
 import { getAvailableNodeVariables } from '../utils/get-available-node-variables'
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
@@ -52,6 +53,14 @@ const DEFAULT_NODE_PLACEMENT_SIZE = {
 
 function getNodePlacementSize(type: string) {
   return type === BuiltinNodeType.LOOP ? DEFAULT_LOOP_SIZE : DEFAULT_NODE_PLACEMENT_SIZE
+}
+
+function isTextEditingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+
+  return Boolean(
+    target.closest('input, textarea, select, [contenteditable="true"], [role="textbox"]'),
+  )
 }
 
 /**
@@ -78,6 +87,24 @@ export function useWorkflowEditor({
   const updateNodeInternals = useUpdateNodeInternals()
   // 到屏幕中间
   const { screenToFlowPosition } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
+
+  const history = useWorkflowHistory({
+    nodes,
+    edges,
+    setNodes,
+    setEdges,
+    onRestore: (snapshot, matchesSavedState) => {
+      setSelectedNodeId((currentSelectedNodeId) =>
+        currentSelectedNodeId && snapshot.nodes.some((node) => node.id === currentSelectedNodeId)
+          ? currentSelectedNodeId
+          : undefined,
+      )
+      setDirty(!matchesSavedState)
+      requestAnimationFrame(() => {
+        snapshot.nodes.forEach((node) => updateNodeInternals(node.id))
+      })
+    },
+  })
 
   // 画布选中节点
   const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
@@ -107,7 +134,10 @@ export function useWorkflowEditor({
     edges,
     nodes,
     onSave,
-    onSaved: () => setDirty(false),
+    onSaved: () => {
+      history.markSaved()
+      setDirty(false)
+    },
     viewport,
   })
 
@@ -115,6 +145,7 @@ export function useWorkflowEditor({
     nodes,
     edges,
     setNodes,
+    checkpointHistory: history.checkpoint,
     markDirty: () => setDirty(true),
     updateNodeInternals,
   })
@@ -124,6 +155,22 @@ export function useWorkflowEditor({
     const nonSelectionChanges = changes.filter((change) => change.type !== 'select')
 
     if (nonSelectionChanges.length > 0) {
+      if (hasNodeMutation(nonSelectionChanges)) {
+        const continuing = nonSelectionChanges.some(
+          (change) =>
+            (change.type === 'position' && change.dragging === true) ||
+            (change.type === 'dimensions' && change.resizing === true),
+        )
+        const completed =
+          !continuing &&
+          nonSelectionChanges.some(
+            (change) =>
+              (change.type === 'position' && change.dragging === false) ||
+              (change.type === 'dimensions' && change.resizing === false),
+          )
+
+        history.checkpoint({ continuing, completed })
+      }
       applyNodeChanges(nonSelectionChanges)
     }
 
@@ -132,6 +179,7 @@ export function useWorkflowEditor({
 
   // 边变化事件，忽略纯选择态等展示事件
   function handleEdgesChange(changes: EdgeChange<WorkflowEdge>[]) {
+    if (hasEdgeMutation(changes)) history.checkpoint()
     applyEdgeChanges(changes)
     if (hasEdgeMutation(changes)) setDirty(true)
   }
@@ -158,6 +206,7 @@ export function useWorkflowEditor({
         : getDefaultNodePosition(nodes.length),
     })
 
+    history.checkpoint()
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
     setDirty(true)
   }
@@ -169,6 +218,7 @@ export function useWorkflowEditor({
     const nextEdge = createWorkflowEdge(connection)
     if (!nextEdge) return
 
+    history.checkpoint()
     setEdges((currentEdges) => [...currentEdges, nextEdge])
     setDirty(true)
   }
@@ -205,6 +255,7 @@ export function useWorkflowEditor({
   function applyNode(nextNode: WorkflowNode) {
     const configChanged = nextNode.config !== selectedNode?.config
 
+    history.checkpoint()
     setNodes((currentNodes) =>
       currentNodes.map((canvasNode) =>
         canvasNode.id === nextNode.id
@@ -248,6 +299,7 @@ export function useWorkflowEditor({
     const deletedNodeIds = collectDescendantNodeIds(allowedRootIds, nodes)
     if (deletedNodeIds.size === 0) return
 
+    history.checkpoint()
     setNodes((current) => current.filter((node) => !deletedNodeIds.has(node.id)))
     setEdges((current) => removeEdgesConnectedToNodes(current, deletedNodeIds))
     if (selectedNodeId && deletedNodeIds.has(selectedNodeId)) {
@@ -270,6 +322,29 @@ export function useWorkflowEditor({
     .list()
     .filter((nodeType) => !ROOT_HIDDEN_NODE_TYPES.has(nodeType.definition.type))
 
+  useEffect(() => {
+    function handleHistoryShortcut(event: KeyboardEvent) {
+      if (event.altKey || (!event.metaKey && !event.ctrlKey) || isTextEditingTarget(event.target)) {
+        return
+      }
+
+      const key = event.key.toLocaleLowerCase()
+      const shouldUndo = key === 'z' && !event.shiftKey
+      const shouldRedo = (key === 'z' && event.shiftKey) || (key === 'y' && event.ctrlKey)
+
+      if (shouldUndo && history.canUndo) {
+        event.preventDefault()
+        history.undo()
+      } else if (shouldRedo && history.canRedo) {
+        event.preventDefault()
+        history.redo()
+      }
+    }
+
+    globalThis.addEventListener('keydown', handleHistoryShortcut)
+    return () => globalThis.removeEventListener('keydown', handleHistoryShortcut)
+  }, [history])
+
   return {
     addNode,
     applyNode,
@@ -287,6 +362,9 @@ export function useWorkflowEditor({
     initialViewport: initialSnapshot.layout.viewport,
     isValidConnection,
     nodes: renderedNodes,
+    canRedo: history.canRedo,
+    canUndo: history.canUndo,
+    redo: history.redo,
     saveWorkflow,
     saving,
     selectedNode,
@@ -295,5 +373,6 @@ export function useWorkflowEditor({
     selectedNodeId,
     selectNode,
     loopEditor,
+    undo: history.undo,
   }
 }

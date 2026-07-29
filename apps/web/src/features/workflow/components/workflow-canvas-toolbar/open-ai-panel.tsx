@@ -3,8 +3,14 @@ import { Bot } from 'lucide-react'
 
 export const OpenAIPanel = () => {
   return (
-    <Button variant={'outline'} size={'icon-sm'} className="rounded-lg">
-      <Bot size={3} />
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-sm"
+      className="rounded-lg"
+      aria-label="打开 AI 面板"
+    >
+      <Bot className="size-4" aria-hidden />
     </Button>
   )
 }

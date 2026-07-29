@@ -115,7 +115,7 @@ export function NodeOutputDefinitionsEditor({
                           variant="ghost"
                           size="icon-sm"
                           className={cn(
-                            'h-8 w-9 shrink-0 rounded-r-none bg-transparent hover:z-10 focus-visible:z-10',
+                            'hover:border-input-focus hover:bg-background focus-visible:border-input-focus focus-visible:bg-background dark:hover:bg-background dark:focus-visible:bg-background h-8 w-9 shrink-0 rounded-r-none bg-transparent hover:z-10 focus-visible:z-10',
                             output.description ? 'text-primary' : 'text-muted-foreground',
                           )}
                           disabled={disabled}

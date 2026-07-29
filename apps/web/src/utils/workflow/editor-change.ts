@@ -13,7 +13,8 @@ export const hasNodeMutation = (changes: readonly NodeChange<WorkflowCanvasNode>
       change.type === 'add' ||
       change.type === 'remove' ||
       change.type === 'replace' ||
-      change.type === 'position',
+      change.type === 'position' ||
+      (change.type === 'dimensions' && change.resizing !== undefined),
   )
 }
 

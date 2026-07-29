@@ -12,22 +12,30 @@ const MotionPanel = motion.create(Panel)
 
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
+  canRedo: boolean
+  canUndo: boolean
   selectedNode?: WorkflowNode
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
   onAddNode: (type: string) => void
   onApplyNode: (node: WorkflowNode) => void
   onCloseNodeConfig: () => void
+  onRedo: () => void
+  onUndo: () => void
 }
 
 export const WorkflowPanel = ({
   nodeTypes,
+  canRedo,
+  canUndo,
   selectedNode,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
   onAddNode,
   onApplyNode,
   onCloseNodeConfig,
+  onRedo,
+  onUndo,
 }: WorkflowPanelProps) => {
   return (
     <>
@@ -41,7 +49,14 @@ export const WorkflowPanel = ({
       </Panel>
       {/* 底部工具栏 */}
       <Panel position="bottom-center">
-        <WorkflowCanvasToolbar nodeTypes={nodeTypes} onAddNode={onAddNode} />
+        <WorkflowCanvasToolbar
+          nodeTypes={nodeTypes}
+          canRedo={canRedo}
+          canUndo={canUndo}
+          onAddNode={onAddNode}
+          onRedo={onRedo}
+          onUndo={onUndo}
+        />
       </Panel>
       {/* 左下角视图调整 */}
       <Panel position="bottom-left">
