@@ -112,6 +112,7 @@ function NodeVariablePicker({
         sideOffset={4}
         collisionPadding={16}
         className="flex max-h-[min(30rem,var(--radix-popover-content-available-height))] w-[calc(var(--radix-popover-trigger-width)+2.25rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="border-border border-b-[0.5px] p-2.5">
           <div className="relative">
@@ -120,7 +121,6 @@ function NodeVariablePicker({
               aria-hidden
             />
             <Input
-              autoFocus
               type="search"
               value={searchValue}
               aria-label="搜索变量"

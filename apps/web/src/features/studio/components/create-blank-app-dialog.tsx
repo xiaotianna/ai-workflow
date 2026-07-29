@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { Textarea } from '@ai-workflow/ui/components/textarea'
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 
 import {
   CREATE_STUDIO_APP_INITIAL_VALUES,
@@ -42,7 +42,6 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
   const [touchedFields, setTouchedFields] = useState<
     Partial<Record<keyof CreateStudioAppFormInput, boolean>>
   >({})
-  const appNameInputRef = useRef<HTMLInputElement>(null)
   const validationResult = validateFormByZod(createStudioAppSchema, form)
   const formErrors = validationResult.errors
 
@@ -83,13 +82,7 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        aria-describedby={undefined}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          appNameInputRef.current?.focus()
-        }}
-      >
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>创建空白应用</DialogTitle>
         </DialogHeader>
@@ -124,7 +117,6 @@ export function CreateBlankAppDialog({ open, onCreate, onOpenChange }: CreateBla
               </Select>
 
               <Input
-                ref={appNameInputRef}
                 value={form.title}
                 onChange={(event) => updateFormField('title', event.target.value)}
                 onBlur={() => markFieldTouched('title')}

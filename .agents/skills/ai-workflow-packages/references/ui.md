@@ -50,6 +50,9 @@ import '@ai-workflow/ui/globals.css'
 - 禁止重新引入 `ring-*` 交互样式；Button 等可点击组件通过内部背景或文字变化表达聚焦，不增加聚焦边框或阴影，输入型组件使用语义边框。
 - 表单使用 `Form` 与 `Form.Field`；实际控件提供 `aria-label`。字段标题右侧需要操作入口时，
   通过 `Form.Field` 的 `actions` 插槽传入，不在业务组件中重复实现标题行布局。
+- `DialogContent` 默认阻止 Radix 打开时的自动聚焦；Dialog 内的表单不得使用 `autoFocus`
+  或代码调用 `focus()`，调用方无需重复传入只执行 `event.preventDefault()` 的
+  `onOpenAutoFocus`。
 - 代码输入使用 `CodeEditor`，通过 `language` 指定 Monaco 语言，通过 `value`、`onChange`
   管理受控值；需要调整 Monaco 行为时传 `options`，不要在业务包重复初始化 Worker 或
   Loader，也不要把业务顶栏、弹窗或提交语义加入编辑器核心。Monaco Worker 从

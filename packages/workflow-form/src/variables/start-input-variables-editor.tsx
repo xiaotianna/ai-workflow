@@ -27,7 +27,7 @@ import {
 } from '@ai-workflow/ui/components/select'
 import { Textarea } from '@ai-workflow/ui/components/textarea'
 import { PencilLine, Plus, Trash2 } from 'lucide-react'
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { z } from 'zod'
 
 import { DataTypeIcon, DataTypeSelect } from '../components/data-type-select'
@@ -134,7 +134,6 @@ export function StartInputVariablesEditor({
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | undefined>()
   const [touchedFields, setTouchedFields] = useState<TouchedFields>({})
-  const keyInputRef = useRef<HTMLInputElement>(null)
   const { form, setForm, updateFormField, updateForm, resetForm } =
     useFormData<InputVariableFormInput>(EMPTY_INPUT_VARIABLE)
 
@@ -342,13 +341,7 @@ export function StartInputVariablesEditor({
       </Form.Field>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
-        <DialogContent
-          aria-describedby={undefined}
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            keyInputRef.current?.focus()
-          }}
-        >
+        <DialogContent aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle>{editingIndex === undefined ? '新增变量' : '编辑变量'}</DialogTitle>
           </DialogHeader>
@@ -376,7 +369,6 @@ export function StartInputVariablesEditor({
               description="使用字母或下划线开头，仅支持字母、数字和下划线"
             >
               <Input
-                ref={keyInputRef}
                 value={form.key}
                 disabled={disabled}
                 aria-label="输入变量名称"

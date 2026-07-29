@@ -132,6 +132,8 @@ Core `DataType` 的受控选择统一复用公开组件 `DataTypeSelect`；组�
   复制 Zod schema 或维护另一份已提交值。纯 UI 临时状态（例如 Dialog 开关）可以留在
   renderer 内；一旦内部组合多个待提交字段或承担数据校验，必须改用 `useFormData` 和
   `validateFormByZod`。
+- Dialog 或 Popover 中的字段在浮层打开后不得自动聚焦；禁止使用 `autoFocus` 或代码调用
+  `focus()`，并在非 `DialogContent` 的 Radix 浮层上通过 `onOpenAutoFocus` 阻止默认聚焦。
 - 新增或修改配置表单时必须同时读取 Shared 引用中的完整统一表单规范。
 
 ## 内置映射

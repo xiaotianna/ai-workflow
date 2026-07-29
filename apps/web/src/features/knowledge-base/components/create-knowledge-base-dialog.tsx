@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { Textarea } from '@ai-workflow/ui/components/textarea'
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 
 import {
   CREATE_KNOWLEDGE_BASE_INITIAL_VALUES,
@@ -46,7 +46,6 @@ export function CreateKnowledgeBaseDialog({
   const [touchedFields, setTouchedFields] = useState<
     Partial<Record<keyof CreateKnowledgeBaseFormInput, boolean>>
   >({})
-  const knowledgeBaseNameInputRef = useRef<HTMLInputElement>(null)
   const validationResult = validateFormByZod(createKnowledgeBaseSchema, form)
   const formErrors = validationResult.errors
 
@@ -87,13 +86,7 @@ export function CreateKnowledgeBaseDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        aria-describedby={undefined}
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          knowledgeBaseNameInputRef.current?.focus()
-        }}
-      >
+      <DialogContent aria-describedby={undefined}>
         <DialogHeader>
           <DialogTitle>创建知识库</DialogTitle>
         </DialogHeader>
@@ -128,7 +121,6 @@ export function CreateKnowledgeBaseDialog({
               </Select>
 
               <Input
-                ref={knowledgeBaseNameInputRef}
                 value={form.title}
                 onChange={(event) => updateFormField('title', event.target.value)}
                 onBlur={() => markFieldTouched('title')}

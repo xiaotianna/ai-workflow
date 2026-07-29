@@ -116,11 +116,7 @@ export function EditAccountDialog({ open, user, onOpenChange, onUpdated }: EditA
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        aria-describedby={undefined}
-        showCloseButton={!isSubmitting}
-        onOpenAutoFocus={(event) => event.preventDefault()}
-      >
+      <DialogContent aria-describedby={undefined} showCloseButton={!isSubmitting}>
         <DialogHeader>
           <DialogTitle>编辑账户</DialogTitle>
         </DialogHeader>
