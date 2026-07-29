@@ -32,4 +32,5 @@ apps/server/src/generated/prisma
 *.sln
 *.sw?
 
-tsconfig.build.tsbuildinfo
+*.tsbuildinfo
+.turbo/

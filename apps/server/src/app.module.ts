@@ -1,9 +1,11 @@
-import { Module } from '@nestjs/common'
-import { ConfigModule } from '@nestjs/config'
-import { AuthModel } from './modules/auth.module'
+import { Global, Module } from '@nestjs/common'
+import { AuthModule } from './modules/auth.module'
+import { ENVConfigModule } from './config/config.module'
+import { LogModule } from './config/log.module'
 
+@Global()
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModel],
+  imports: [ENVConfigModule, LogModule, AuthModule],
   controllers: [],
   providers: [],
 })

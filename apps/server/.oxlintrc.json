@@ -13,7 +13,8 @@
         "allowWithDecorator": true
       }
     ],
-    "typescript/parameter-properties": "off"
+    "typescript/parameter-properties": "off",
+    "import/no-nodejs-modules": "off"
   },
   "overrides": [
     {

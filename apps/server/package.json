@@ -33,14 +33,20 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/adapter-pg": "7.9.0",
     "@prisma/client": "7.9.0",
+    "cors": "^2.8.6",
+    "joi": "^18.2.3",
+    "nest-winston": "^1.10.2",
     "pg": "^8.22.0",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.0.0",
