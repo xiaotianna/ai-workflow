@@ -5,7 +5,7 @@ import { map } from 'rxjs/operators'
 import type { Response as ExpressResponse } from 'express'
 
 @Injectable()
-// 成功响应拦截器
+// 后置拦截器：成功响应拦截器
 export class ResponseInterceptor<T> implements NestInterceptor<T, ApiResponse<T>> {
   intercept(context: ExecutionContext, next: CallHandler<T>): Observable<ApiResponse<T>> {
     const response = context.switchToHttp().getResponse<ExpressResponse>()

@@ -23,6 +23,16 @@
 - 区分缺失配置、无效配置和运行期外部服务失败。
 - 密钥只来自环境或密钥服务，不写入源码、示例返回或日志。
 
+## 当前认证接口
+
+- `POST /auth/login`：手机号和密码登录；用户不存在时自动注册，成功后返回用户信息和 Token。
+- `POST /auth/logout`：需要 Bearer Token，删除当前 Token 对应的 Redis 会话。
+- `GET /auth/me`：需要 Bearer Token，只返回当前界面使用的 `phone` 和 `username`。
+- `PATCH /auth/me`：需要 Bearer Token；`username` 必填，`oldPassword` 与 `newPassword`
+  必须同时提供或同时省略。修改密码时先校验旧密码，再使用 Argon2 哈希新密码；响应只返回
+  `phone` 和 `username`。旧密码错误属于普通业务错误，不得使用会触发前端退出登录的
+  `401` 或 `403`。
+
 ## 依赖方向
 
 - 传输层依赖应用服务，应用服务依赖抽象的数据访问或运行时接口。

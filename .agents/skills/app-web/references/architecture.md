@@ -25,6 +25,10 @@
 - 页面通过业务功能根 `index.ts` 使用业务能力。
 - 所有后端接口调用统一放在 `src/api`，按 `auth`、`studio` 等功能划分子目录；页面或业务功能
   从对应 API 功能目录导入，不在 `features`、`pages` 或组件文件中直接声明 Axios 请求。
+- `src/api/client.ts` 是 Web 请求的统一 Axios 入口：请求拦截器注入登录 Token，响应拦截器
+  解包统一响应的 `data`，并按真实 HTTP 状态处理错误 Toast；携带认证信息的请求收到
+  `401` 或 `403` 时清理本地会话并跳转登录页。业务 API 不自行创建 Axios 实例、不判断
+  响应体 `code`，也不重复展示请求错误。
 - 页面和其他业务功能不得跨层引用 `features/<name>/components/*` 等内部文件。
 - 业务功能可以使用 `src/components` 和 workspace package；package 不得依赖 Web。
 - 只有两个以上业务域真实复用时，才把组件提升到 `src/components`。

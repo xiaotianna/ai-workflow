@@ -28,6 +28,15 @@ export class UserRepository {
     })
   }
 
+  findPasswordById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        password: true,
+      },
+    })
+  }
+
   create(user: { phone: string; password: string; username: string }) {
     return this.prisma.user.create({
       data: user,
@@ -37,6 +46,17 @@ export class UserRepository {
         username: true,
         createdAt: true,
         updatedAt: true,
+      },
+    })
+  }
+
+  updateById(id: string, user: { username: string; password?: string }) {
+    return this.prisma.user.update({
+      where: { id },
+      data: user,
+      select: {
+        phone: true,
+        username: true,
       },
     })
   }

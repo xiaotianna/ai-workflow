@@ -1,9 +1,14 @@
 import { AccessTokenPayload } from '@/common/interfaces/auth-context.interface'
-import { LoginDto } from '@/dto/auth.dto'
-import { AuthSessionRepository } from '@/repository/auth-session.repository'
-import { UserRepository } from '@/repository/user.repository'
-import { LoginVo } from '@/vo/auth.vo'
-import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
+import { LoginDto, UpdateCurrentUserDto } from '@/dto/auth.dto'
+import { AuthSessionRepository } from '@/repositories/auth-session.repository'
+import { UserRepository } from '@/repositories/user.repository'
+import { CurrentUserVo, LoginVo } from '@/vo/auth.vo'
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import { hash, verify } from 'argon2'
 import { randomUUID } from 'node:crypto'
@@ -56,6 +61,50 @@ export class AuthService {
 
   async logout(jti: string): Promise<void> {
     await this.authSessionRepository.delete(jti)
+  }
+
+  async getCurrentUser(userId: string): Promise<CurrentUserVo> {
+    const user = await this.userRepository.findById(userId)
+
+    if (!user) {
+      throw new UnauthorizedException('用户不存在或登录状态已失效')
+    }
+
+    return {
+      phone: user.phone,
+      username: user.username,
+    }
+  }
+
+  async updateCurrentUser(userId: string, dto: UpdateCurrentUserDto): Promise<CurrentUserVo> {
+    const user = await this.userRepository.findById(userId)
+
+    if (!user) {
+      throw new UnauthorizedException('用户不存在或登录状态已失效')
+    }
+
+    let password: string | undefined
+    const isChangingPassword = dto.oldPassword !== undefined || dto.newPassword !== undefined
+
+    if (isChangingPassword) {
+      if (!dto.oldPassword || !dto.newPassword) {
+        throw new BadRequestException('修改密码时必须同时填写旧密码和新密码')
+      }
+
+      const credential = await this.userRepository.findPasswordById(userId)
+      const isOldPasswordValid = credential && (await verify(credential.password, dto.oldPassword))
+
+      if (!isOldPasswordValid) {
+        throw new BadRequestException('旧密码错误')
+      }
+
+      password = await hash(dto.newPassword)
+    }
+
+    return this.userRepository.updateById(userId, {
+      username: dto.username,
+      ...(password ? { password } : {}),
+    })
   }
 
   private async issueToken(userId: string): Promise<string> {

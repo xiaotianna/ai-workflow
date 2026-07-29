@@ -6,3 +6,8 @@ export interface LoginVo {
   updatedAt: Date
   token: string
 }
+
+export interface CurrentUserVo {
+  phone: string
+  username: string
+}

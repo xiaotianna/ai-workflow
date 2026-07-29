@@ -1,58 +1,40 @@
-import { create, isAxiosError } from 'axios'
-
-interface ApiResponse<T> {
-  code: number
-  message: string
-  data: T | null
-}
+import { apiClient } from '@/api/client'
 
 interface LoginParams {
   phone: string
   password: string
 }
 
-export interface LoginResult {
-  id: string
+interface UpdateCurrentUserParams {
+  username: string
+  oldPassword?: string
+  newPassword?: string
+}
+
+export interface CurrentUser {
   phone: string
   username: string
+}
+
+export interface LoginResult extends CurrentUser {
+  id: string
   createdAt: string
   updatedAt: string
   token: string
 }
 
-const authApi = create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-})
-
 export async function login(values: LoginParams): Promise<LoginResult> {
-  const response = await authApi.post<ApiResponse<LoginResult>>('/auth/login', values)
-
-  if (!response.data.data) {
-    throw new Error('登录响应数据为空')
-  }
-
-  return response.data.data
+  return apiClient.post<LoginResult, LoginParams>('/auth/login', values)
 }
 
-export function getLoginErrorMessage(error: unknown): string {
-  if (isAxiosError<ApiResponse<null>>(error)) {
-    const responseMessage = error.response?.data?.message
+export async function getCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
+  return apiClient.get<CurrentUser>('/auth/me', { signal })
+}
 
-    if (typeof responseMessage === 'string' && responseMessage.trim()) {
-      return responseMessage
-    }
+export async function updateCurrentUser(values: UpdateCurrentUserParams): Promise<CurrentUser> {
+  return apiClient.patch<CurrentUser, UpdateCurrentUserParams>('/auth/me', values)
+}
 
-    if (error.code === 'ERR_NETWORK') {
-      return '无法连接到服务器，请检查网络后重试'
-    }
-  }
-
-  if (error instanceof Error && error.message) {
-    return error.message
-  }
-
-  return '登录失败，请稍后重试'
+export async function logout(): Promise<void> {
+  return apiClient.post<void>('/auth/logout')
 }

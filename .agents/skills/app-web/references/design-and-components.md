@@ -163,6 +163,9 @@
 
 - 优先使用原生语义元素和 Radix 行为，不用 `div` 模拟按钮。
 - 图标按钮提供 `aria-label`，装饰图标使用 `aria-hidden`。
+- Dialog 和表单打开或渲染后均不得默认、自动或通过代码聚焦任何输入框、按钮等控件；
+  禁止使用 `autoFocus` 或调用 `focus()`。Radix Dialog 在 `DialogContent` 的
+  `onOpenAutoFocus` 中只调用 `event.preventDefault()`，不再指定其他聚焦目标。
 - 可点击、上传和弹出控件必须支持适用的 Tab、Enter、Space 与 Escape 路径。
 - 异步加载提供状态语义；当前路由懒加载使用 `LazyLoad` 和 `role="status"`。
 - 受控 Dialog 的关闭、取消和提交成功路径应共享一致的临时状态重置逻辑。

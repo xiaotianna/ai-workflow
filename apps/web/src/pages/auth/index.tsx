@@ -3,7 +3,7 @@ import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 
-import { getLoginErrorMessage, login } from '@/api/auth'
+import { login } from '@/api/auth'
 import { AuthForm, hasAuthSession, saveAuthSession, type AuthFormValues } from '@/features/auth'
 
 export default function AuthPage() {
@@ -22,8 +22,8 @@ export default function AuthPage() {
       saveAuthSession(session)
       showToast('success', '登录成功')
       navigate('/', { replace: true })
-    } catch (error) {
-      showToast('error', getLoginErrorMessage(error))
+    } catch {
+      return
     } finally {
       setIsSubmitting(false)
     }
