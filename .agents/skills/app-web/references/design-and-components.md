@@ -131,13 +131,14 @@
 - 所有表单都必须先声明 Zod schema；表单值类型使用 `z.input<typeof schema>`，校验成功后的业务数据类型使用 `z.output<typeof schema>`，不得手写一份与 schema 重复的表单类型。
 - 所有表单值状态统一使用 `@ai-workflow/shared/hooks/use-form-data` 的 `useFormData` 管理；单字段、批量和重置操作分别使用 `updateFormField`、`updateForm` 和 `resetForm`，不得为每个字段分别创建 `useState`。
 - 所有表单校验统一使用 `@ai-workflow/shared/utils/validate-form-by-zod` 的 `validateFormByZod`。实时校验可在 `useFormData` 的 `onChange` 中执行；提交前必须再次校验，并且只把成功结果的 `data` 交给请求或业务逻辑，禁止直接提交未经解析的 `form`。
-- `validateFormByZod` 返回的 `errors` 按字段路径传给 `Form.Field error`；表单级错误使用 `errors.form` 或返回的 `message`。不要另外维护与 Zod 结果重复的手写校验规则。
+- `validateFormByZod` 返回的前端表单校验错误按字段路径传给 `Form.Field error`，展示在对应输入控件下方；前端表单级校验错误使用 `errors.form` 或返回的 `message`。不要另外维护与 Zod 结果重复的手写校验规则。
+- 请求产生的错误统一使用 `@ai-workflow/ui/lib/toast` 的 `showToast('error', message)` 展示，包括后端接口返回的错误信息、后端校验错误和网络失败；即使后端错误指向具体字段，也不得写入 `Form.Field error`、`errors.form` 或展示在输入控件下方。
 - 接手修改不符合该约定的已有表单时，必须在同一任务中把该表单的全部字段状态与校验迁移到统一方案，不保留新旧两套表单状态或校验逻辑。
 - 动态字段和相关字段的批量变更仍使用 `useFormData`；复杂对象或数组通过字段函数式更新或 `updateForm` 处理，不切换到另一套表单状态库。
 - 弹窗开关、请求中、分页等不属于表单值的 UI 状态可以使用普通状态管理；字段值、动态字段集合和待提交数据必须留在 `useFormData` 中。
 - 不使用 TanStack Form、Formik、React Hook Form 或零散 `useState` 替代该约定；若字段超过 20 个或更新频率极高，必须先获得用户明确同意才能更换状态方案，Zod schema 与 `validateFormByZod` 仍不可省略。
 - 使用 `<Form.Field required label="名称">` 标记必填；未传 `required` 时自动显示 `（可选）`。
-- 值、校验、提交和业务错误由调用方按上述统一方案管理，通过 `Form.Field error` 展示字段错误。
+- 值、校验与提交由调用方按上述统一方案管理；只有前端表单校验错误通过 `Form.Field error` 展示，请求错误必须使用 Toast。
 - 字段标题不会代理点击，实际输入控件必须提供准确的 `aria-label`。
 - 登录、创建、保存、确认使用 `Button variant="confirm"`；不可提交时传入 `disabled`。
 - 取消、返回使用 `Button variant="secondary"`，不要在页面重复拼接按钮状态样式。

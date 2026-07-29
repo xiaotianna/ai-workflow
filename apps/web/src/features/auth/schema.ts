@@ -1,7 +1,11 @@
 import { z } from 'zod'
 
 export const authFormSchema = z.object({
-  phone: z.string().trim().min(1, '手机号不能为空'),
+  phone: z
+    .string()
+    .trim()
+    .min(1, '手机号不能为空')
+    .regex(/^1[3-9]\d{9}$/, '请输入有效的中国大陆手机号'),
   password: z.string().min(1, '密码不能为空'),
 })
 

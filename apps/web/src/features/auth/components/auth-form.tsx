@@ -13,10 +13,11 @@ import {
 } from '../schema'
 
 interface AuthFormProps {
-  onSubmit?: (values: AuthFormValues) => void
+  isSubmitting?: boolean
+  onSubmit?: (values: AuthFormValues) => void | Promise<void>
 }
 
-export function AuthForm({ onSubmit }: AuthFormProps) {
+export function AuthForm({ isSubmitting = false, onSubmit }: AuthFormProps) {
   const { form, updateFormField } = useFormData<AuthFormInput>(AUTH_FORM_INITIAL_VALUES)
   const [touchedFields, setTouchedFields] = useState<Partial<Record<keyof AuthFormInput, boolean>>>(
     {},
@@ -33,6 +34,10 @@ export function AuthForm({ onSubmit }: AuthFormProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+
+    if (isSubmitting) {
+      return
+    }
 
     const result = validateFormByZod(authFormSchema, form)
     if (!result.success) {
@@ -59,6 +64,7 @@ export function AuthForm({ onSubmit }: AuthFormProps) {
           type="tel"
           inputMode="tel"
           autoComplete="tel"
+          disabled={isSubmitting}
           value={form.phone}
           onChange={(event) => updateFormField('phone', event.target.value)}
           onBlur={() => markFieldTouched('phone')}
@@ -79,6 +85,7 @@ export function AuthForm({ onSubmit }: AuthFormProps) {
           name="password"
           type="password"
           autoComplete="current-password"
+          disabled={isSubmitting}
           value={form.password}
           onChange={(event) => updateFormField('password', event.target.value)}
           onBlur={() => markFieldTouched('password')}
@@ -93,10 +100,11 @@ export function AuthForm({ onSubmit }: AuthFormProps) {
         type="submit"
         variant="confirm"
         size="sm"
-        disabled={!validationResult.success}
+        disabled={isSubmitting || !validationResult.success}
+        aria-busy={isSubmitting}
         className="w-full"
       >
-        登录
+        {isSubmitting ? '登录中…' : '登录'}
       </Button>
     </Form>
   )

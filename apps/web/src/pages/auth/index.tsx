@@ -1,8 +1,38 @@
 import { Separator } from '@ai-workflow/ui/components/separator'
+import { showToast } from '@ai-workflow/ui/lib/toast'
+import { useState } from 'react'
+import { Navigate, useNavigate } from 'react-router-dom'
 
-import { AuthForm } from '@/features/auth'
+import { getLoginErrorMessage, login } from '@/api/auth'
+import { AuthForm, hasAuthSession, saveAuthSession, type AuthFormValues } from '@/features/auth'
 
 export default function AuthPage() {
+  const navigate = useNavigate()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  async function handleLogin(values: AuthFormValues) {
+    if (isSubmitting) {
+      return
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      const session = await login(values)
+      saveAuthSession(session)
+      showToast('success', '登录成功')
+      navigate('/', { replace: true })
+    } catch (error) {
+      showToast('error', getLoginErrorMessage(error))
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (hasAuthSession()) {
+    return <Navigate to="/" replace />
+  }
+
   return (
     <main className="h-svh w-svw bg-[#edeef2] p-3 sm:p-6">
       <div className="border-border/50 bg-background relative flex h-full w-full shrink-0 items-center justify-center rounded-2xl border px-5">
@@ -25,7 +55,7 @@ export default function AuthPage() {
             </p>
           </header>
 
-          <AuthForm />
+          <AuthForm isSubmitting={isSubmitting} onSubmit={handleLogin} />
           <Separator
             className="mx-auto mt-4 w-[20%]"
             style={{
