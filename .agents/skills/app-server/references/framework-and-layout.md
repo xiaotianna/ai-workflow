@@ -48,19 +48,20 @@ apps/server/
 
 在 `apps/server` 目录或通过 `pnpm -F @ai-workflow/server <script>` 执行：
 
-| 命令                      | 说明                   |
-| ------------------------- | ---------------------- |
-| `dev` / `dev:server`      | 开发模式启动（watch）  |
-| `start:dev`               | NestJS 兼容启动入口    |
-| `build`                   | 编译到 `dist/`         |
-| `prisma:generate`         | 生成 Prisma Client     |
-| `prisma:migrate:dev`      | 创建并执行开发迁移     |
-| `prisma:migrate:deploy`   | 执行已有生产迁移       |
-| `prisma:studio`           | 打开 Prisma Studio     |
-| `lint` / `lint:fix`       | oxlint 检查 / 自动修复 |
-| `format` / `format:check` | Prettier 格式化 / 检查 |
-| `check`                   | format:check + lint    |
-| `test` / `test:e2e`       | 单元测试 / E2E 测试    |
+| 命令                      | 说明                                |
+| ------------------------- | ----------------------------------- |
+| `dev` / `dev:server`      | 开发模式启动（watch）               |
+| `start:dev`               | NestJS 兼容启动入口                 |
+| `build`                   | 生成 Prisma Client 并编译到 `dist/` |
+| `prisma:generate`         | 生成 Prisma Client                  |
+| `prisma:migrate:dev`      | 创建并执行开发迁移                  |
+| `prisma:migrate:deploy`   | 执行已有生产迁移                    |
+| `prisma:studio`           | 打开 Prisma Studio                  |
+| `start:prod:migrate`      | 执行生产迁移后启动服务              |
+| `lint` / `lint:fix`       | oxlint 检查 / 自动修复              |
+| `format` / `format:check` | Prettier 格式化 / 检查              |
+| `check`                   | format:check + lint                 |
+| `test` / `test:e2e`       | 单元测试 / E2E 测试                 |
 
 根目录 `pnpm lint` 会递归 lint 整个 monorepo，包括 `apps/server`。
 根目录 `pnpm dev` 通过 Turbo 同时启动 Web 和 Server，`pnpm dev:server`

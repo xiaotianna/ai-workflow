@@ -14,7 +14,8 @@
       }
     ],
     "typescript/parameter-properties": "off",
-    "import/no-nodejs-modules": "off"
+    "import/no-nodejs-modules": "off",
+    "eslint/init-declarations": "off"
   },
   "overrides": [
     {

@@ -22,9 +22,9 @@ const nodeEnv = process.env.NODE_ENV ?? 'development'
           .uri({
             scheme: ['redis', 'rediss'],
           })
-          .optional(),
+          .required(),
         JWT_SECRET: Joi.string().min(1).required(),
-        JWT_EXPIRES_IN_SECONDS: Joi.string().default(7200),
+        JWT_EXPIRES_IN: Joi.string().default('7d'),
       }),
       validationOptions: {
         // 一次显示全部配置错误

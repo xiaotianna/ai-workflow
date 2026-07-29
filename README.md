@@ -25,12 +25,6 @@
 开发环境的 PostgreSQL 和 Redis 由仓库根目录的
 `compose.dev.yaml` 统一管理，应用仍直接在本机运行。
 
-首次使用时复制服务端环境变量示例：
-
-```bash
-cp apps/server/.env.example apps/server/.env
-```
-
 启动基础设施：
 
 ```bash

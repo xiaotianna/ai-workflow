@@ -3,7 +3,6 @@
 ## 本地开发基础设施
 
 - 根目录 `compose.dev.yaml` 统一提供 PostgreSQL 17 与 Redis 7.4，NestJS 默认在宿主机运行，不加入 Compose。
-- 服务端本地变量从 `apps/server/.env.example` 复制到未提交的 `.env`；默认使用 `localhost:5432` 和 `localhost:6379`。
 - 根目录通过 `docker:dev:up`、`docker:dev:down`、`docker:dev:logs` 和 `docker:dev:status` 脚本管理开发基础设施。
 - PostgreSQL 与 Redis 数据使用 Docker named volume；日常停止不得隐式删除 volume。
 - 若未来把 NestJS 加入 Compose，数据库和 Redis 主机名改用 Compose service 名称，不继续使用 `localhost`。
@@ -12,6 +11,7 @@
 
 - 使用 Prisma 7 的 `prisma-client` generator，Client 输出到 `apps/server/src/generated/prisma`，该目录由命令生成且不手动修改。
 - Prisma 7 的 `migrate dev` 和 `db push` 不自动生成 Client；schema 或 generator 配置变化后显式执行 `prisma:generate`。`--name init` 只用于创建第一条迁移，已有迁移的项目首次启动使用不带名称的 `prisma:migrate:dev`。
+- 服务端 `build` 固定先执行 `prisma:generate` 再编译；`start:prod:migrate` 用于简单部署时执行 `prisma:migrate:deploy` 后启动。多实例或独立发布流水线应将 migration 作为单次发布任务执行，再分别运行 `start:prod`。
 - Prisma CLI 从 `apps/server/prisma.config.ts` 读取 `DATABASE_URL`，NestJS 通过 `ConfigModule` 加载应用环境变量。
 - PostgreSQL driver adapter 依赖已安装，但当前 NestJS 源码尚未提供 Prisma Module/Service；业务开始访问数据库时再补充实际的数据访问入口和连接生命周期管理。
 - 把 Prisma schema、migration 和 client 生命周期放在服务端基础设施边界。

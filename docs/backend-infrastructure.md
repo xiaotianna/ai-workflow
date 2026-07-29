@@ -35,7 +35,7 @@ Prisma 运行时接入
 | Prisma CLI    | 已提供 generate、开发迁移、生产迁移和 Studio 脚本                |
 | 数据模型      | 当前已有 `User` 模型和两条 migration                             |
 | Prisma Client | 已配置输出到 `apps/server/src/generated/prisma`                  |
-| 鉴权配置      | 已声明 `JWT_SECRET` 和 `JWT_EXPIRES_IN_SECONDS` 环境变量         |
+| 鉴权配置      | 已声明 `JWT_SECRET` 和 `JWT_EXPIRES_IN` 环境变量                 |
 
 ## P0：开始业务开发前应完成
 
@@ -69,20 +69,39 @@ apps/server/src/infrastructure/prisma/
 └── prisma.service.ts
 ```
 
-### 2. 补齐 Prisma Client 的构建和部署流程
+### 2. Prisma Client 的构建和部署流程
 
 `apps/server/src/generated/prisma` 属于生成目录，不应手动修改，而且当前已被
 `.gitignore` 忽略。干净的 CI、容器或生产环境不能依赖开发机上现存的生成结果。
 
-需要明确以下流程：
+服务端脚本已固定以下流程：
 
 ```text
-构建阶段：prisma:generate → build
-发布阶段：prisma:migrate:deploy → start:prod
+build：prisma:generate → nest build
+start:prod:migrate：prisma:migrate:deploy → start:prod
 ```
 
 Prisma 7 的 `migrate dev` 和 `migrate deploy` 不会自动生成 Prisma Client，因此
-schema 或 generator 变化后必须显式执行 `prisma:generate`。
+`build` 会先显式执行 `prisma:generate`，再编译 NestJS。简单的单实例部署可以执行：
+
+```bash
+pnpm --filter @ai-workflow/server build
+pnpm --filter @ai-workflow/server start:prod:migrate
+```
+
+存在多个应用实例或独立发布流水线时，推荐将迁移作为单次发布任务执行，避免每个实例
+都负责迁移：
+
+```bash
+# 构建阶段
+pnpm --filter @ai-workflow/server build
+
+# 发布阶段，只执行一次
+pnpm --filter @ai-workflow/server prisma:migrate:deploy
+
+# 运行阶段
+pnpm --filter @ai-workflow/server start:prod
+```
 
 ### 3. 处理现有 migration 的数据安全问题
 
@@ -220,7 +239,7 @@ Dockerfile 或完整发布流程。
 
 - [ ] 实现 Prisma Module、Prisma Service 和连接生命周期。
 - [ ] 接通 UserRepository，并由 AuthService 使用 Repository。
-- [ ] 确认 Prisma Client 在干净构建环境中可以生成。
+- [x] 将 Prisma Client 生成接入服务端构建脚本。
 - [ ] 处理现有 migration 的数据安全问题。
 - [ ] 完成登录 DTO、全局 ValidationPipe 和输入校验。
 - [ ] 接入密码哈希、JWT、Guard 和当前用户上下文。

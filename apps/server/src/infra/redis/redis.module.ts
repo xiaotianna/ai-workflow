@@ -1,11 +1,11 @@
 import { Global, Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { PrismaService } from './prisma.service'
+import { RedisService } from './redis.service'
 
 @Global()
 @Module({
   imports: [ConfigModule],
-  providers: [PrismaService],
-  exports: [PrismaService],
+  providers: [RedisService],
+  exports: [RedisService],
 })
-export class PrismaModule {}
+export class RedisModule {}

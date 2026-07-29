@@ -138,7 +138,6 @@ pnpm --filter @ai-workflow/server prisma:migrate:deploy
 ### 第一次拉取当前项目
 
 ```bash
-cp apps/server/.env.example apps/server/.env
 pnpm docker:dev:up
 pnpm --filter @ai-workflow/server run prisma:migrate:dev
 pnpm --filter @ai-workflow/server prisma:generate
@@ -156,11 +155,27 @@ pnpm --filter @ai-workflow/server prisma:generate
 ### 部署到测试或生产环境
 
 ```bash
+# 构建阶段会先生成 Prisma Client，再编译服务端
+pnpm --filter @ai-workflow/server build
+
+# 发布阶段只执行一次
 pnpm --filter @ai-workflow/server prisma:migrate:deploy
-pnpm --filter @ai-workflow/server prisma:generate
+
+# 启动已经构建的服务端
+pnpm --filter @ai-workflow/server start:prod
 ```
 
-部署的是 migration SQL 和应用代码，不是开发数据库中的业务数据。
+简单的单实例部署也可以在构建完成后使用：
+
+```bash
+pnpm --filter @ai-workflow/server start:prod:migrate
+```
+
+该命令会先执行 `prisma:migrate:deploy`，成功后再执行 `start:prod`。存在多个应用实例
+或独立发布流水线时，仍建议使用前面的分阶段命令，让 migration 只执行一次。
+
+部署的是 migration SQL 和应用代码，不是开发数据库中的业务数据。`build` 已包含
+`prisma:generate`，无需再单独生成 Prisma Client。
 
 ## 6. 不要做
 

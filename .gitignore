@@ -16,8 +16,6 @@ dist-ssr
 apps/server/src/generated/prisma
 
 # Environment variables
-.env
-.env.*
 !.env.example
 !**/.env.example
 
