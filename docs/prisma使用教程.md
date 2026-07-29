@@ -6,11 +6,11 @@
 
 | 内容                                            | 可以理解成                        | 是否包含业务数据 |
 | ----------------------------------------------- | --------------------------------- | ---------------- |
-| `apps/server/prisma/schema.prisma`              | 数据库表结构的设计图              | 否               |
+| `apps/server/prisma/**/*.prisma`                | 数据库表结构的设计图              | 否               |
 | `apps/server/prisma/migrations/*/migration.sql` | 修改数据库表结构的 SQL 操作记录   | 默认不包含       |
 | `apps/server/src/generated/prisma`              | TypeScript 操作数据库的代码和类型 | 否               |
 
-例如，在 `schema.prisma` 中新增一个 `User`：
+例如，在 `prisma/models/user.prisma` 中定义一个 `User`：
 
 ```prisma
 model User {
@@ -150,7 +150,7 @@ pnpm --filter @ai-workflow/server run prisma:migrate:dev --name describe_change
 pnpm --filter @ai-workflow/server prisma:generate
 ```
 
-检查生成的 SQL，然后提交 `schema.prisma` 和 migration 目录。
+检查生成的 SQL，然后提交 `prisma/` 下的 schema 文件和 migration 目录。
 
 ### 部署到测试或生产环境
 
@@ -184,10 +184,27 @@ pnpm --filter @ai-workflow/server start:prod:migrate
 - 不要在生产环境运行 `prisma:migrate:dev`。
 - 执行可能删除字段或表的 migration 前，先检查 SQL 并备份重要数据。
 
-## 7. `schema.prisma` 如何定义
+## 7. 多文件 Prisma Schema 如何定义
 
-`schema.prisma` 主要由 `generator`、`datasource`、`enum` 和 `model` 四类定义组成。
-当前项目中的基础结构如下：
+当前项目使用 Prisma 多文件 schema，`apps/server/prisma.config.ts` 的 `schema` 指向整个
+`prisma/` 目录。Prisma 会递归合并目录中的 `.prisma` 文件：
+
+```text
+apps/server/prisma/
+├── migrations/
+├── models/
+│   └── *.prisma
+├── enum.prisma
+└── schema.prisma
+```
+
+- `schema.prisma`：只保存 `generator` 和 `datasource`。
+- `models/*.prisma`：按业务领域保存模型及其关系。
+- `enum.prisma`：保存多个模型共享的枚举。
+- `migrations/`：保存已经生成的迁移 SQL，不属于 schema 定义。
+
+模型和枚举虽然分布在不同文件中，生成的 Prisma Client 和数据库关系与单文件 schema
+没有区别。
 
 ```prisma
 generator client {
@@ -233,7 +250,7 @@ datasource db {
 
 ```ts
 export default defineConfig({
-  schema: 'prisma/schema.prisma',
+  schema: 'prisma',
   migrations: {
     path: 'prisma/migrations',
   },
@@ -257,13 +274,14 @@ model 模型名 {
 }
 ```
 
-例如当前项目的 `User`：
+例如当前项目的 `User` 位于 `prisma/models/user.prisma`：
 
 ```prisma
 model User {
   id        String   @id @default(uuid()) @db.Uuid
   phone     String   @unique
-  name      String?
+  username  String
+  password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -281,7 +299,8 @@ model User {
 | `@default(uuid())`                   | 新增记录时默认生成 UUID                          |
 | `@db.Uuid`                           | PostgreSQL 中使用原生 `uuid` 类型                |
 | `phone String @unique`               | `phone` 必填且不能重复                           |
-| `name String?`                       | `name` 可以为 `NULL`                             |
+| `username String`                    | `username` 必填                                  |
+| `password String`                    | `password` 保存 Argon2 哈希，不保存明文密码      |
 | `createdAt DateTime @default(now())` | 创建时默认写入当前时间                           |
 | `updatedAt DateTime @updatedAt`      | Prisma 更新记录时自动更新时间                    |
 | `@@map("users")`                     | 数据库表名为 `users`，Prisma 模型名仍然是 `User` |

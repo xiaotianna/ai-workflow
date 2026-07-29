@@ -1,0 +1,19 @@
+model App {
+  id          String    @id @default(uuid()) @db.Uuid
+  ownerId     String    @db.Uuid
+  name        String
+  description String?
+  icon        String?
+  kind        AppKind   @default(WORKFLOW)
+  deletedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  workflow    Workflow?
+  apiKeys     ApiKey[]
+  apiCallLogs ApiCallLog[]
+
+  @@index([ownerId, deletedAt, updatedAt])
+  @@map("apps")
+}

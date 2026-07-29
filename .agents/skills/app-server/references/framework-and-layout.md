@@ -23,6 +23,9 @@
 apps/server/
 ├── prisma/
 │   ├── migrations/
+│   ├── models/
+│   │   └── *.prisma
+│   ├── enum.prisma
 │   └── schema.prisma
 ├── src/
 │   ├── app.module.ts

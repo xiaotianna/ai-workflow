@@ -1,0 +1,22 @@
+model WorkflowVersion {
+  id            String                @id @default(uuid()) @db.Uuid
+  workflowId    String                @db.Uuid
+  version       Int
+  source        WorkflowVersionSource
+  schemaVersion Int                   @default(1)
+  definition    Json                  @db.JsonB
+  layout        Json                  @db.JsonB
+  note          String?
+  createdById   String?               @db.Uuid
+  createdAt     DateTime              @default(now())
+
+  workflow  Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  createdBy User?    @relation("WorkflowVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  deployments WorkflowDeployment[]
+  runs        WorkflowRun[]
+
+  @@unique([workflowId, version])
+  @@index([workflowId, createdAt])
+  @@map("workflow_versions")
+}

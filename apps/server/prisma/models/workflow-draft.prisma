@@ -1,0 +1,16 @@
+model WorkflowDraft {
+  id            String   @id @default(uuid()) @db.Uuid
+  workflowId    String   @unique @db.Uuid
+  schemaVersion Int      @default(1)
+  definition    Json     @db.JsonB
+  layout        Json     @db.JsonB
+  revision      Int      @default(1)
+  updatedById   String?  @db.Uuid
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workflow  Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  updatedBy User?    @relation("WorkflowDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("workflow_drafts")
+}

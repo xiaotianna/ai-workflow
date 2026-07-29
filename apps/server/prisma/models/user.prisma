@@ -1,0 +1,17 @@
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String   @unique
+  username  String
+  password  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  apps                    App[]
+  updatedWorkflowDrafts   WorkflowDraft[]      @relation("WorkflowDraftUpdatedBy")
+  createdWorkflowVersions WorkflowVersion[]    @relation("WorkflowVersionCreatedBy")
+  workflowDeployments     WorkflowDeployment[] @relation("WorkflowDeploymentDeployedBy")
+  createdApiKeys          ApiKey[]             @relation("ApiKeyCreatedBy")
+  triggeredWorkflowRuns   WorkflowRun[]        @relation("WorkflowRunTriggeredBy")
+
+  @@map("users")
+}

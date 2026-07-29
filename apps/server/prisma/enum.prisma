@@ -1,0 +1,43 @@
+enum AppKind {
+  WORKFLOW
+  CHATFLOW
+}
+
+enum WorkflowVersionSource {
+  MANUAL
+  PUBLISH
+  TEST_RUN
+  IMPORT
+}
+
+enum DeploymentEnvironment {
+  STAGING
+  PRODUCTION
+}
+
+enum WorkflowRunTrigger {
+  API
+  MANUAL
+  TEST_RUN
+  SCHEDULE
+  SUB_WORKFLOW
+}
+
+enum WorkflowRunStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum WorkflowNodeRunStatus {
+  PENDING
+  RUNNING
+  SUCCEEDED
+  FAILED
+  SKIPPED
+  CANCELLED
+  TIMED_OUT
+}

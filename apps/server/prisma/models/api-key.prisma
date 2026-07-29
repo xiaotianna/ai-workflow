@@ -1,0 +1,21 @@
+model ApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  appId       String    @db.Uuid
+  name        String
+  prefix      String
+  keyHash     String    @unique
+  createdById String?   @db.Uuid
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  app       App   @relation(fields: [appId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("ApiKeyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  callLogs ApiCallLog[]
+
+  @@index([appId, revokedAt])
+  @@map("api_keys")
+}

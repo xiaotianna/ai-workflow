@@ -1,0 +1,34 @@
+model WorkflowRun {
+  id                String             @id @default(uuid()) @db.Uuid
+  workflowId        String             @db.Uuid
+  workflowVersionId String             @db.Uuid
+  triggeredById     String?            @db.Uuid
+  parentRunId       String?            @db.Uuid
+  traceId           String             @unique
+  trigger           WorkflowRunTrigger
+  status            WorkflowRunStatus  @default(QUEUED)
+  input             Json               @db.JsonB
+  output            Json?              @db.JsonB
+  errorCode         String?
+  errorMessage      String?
+  errorDetails      Json?              @db.JsonB
+  queuedAt          DateTime           @default(now())
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  durationMs        Int?
+
+  workflow    Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version     WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
+  triggeredBy User?           @relation("WorkflowRunTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  parentRun   WorkflowRun?      @relation("WorkflowRunParent", fields: [parentRunId], references: [id])
+  childRuns   WorkflowRun[]     @relation("WorkflowRunParent")
+  nodeRuns    WorkflowNodeRun[]
+  apiCallLogs ApiCallLog[]
+
+  @@index([workflowId, queuedAt])
+  @@index([workflowId, status, queuedAt])
+  @@index([workflowVersionId])
+  @@index([parentRunId])
+  @@map("workflow_runs")
+}

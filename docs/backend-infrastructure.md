@@ -33,7 +33,7 @@ Prisma 运行时接入
 | Redis         | `compose.dev.yaml` 提供 Redis 7.4、健康检查、AOF 和 named volume |
 | Prisma        | 已安装 Prisma 7、`@prisma/client`、`@prisma/adapter-pg` 和 `pg`  |
 | Prisma CLI    | 已提供 generate、开发迁移、生产迁移和 Studio 脚本                |
-| 数据模型      | 当前已有 `User` 模型和两条 migration                             |
+| 数据模型      | 已拆分多文件 Schema；当前 migration 只落地 `User`                |
 | Prisma Client | 已配置输出到 `apps/server/src/generated/prisma`                  |
 | 鉴权配置      | 已声明 `JWT_SECRET` 和 `JWT_EXPIRES_IN` 环境变量                 |
 
@@ -43,7 +43,8 @@ Prisma 运行时接入
 
 #### 当前状态
 
-- `apps/server/prisma/schema.prisma` 已定义 PostgreSQL 数据源和 `User` 模型。
+- `apps/server/prisma/schema.prisma` 定义 generator 和 PostgreSQL 数据源，
+  `apps/server/prisma/models/*.prisma` 保存业务模型。
 - `apps/server/prisma.config.ts` 已从 `DATABASE_URL` 读取 Prisma CLI 连接地址。
 - PostgreSQL driver adapter 已安装。
 - Prisma Client 已生成。
@@ -221,8 +222,8 @@ Dockerfile 或完整发布流程。
 
 ## P2：工作流业务接入
 
-当前 Prisma schema 只有 `User`，尚未提供工作流业务数据模型。后续至少需要根据真实
-业务设计：
+当前 Prisma 多文件 Schema 已定义工作流业务数据模型，但尚未生成对应 migration，也尚未接入
+Repository、Service 和 Runtime。后续需要继续实现：
 
 - 工作流定义。
 - 工作流版本。

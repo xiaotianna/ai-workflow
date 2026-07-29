@@ -9,6 +9,9 @@
 
 ## PostgreSQL 与 Prisma
 
+- Prisma schema 使用多文件目录：`schema.prisma` 只保存 generator 和 datasource，
+  `models/*.prisma` 按领域保存模型，`enum.prisma` 保存跨模型共享枚举；
+  `apps/server/prisma.config.ts` 的 `schema` 指向整个 `prisma/` 目录。
 - 使用 Prisma 7 的 `prisma-client` generator，Client 输出到 `apps/server/src/generated/prisma`，该目录由命令生成且不手动修改。
 - Prisma 7 的 `migrate dev` 和 `db push` 不自动生成 Client；schema 或 generator 配置变化后显式执行 `prisma:generate`。`--name init` 只用于创建第一条迁移，已有迁移的项目首次启动使用不带名称的 `prisma:migrate:dev`。
 - 服务端 `build` 固定先执行 `prisma:generate` 再编译；`start:prod:migrate` 用于简单部署时执行 `prisma:migrate:deploy` 后启动。多实例或独立发布流水线应将 migration 作为单次发布任务执行，再分别运行 `start:prod`。

@@ -1,0 +1,17 @@
+model WorkflowDeployment {
+  id           String                @id @default(uuid()) @db.Uuid
+  workflowId   String                @db.Uuid
+  versionId    String                @db.Uuid
+  environment  DeploymentEnvironment @default(PRODUCTION)
+  deployedById String?               @db.Uuid
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  workflow   Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  version    WorkflowVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  deployedBy User?           @relation("WorkflowDeploymentDeployedBy", fields: [deployedById], references: [id], onDelete: SetNull)
+
+  @@unique([workflowId, environment])
+  @@index([versionId])
+  @@map("workflow_deployments")
+}
