@@ -25,6 +25,10 @@
 - 部署不区分环境；每个 `Workflow` 最多有一条 `WorkflowDeployment`，指向当前对外运行的版本。
 - 创建 Studio 应用时，在同一个 Prisma 嵌套写入中生成 `App`、一对一 `Workflow` 和
   `WorkflowDraft`；空草稿仍保存完整的工作流顶层结构与空布局，避免后续导出或编辑补建记录。
+- Studio 草稿保存使用 `WorkflowDraft.revision` 乐观锁：Repository 在事务内同时校验
+  `ownerId`、应用、Workflow ID 与修订号，并用带修订号条件的更新原子递增 `revision`；
+  冲突返回 `409`。保存成功时同步更新 `App.updatedAt`，让 Studio 的最近编辑排序反映画布
+  修改。
 - Studio DSL 使用 JSON 附件导出，固定携带 `dslVersion`、应用元数据、草稿
   `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿在导出前至少校验工作流
   顶层结构；在 Core 提供可被 NodeNext 服务端直接加载的构建入口后，改为复用

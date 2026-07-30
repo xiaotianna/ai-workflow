@@ -1,4 +1,5 @@
 import { apiClient } from '@/api/client'
+import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 
 export type StudioAppSort = 'updated_desc' | 'created_desc' | 'created_asc'
 
@@ -35,6 +36,20 @@ export interface ExportedStudioAppDsl {
   filename?: string
 }
 
+export interface StudioWorkflowDraftDto {
+  schemaVersion: number
+  revision: number
+  definition: WorkflowEditorSnapshot['workflow']
+  layout: WorkflowEditorSnapshot['layout']
+  updatedAt: string
+}
+
+export interface SaveStudioWorkflowDraftParams {
+  revision: number
+  definition: WorkflowEditorSnapshot['workflow']
+  layout: WorkflowEditorSnapshot['layout']
+}
+
 export function listStudioApps(
   params: ListStudioAppsParams,
   signal?: AbortSignal,
@@ -49,6 +64,18 @@ export function getStudioApp(appId: string, signal?: AbortSignal): Promise<Studi
   return apiClient.get<StudioAppDto>(`/studio/apps/${encodeURIComponent(appId)}`, {
     signal,
   })
+}
+
+export function getStudioWorkflowDraft(
+  appId: string,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowDraftDto> {
+  return apiClient.get<StudioWorkflowDraftDto>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-draft`,
+    {
+      signal,
+    },
+  )
 }
 
 export function createStudioApp(values: SaveStudioAppParams): Promise<StudioAppDto> {
@@ -70,6 +97,16 @@ export function deleteStudioApp(appId: string): Promise<void> {
 export function updateStudioApp(appId: string, values: SaveStudioAppParams): Promise<StudioAppDto> {
   return apiClient.patch<StudioAppDto, SaveStudioAppParams>(
     `/studio/apps/${encodeURIComponent(appId)}`,
+    values,
+  )
+}
+
+export function saveStudioWorkflowDraft(
+  appId: string,
+  values: SaveStudioWorkflowDraftParams,
+): Promise<StudioWorkflowDraftDto> {
+  return apiClient.put<StudioWorkflowDraftDto, SaveStudioWorkflowDraftParams>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-draft`,
     values,
   )
 }

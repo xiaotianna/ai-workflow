@@ -9,6 +9,7 @@ import type { AvailableVariableOption } from '@ai-workflow/form/components/node-
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 import type { RefObject } from 'react'
+import type { WorkflowSaveStatus } from '../hooks/use-workflow-save'
 
 const MotionPanel = motion.create(Panel)
 
@@ -24,6 +25,8 @@ interface WorkflowPanelProps {
   selectedNodeCanAddNextNode?: boolean
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
+  lastSavedAt?: Date
+  saveStatus: WorkflowSaveStatus
   onAddNodeOpenChange: (open: boolean) => void
   onApplyNode: (node: WorkflowNode) => void
   canChangeNextStepNode: (nodeId: string) => boolean
@@ -52,6 +55,8 @@ export const WorkflowPanel = ({
   selectedNodeCanAddNextNode = false,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
+  lastSavedAt,
+  saveStatus,
   onAddNodeOpenChange,
   onApplyNode,
   canChangeNextStepNode,
@@ -71,7 +76,7 @@ export const WorkflowPanel = ({
     <>
       {/* 左上状态栏 */}
       <Panel position="top-left">
-        <WorkflowStatusPanel />
+        <WorkflowStatusPanel lastSavedAt={lastSavedAt} saveStatus={saveStatus} />
       </Panel>
       {/* 右上角操作栏 */}
       <Panel position="top-right">

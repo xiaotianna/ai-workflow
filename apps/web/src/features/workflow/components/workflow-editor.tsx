@@ -11,7 +11,10 @@ import { useWorkflowShortcuts } from '../hooks/use-workflow-shortcuts'
 import { useWorkflowNodePicker } from '../hooks/use-workflow-node-picker'
 import { useWorkflowOperations } from '../hooks/use-workflow-operations'
 import { useWorkflowContextMenu } from '../hooks/use-workflow-context-menu'
+import { useWorkflowNavigationGuard } from '../hooks/use-workflow-navigation-guard'
+import { useWorkflowSave } from '../hooks/use-workflow-save'
 import { WorkflowContextMenu } from './workflow-context-menu'
+import { WorkflowSavePendingDialog } from './workflow-save-pending-dialog'
 import { ImportDslDialog } from '@/features/studio'
 import type { WorkflowApplicationMetadata } from '../utils/workflow-application-dsl'
 import { NodeSelectorPopover } from '@ai-workflow/nodes-ui'
@@ -39,7 +42,14 @@ export function WorkflowEditor({
   const addNodeButtonRef = useRef<HTMLButtonElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
-  const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
+  const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
+  const save = useWorkflowSave({
+    dirty: editor.dirty,
+    snapshot: editor.createSnapshot(),
+    onSave,
+    onSaved: editor.markSaved,
+  })
+  const navigationGuard = useWorkflowNavigationGuard(save.hasPendingSave)
   const nodePicker = useWorkflowNodePicker({
     defaultAnchorRef: addNodeButtonRef,
     editor,
@@ -93,6 +103,7 @@ export function WorkflowEditor({
     interactionBlocked: contextMenu.open || operations.importDialogOpen,
     shortcutHelpOpen,
     onAddNodeOpenChange: handleNodePickerOpenChange,
+    onSave: save.saveNow,
     onShortcutHelpOpenChange: setShortcutHelpOpen,
     onTestRun: () => void operations.testRun(),
     disabled,
@@ -107,6 +118,12 @@ export function WorkflowEditor({
 
   return (
     <>
+      <WorkflowSavePendingDialog
+        open={navigationGuard.blocked}
+        onLeave={navigationGuard.leave}
+        onStay={navigationGuard.stay}
+      />
+
       <ImportDslDialog
         open={disabled ? false : operations.importDialogOpen}
         title="导入应用"
@@ -181,9 +198,6 @@ export function WorkflowEditor({
                 }
                 onPaneClick={() => editor.clearSelection()}
                 onPaneContextMenu={contextMenu.handlePaneContextMenu}
-                // onMoveEnd={(event, viewport) =>
-                //   editor.handleViewportChange(viewport, event !== null)
-                // }
                 aria-disabled={disabled}
                 className="bg-muted/30 workflow-editor"
               >
@@ -196,6 +210,8 @@ export function WorkflowEditor({
                   }
                   selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
                   selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
+                  lastSavedAt={save.lastSavedAt}
+                  saveStatus={save.status}
                   canRedo={editor.canRedo}
                   canUndo={editor.canUndo}
                   addNodeOpen={disabled ? false : nodePicker.open}

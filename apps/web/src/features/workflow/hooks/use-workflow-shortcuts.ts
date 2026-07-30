@@ -9,6 +9,7 @@ interface UseWorkflowShortcutsOptions {
   disabled?: boolean
   interactionBlocked?: boolean
   onAddNodeOpenChange: (open: boolean) => void
+  onSave: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onTestRun: () => void
 }
@@ -50,6 +51,7 @@ export function useWorkflowShortcuts({
   disabled = false,
   interactionBlocked = false,
   onAddNodeOpenChange,
+  onSave,
   onShortcutHelpOpenChange,
   onTestRun,
 }: UseWorkflowShortcutsOptions) {
@@ -104,7 +106,7 @@ export function useWorkflowShortcuts({
       if (modifierPressed && !event.altKey) {
         if (key === 's' && !event.shiftKey) {
           event.preventDefault()
-          void editor.saveWorkflow()
+          onSave()
         } else if (key === 'z' && !event.shiftKey && editor.canUndo) {
           event.preventDefault()
           editor.undo()
@@ -172,6 +174,7 @@ export function useWorkflowShortcuts({
     editor,
     interactionBlocked,
     onAddNodeOpenChange,
+    onSave,
     onShortcutHelpOpenChange,
     onTestRun,
     shortcutHelpOpen,

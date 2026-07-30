@@ -6,6 +6,12 @@ import {
 } from '@/dto/studio.dto'
 import { Prisma } from '@/generated/prisma/client'
 import { StudioAppRepository } from '@/repositories/studio-app.repository'
+import {
+  parseWorkflowDefinition,
+  parseWorkflowLayout,
+  type WorkflowDefinition,
+  type WorkflowLayout,
+} from '@/utils/workflow-draft'
 import type { StudioAppDslExport, StudioAppListVo, StudioAppVo } from '@/vo/studio.vo'
 import {
   BadRequestException,
@@ -19,25 +25,6 @@ import { randomUUID } from 'node:crypto'
 interface DecodedCursor {
   id: string
   value: Date
-}
-
-interface WorkflowDefinition {
-  id: string
-  name: string
-  description?: string
-  nodes: unknown[]
-  edges: unknown[]
-  outputs: unknown[]
-}
-
-interface WorkflowLayout {
-  positions: Record<string, { x: number; y: number }>
-  viewport?: {
-    x: number
-    y: number
-    zoom: number
-  }
-  sizes?: Record<string, { width: number; height: number }>
 }
 
 const STUDIO_APP_TITLE_MAX_LENGTH = 40
@@ -259,143 +246,15 @@ export class StudioAppService {
     errorMessage: string,
     internalError = false,
   ): WorkflowDefinition {
-    if (
-      !this.isRecord(rawDefinition) ||
-      typeof rawDefinition.id !== 'string' ||
-      !rawDefinition.id ||
-      typeof rawDefinition.name !== 'string' ||
-      !rawDefinition.name ||
-      (rawDefinition.description !== undefined && typeof rawDefinition.description !== 'string') ||
-      !this.isWorkflowNodes(rawDefinition.nodes) ||
-      !this.isWorkflowEdges(rawDefinition.edges) ||
-      (rawDefinition.outputs !== undefined && !Array.isArray(rawDefinition.outputs)) ||
-      !this.hasUniqueStringIds(rawDefinition.nodes) ||
-      !this.hasUniqueStringIds(rawDefinition.edges)
-    ) {
-      this.throwInvalidDsl(errorMessage, internalError)
-    }
-
-    const nodeIds = new Set(rawDefinition.nodes.map((node) => node.id))
-    const hasInvalidEdgeReference = rawDefinition.edges.some(
-      (edge) => !nodeIds.has(edge.source) || !nodeIds.has(edge.target),
+    return (
+      parseWorkflowDefinition(rawDefinition) ?? this.throwInvalidDsl(errorMessage, internalError)
     )
-
-    if (hasInvalidEdgeReference) {
-      this.throwInvalidDsl(errorMessage, internalError)
-    }
-
-    return {
-      id: rawDefinition.id,
-      name: rawDefinition.name,
-      ...(rawDefinition.description !== undefined
-        ? { description: rawDefinition.description }
-        : {}),
-      nodes: rawDefinition.nodes,
-      edges: rawDefinition.edges,
-      outputs: rawDefinition.outputs ?? [],
-    } satisfies WorkflowDefinition
   }
 
   private parseWorkflowLayout(rawLayout: unknown, internalError = false): WorkflowLayout {
-    const invalidLayout = () => this.throwInvalidDsl('DSL 工作流布局格式无效', internalError)
-
-    if (!this.isRecord(rawLayout) || !this.isRecord(rawLayout.positions)) {
-      return invalidLayout()
-    }
-
-    const positions = this.parsePointRecord(rawLayout.positions)
-
-    if (!positions) {
-      return invalidLayout()
-    }
-
-    const viewport =
-      rawLayout.viewport === undefined
-        ? undefined
-        : this.parseViewport(rawLayout.viewport) || invalidLayout()
-    const sizes =
-      rawLayout.sizes === undefined
-        ? undefined
-        : this.parseSizeRecord(rawLayout.sizes) || invalidLayout()
-
-    return {
-      positions,
-      ...(viewport ? { viewport } : {}),
-      ...(sizes ? { sizes } : {}),
-    }
-  }
-
-  private parsePointRecord(
-    value: Record<string, unknown>,
-  ): Record<string, { x: number; y: number }> | undefined {
-    const entries = Object.entries(value)
-
-    if (
-      entries.some(
-        ([, point]) =>
-          !this.isRecord(point) || !this.isFiniteNumber(point.x) || !this.isFiniteNumber(point.y),
-      )
-    ) {
-      return undefined
-    }
-
-    return Object.fromEntries(
-      entries.map(([id, point]) => [
-        id,
-        {
-          x: (point as Record<string, number>).x,
-          y: (point as Record<string, number>).y,
-        },
-      ]),
-    )
-  }
-
-  private parseViewport(value: unknown): WorkflowLayout['viewport'] | undefined {
-    if (
-      !this.isRecord(value) ||
-      !this.isFiniteNumber(value.x) ||
-      !this.isFiniteNumber(value.y) ||
-      !this.isFiniteNumber(value.zoom) ||
-      value.zoom <= 0
-    ) {
-      return undefined
-    }
-
-    return {
-      x: value.x,
-      y: value.y,
-      zoom: value.zoom,
-    }
-  }
-
-  private parseSizeRecord(
-    value: unknown,
-  ): Record<string, { width: number; height: number }> | undefined {
-    if (!this.isRecord(value)) return undefined
-
-    const entries = Object.entries(value)
-
-    if (
-      entries.some(
-        ([, size]) =>
-          !this.isRecord(size) ||
-          !this.isFiniteNumber(size.width) ||
-          !this.isFiniteNumber(size.height) ||
-          size.width <= 0 ||
-          size.height <= 0,
-      )
-    ) {
-      return undefined
-    }
-
-    return Object.fromEntries(
-      entries.map(([id, size]) => [
-        id,
-        {
-          width: (size as Record<string, number>).width,
-          height: (size as Record<string, number>).height,
-        },
-      ]),
+    return (
+      parseWorkflowLayout(rawLayout) ??
+      this.throwInvalidDsl('DSL 工作流布局格式无效', internalError)
     )
   }
 
@@ -410,62 +269,6 @@ export class StudioAppService {
         return candidate
       }
     }
-  }
-
-  private isWorkflowNodes(
-    value: unknown,
-  ): value is Array<Record<string, unknown> & { id: string }> {
-    return (
-      Array.isArray(value) &&
-      value.every(
-        (node) =>
-          this.isRecord(node) &&
-          typeof node.id === 'string' &&
-          Boolean(node.id) &&
-          typeof node.type === 'string' &&
-          Boolean(node.type) &&
-          this.isRecord(node.config) &&
-          this.isRecord(node.inputs) &&
-          Array.isArray(node.outputs) &&
-          (node.parentId === undefined ||
-            (typeof node.parentId === 'string' && Boolean(node.parentId))),
-      )
-    )
-  }
-
-  private isWorkflowEdges(value: unknown): value is Array<
-    Record<string, unknown> & {
-      id: string
-      source: string
-      target: string
-    }
-  > {
-    return (
-      Array.isArray(value) &&
-      value.every(
-        (edge) =>
-          this.isRecord(edge) &&
-          typeof edge.id === 'string' &&
-          Boolean(edge.id) &&
-          typeof edge.source === 'string' &&
-          Boolean(edge.source) &&
-          typeof edge.target === 'string' &&
-          Boolean(edge.target) &&
-          edge.source !== edge.target &&
-          typeof edge.sourceHandle === 'string' &&
-          Boolean(edge.sourceHandle) &&
-          typeof edge.targetHandle === 'string' &&
-          Boolean(edge.targetHandle),
-      )
-    )
-  }
-
-  private hasUniqueStringIds(values: Array<Record<string, unknown> & { id: string }>): boolean {
-    return new Set(values.map(({ id }) => id)).size === values.length
-  }
-
-  private isFiniteNumber(value: unknown): value is number {
-    return typeof value === 'number' && Number.isFinite(value)
   }
 
   private throwInvalidDsl(message: string, internalError: boolean): never {
@@ -549,9 +352,5 @@ export class StudioAppService {
       .trim()
 
     return sanitized || 'workflow'
-  }
-
-  private isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value)
   }
 }

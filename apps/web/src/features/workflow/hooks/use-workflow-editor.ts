@@ -35,7 +35,6 @@ import {
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
 } from '@/utils/workflow/editor-elements'
-import { useWorkflowSave } from './use-workflow-save'
 import { useWorkflowHistory } from './use-workflow-history'
 import { useWorkflowLoopEditor } from './use-workflow-loop-editor'
 import { getAvailableNodeVariables } from '../utils/get-available-node-variables'
@@ -63,7 +62,6 @@ import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
   initialSnapshot: WorkflowEditorSnapshot // 初始化快照数据（包含工作流数据+布局数据）
-  onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
 }
 
 const DEFAULT_NODE_PLACEMENT_SIZE = {
@@ -227,11 +225,7 @@ function showBlockedSingleInstancePasteToast(nodeLabels: readonly string[]) {
  * 维护 Workflow 编辑会话并向视图暴露明确的状态和操作
  * Hook 必须在 ReactFlowProvider 内调用，因为它会刷新动态 Handle 布局
  */
-export function useWorkflowEditor({
-  canvasRef,
-  initialSnapshot,
-  onSave,
-}: UseWorkflowEditorOptions) {
+export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEditorOptions) {
   const [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
     toCanvasNodes(initialSnapshot),
   )
@@ -321,18 +315,6 @@ export function useWorkflowEditor({
     ...disabledNodeTypes,
     ...EDGE_INSERTION_UNAVAILABLE_NODE_TYPES,
   ])
-
-  const { errors, saveWorkflow, saving } = useWorkflowSave({
-    baseWorkflow: initialSnapshot.workflow,
-    edges,
-    nodes,
-    onSave,
-    onSaved: () => {
-      history.markSaved()
-      setDirty(false)
-    },
-    viewport,
-  })
 
   const loopEditor = useWorkflowLoopEditor({
     nodes,
@@ -1159,6 +1141,11 @@ export function useWorkflowEditor({
     }
   }
 
+  function markSaved() {
+    history.markSaved()
+    setDirty(false)
+  }
+
   function replaceCanvas(snapshot: WorkflowEditorSnapshot) {
     const importedWorkflow = {
       ...initialSnapshot.workflow,
@@ -1189,12 +1176,6 @@ export function useWorkflowEditor({
         void fitView({ padding: 0.2, maxZoom: 1, duration: 200 })
       }
     })
-  }
-
-  // 记录最新视口；只有用户主动移动画布时才设置 dirty
-  function handleViewportChange(nextViewport: Viewport, userInitiated: boolean) {
-    setWorkflowViewport(nextViewport)
-    if (userInitiated) setDirty(true)
   }
 
   function nudgeSelectedNodes(offset: { x: number; y: number }) {
@@ -1316,7 +1297,6 @@ export function useWorkflowEditor({
     duplicateSelection,
     edgeInsertionDisabledNodeTypes,
     edges: renderedEdges,
-    errors,
     finishNodeNudge,
     getNextDisabledNodeTypes,
     getNextNodeTypes,
@@ -1328,11 +1308,11 @@ export function useWorkflowEditor({
     handleEdgesChange,
     handleNodesChange,
     handleNodesDelete,
-    handleViewportChange,
     initialViewport: initialSnapshot.layout.viewport,
     insertNodeOnEdge,
     isValidConnection,
     loopEditor,
+    markSaved,
     nodes: renderedNodes,
     nudgeSelectedNodes,
     openNodeConfig,
@@ -1343,8 +1323,6 @@ export function useWorkflowEditor({
     replaceConnectedNode,
     replaceNode,
     redo: history.redo,
-    saveWorkflow,
-    saving,
     selectAllNodes,
     selectNodeForContextMenu,
     selectedNode,

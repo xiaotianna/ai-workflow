@@ -1,8 +1,13 @@
+import {
+  getStudioWorkflowDraft,
+  saveStudioWorkflowDraft,
+  type StudioWorkflowDraftDto,
+} from '@/api/studio'
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import type { StudioAppListItem } from '@/features/studio'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import type { AppDetailOutletContext } from '.'
@@ -12,13 +17,72 @@ interface AppWorkflowEditorProps {
   disabled: boolean
 }
 
+type WorkflowDraftState =
+  | {
+      appId: string
+      status: 'loading' | 'error'
+    }
+  | {
+      appId: string
+      status: 'success'
+      draft: StudioWorkflowDraftDto
+    }
+
 function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
-  const [snapshot, setSnapshot] = useState<WorkflowEditorSnapshot>(() =>
-    createEmptyWorkflowDocument(app.id, {
-      name: app.title,
-      description: app.description,
-    }),
-  )
+  const [draftState, setDraftState] = useState<WorkflowDraftState>({
+    appId: app.id,
+    status: 'loading',
+  })
+  const revisionRef = useRef<number | undefined>(undefined)
+  const draft =
+    draftState.appId === app.id && draftState.status === 'success' ? draftState.draft : undefined
+
+  useEffect(() => {
+    const controller = new AbortController()
+    revisionRef.current = undefined
+    setDraftState({
+      appId: app.id,
+      status: 'loading',
+    })
+
+    void getStudioWorkflowDraft(app.id, controller.signal)
+      .then((loadedDraft) => {
+        revisionRef.current = loadedDraft.revision
+        setDraftState({
+          appId: app.id,
+          status: 'success',
+          draft: loadedDraft,
+        })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setDraftState({
+            appId: app.id,
+            status: 'error',
+          })
+        }
+      })
+
+    return () => controller.abort()
+  }, [app.id])
+
+  if (!draft) {
+    return <UnavailableWorkflowEditor workflowId={app.id} />
+  }
+
+  async function handleSave(snapshot: WorkflowEditorSnapshot) {
+    const revision = revisionRef.current
+    if (revision === undefined) {
+      throw new Error('工作流草稿尚未加载完成')
+    }
+
+    const savedDraft = await saveStudioWorkflowDraft(app.id, {
+      revision,
+      definition: snapshot.workflow,
+      layout: snapshot.layout,
+    })
+    revisionRef.current = savedDraft.revision
+  }
 
   return (
     <WorkflowEditorProvider
@@ -28,16 +92,19 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
         description: app.description,
         icon: app.icon,
       }}
-      initialSnapshot={snapshot}
+      initialSnapshot={{
+        workflow: draft.definition,
+        layout: draft.layout,
+      }}
       disabled={disabled}
-      onSave={setSnapshot}
+      onSave={handleSave}
     />
   )
 }
 
-function UnavailableWorkflowEditor() {
+function UnavailableWorkflowEditor({ workflowId = 'unavailable' }: { workflowId?: string }) {
   const [snapshot, setSnapshot] = useState<WorkflowEditorSnapshot>(() =>
-    createEmptyWorkflowDocument('unavailable'),
+    createEmptyWorkflowDocument(workflowId),
   )
 
   return <WorkflowEditorProvider initialSnapshot={snapshot} disabled onSave={setSnapshot} />

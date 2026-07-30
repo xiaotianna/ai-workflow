@@ -131,6 +131,16 @@ function ExampleForm() {
 
 ## 工作流编辑器
 
+- 工作流自动保存由 `WorkflowEditor` 组件层编排：`useWorkflowEditor` 只维护编辑状态、历史与
+  `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
+  页面只提供草稿读取与写入函数。不得把接口请求重新耦合进 `useWorkflowEditor`。
+- 只有持久化节点/连线变化才触发自动保存：React Flow 变更继续统一复用
+  `hasNodeMutation`、`hasEdgeMutation` 判断，节点增删替换、拖动位置、主动缩放尺寸和连线
+  增删替换会置脏；选择、Hover、面板开关以及画布平移/缩放不得置脏或发请求。自动保存期间
+  的新变化必须等待当前请求结束后串行保存最新快照，不允许并发覆盖。
+- 自动保存处于防抖等待、请求中或失败未落库状态时，React Router 页面跳转必须弹出确认
+  Dialog；浏览器刷新、关闭标签页使用 `beforeunload` 原生确认。保存完成后若跳转仍在等待，
+  自动继续原跳转。
 - 根画布和 Loop 容器内新增节点都通过 `createCanvasNodes` 创建；新增 Loop 必须在同一次
   状态更新中原子生成 Loop 容器、Loop Start 和 Loop Exit。根画布新增节点通过预设尺寸
   一次计算初始位置，Loop 使用默认容器尺寸；不得在渲染测量后再次修正坐标造成视觉跳动。

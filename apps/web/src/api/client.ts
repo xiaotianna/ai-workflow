@@ -116,6 +116,10 @@ export const apiClient = {
     return client.post<ApiResponse<T>, T, D>(url, data, config)
   },
 
+  put<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
+    return client.put<ApiResponse<T>, T, D>(url, data, config)
+  },
+
   patch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
     return client.patch<ApiResponse<T>, T, D>(url, data, config)
   },
