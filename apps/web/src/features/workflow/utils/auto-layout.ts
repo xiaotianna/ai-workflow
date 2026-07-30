@@ -1,0 +1,123 @@
+import { BuiltinNodeType, type WorkflowEdge } from '@ai-workflow/core'
+
+import type { WorkflowCanvasNode } from '@/components/workflow/types'
+import { getLoopNodeSize } from '@/utils/workflow/editor-elements'
+
+const LAYOUT_ORIGIN = {
+  x: 120,
+  y: 120,
+}
+
+const DEFAULT_NODE_SIZE = {
+  width: 240,
+  height: 100,
+}
+
+const LAYER_GAP = 120
+const ROW_GAP = 64
+
+function getNodeLayoutSize(node: WorkflowCanvasNode) {
+  if (node.type === BuiltinNodeType.LOOP) return getLoopNodeSize(node)
+
+  return {
+    width:
+      node.measured?.width ??
+      node.width ??
+      (typeof node.style?.width === 'number' ? node.style.width : DEFAULT_NODE_SIZE.width),
+    height:
+      node.measured?.height ??
+      node.height ??
+      (typeof node.style?.height === 'number' ? node.style.height : DEFAULT_NODE_SIZE.height),
+  }
+}
+
+function getRootNodeRanks(
+  nodes: readonly WorkflowCanvasNode[],
+  edges: readonly WorkflowEdge[],
+): Map<string, number> {
+  const rootNodeIds = new Set(nodes.map((node) => node.id))
+  const outgoingNodeIds = new Map<string, Set<string>>()
+  const incomingCount = new Map(nodes.map((node) => [node.id, 0]))
+  const ranks = new Map(nodes.map((node) => [node.id, 0]))
+
+  for (const edge of edges) {
+    if (!rootNodeIds.has(edge.source) || !rootNodeIds.has(edge.target)) continue
+
+    const outgoing = outgoingNodeIds.get(edge.source) ?? new Set<string>()
+    if (outgoing.has(edge.target)) continue
+
+    outgoing.add(edge.target)
+    outgoingNodeIds.set(edge.source, outgoing)
+    incomingCount.set(edge.target, (incomingCount.get(edge.target) ?? 0) + 1)
+  }
+
+  const pendingNodeIds = nodes
+    .filter((node) => incomingCount.get(node.id) === 0)
+    .map((node) => node.id)
+  const visitedNodeIds = new Set<string>()
+
+  while (pendingNodeIds.length > 0) {
+    const nodeId = pendingNodeIds.shift()!
+    visitedNodeIds.add(nodeId)
+
+    for (const targetNodeId of outgoingNodeIds.get(nodeId) ?? []) {
+      ranks.set(targetNodeId, Math.max(ranks.get(targetNodeId) ?? 0, (ranks.get(nodeId) ?? 0) + 1))
+      const nextIncomingCount = (incomingCount.get(targetNodeId) ?? 1) - 1
+      incomingCount.set(targetNodeId, nextIncomingCount)
+
+      if (nextIncomingCount === 0) pendingNodeIds.push(targetNodeId)
+    }
+  }
+
+  let nextCycleRank = Math.max(0, ...ranks.values()) + 1
+
+  for (const node of nodes) {
+    if (visitedNodeIds.has(node.id)) continue
+
+    ranks.set(node.id, nextCycleRank)
+    nextCycleRank += 1
+  }
+
+  return ranks
+}
+
+export function autoLayoutRootNodes(
+  nodes: readonly WorkflowCanvasNode[],
+  edges: readonly WorkflowEdge[],
+): WorkflowCanvasNode[] {
+  const rootNodes = nodes.filter((node) => !node.parentId)
+  if (rootNodes.length === 0) return [...nodes]
+
+  const ranks = getRootNodeRanks(rootNodes, edges)
+  const layers = new Map<number, WorkflowCanvasNode[]>()
+
+  for (const node of rootNodes) {
+    const rank = ranks.get(node.id) ?? 0
+    const layer = layers.get(rank) ?? []
+    layer.push(node)
+    layers.set(rank, layer)
+  }
+
+  const nextPositionByNodeId = new Map<string, WorkflowCanvasNode['position']>()
+  let currentX = LAYOUT_ORIGIN.x
+
+  for (const [, layerNodes] of [...layers.entries()].sort(([left], [right]) => left - right)) {
+    let currentY = LAYOUT_ORIGIN.y
+    let layerWidth = 0
+
+    for (const node of layerNodes) {
+      const size = getNodeLayoutSize(node)
+      nextPositionByNodeId.set(node.id, { x: currentX, y: currentY })
+      currentY += size.height + ROW_GAP
+      layerWidth = Math.max(layerWidth, size.width)
+    }
+
+    currentX += layerWidth + LAYER_GAP
+  }
+
+  return nodes.map((node) => {
+    const nextPosition = nextPositionByNodeId.get(node.id)
+
+    return nextPosition ? { ...node, position: nextPosition } : node
+  })
+}

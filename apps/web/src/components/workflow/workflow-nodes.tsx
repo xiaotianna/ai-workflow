@@ -10,7 +10,7 @@ const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
-  const { addNodeToLoop, availableNodeTypes } = useWorkflowLoopEditorContext()
+  const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
 
   return (
     <RenderNode
@@ -27,17 +27,22 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
       nodeRegistry={nodeRegistry}
       uiRegistry={nodeUIRegistry}
       selected={selected}
+      disabled={disabled}
       renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
       dragHandleClassName="drag-handle"
-      editorCapabilities={{
-        [BuiltinNodeType.LOOP]: {
-          addChildNode: {
-            nodeTypes: availableNodeTypes,
-            onAddNode: (parentNodeId, childType) => addNodeToLoop(childType, parentNodeId),
-          },
-          resizeControl: <LoopNodeResizeControl />,
-        },
-      }}
+      editorCapabilities={
+        disabled
+          ? undefined
+          : {
+              [BuiltinNodeType.LOOP]: {
+                addChildNode: {
+                  nodeTypes: availableNodeTypes,
+                  onAddNode: (parentNodeId, childType) => addNodeToLoop(childType, parentNodeId),
+                },
+                resizeControl: <LoopNodeResizeControl />,
+              },
+            }
+      }
     />
   )
 }

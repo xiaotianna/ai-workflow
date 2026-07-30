@@ -1,3 +1,4 @@
+import { Tooltip } from '@/components/tooltip'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { iconBtnClass } from './icon-button-class'
@@ -5,7 +6,7 @@ import { cn } from '@ai-workflow/ui/lib/utils'
 
 export const SystemVariables = () => {
   return (
-    <>
+    <Tooltip content="系统变量" side="bottom">
       <Button
         type="button"
         variant="outline"
@@ -15,6 +16,6 @@ export const SystemVariables = () => {
       >
         <VariableIcon />
       </Button>
-    </>
+    </Tooltip>
   )
 }

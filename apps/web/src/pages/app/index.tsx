@@ -17,6 +17,21 @@ import {
 import { routes } from '@/router'
 import { getNavigationItemsFromRoute } from '@/router/navigation'
 
+type AppResourceState =
+  | {
+      routeId: string | undefined
+      status: 'loading' | 'error'
+    }
+  | {
+      routeId: string
+      status: 'success'
+      app: StudioAppListItem
+    }
+
+export interface AppDetailOutletContext {
+  isResourceAvailable: boolean
+}
+
 export interface AppPageProps {
   onAppAction?: StudioAppActionHandler
   onImportDsl?: (dsl: unknown, app: StudioAppListItem) => unknown | Promise<unknown>
@@ -25,19 +40,41 @@ export interface AppPageProps {
 export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [app, setApp] = useState<StudioAppListItem>()
+  const [resourceState, setResourceState] = useState<AppResourceState>({
+    routeId: id,
+    status: 'loading',
+  })
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const encodedAppId = encodeURIComponent(id ?? '')
+  const app =
+    resourceState.routeId === id && resourceState.status === 'success'
+      ? resourceState.app
+      : undefined
+  const isResourceAvailable = app !== undefined
 
   useEffect(() => {
-    if (!id) return
+    if (!id) {
+      setResourceState({ routeId: id, status: 'error' })
+      return
+    }
 
     const controller = new AbortController()
+    setResourceState({ routeId: id, status: 'loading' })
 
     void getStudioApp(id, controller.signal)
-      .then((result) => setApp(toStudioAppListItem(result)))
-      .catch(() => undefined)
+      .then((result) => {
+        setResourceState({
+          routeId: id,
+          status: 'success',
+          app: toStudioAppListItem(result),
+        })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setResourceState({ routeId: id, status: 'error' })
+        }
+      })
 
     return () => controller.abort()
   }, [id])
@@ -49,7 +86,11 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
       ...input,
       description: input.description ?? '',
     })
-    setApp(toStudioAppListItem(updatedApp))
+    setResourceState({
+      routeId: id ?? app.id,
+      status: 'success',
+      app: toStudioAppListItem(updatedApp),
+    })
     showToast('success', '应用信息已保存')
   }
 
@@ -119,6 +160,7 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
         }
         navigationItems={getNavigationItemsFromRoute(routes, 'app', `/app/${encodedAppId}`)}
         navigationLabel="应用导航"
+        outletContext={{ isResourceAvailable } satisfies AppDetailOutletContext}
       />
     </>
   )

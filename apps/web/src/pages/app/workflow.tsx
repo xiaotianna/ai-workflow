@@ -2,8 +2,12 @@ import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import { useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
+
+import type { AppDetailOutletContext } from '.'
 
 export default function AppWorkflowPage() {
+  const { isResourceAvailable } = useOutletContext<AppDetailOutletContext>()
   // const { id: appId } = useParams<{ id: string }>()
 
   // if (!appId) {
@@ -18,5 +22,11 @@ export default function AppWorkflowPage() {
     createEmptyWorkflowDocument('appId'),
   )
 
-  return <WorkflowEditorProvider initialSnapshot={snapshot} onSave={setSnapshot} />
+  return (
+    <WorkflowEditorProvider
+      initialSnapshot={snapshot}
+      disabled={!isResourceAvailable}
+      onSave={setSnapshot}
+    />
+  )
 }

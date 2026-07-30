@@ -63,13 +63,21 @@ const WorkflowMiniMapNode = ({
   )
 }
 
-export const WorkflowCanvasViewer = () => {
+interface WorkflowCanvasViewerProps {
+  disabled?: boolean
+}
+
+export const WorkflowCanvasViewer = ({ disabled = false }: WorkflowCanvasViewerProps) => {
   const { zoomIn, zoomOut } = useReactFlow()
   const zoom = useStore(zoomSelector)
   const zoomPercent = Math.round(zoom * 100)
 
   return (
-    <div className="nodrag nopan nowheel border-border bg-background/95 overflow-hidden rounded-xl border-[0.5px] shadow-xs backdrop-blur-[5px]">
+    <fieldset
+      disabled={disabled}
+      aria-label="工作流画布视图"
+      className="nodrag nopan nowheel border-border bg-background/95 m-0 overflow-hidden rounded-xl border-[0.5px] p-0 shadow-xs backdrop-blur-[5px]"
+    >
       <MiniMap
         className="relative! m-0! rounded-none! border-0! shadow-none!"
         style={{ width: 152, height: 88 }}
@@ -77,8 +85,8 @@ export const WorkflowCanvasViewer = () => {
         maskColor="color-mix(in oklab, var(--muted) 60%, transparent)"
         nodeComponent={WorkflowMiniMapNode}
         nodeStrokeWidth={0}
-        pannable
-        zoomable
+        pannable={!disabled}
+        zoomable={!disabled}
       />
       <div className="border-border bg-background/95 flex h-8 items-center justify-center gap-1 border-t-[0.5px] px-2">
         <Button
@@ -108,6 +116,6 @@ export const WorkflowCanvasViewer = () => {
           <Plus className="size-3.5" aria-hidden />
         </Button>
       </div>
-    </div>
+    </fieldset>
   )
 }

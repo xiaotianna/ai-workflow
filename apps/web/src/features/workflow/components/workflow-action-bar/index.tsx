@@ -6,9 +6,17 @@ import { SystemVariables } from './system-variables'
 import { Publish } from './publish'
 import { VersionHistory } from './version-history'
 
-export const WorkflowActionBar = () => {
+interface WorkflowActionBarProps {
+  disabled?: boolean
+}
+
+export const WorkflowActionBar = ({ disabled = false }: WorkflowActionBarProps) => {
   return (
-    <div className="flex items-center gap-1.5">
+    <fieldset
+      disabled={disabled}
+      aria-label="工作流操作"
+      className="m-0 flex min-w-0 items-center gap-1.5 border-0 p-0"
+    >
       {/* 测试运行 */}
       <TestRun />
       {/* 运行历史 */}
@@ -23,6 +31,6 @@ export const WorkflowActionBar = () => {
       <Publish />
       {/* 版本历史 */}
       <VersionHistory />
-    </div>
+    </fieldset>
   )
 }

@@ -3,7 +3,9 @@ import { DEFAULT_LOOP_SIZE } from '@/utils/workflow/editor-elements'
 import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 
 export function LoopNodeResizeControl() {
-  const { syncChildExtents } = useWorkflowLoopEditorContext()
+  const { disabled, syncChildExtents } = useWorkflowLoopEditorContext()
+
+  if (disabled) return null
 
   return (
     <NodeResizeControl

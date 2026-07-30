@@ -366,3 +366,30 @@ export const collectDescendantNodeIds = (
 
   return result
 }
+
+/**
+ * 从选择集合中移除已有选中祖先的节点，避免移动、复制父容器时重复处理其后代。
+ */
+export const getSelectionRootNodeIds = (
+  selectedNodeIds: ReadonlySet<string>,
+  nodes: readonly WorkflowCanvasNode[],
+): Set<string> => {
+  const nodeById = new Map(nodes.map((node) => [node.id, node]))
+
+  return new Set(
+    nodes
+      .filter((node) => {
+        if (!selectedNodeIds.has(node.id)) return false
+
+        let parentId = node.parentId
+
+        while (parentId) {
+          if (selectedNodeIds.has(parentId)) return false
+          parentId = nodeById.get(parentId)?.parentId
+        }
+
+        return true
+      })
+      .map((node) => node.id),
+  )
+}

@@ -12,6 +12,8 @@ export interface DetailLayoutProps {
   resourceIdentity: ReactNode
   navigationItems: readonly LayoutSidebarNavigationItem[]
   navigationLabel: string
+  /** 传递给详情子路由的资源状态等上下文 */
+  outletContext?: unknown
   /** 渲染在布局外壳之前的内容，例如弹窗 */
   before?: ReactNode
 }
@@ -22,6 +24,7 @@ export function DetailLayout({
   resourceIdentity,
   navigationItems,
   navigationLabel,
+  outletContext,
   before,
 }: DetailLayoutProps) {
   return (
@@ -54,7 +57,7 @@ export function DetailLayout({
         </div>
 
         <main className="border-border bg-background min-h-0 min-w-0 flex-1 overflow-auto rounded-lg shadow-xs">
-          <Outlet />
+          <Outlet context={outletContext} />
         </main>
       </div>
     </>

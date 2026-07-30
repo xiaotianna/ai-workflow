@@ -4,19 +4,40 @@ import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import type { WorkflowEdge } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 import { WorkflowLoopEditorProvider } from '@/components/workflow/workflow-loop-editor-context'
+import { useWorkflowShortcuts } from '../hooks/use-workflow-shortcuts'
 
 interface WorkflowEditorProps {
   initialSnapshot: WorkflowEditorSnapshot
+  disabled?: boolean
   onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
 }
 
-export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps) {
+export function WorkflowEditor({ initialSnapshot, disabled = false, onSave }: WorkflowEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
+  const [addNodeOpen, setAddNodeOpen] = useState(false)
+  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
+
+  useEffect(() => {
+    if (!disabled) return
+
+    setAddNodeOpen(false)
+    setShortcutHelpOpen(false)
+    editor.clearSelection()
+  }, [disabled, editor])
+
+  useWorkflowShortcuts({
+    editor,
+    addNodeOpen,
+    shortcutHelpOpen,
+    onAddNodeOpenChange: setAddNodeOpen,
+    onShortcutHelpOpenChange: setShortcutHelpOpen,
+    disabled,
+  })
   const renderedEdges = hoveredNodeId
     ? editor.edges.map((edge) =>
         edge.source === hoveredNodeId || edge.target === hoveredNodeId
@@ -26,7 +47,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
     : editor.edges
 
   return (
-    <WorkflowLoopEditorProvider value={editor.loopEditor}>
+    <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
       <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
         ref={canvasRef}
         nodes={editor.nodes}
@@ -45,24 +66,34 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
           padding: 0.2,
           maxZoom: 1,
         }}
-        deleteKeyCode={['Backspace', 'Delete']}
+        deleteKeyCode={null}
+        nodesDraggable={!disabled}
+        nodesConnectable={!disabled}
+        nodesFocusable={!disabled}
+        edgesFocusable={!disabled}
+        elementsSelectable={!disabled}
         selectNodesOnDrag={false}
         onEdgesChange={editor.handleEdgesChange}
         onConnect={editor.handleConnect}
-        isValidConnection={editor.isValidConnection}
+        isValidConnection={(connection) => !disabled && editor.isValidConnection(connection)}
         onBeforeDelete={editor.handleBeforeDelete}
         onNodesDelete={editor.handleNodesDelete}
-        onNodeClick={(_event, node) => editor.selectNode(node.id)}
+        onNodeClick={(event, node) => {
+          if (disabled) return
+          if (event.metaKey || event.ctrlKey || event.shiftKey) return
+          editor.openNodeConfig(node.id)
+        }}
         onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
         onNodeMouseLeave={(_event, node) =>
           setHoveredNodeId((currentNodeId) =>
             currentNodeId === node.id ? undefined : currentNodeId,
           )
         }
-        onPaneClick={() => editor.selectNode(undefined)}
+        onPaneClick={() => editor.clearSelection()}
         // onMoveEnd={(event, viewport) =>
         //   editor.handleViewportChange(viewport, event !== null)
         // }
+        aria-disabled={disabled}
         className="bg-muted/30 workflow-editor"
       >
         {/* 总面板组件 */}
@@ -73,11 +104,16 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
           selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
           canRedo={editor.canRedo}
           canUndo={editor.canUndo}
+          addNodeOpen={disabled ? false : addNodeOpen}
+          shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
+          disabled={disabled}
           disabledNodeTypes={editor.disabledNodeTypes}
           onAddNode={editor.addNode}
+          onAddNodeOpenChange={setAddNodeOpen}
           onApplyNode={editor.applyNode}
-          onCloseNodeConfig={() => editor.selectNode(undefined)}
+          onCloseNodeConfig={() => editor.clearSelection()}
           onRedo={editor.redo}
+          onShortcutHelpOpenChange={setShortcutHelpOpen}
           onUndo={editor.undo}
         />
         {/* 背景 */}

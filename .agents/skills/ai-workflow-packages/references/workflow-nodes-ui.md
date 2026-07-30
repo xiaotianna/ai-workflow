@@ -114,6 +114,9 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
   编辑能力，不直接依赖应用 Hook。
 - `AddNode` 通过可选的 `disabledNodeTypes` 接收调用方当前不可添加的节点类型集合；禁用项
   保留在搜索和列表结果中，使用原生 `disabled` 阻止选择，并展示禁用光标与透明度反馈。
+  根画布等需要由外部快捷键控制面板时，通过可选的 `open`、`onOpenChange` 使用受控模式；
+  Loop 内未传入时继续使用内部开关状态。无论关闭来自触发器、Esc 还是外部状态，搜索条件
+  都必须重置。
 - 修改节点视觉时读取 `docs/design-system.md`，使用语义 token 和无障碍交互。
 
 ## 当前注意事项

@@ -7,36 +7,47 @@ import { WorkflowStatusPanel } from './workflow-status'
 import type { NodeType, WorkflowNode } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
+import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 
 const MotionPanel = motion.create(Panel)
 
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
+  disabled?: boolean
   disabledNodeTypes?: ReadonlySet<string>
+  addNodeOpen: boolean
+  shortcutHelpOpen: boolean
   canRedo: boolean
   canUndo: boolean
   selectedNode?: WorkflowNode
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
   onAddNode: (type: string) => void
+  onAddNodeOpenChange: (open: boolean) => void
   onApplyNode: (node: WorkflowNode) => void
   onCloseNodeConfig: () => void
   onRedo: () => void
+  onShortcutHelpOpenChange: (open: boolean) => void
   onUndo: () => void
 }
 
 export const WorkflowPanel = ({
   nodeTypes,
+  disabled = false,
   disabledNodeTypes,
+  addNodeOpen,
+  shortcutHelpOpen,
   canRedo,
   canUndo,
   selectedNode,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
   onAddNode,
+  onAddNodeOpenChange,
   onApplyNode,
   onCloseNodeConfig,
   onRedo,
+  onShortcutHelpOpenChange,
   onUndo,
 }: WorkflowPanelProps) => {
   return (
@@ -47,28 +58,39 @@ export const WorkflowPanel = ({
       </Panel>
       {/* 右上角操作栏 */}
       <Panel position="top-right">
-        <WorkflowActionBar />
+        <WorkflowActionBar disabled={disabled} />
       </Panel>
       {/* 底部工具栏 */}
       <Panel position="bottom-center">
         <WorkflowCanvasToolbar
           nodeTypes={nodeTypes}
+          disabled={disabled}
           disabledNodeTypes={disabledNodeTypes}
+          addNodeOpen={addNodeOpen}
           canRedo={canRedo}
           canUndo={canUndo}
           onAddNode={onAddNode}
+          onAddNodeOpenChange={onAddNodeOpenChange}
           onRedo={onRedo}
           onUndo={onUndo}
         />
       </Panel>
       {/* 左下角视图调整 */}
       <Panel position="bottom-left">
-        <WorkflowCanvasViewer />
+        <WorkflowCanvasViewer disabled={disabled} />
+      </Panel>
+      {/* 右下角快捷键帮助 */}
+      <Panel position="bottom-right">
+        <WorkflowShortcutHelp
+          open={shortcutHelpOpen}
+          disabled={disabled}
+          onOpenChange={onShortcutHelpOpenChange}
+        />
       </Panel>
       {/* 右侧配置面板 */}
       <MotionConfig reducedMotion="user">
         <AnimatePresence>
-          {selectedNode ? (
+          {!disabled && selectedNode ? (
             <MotionPanel
               key="workflow-config-panel"
               position="top-right"

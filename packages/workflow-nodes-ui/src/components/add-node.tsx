@@ -4,7 +4,7 @@ import { Input } from '@ai-workflow/ui/components/input'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { Plus, Search } from 'lucide-react'
 import { Popover } from 'radix-ui'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { getNodeThemeColor } from '../common/node-theme-map'
 import { NodeIcon } from './node-icon'
@@ -12,6 +12,8 @@ import { NodeIcon } from './node-icon'
 interface AddNodeProps {
   nodeTypes: readonly NodeType[]
   disabledNodeTypes?: ReadonlySet<string>
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   onAddNode: (type: string) => void
 }
 
@@ -38,18 +40,29 @@ function getAddNodeErrorMessage(error: unknown, nodeLabel: string) {
     : `${prefix}，请稍后重试`
 }
 
-export const AddNode = ({ nodeTypes, disabledNodeTypes, onAddNode }: AddNodeProps) => {
-  const [open, setOpen] = useState(false)
+export const AddNode = ({
+  nodeTypes,
+  disabledNodeTypes,
+  open: controlledOpen,
+  onOpenChange,
+  onAddNode,
+}: AddNodeProps) => {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const open = controlledOpen ?? uncontrolledOpen
   const filteredNodeTypes = nodeTypes.filter(({ definition }) =>
     [definition.label, definition.description, definition.type].some((value) =>
       value?.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
     ),
   )
 
+  useEffect(() => {
+    if (!open) setQuery('')
+  }, [open])
+
   function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen)
-    if (!nextOpen) setQuery('')
+    if (controlledOpen === undefined) setUncontrolledOpen(nextOpen)
+    onOpenChange?.(nextOpen)
   }
 
   function handleSelect(type: string) {

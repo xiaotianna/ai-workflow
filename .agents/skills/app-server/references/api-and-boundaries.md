@@ -40,7 +40,8 @@
 - `GET /studio/apps`：游标分页获取应用；`limit` 范围为 1–50，支持 `search` 与
   `updated_desc`、`created_desc`、`created_asc` 排序，返回 `items` 和 opaque
   `nextCursor`。前端不得解析或自行构造游标。
-- `GET /studio/apps/:appId`：获取应用详情。
+- `GET /studio/apps/:appId`：获取应用详情；路径参数不是 UUID v4 时返回 `400`，资源不存在或
+  不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“应用不存在”。
 - `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
 - `POST /studio/apps/import`：导入 `dslVersion: 1` 的 JSON DSL，校验应用元数据、工作流定义
   与布局后创建新的应用、Workflow 和草稿；导入时重新生成应用与工作流 ID。

@@ -22,25 +22,35 @@ export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'di
 
 interface WorkflowCanvasToolbarProps {
   nodeTypes: readonly NodeType[]
+  disabled?: boolean
   disabledNodeTypes?: ReadonlySet<string>
+  addNodeOpen: boolean
   canRedo: boolean
   canUndo: boolean
   onAddNode: (type: string) => void
+  onAddNodeOpenChange: (open: boolean) => void
   onRedo: () => void
   onUndo: () => void
 }
 
 export const WorkflowCanvasToolbar = ({
   nodeTypes,
+  disabled = false,
   disabledNodeTypes,
+  addNodeOpen,
   canRedo,
   canUndo,
   onAddNode,
+  onAddNodeOpenChange,
   onRedo,
   onUndo,
 }: WorkflowCanvasToolbarProps) => {
   return (
-    <div className="relative ml-[-84px]">
+    <fieldset
+      disabled={disabled}
+      aria-label="工作流画布操作"
+      className="relative m-0 ml-[-84px] min-w-0 border-0 p-0"
+    >
       <WorkflowToolbarGroup aria-label="历史操作" className="absolute top-0 right-full mr-2">
         <ToolbarTooltip label="撤销" shortcut={['⌘', 'Z']}>
           <Button
@@ -74,13 +84,15 @@ export const WorkflowCanvasToolbar = ({
         <AddNode
           nodeTypes={nodeTypes}
           disabledNodeTypes={disabledNodeTypes}
+          open={addNodeOpen}
           onAddNode={onAddNode}
+          onOpenChange={onAddNodeOpenChange}
         />
       </WorkflowToolbarGroup>
 
       <WorkflowToolbarGroup aria-label="AI 操作" className="absolute top-0 left-full ml-2">
         <OpenAIPanel />
       </WorkflowToolbarGroup>
-    </div>
+    </fieldset>
   )
 }

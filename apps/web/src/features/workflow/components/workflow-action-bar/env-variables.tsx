@@ -1,3 +1,4 @@
+import { Tooltip } from '@/components/tooltip'
 import { Button } from '@ai-workflow/ui/components/button'
 import { iconBtnClass } from './icon-button-class'
 import { cn } from '@ai-workflow/ui/lib/utils'
@@ -5,7 +6,7 @@ import Icon from './icon/env-icon.svg'
 
 export const EnvVariables = () => {
   return (
-    <>
+    <Tooltip content="环境变量" side="bottom">
       <Button
         type="button"
         variant="outline"
@@ -15,6 +16,6 @@ export const EnvVariables = () => {
       >
         <img src={Icon} className="size-4" />
       </Button>
-    </>
+    </Tooltip>
   )
 }

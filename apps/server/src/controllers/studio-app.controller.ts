@@ -9,6 +9,7 @@ import {
 import { StudioAppService } from '@/services/studio-app.service'
 import type { StudioAppListVo, StudioAppVo } from '@/vo/studio.vo'
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -56,7 +57,14 @@ export class StudioAppController {
   @Get(':appId')
   getById(
     @Req() request: AuthenticatedRequest,
-    @Param('appId', new ParseUUIDPipe({ version: '4' })) appId: string,
+    @Param(
+      'appId',
+      new ParseUUIDPipe({
+        version: '4',
+        exceptionFactory: () => new BadRequestException('应用不存在'),
+      }),
+    )
+    appId: string,
   ): Promise<StudioAppVo> {
     return this.studioAppService.getById(request.auth.userId, appId)
   }

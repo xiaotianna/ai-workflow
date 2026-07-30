@@ -1,3 +1,4 @@
+import { Tooltip } from '@/components/tooltip'
 import { Button } from '@ai-workflow/ui/components/button'
 import { iconBtnClass } from './icon-button-class'
 import { cn } from '@ai-workflow/ui/lib/utils'
@@ -5,7 +6,7 @@ import { ListTodo } from 'lucide-react'
 
 export const CheckList = () => {
   return (
-    <>
+    <Tooltip content="检查清单" side="bottom">
       <Button
         type="button"
         variant="outline"
@@ -18,6 +19,6 @@ export const CheckList = () => {
           6
         </span>
       </Button>
-    </>
+    </Tooltip>
   )
 }
