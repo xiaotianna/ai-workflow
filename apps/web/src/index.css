@@ -15,3 +15,11 @@
   --xy-connectionline-stroke: var(--workflow-edge);
   --xy-connectionline-stroke-width: 2.5;
 }
+
+.workflow-editor .react-flow__edge-path {
+  transition: stroke 150ms ease;
+}
+
+.workflow-editor .react-flow__edge.workflow-edge--node-hovered .react-flow__edge-path {
+  stroke: var(--primary);
+}

@@ -12,6 +12,7 @@ const MotionPanel = motion.create(Panel)
 
 interface WorkflowPanelProps {
   nodeTypes: readonly NodeType[]
+  disabledNodeTypes?: ReadonlySet<string>
   canRedo: boolean
   canUndo: boolean
   selectedNode?: WorkflowNode
@@ -26,6 +27,7 @@ interface WorkflowPanelProps {
 
 export const WorkflowPanel = ({
   nodeTypes,
+  disabledNodeTypes,
   canRedo,
   canUndo,
   selectedNode,
@@ -51,6 +53,7 @@ export const WorkflowPanel = ({
       <Panel position="bottom-center">
         <WorkflowCanvasToolbar
           nodeTypes={nodeTypes}
+          disabledNodeTypes={disabledNodeTypes}
           canRedo={canRedo}
           canUndo={canUndo}
           onAddNode={onAddNode}

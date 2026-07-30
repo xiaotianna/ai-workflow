@@ -1,6 +1,6 @@
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
-import { createDemoWorkflowDocument } from '@/features/workflow/data'
+import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import { useState } from 'react'
 
 export default function AppWorkflowPage() {
@@ -15,7 +15,7 @@ export default function AppWorkflowPage() {
   // }
 
   const [snapshot, setSnapshot] = useState<WorkflowEditorSnapshot>(() =>
-    createDemoWorkflowDocument('appId'),
+    createEmptyWorkflowDocument('appId'),
   )
 
   return <WorkflowEditorProvider initialSnapshot={snapshot} onSave={setSnapshot} />

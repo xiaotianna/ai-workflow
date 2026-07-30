@@ -112,6 +112,8 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
 - 通用基础控件从 `@ai-workflow/ui` 导入，节点业务内容保留在本包。
 - 通用节点选择器使用 `AddNode`；容器 renderer 通过 `NodeEditorCapabilities` 消费应用注入的
   编辑能力，不直接依赖应用 Hook。
+- `AddNode` 通过可选的 `disabledNodeTypes` 接收调用方当前不可添加的节点类型集合；禁用项
+  保留在搜索和列表结果中，使用原生 `disabled` 阻止选择，并展示禁用光标与透明度反馈。
 - 修改节点视觉时读取 `docs/design-system.md`，使用语义 token 和无障碍交互。
 
 ## 当前注意事项

@@ -11,6 +11,7 @@ import { NodeIcon } from './node-icon'
 
 interface AddNodeProps {
   nodeTypes: readonly NodeType[]
+  disabledNodeTypes?: ReadonlySet<string>
   onAddNode: (type: string) => void
 }
 
@@ -37,7 +38,7 @@ function getAddNodeErrorMessage(error: unknown, nodeLabel: string) {
     : `${prefix}，请稍后重试`
 }
 
-export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
+export const AddNode = ({ nodeTypes, disabledNodeTypes, onAddNode }: AddNodeProps) => {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const filteredNodeTypes = nodeTypes.filter(({ definition }) =>
@@ -52,6 +53,8 @@ export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
   }
 
   function handleSelect(type: string) {
+    if (disabledNodeTypes?.has(type)) return
+
     const nodeLabel =
       nodeTypes.find(({ definition }) => definition.type === type)?.definition.label ?? type
 
@@ -101,23 +104,28 @@ export const AddNode = ({ nodeTypes, onAddNode }: AddNodeProps) => {
             aria-label="可添加节点"
             className="mt-2 grid max-h-80 grid-cols-1 gap-1 overflow-y-auto overscroll-contain sm:grid-cols-2"
           >
-            {filteredNodeTypes.map(({ definition }) => (
-              <li key={definition.type}>
-                <button
-                  type="button"
-                  className="hover:bg-accent focus-visible:bg-accent flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left outline-hidden transition-colors"
-                  onClick={() => handleSelect(definition.type)}
-                >
-                  <span
-                    className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md"
-                    style={{ backgroundColor: getNodeThemeColor(definition.type) }}
+            {filteredNodeTypes.map(({ definition }) => {
+              const disabled = disabledNodeTypes?.has(definition.type) ?? false
+
+              return (
+                <li key={definition.type}>
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    className="enabled:hover:bg-accent enabled:focus-visible:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1 text-left outline-hidden transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => handleSelect(definition.type)}
                   >
-                    <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0 truncate text-sm font-medium">{definition.label}</span>
-                </button>
-              </li>
-            ))}
+                    <span
+                      className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md"
+                      style={{ backgroundColor: getNodeThemeColor(definition.type) }}
+                    >
+                      <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
+                    </span>
+                    <span className="min-w-0 truncate text-sm font-medium">{definition.label}</span>
+                  </button>
+                </li>
+              )
+            })}
           </ul>
 
           {filteredNodeTypes.length === 0 ? (

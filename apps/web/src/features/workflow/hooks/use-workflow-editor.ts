@@ -51,8 +51,22 @@ const DEFAULT_NODE_PLACEMENT_SIZE = {
   height: 100,
 }
 
+// 无论画布内容如何都禁止添加的节点类型
+const ALWAYS_DISABLED_NODE_TYPES: ReadonlySet<string> = new Set()
+// 整个画布中只允许存在一个实例的节点类型
+const SINGLE_INSTANCE_NODE_TYPES: ReadonlySet<string> = new Set([BuiltinNodeType.START])
+
 function getNodePlacementSize(type: string) {
   return type === BuiltinNodeType.LOOP ? DEFAULT_LOOP_SIZE : DEFAULT_NODE_PLACEMENT_SIZE
+}
+
+function getDisabledNodeTypes(nodes: readonly WorkflowCanvasNode[]): ReadonlySet<string> {
+  const existingNodeTypes = new Set(nodes.map((node) => node.type))
+  const existingSingleInstanceNodeTypes = [...SINGLE_INSTANCE_NODE_TYPES].filter((type) =>
+    existingNodeTypes.has(type),
+  )
+
+  return new Set([...ALWAYS_DISABLED_NODE_TYPES, ...existingSingleInstanceNodeTypes])
 }
 
 function isTextEditingTarget(target: EventTarget | null) {
@@ -128,6 +142,7 @@ export function useWorkflowEditor({
         edges,
       })
     : []
+  const disabledNodeTypes = getDisabledNodeTypes(nodes)
 
   const { errors, saveWorkflow, saving } = useWorkflowSave({
     baseWorkflow: initialSnapshot.workflow,
@@ -186,6 +201,10 @@ export function useWorkflowEditor({
 
   // 使用预设尺寸一次确定新增位置，避免渲染后重新测量导致节点跳动
   function addNode(type: string) {
+    if (disabledNodeTypes.has(type)) {
+      throw new Error('当前节点类型不可重复添加或已被禁用')
+    }
+
     const canvasBounds = canvasRef.current?.getBoundingClientRect()
     const viewportCenter =
       canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0
@@ -350,6 +369,7 @@ export function useWorkflowEditor({
     applyNode,
     availableNodeTypes,
     deleteSelectedNode,
+    disabledNodeTypes,
     dirty,
     edges,
     errors,

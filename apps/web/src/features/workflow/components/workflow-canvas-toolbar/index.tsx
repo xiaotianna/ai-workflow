@@ -22,6 +22,7 @@ export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'di
 
 interface WorkflowCanvasToolbarProps {
   nodeTypes: readonly NodeType[]
+  disabledNodeTypes?: ReadonlySet<string>
   canRedo: boolean
   canUndo: boolean
   onAddNode: (type: string) => void
@@ -31,6 +32,7 @@ interface WorkflowCanvasToolbarProps {
 
 export const WorkflowCanvasToolbar = ({
   nodeTypes,
+  disabledNodeTypes,
   canRedo,
   canUndo,
   onAddNode,
@@ -69,7 +71,11 @@ export const WorkflowCanvasToolbar = ({
       </WorkflowToolbarGroup>
 
       <WorkflowToolbarGroup aria-label="添加节点">
-        <AddNode nodeTypes={nodeTypes} onAddNode={onAddNode} />
+        <AddNode
+          nodeTypes={nodeTypes}
+          disabledNodeTypes={disabledNodeTypes}
+          onAddNode={onAddNode}
+        />
       </WorkflowToolbarGroup>
 
       <WorkflowToolbarGroup aria-label="AI 操作" className="absolute top-0 left-full ml-2">

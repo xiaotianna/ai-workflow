@@ -4,7 +4,7 @@ import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import type { WorkflowEdge } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 import { WorkflowLoopEditorProvider } from '@/components/workflow/workflow-loop-editor-context'
 
@@ -15,14 +15,22 @@ interface WorkflowEditorProps {
 
 export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
+  const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
+  const renderedEdges = hoveredNodeId
+    ? editor.edges.map((edge) =>
+        edge.source === hoveredNodeId || edge.target === hoveredNodeId
+          ? { ...edge, className: 'workflow-edge--node-hovered' }
+          : edge,
+      )
+    : editor.edges
 
   return (
     <WorkflowLoopEditorProvider value={editor.loopEditor}>
       <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
         ref={canvasRef}
         nodes={editor.nodes}
-        edges={editor.edges}
+        edges={renderedEdges}
         nodeTypes={workflowNodeTypes}
         defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
         connectionLineType={ConnectionLineType.Bezier}
@@ -45,6 +53,12 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
         onBeforeDelete={editor.handleBeforeDelete}
         onNodesDelete={editor.handleNodesDelete}
         onNodeClick={(_event, node) => editor.selectNode(node.id)}
+        onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
+        onNodeMouseLeave={(_event, node) =>
+          setHoveredNodeId((currentNodeId) =>
+            currentNodeId === node.id ? undefined : currentNodeId,
+          )
+        }
         onPaneClick={() => editor.selectNode(undefined)}
         // onMoveEnd={(event, viewport) =>
         //   editor.handleViewportChange(viewport, event !== null)
@@ -59,6 +73,7 @@ export function WorkflowEditor({ initialSnapshot, onSave }: WorkflowEditorProps)
           selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
           canRedo={editor.canRedo}
           canUndo={editor.canUndo}
+          disabledNodeTypes={editor.disabledNodeTypes}
           onAddNode={editor.addNode}
           onApplyNode={editor.applyNode}
           onCloseNodeConfig={() => editor.selectNode(undefined)}
