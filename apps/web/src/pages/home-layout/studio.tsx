@@ -35,10 +35,7 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
   const normalizedQuery = search.trim().toLowerCase()
   const visibleApps = apps.filter((app) => {
     if (!normalizedQuery) return true
-    return (
-      app.title.toLowerCase().includes(normalizedQuery) ||
-      app.kindLabel.toLowerCase().includes(normalizedQuery)
-    )
+    return app.title.toLowerCase().includes(normalizedQuery)
   })
 
   function handleCreateApp(input: CreateStudioAppInput) {
@@ -46,8 +43,6 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
       {
         id: `local-${Date.now()}`,
         title: input.title,
-        kind: 'workflow',
-        kindLabel: '工作流',
         author: 'AI Workflow',
         editedAtLabel: editedAtFormatter.format(new Date()),
         description: input.description,
@@ -62,8 +57,6 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
       {
         id: `local-import-${Date.now()}`,
         title: file.name.replace(/\.ya?ml$/i, ''),
-        kind: 'workflow',
-        kindLabel: '工作流',
         author: 'AI Workflow',
         editedAtLabel: editedAtFormatter.format(new Date()),
         description: `由 ${file.name} 导入`,

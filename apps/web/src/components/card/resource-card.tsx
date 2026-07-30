@@ -23,6 +23,8 @@ export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'articl
   description?: string
   icon?: ReactNode
   iconBackground?: CSSProperties['background']
+  badgeIcon?: LucideIcon
+  badgeLabel?: string
 }
 
 const kindConfig: Record<
@@ -55,10 +57,13 @@ export function ResourceCard({
   description,
   icon,
   iconBackground = defaultIconBackground,
+  badgeIcon,
+  badgeLabel,
   className,
   ...props
 }: ResourceCardProps) {
-  const { BadgeIcon, badgeClassName } = kindConfig[kind]
+  const { BadgeIcon: DefaultBadgeIcon, badgeClassName } = kindConfig[kind]
+  const BadgeIcon = badgeIcon ?? DefaultBadgeIcon
 
   return (
     <article
@@ -90,9 +95,9 @@ export function ResourceCard({
               'border-border absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-md border shadow-sm',
               badgeClassName,
             )}
-            title={kindConfig[kind].badgeLabel}
+            title={badgeLabel ?? kindConfig[kind].badgeLabel}
           >
-            <BadgeIcon className="size-3" strokeWidth={2.25} />
+            <BadgeIcon className="size-2.5" strokeWidth={2.25} />
           </span>
         </div>
 

@@ -1,20 +1,20 @@
 model ApiKey {
   id          String    @id @default(uuid()) @db.Uuid
-  appId       String    @db.Uuid
+  appId       String    @db.Uuid // 关联app
   name        String
-  prefix      String
-  keyHash     String    @unique
+  prefix      String  // 密钥前缀，例如：sk_abc[密钥]，那么给前端展示sk_abc••••••••
+  keyHash     String    @unique // 不保存明文key，并且需要保证key不重复
   createdById String?   @db.Uuid
-  lastUsedAt  DateTime?
-  expiresAt   DateTime?
-  revokedAt   DateTime?
+  lastUsedAt  DateTime? // 最近使用时间
+  expiresAt   DateTime? // 过期时间，为空表示不过期
+  revokedAt   DateTime? // 撤销时间，有值表示key已被禁用
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   app       App   @relation(fields: [appId], references: [id], onDelete: Cascade)
   createdBy User? @relation("ApiKeyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  callLogs ApiCallLog[]
+  callLogs ApiCallLog[] // 调用该api产生的日志
 
   @@index([appId, revokedAt])
   @@map("api_keys")

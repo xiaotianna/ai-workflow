@@ -16,7 +16,6 @@ interface AppDetailIdentityProps {
 export function AppDetailIdentity({ app, onAppAction, onImportDsl }: AppDetailIdentityProps) {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const title = app?.title ?? '未命名应用'
-  const kindLabel = app?.kindLabel ?? '工作流'
   const actions = app
     ? getStudioAppActions(app, onAppAction, {
         onImportDsl: () => setImportDialogOpen(true),
@@ -38,7 +37,7 @@ export function AppDetailIdentity({ app, onAppAction, onImportDsl }: AppDetailId
 
       <ResourceIdentity
         title={title}
-        kindLabel={kindLabel}
+        kindLabel="工作流"
         icon={<span aria-hidden>{app?.icon ?? '🤖'}</span>}
         actions={<StudioAppActionMenu title={title} actions={actions} />}
       />

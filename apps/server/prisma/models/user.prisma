@@ -6,7 +6,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  apps                    App[]
+  apps                    App[] // 一对多，一个用户->多个工作流应用
   updatedWorkflowDrafts   WorkflowDraft[]      @relation("WorkflowDraftUpdatedBy")
   createdWorkflowVersions WorkflowVersion[]    @relation("WorkflowVersionCreatedBy")
   workflowDeployments     WorkflowDeployment[] @relation("WorkflowDeploymentDeployedBy")

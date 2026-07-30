@@ -4,10 +4,11 @@ model Workflow {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // Cascade删除父记录时，同时删除子记录
   app         App                  @relation(fields: [appId], references: [id], onDelete: Cascade)
-  draft       WorkflowDraft?
-  versions    WorkflowVersion[]
-  deployments WorkflowDeployment[]
+  draft       WorkflowDraft? // 工作流草稿（最多一条，可以不断修改）
+  versions    WorkflowVersion[] // 工作流版本快照，每条代表一个版本快照
+  deployments WorkflowDeployment[] // 表示当前对外提供服务的版本（需要点击发布）
   runs        WorkflowRun[]
 
   @@map("workflows")

@@ -1,19 +1,28 @@
 model App {
   id          String    @id @default(uuid()) @db.Uuid
-  ownerId     String    @db.Uuid
+  ownerId     String    @db.Uuid // 所属用户id，指向User.id
   name        String
   description String?
   icon        String?
-  kind        AppKind   @default(WORKFLOW)
   deletedAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  workflow    Workflow?
-  apiKeys     ApiKey[]
-  apiCallLogs ApiCallLog[]
+  /**
+  @relation表示两个model之间的数据库关联
+  owner User @relation(
+    fields: [ownerId],
+    references: [id],
+    onDelete: Restrict // 用户还有 App 时，禁止删除该用户
+  )
+  表示App.ownerId → User.id
+  */
+  owner       User         @relation(fields: [ownerId], references: [id], onDelete: Restrict) // 用户实体
+  workflow    Workflow? // 工作流实体，一对一关系
+  apiKeys     ApiKey[] // 该应用创建的所有apikey
+  apiCallLogs ApiCallLog[] // 调用当前应用所有的api日志
 
+  // 建立联合索引，主要用于快速查询（只针对当前表）
   @@index([ownerId, deletedAt, updatedAt])
   @@map("apps")
 }

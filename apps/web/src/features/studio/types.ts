@@ -1,10 +1,6 @@
-import type { ResourceKind } from '@/components/card/resource-card'
-
 export interface StudioAppListItem {
   id: string
   title: string
-  kind: ResourceKind
-  kindLabel: string
   author: string
   editedAtLabel: string
   description?: string

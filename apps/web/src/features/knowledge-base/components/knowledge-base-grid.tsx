@@ -1,3 +1,5 @@
+import { BookOpen } from 'lucide-react'
+
 import { ResourceCard } from '@/components/card/resource-card'
 
 import type { KnowledgeBaseActionHandler, KnowledgeBaseListItem } from '../types'
@@ -29,6 +31,8 @@ export function KnowledgeBaseGrid({
             description={knowledgeBase.description}
             icon={knowledgeBase.icon}
             iconBackground={knowledgeBaseIconBackground}
+            badgeIcon={BookOpen}
+            badgeLabel="知识库"
             to={`/knowledge-base/${encodeURIComponent(knowledgeBase.id)}/documents`}
             linkAriaLabel={`打开知识库 ${knowledgeBase.title}`}
             actions={actions}

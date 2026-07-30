@@ -2,11 +2,11 @@ model WorkflowVersion {
   id            String                @id @default(uuid()) @db.Uuid
   workflowId    String                @db.Uuid
   version       Int
-  source        WorkflowVersionSource
+  source        WorkflowVersionSource // 记录版本的产生方式（用于审计版本来源，不表示版本当前的状态）
   schemaVersion Int                   @default(1)
   definition    Json                  @db.JsonB
   layout        Json                  @db.JsonB
-  note          String?
+  note          String? // 版本备注说明，例如git commit的信息
   createdById   String?               @db.Uuid
   createdAt     DateTime              @default(now())
 

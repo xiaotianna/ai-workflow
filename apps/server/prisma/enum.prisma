@@ -1,43 +1,42 @@
-enum AppKind {
-  WORKFLOW
-  CHATFLOW
-}
-
+// 记录工作流版本来源
 enum WorkflowVersionSource {
-  MANUAL
-  PUBLISH
-  TEST_RUN
-  IMPORT
+  MANUAL // 用户手动创建或保存的版本
+  PUBLISH // 发布工作流时生成的版本快照
+  TEST_RUN // 测试运行时生成的版本快照
+  IMPORT // 从外部文件导入的版本
 }
 
-enum DeploymentEnvironment {
-  STAGING
-  PRODUCTION
-}
-
+// 工作流触发类型
 enum WorkflowRunTrigger {
-  API
-  MANUAL
-  TEST_RUN
-  SCHEDULE
-  SUB_WORKFLOW
+  API // api触发
+  MANUAL // 用户手动点击触发
+  TEST_RUN // 编辑器中的测试运行
+  SUB_WORKFLOW // 由另一个工作流作为子工作流触发
 }
 
+// 工作流运行范围
+enum WorkflowRunMode {
+  FULL // 运行完整工作流
+  SINGLE_NODE // 只运行指定节点
+}
+
+// 工作流运行状态
 enum WorkflowRunStatus {
-  QUEUED
-  RUNNING
-  SUCCEEDED
-  FAILED
-  CANCELLED
-  TIMED_OUT
+  QUEUED // 进入队列，等待执行【默认状态】
+  RUNNING // 正在执行
+  SUCCEEDED // 执行成功
+  FAILED // 执行失败
+  CANCELLED // 被用户或系统主动取消
+  TIMED_OUT // 超过运行时限
 }
 
+// 工作流单个节点运行状态
 enum WorkflowNodeRunStatus {
-  PENDING
-  RUNNING
-  SUCCEEDED
-  FAILED
-  SKIPPED
-  CANCELLED
-  TIMED_OUT
+  PENDING // 等待执行，可能在等待上游节点完成
+  RUNNING // 正在执行
+  SUCCEEDED // 执行成功
+  FAILED // 执行失败
+  SKIPPED // 节点被跳过，例如条件分支没有经过该节点
+  CANCELLED // 运行取消
+  TIMED_OUT // 节点自身执行超时
 }

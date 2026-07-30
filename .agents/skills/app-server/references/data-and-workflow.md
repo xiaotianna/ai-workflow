@@ -21,6 +21,8 @@
 - 由应用服务定义事务边界，Repository 不自行开启彼此无法组合的事务。
 - JSON 字段保存工作流前，先使用 `@ai-workflow/core` 校验结构和业务规则。
 - 数据模型变更时同步检查 DTO、迁移、索引、唯一约束和历史数据兼容性。
+- `App` 统一表示工作流应用，不通过 `AppKind` 或 `kind` 字段区分 Workflow 与 Chatflow。
+- 部署不区分环境；每个 `Workflow` 最多有一条 `WorkflowDeployment`，指向当前对外运行的版本。
 - 不把数据库连接或 Prisma client 暴露给 Controller。
 
 ## Redis
@@ -44,6 +46,8 @@
 3. 执行前调用 `validateExecutorWorkflow(parsed.data, registry)`，不先重复调用保存校验。
 4. 只有校验无问题后才持久化为有效版本或交给 runtime。
 5. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
+6. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
+7. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
 ## LangGraph
 

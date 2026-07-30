@@ -1,10 +1,10 @@
 model WorkflowDraft {
   id            String   @id @default(uuid()) @db.Uuid
   workflowId    String   @unique @db.Uuid
-  schemaVersion Int      @default(1)
-  definition    Json     @db.JsonB
-  layout        Json     @db.JsonB
-  revision      Int      @default(1)
+  schemaVersion Int      @default(1) // definition JSON 数据结构的版本，不是工作流版本号
+  definition    Json     @db.JsonB // 工作流的业务定义，例如节点、连线和节点配置
+  layout        Json     @db.JsonB // 编辑器展示信息，例如节点坐标、缩放比例等
+  revision      Int      @default(1) // 草稿修订次数，可用于防止多人编辑时互相覆盖【乐观锁】
   updatedById   String?  @db.Uuid
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt

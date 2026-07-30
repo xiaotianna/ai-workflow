@@ -18,8 +18,7 @@ export const Publish = () => {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" sideOffset={6}>
-          <DropdownMenuItem>发布到当前环境</DropdownMenuItem>
-          <DropdownMenuItem>发布并更新 API</DropdownMenuItem>
+          <DropdownMenuItem>发布更新</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>

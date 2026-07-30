@@ -2,20 +2,22 @@ model WorkflowRun {
   id                String             @id @default(uuid()) @db.Uuid
   workflowId        String             @db.Uuid
   workflowVersionId String             @db.Uuid
-  triggeredById     String?            @db.Uuid
-  parentRunId       String?            @db.Uuid
-  traceId           String             @unique
-  trigger           WorkflowRunTrigger
+  triggeredById     String?            @db.Uuid // 运行人id，允许为空，因为可能是api调用运行的
+  parentRunId       String?            @db.Uuid // 子工作流被调用，记录父工作流id
+  traceId           String             @unique // 用来跟踪定义同一次工作流执行（例如：第一次执行为trace_1，第二次是trace_2，可以追踪定位log等内容）
+  trigger           WorkflowRunTrigger // 工作流触发方式
+  mode              WorkflowRunMode    @default(FULL) // 工作流运行范围
+  targetNodeId      String? // 当mode为SINGLE_NODE，指定运行的节点id
   status            WorkflowRunStatus  @default(QUEUED)
-  input             Json               @db.JsonB
-  output            Json?              @db.JsonB
+  input             Json               @db.JsonB // 本次运行收到的输入数据
+  output            Json?              @db.JsonB // 本次运行输出数据
   errorCode         String?
   errorMessage      String?
   errorDetails      Json?              @db.JsonB
-  queuedAt          DateTime           @default(now())
-  startedAt         DateTime?
-  finishedAt        DateTime?
-  durationMs        Int?
+  queuedAt          DateTime           @default(now()) // 进入队列时间
+  startedAt         DateTime? // 执行器真正开始处理的时间
+  finishedAt        DateTime? // 运行进入终态的时间
+  durationMs        Int? // 运行耗时，单位毫秒
 
   workflow    Workflow        @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   version     WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
@@ -23,7 +25,7 @@ model WorkflowRun {
 
   parentRun   WorkflowRun?      @relation("WorkflowRunParent", fields: [parentRunId], references: [id])
   childRuns   WorkflowRun[]     @relation("WorkflowRunParent")
-  nodeRuns    WorkflowNodeRun[]
+  nodeRuns    WorkflowNodeRun[] // 本次运行产生的所有节点执行记录，一条 Run 通常对应多条 NodeRun，并且同一个节点可能因为重试产生多次尝试
   apiCallLogs ApiCallLog[]
 
   @@index([workflowId, queuedAt])

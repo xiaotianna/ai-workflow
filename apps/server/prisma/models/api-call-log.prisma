@@ -1,25 +1,26 @@
 model ApiCallLog {
   id           String   @id @default(uuid()) @db.Uuid
   appId        String   @db.Uuid
-  apiKeyId     String?  @db.Uuid
-  runId        String?  @db.Uuid
-  requestId    String   @unique
+  apiKeyId     String?  @db.Uuid // 本次请求使用的 API Key，允许为空。鉴权失败时可能找不到有效 Key
+  runId        String?  @db.Uuid // 工作流运行记录，允许为空。参数校验或鉴权失败时，可能尚未创建运行
+  requestId    String   @unique // 一次 HTTP 请求的唯一追踪标识，用于串联日志和排查问题
   method       String
   path         String
   statusCode   Int
-  durationMs   Int?
-  clientIp     String?
-  userAgent    String?
-  errorCode    String?
-  errorMessage String?
+  durationMs   Int? // 请求整个api处理耗时
+  clientIp     String? // 调用方 IP 地址，可用于安全审计和限流分析
+  userAgent    String? // 调用方的客户端信息
+  errorCode    String? // 当错误时调用，错误状态码，例如：API_KEY_EXPIRED
+  errorMessage String? // 当错误时调用，错误信息，例如：API Key 已过期，请重新创建
   createdAt    DateTime @default(now())
 
   app    App          @relation(fields: [appId], references: [id], onDelete: Cascade)
   apiKey ApiKey?      @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
   run    WorkflowRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
 
-  @@index([appId, createdAt])
-  @@index([apiKeyId, createdAt])
-  @@index([runId])
+  // 优化查询
+  @@index([appId, createdAt]) // 查询某个应用最近的调用记录
+  @@index([apiKeyId, createdAt]) // 查询某个 API Key 最近的使用记录
+  @@index([runId]) // 根据工作流运行查找对应的 API 请求
   @@map("api_call_logs")
 }

@@ -1,19 +1,20 @@
+// 在某一次 WorkflowRun 中，某个节点的一次具体执行
 model WorkflowNodeRun {
   id           String                @id @default(uuid()) @db.Uuid
-  runId        String                @db.Uuid
+  runId        String                @db.Uuid // 表示这条节点运行属于哪一次完整工作流运行
   nodeId       String
-  nodeType     String
-  executionKey String
-  attempt      Int                   @default(1)
-  status       WorkflowNodeRunStatus @default(PENDING)
-  input        Json?                 @db.JsonB
-  output       Json?                 @db.JsonB
+  nodeType     String // 节点类型
+  executionKey String // 表示这个节点在本次运行中的哪一次逻辑执行，普通节点和nodeId一致，针对于循环、分支节点，存储：loop-1/[nodeId]
+  attempt      Int                   @default(1) // 尝试次数
+  status       WorkflowNodeRunStatus @default(PENDING) // 节点执行状态
+  input        Json?                 @db.JsonB // 节点的输入数据
+  output       Json?                 @db.JsonB // 节点的输出数据
   errorCode    String?
   errorMessage String?
   errorDetails Json?                 @db.JsonB
   startedAt    DateTime?
   finishedAt   DateTime?
-  durationMs   Int?
+  durationMs   Int? // 执行时间
   createdAt    DateTime              @default(now())
 
   run WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)

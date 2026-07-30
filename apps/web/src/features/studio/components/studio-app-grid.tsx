@@ -18,8 +18,8 @@ export function StudioAppGrid({ apps, onAppAction }: StudioAppGridProps) {
           <ResourceCard
             key={app.id}
             title={app.title}
-            kind={app.kind}
-            kindLabel={app.kindLabel}
+            kind="workflow"
+            kindLabel="工作流"
             author={app.author}
             editedAtLabel={app.editedAtLabel}
             description={app.description}
