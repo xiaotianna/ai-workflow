@@ -1,7 +1,7 @@
 import { JwtAuthGuard } from '@/guards/jwt-auth.guard'
 import { AuthSessionRepository } from '@/repositories/auth-session.repository'
 import { Global, Module } from '@nestjs/common'
-import { JwtModule } from '@nestjs/jwt'
+import { JwtModule } from './jwt.module'
 
 @Global()
 @Module({

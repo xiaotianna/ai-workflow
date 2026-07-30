@@ -13,7 +13,6 @@ export const initialKnowledgeBases: KnowledgeBaseListItem[] = [
   {
     id: 'readme-md',
     title: 'README.md',
-    kind: 'workflow',
     kindLabel: '通用',
     author: '1 文档',
     editedAtLabel: '7 分钟前',
@@ -23,7 +22,6 @@ export const initialKnowledgeBases: KnowledgeBaseListItem[] = [
   {
     id: 'demo',
     title: 'demo',
-    kind: 'workflow',
     kindLabel: '通用',
     author: '1 文档',
     editedAtLabel: '3 个月前',
@@ -33,7 +31,6 @@ export const initialKnowledgeBases: KnowledgeBaseListItem[] = [
   {
     id: 'lantianyu-resume',
     title: '兰天雨-前端开发.pdf',
-    kind: 'workflow',
     kindLabel: '经济 · 倒排索引',
     author: '0/1 文档',
     editedAtLabel: '3 个月前',

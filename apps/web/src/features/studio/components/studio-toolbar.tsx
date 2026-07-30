@@ -15,20 +15,27 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { ChevronDown, FileUp, Plus, Search, SquarePlus } from 'lucide-react'
-import { useState } from 'react'
+
+import type { StudioAppSort } from '../types'
 
 interface StudioToolbarProps {
   search: string
+  sort: StudioAppSort
   onCreateBlankApp: () => void
   onImportApp: () => void
   onSearchChange: (search: string) => void
+  onSortChange: (sort: StudioAppSort) => void
 }
 
-function StudioSortSelect() {
-  const [sortBy, setSortBy] = useState('recently-edited')
-
+function StudioSortSelect({
+  sort,
+  onSortChange,
+}: {
+  sort: StudioAppSort
+  onSortChange: (sort: StudioAppSort) => void
+}) {
   return (
-    <Select value={sortBy} onValueChange={setSortBy}>
+    <Select value={sort} onValueChange={(value) => onSortChange(value as StudioAppSort)}>
       <SelectTrigger
         size="sm"
         aria-label="排序方式"
@@ -45,9 +52,9 @@ function StudioSortSelect() {
         sideOffset={4}
         className="w-(--radix-select-trigger-width)"
       >
-        <SelectItem value="recently-edited">最近修改</SelectItem>
-        <SelectItem value="recently-created">最近创建</SelectItem>
-        <SelectItem value="earliest-created">最早创建</SelectItem>
+        <SelectItem value="updated_desc">最近修改</SelectItem>
+        <SelectItem value="created_desc">最近创建</SelectItem>
+        <SelectItem value="created_asc">最早创建</SelectItem>
       </SelectContent>
     </Select>
   )
@@ -55,19 +62,23 @@ function StudioSortSelect() {
 
 export function StudioToolbar({
   search,
+  sort,
   onCreateBlankApp,
   onImportApp,
   onSearchChange,
+  onSortChange,
 }: StudioToolbarProps) {
   return (
     <>
-      <StudioSortSelect />
+      <StudioSortSelect sort={sort} onSortChange={onSortChange} />
 
       <div className="relative min-w-0 max-sm:w-full sm:min-w-44">
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
         <Input
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
+          aria-label="搜索工作流应用"
+          maxLength={40}
           placeholder="搜索"
           className="bg-input focus-visible:bg-background h-8 rounded-lg border-transparent pr-3 pl-9 text-sm shadow-none"
         />

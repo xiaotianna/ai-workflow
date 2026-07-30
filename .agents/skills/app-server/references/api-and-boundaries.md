@@ -33,6 +33,22 @@
   `phone` 和 `username`。旧密码错误属于普通业务错误，不得使用会触发前端退出登录的
   `401` 或 `403`。
 
+## 当前 Studio 接口
+
+以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离应用：
+
+- `GET /studio/apps`：游标分页获取应用；`limit` 范围为 1–50，支持 `search` 与
+  `updated_desc`、`created_desc`、`created_asc` 排序，返回 `items` 和 opaque
+  `nextCursor`。前端不得解析或自行构造游标。
+- `GET /studio/apps/:appId`：获取应用详情。
+- `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
+- `PATCH /studio/apps/:appId`：编辑应用名称、图标或描述，至少提供一个字段。
+- `GET /studio/apps/:appId/dsl`：以 `application/json` 附件直接下载 DSL，不套统一成功响应；
+  DSL 使用 `dslVersion: 1`，包含应用元数据、草稿结构版本、修订号、工作流定义与布局。
+
+Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修改都同时检查资源归属，不允许
+仅凭应用 ID 跨用户访问。
+
 ## 依赖方向
 
 - 传输层依赖应用服务，应用服务依赖抽象的数据访问或运行时接口。

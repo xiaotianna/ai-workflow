@@ -114,11 +114,6 @@ Definition 和 Layout 分开后，拖动节点不会改变执行定义，也不�
 SQL 和已有数据兼容性。
 
 ```prisma
-enum AppKind {
-  WORKFLOW
-  CHATFLOW
-}
-
 enum WorkflowVersionSource {
   MANUAL
   PUBLISH

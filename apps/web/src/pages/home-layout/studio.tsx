@@ -1,3 +1,5 @@
+import { createStudioApp, updateStudioApp } from '@/api/studio'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useState } from 'react'
 
 import { PageContent } from '@/components/page-content'
@@ -5,75 +7,86 @@ import { PageHeaderActions } from '@/components/page-header-actions'
 import { PageTitle } from '@/components/page-title'
 import {
   CreateBlankAppDialog,
+  downloadStudioAppDsl,
+  EditStudioAppDialog,
   ImportDslDialog,
-  initialStudioApps,
   StudioAppGrid,
   StudioToolbar,
   type CreateStudioAppInput,
   type StudioAppActionHandler,
+  type StudioAppListItem,
+  useStudioApps,
 } from '@/features/studio'
-
-const editedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
 
 export interface StudioPageProps {
   onAppAction?: StudioAppActionHandler
 }
 
 export default function StudioPage({ onAppAction }: StudioPageProps) {
-  const [apps, setApps] = useState(initialStudioApps)
-  const [search, setSearch] = useState('')
+  const {
+    apps,
+    hasMore,
+    initialError,
+    initialLoading,
+    loadMore,
+    loadMoreError,
+    loadingMore,
+    refresh,
+    retryLoadMore,
+    search,
+    setSearch,
+    setSort,
+    sort,
+  } = useStudioApps()
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [editingApp, setEditingApp] = useState<StudioAppListItem>()
 
-  const normalizedQuery = search.trim().toLowerCase()
-  const visibleApps = apps.filter((app) => {
-    if (!normalizedQuery) return true
-    return app.title.toLowerCase().includes(normalizedQuery)
-  })
-
-  function handleCreateApp(input: CreateStudioAppInput) {
-    setApps((currentApps) => [
-      {
-        id: `local-${Date.now()}`,
-        title: input.title,
-        author: 'AI Workflow',
-        editedAtLabel: editedAtFormatter.format(new Date()),
-        description: input.description,
-        icon: input.icon,
-      },
-      ...currentApps,
-    ])
+  async function handleCreateApp(input: CreateStudioAppInput) {
+    await createStudioApp(input)
+    refresh()
+    showToast('success', '应用已创建')
   }
 
-  function handleImportApp(file: File) {
-    setApps((currentApps) => [
-      {
-        id: `local-import-${Date.now()}`,
-        title: file.name.replace(/\.ya?ml$/i, ''),
-        author: 'AI Workflow',
-        editedAtLabel: editedAtFormatter.format(new Date()),
-        description: `由 ${file.name} 导入`,
-        icon: '📦',
-      },
-      ...currentApps,
-    ])
+  async function handleUpdateApp(input: CreateStudioAppInput) {
+    if (!editingApp) return
+
+    await updateStudioApp(editingApp.id, {
+      ...input,
+      description: input.description ?? '',
+    })
+    refresh()
+    showToast('success', '应用信息已保存')
+  }
+
+  function handleImportApp(_file: File) {
+    showToast('warning', '当前后端暂未提供 DSL 导入接口')
+  }
+
+  function handleAppAction(action: Parameters<StudioAppActionHandler>[0], app: StudioAppListItem) {
+    if (action === 'edit') {
+      setEditingApp(app)
+      return
+    }
+
+    if (action === 'export-dsl') {
+      void downloadStudioAppDsl(app).catch(() => undefined)
+      return
+    }
+
+    onAppAction?.(action, app)
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <PageTitle title="工作室" />
 
       <PageHeaderActions>
         <StudioToolbar
           search={search}
+          sort={sort}
           onSearchChange={setSearch}
+          onSortChange={setSort}
           onCreateBlankApp={() => setCreateDialogOpen(true)}
           onImportApp={() => setImportDialogOpen(true)}
         />
@@ -91,8 +104,30 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
         onImport={handleImportApp}
       />
 
-      <PageContent>
-        <StudioAppGrid apps={visibleApps} onAppAction={onAppAction} />
+      {editingApp ? (
+        <EditStudioAppDialog
+          app={editingApp}
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditingApp(undefined)
+          }}
+          onUpdate={handleUpdateApp}
+        />
+      ) : undefined}
+
+      <PageContent className="overflow-hidden">
+        <StudioAppGrid
+          apps={apps}
+          hasMore={hasMore}
+          initialError={initialError}
+          initialLoading={initialLoading}
+          loadMoreError={loadMoreError}
+          loadingMore={loadingMore}
+          onLoadMore={loadMore}
+          onRetryInitial={refresh}
+          onRetryLoadMore={retryLoadMore}
+          onAppAction={handleAppAction}
+        />
       </PageContent>
     </div>
   )

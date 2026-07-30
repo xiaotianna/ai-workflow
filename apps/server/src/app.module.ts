@@ -5,6 +5,7 @@ import { LogModule } from './config/log.module'
 import { RedisModule } from './infra/redis/redis.module'
 import { PrismaModule } from './infra/prisma/prisma.module'
 import { AuthenticationModule } from './modules/authentication.module'
+import { StudioModule } from './modules/studio.module'
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthenticationModule } from './modules/authentication.module'
     RedisModule,
     AuthenticationModule,
     AuthModule,
+    StudioModule,
   ],
   controllers: [],
 })

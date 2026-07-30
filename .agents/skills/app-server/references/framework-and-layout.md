@@ -31,12 +31,20 @@ apps/server/
 │   ├── app.module.ts
 │   ├── main.ts
 │   ├── controllers/
-│   │   └── auth.controller.ts
+│   │   ├── auth.controller.ts
+│   │   └── studio-app.controller.ts
+│   ├── dto/
+│   │   ├── auth.dto.ts
+│   │   └── studio.dto.ts
 │   ├── generated/prisma/
 │   ├── modules/
-│   │   └── auth.module.ts
+│   │   ├── auth.module.ts
+│   │   └── studio.module.ts
+│   ├── repositories/
+│   │   └── studio-app.repository.ts
 │   └── services/
-│       └── auth.service.ts
+│       ├── auth.service.ts
+│       └── studio-app.service.ts
 ├── .oxlintrc.json
 ├── nest-cli.json
 ├── package.json
@@ -84,5 +92,8 @@ apps/server/
 - Service 编排用例与事务边界，不直接拼接 HTTP 响应。
 - Repository 或基础设施适配器封装 Prisma、Redis 和第三方服务。
 - Nest Module 显式声明 imports、providers、controllers 和 exports，只导出其他模块确实需要的 provider。
+- Controller 使用 `@JwtAuth()` 时，所属业务模块必须导入项目封装的
+  `modules/jwt.module.ts`，确保 Nest 在该模块上下文实例化 `JwtAuthGuard` 时可以解析已配置的
+  `JwtService`；禁止直接导入未注册配置的 `@nestjs/jwt` 原始 `JwtModule`。
 - 不跨模块深层导入私有文件，通过模块公开 provider 或共享 package 传递契约。
 - `common` 只放真正跨模块的基础设施，不作为杂物目录。

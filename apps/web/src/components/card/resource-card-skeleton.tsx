@@ -9,31 +9,22 @@ export function ResourceCardSkeleton({ className }: ResourceCardSkeletonProps) {
   return (
     <div
       className={cn(
-        'border-border bg-card flex h-fit w-full flex-col overflow-hidden rounded-2xl border shadow-sm',
+        'border-border/20 bg-card h-40 w-full overflow-hidden rounded-2xl border shadow-xs',
         className,
       )}
       aria-hidden
     >
-      <div className="flex shrink-0 items-center gap-3 pt-4 pr-4 pb-2 pl-4">
-        <div className="relative shrink-0">
-          <Skeleton className="h-10 w-10 rounded-[10px]" />
-          <Skeleton className="absolute -right-0.5 -bottom-0.5 size-4 rounded-md" />
-        </div>
-        <div className="flex w-0 grow flex-col gap-1 py-px">
-          <Skeleton className="h-[21.6px] w-[58%] max-w-40" />
-          <Skeleton className="h-3 w-[36%] max-w-24" />
+      <div className="flex items-start gap-2 px-4 pt-5">
+        <Skeleton className="size-10 shrink-0 rounded-[10px]" />
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <Skeleton className="h-4 w-[58%] max-w-28 rounded-sm" />
+          <Skeleton className="h-3 w-[30%] max-w-14 rounded-sm" />
         </div>
       </div>
 
-      <div className="shrink-0 px-4 py-1">
-        <div className="flex min-h-8 flex-col gap-1.5">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-4/5" />
-        </div>
-      </div>
-
-      <div className="flex shrink-0 px-4 pt-2 pb-3">
-        <Skeleton className="h-3 w-full max-w-56" />
+      <div className="mt-7 px-4">
+        <Skeleton className="h-3 w-full rounded-sm" />
+        <Skeleton className="mt-4 h-3 w-4/5 rounded-sm" />
       </div>
     </div>
   )

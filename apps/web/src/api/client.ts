@@ -44,6 +44,10 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (response) => {
+    if (response.config.responseType === 'blob') {
+      return response
+    }
+
     const result = response.data as ApiResponse<unknown>
     return result.data as AxiosResponse
   },
@@ -110,5 +114,12 @@ export const apiClient = {
 
   patch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
     return client.patch<ApiResponse<T>, T, D>(url, data, config)
+  },
+
+  getBlob(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<Blob>> {
+    return client.get<Blob, AxiosResponse<Blob>>(url, {
+      ...config,
+      responseType: 'blob',
+    })
   },
 }

@@ -23,6 +23,12 @@
 - 数据模型变更时同步检查 DTO、迁移、索引、唯一约束和历史数据兼容性。
 - `App` 统一表示工作流应用，不通过 `AppKind` 或 `kind` 字段区分 Workflow 与 Chatflow。
 - 部署不区分环境；每个 `Workflow` 最多有一条 `WorkflowDeployment`，指向当前对外运行的版本。
+- 创建 Studio 应用时，在同一个 Prisma 嵌套写入中生成 `App`、一对一 `Workflow` 和
+  `WorkflowDraft`；空草稿仍保存完整的工作流顶层结构与空布局，避免后续导出或编辑补建记录。
+- Studio DSL 使用 JSON 附件导出，固定携带 `dslVersion`、应用元数据、草稿
+  `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿在导出前至少校验工作流
+  顶层结构；在 Core 提供可被 NodeNext 服务端直接加载的构建入口后，改为复用
+  `workflowSchema` 与 `validateWorkflow` 做完整校验。
 - 不把数据库连接或 Prisma client 暴露给 Controller。
 
 ## Redis

@@ -1,19 +1,16 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { DropdownMenu, DropdownMenuTrigger } from '@ai-workflow/ui/components/dropdown-menu'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { Ellipsis, MessageSquare, Waypoints, type LucideIcon } from 'lucide-react'
+import { Ellipsis, Waypoints, type LucideIcon } from 'lucide-react'
 import { type ComponentPropsWithoutRef, type CSSProperties, type ReactNode } from 'react'
 import { Link, type To } from 'react-router-dom'
 
 import { ActionMenuContent, type ActionMenuAction } from '@/components/action-menu-content'
 
-export type ResourceKind = 'workflow' | 'chatflow'
-
 export type ResourceCardAction = ActionMenuAction
 
 export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'article'>, 'children'> {
   title: string
-  kind: ResourceKind
   kindLabel: string
   author: string
   editedAtLabel: string
@@ -27,27 +24,11 @@ export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'articl
   badgeLabel?: string
 }
 
-const kindConfig: Record<
-  ResourceKind,
-  { badgeClassName: string; BadgeIcon: LucideIcon; badgeLabel: string }
-> = {
-  workflow: {
-    BadgeIcon: Waypoints,
-    badgeClassName: 'bg-indigo-600 text-white',
-    badgeLabel: '工作流',
-  },
-  chatflow: {
-    BadgeIcon: MessageSquare,
-    badgeClassName: 'bg-primary text-primary-foreground',
-    badgeLabel: '对话流',
-  },
-}
-
 const defaultIconBackground = 'rgb(255, 234, 213)'
+const defaultBadgeLabel = '工作流'
 
 export function ResourceCard({
   title,
-  kind,
   kindLabel,
   author,
   editedAtLabel,
@@ -62,8 +43,7 @@ export function ResourceCard({
   className,
   ...props
 }: ResourceCardProps) {
-  const { BadgeIcon: DefaultBadgeIcon, badgeClassName } = kindConfig[kind]
-  const BadgeIcon = badgeIcon ?? DefaultBadgeIcon
+  const BadgeIcon = badgeIcon ?? Waypoints
 
   return (
     <article
@@ -91,11 +71,8 @@ export function ResourceCard({
             {icon ?? <span aria-hidden>🤖</span>}
           </span>
           <span
-            className={cn(
-              'border-border absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-md border shadow-sm',
-              badgeClassName,
-            )}
-            title={badgeLabel ?? kindConfig[kind].badgeLabel}
+            className="border-border absolute -right-0.5 -bottom-0.5 inline-flex size-4 items-center justify-center rounded-md border bg-indigo-600 text-white shadow-sm"
+            title={badgeLabel ?? defaultBadgeLabel}
           >
             <BadgeIcon className="size-2.5" strokeWidth={2.25} />
           </span>

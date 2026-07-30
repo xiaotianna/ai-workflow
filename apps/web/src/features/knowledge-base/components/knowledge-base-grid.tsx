@@ -24,7 +24,6 @@ export function KnowledgeBaseGrid({
           <ResourceCard
             key={knowledgeBase.id}
             title={knowledgeBase.title}
-            kind={knowledgeBase.kind}
             kindLabel={knowledgeBase.kindLabel}
             author={knowledgeBase.author}
             editedAtLabel={knowledgeBase.editedAtLabel}

@@ -1,4 +1,4 @@
-import { DataType } from '@ai-workflow/core'
+import type { DataType } from '@ai-workflow/core'
 import { Braces, Hash, SquareCheck, TypeOutline, type LucideIcon } from 'lucide-react'
 
 const DATA_TYPE_ICONS = {

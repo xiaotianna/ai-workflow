@@ -1,9 +1,6 @@
-import type { ResourceKind } from '@/components/card/resource-card'
-
 export interface KnowledgeBaseListItem {
   id: string
   title: string
-  kind: ResourceKind
   kindLabel: string
   author: string
   editedAtLabel: string
