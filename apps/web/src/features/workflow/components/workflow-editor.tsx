@@ -40,7 +40,10 @@ export function WorkflowEditor({
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot, onSave })
-  const nodePicker = useWorkflowNodePicker({ defaultAnchorRef: addNodeButtonRef, editor })
+  const nodePicker = useWorkflowNodePicker({
+    defaultAnchorRef: addNodeButtonRef,
+    editor,
+  })
   const operations = useWorkflowOperations({
     applicationMetadata,
     editor,
@@ -59,6 +62,19 @@ export function WorkflowEditor({
     if (!nextOpen && contextMenu.open) {
       contextMenu.close()
     }
+  }
+
+  function handleNextStepOpenChange(
+    sourceNodeId: string,
+    nextOpen: boolean,
+    trigger: HTMLButtonElement,
+  ) {
+    if (nextOpen) {
+      nodePicker.openConnectNextNode(sourceNodeId, trigger)
+      return
+    }
+
+    handleNodePickerOpenChange(false)
   }
 
   useEffect(() => {
@@ -175,16 +191,39 @@ export function WorkflowEditor({
                 <WorkflowPanel
                   addNodeButtonRef={addNodeButtonRef}
                   selectedNode={editor.selectedNode}
+                  selectedNodeCanAddNextNode={
+                    editor.selectedNode ? editor.canAddNextNode(editor.selectedNode.id) : false
+                  }
                   selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
                   selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
                   canRedo={editor.canRedo}
                   canUndo={editor.canUndo}
                   addNodeOpen={disabled ? false : nodePicker.open}
+                  nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
                   shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
                   disabled={disabled}
                   onAddNodeOpenChange={handleNodePickerOpenChange}
                   onApplyNode={editor.applyNode}
+                  canChangeNextStepNode={(nodeId) =>
+                    editor.selectedNode
+                      ? editor.canReplaceConnectedNode(editor.selectedNode.id, nodeId)
+                      : false
+                  }
+                  canDeleteNextStepNode={editor.canDeleteNode}
                   onCloseNodeConfig={() => editor.clearSelection()}
+                  onChangeNextStepNode={(nodeId, anchorPosition) =>
+                    editor.selectedNode
+                      ? nodePicker.openReplaceConnectedNode(
+                          editor.selectedNode.id,
+                          nodeId,
+                          anchorPosition,
+                        )
+                      : false
+                  }
+                  onDeleteNextStepNode={editor.deleteNode}
+                  onDisconnectNextStepNode={editor.disconnectNodes}
+                  onNextStepOpenChange={handleNextStepOpenChange}
+                  onNextStepNodeSelect={editor.openNodeConfig}
                   onRedo={editor.redo}
                   onShortcutHelpOpenChange={setShortcutHelpOpen}
                   onTestRun={() => void operations.testRun()}
@@ -201,8 +240,8 @@ export function WorkflowEditor({
                 open={!disabled && nodePicker.open}
                 operationLabel={nodePicker.operationLabel}
                 keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}
-                side={nodePicker.anchorPosition ? 'right' : 'top'}
-                align={nodePicker.anchorPosition ? 'start' : 'end'}
+                side={nodePicker.popoverSide}
+                align={nodePicker.popoverAlign}
                 onOpenChange={handleNodePickerOpenChange}
                 onSelectNode={nodePicker.handleSelectNode}
               />

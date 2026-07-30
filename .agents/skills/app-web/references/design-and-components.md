@@ -131,6 +131,25 @@
 - 节点配置面板通过 Motion 的 `AnimatePresence` 管理开关动画：打开时从右侧滑入并淡入，
   关闭时向右滑出并淡出；面板使用稳定 key，切换节点只更新配置内容，不重复播放开场动画，
   并通过 `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。
+- 节点配置面板底部统一使用 Feature 内的 `WorkflowNextStep` 展示“下一步”入口，并复用根画布
+  已有的 `NodeSelectorPopover` 与 `useWorkflowNodePicker`，不得另建节点选择面板或另一套开关状态。
+  `WorkflowNextStep` 使用 `Form.Field required` 统一渲染标题，说明文字和节点连接选择区域放在
+  Field content 中，不在组件内另写标题字号和标题间距；组件间距由包裹 Field 的普通外层容器
+  承担，不把顶部 `padding` 直接加到 `fieldset`，避免原生 `legend` 的特殊布局绕过间距。它与
+  上方配置区之间的横向分割线使用 Field 外部独立的 `Separator`，禁止把 `border-t` 加到
+  `fieldset` 上导致 `legend` 切断边线。
+  连接区域按 Edge 顺序展示当前节点去重后的直接下游节点；节点项显示实例名称并可切换到对应
+  配置面板，末尾入口在已有下游时使用“添加并行节点”。每个已连接节点项右侧使用工作流
+  节点同规格的 `Button variant="secondary" size="icon-sm"` dot 按钮，内部保留
+  `size-6` 图标区；菜单复用 `ActionMenuContent`，提供更改节点、断开当前直连边和删除节点，
+  不在整行按钮内嵌套另一个按钮。源节点外壳、连接项和添加入口统一为
+  `36px` 高，节点主题图标容器与 `NodeHeader` 一致为 `24px`、内部 `NodeIcon` 为 `16px`；
+  已连接节点名称使用 `text-sm`，添加入口文案使用低一级的 `text-xs`；颜色和图标仍从
+  `@ai-workflow/nodes-ui` 获取，不在 Feature 中复制映射或放大画布节点规格。
+  选择节点后由 `useWorkflowEditor.addConnectedNode` 在同一个历史检查点中原子创建节点和连线：
+  根节点放在当前节点右侧并纵向避开已有直接下游，Loop 子节点继续放在同一 Loop 作用域；
+  连线使用当前节点首个仍可连接的输出端口和新增节点首个可用输入端口。当前节点没有可用输出
+  端口时入口使用真实禁用态，目标节点没有输入端口或不允许出现在当前作用域时不得选择。
 - 节点输入、输出 Handle 使用贴合节点左右边缘的主色短竖条，视觉尺寸为 `4px × 20px`；可在不放大可见图形的前提下扩展透明命中区。
 - 普通边与连接预览线使用 `--workflow-edge`，宽度为 `2.5px`，路径使用 Bezier 曲线；选中边使用 `--primary`。
   鼠标悬停节点时，与该节点输入或输出端口相连的全部边使用 `--primary` 高亮；离开节点后恢复

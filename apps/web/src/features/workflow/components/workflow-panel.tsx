@@ -19,12 +19,21 @@ interface WorkflowPanelProps {
   shortcutHelpOpen: boolean
   canRedo: boolean
   canUndo: boolean
+  nextStepSourceNodeId?: string
   selectedNode?: WorkflowNode
+  selectedNodeCanAddNextNode?: boolean
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
   onAddNodeOpenChange: (open: boolean) => void
   onApplyNode: (node: WorkflowNode) => void
+  canChangeNextStepNode: (nodeId: string) => boolean
+  canDeleteNextStepNode: (nodeId: string) => boolean
   onCloseNodeConfig: () => void
+  onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
+  onDeleteNextStepNode: (nodeId: string) => void
+  onDisconnectNextStepNode: (sourceNodeId: string, targetNodeId: string) => void
+  onNextStepOpenChange: (sourceNodeId: string, open: boolean, trigger: HTMLButtonElement) => void
+  onNextStepNodeSelect: (nodeId: string) => void
   onRedo: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onTestRun: () => void
@@ -38,12 +47,21 @@ export const WorkflowPanel = ({
   shortcutHelpOpen,
   canRedo,
   canUndo,
+  nextStepSourceNodeId,
   selectedNode,
+  selectedNodeCanAddNextNode = false,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
   onAddNodeOpenChange,
   onApplyNode,
+  canChangeNextStepNode,
+  canDeleteNextStepNode,
   onCloseNodeConfig,
+  onChangeNextStepNode,
+  onDeleteNextStepNode,
+  onDisconnectNextStepNode,
+  onNextStepOpenChange,
+  onNextStepNodeSelect,
   onRedo,
   onShortcutHelpOpenChange,
   onTestRun,
@@ -102,8 +120,21 @@ export const WorkflowPanel = ({
                 node={selectedNode}
                 defaultLabel={selectedNodeDefaultLabel}
                 availableVariables={selectedNodeAvailableVariables}
+                nextStepDisabled={!selectedNodeCanAddNextNode}
+                nextStepOpen={nextStepSourceNodeId === selectedNode.id}
                 onApply={onApplyNode}
                 onClose={onCloseNodeConfig}
+                canChangeNextStepNode={canChangeNextStepNode}
+                canDeleteNextStepNode={canDeleteNextStepNode}
+                onChangeNextStepNode={onChangeNextStepNode}
+                onDeleteNextStepNode={onDeleteNextStepNode}
+                onDisconnectNextStepNode={(targetNodeId) =>
+                  onDisconnectNextStepNode(selectedNode.id, targetNodeId)
+                }
+                onNextStepOpenChange={(open, trigger) =>
+                  onNextStepOpenChange(selectedNode.id, open, trigger)
+                }
+                onNextStepNodeSelect={onNextStepNodeSelect}
               />
             </MotionPanel>
           ) : null}

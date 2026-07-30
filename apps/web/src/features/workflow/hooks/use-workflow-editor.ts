@@ -58,6 +58,7 @@ import {
   type WorkflowClipboardPayload,
 } from '../utils/editor-clipboard'
 import { autoLayoutRootNodes, layoutInsertedNodeOnEdge } from '../utils/auto-layout'
+import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
@@ -69,6 +70,9 @@ const DEFAULT_NODE_PLACEMENT_SIZE = {
   width: 240,
   height: 100,
 }
+
+const NEXT_NODE_HORIZONTAL_GAP = 120
+const NEXT_NODE_VERTICAL_GAP = 64
 
 // 无论画布内容如何都禁止添加的节点类型
 const ALWAYS_DISABLED_NODE_TYPES: ReadonlySet<string> = new Set()
@@ -87,10 +91,28 @@ function canInsertNodeTypeOnEdge(nodeType: NodeType) {
   }
 }
 
+function canReceiveConnection(nodeType: NodeType) {
+  try {
+    const parsedConfig = nodeType.schema.safeParse(nodeType.createInitialConfig())
+    if (!parsedConfig.success) return false
+
+    return Object.keys(getNodePorts(nodeType, parsedConfig.data).inputs).length > 0
+  } catch {
+    return false
+  }
+}
+
 const EDGE_INSERTION_UNAVAILABLE_NODE_TYPES: ReadonlySet<string> = new Set(
   nodeRegistry
     .list()
     .filter((nodeType) => !canInsertNodeTypeOnEdge(nodeType))
+    .map((nodeType) => nodeType.definition.type),
+)
+
+const NEXT_NODE_UNAVAILABLE_NODE_TYPES: ReadonlySet<string> = new Set(
+  nodeRegistry
+    .list()
+    .filter((nodeType) => !canReceiveConnection(nodeType))
     .map((nodeType) => nodeType.definition.type),
 )
 
@@ -115,6 +137,55 @@ function getCanvasNodeSize(node: WorkflowCanvasNode) {
         ? node.style.height
         : DEFAULT_NODE_PLACEMENT_SIZE.height),
   }
+}
+
+function getAvailableOutputPortIds(
+  node: WorkflowCanvasNode,
+  edges: readonly WorkflowEdge[],
+): string[] {
+  try {
+    const nodeType = nodeRegistry.get(node.type)
+    if (!nodeType) return []
+
+    const parsedConfig = nodeType.schema.safeParse(node.data.config)
+    if (!parsedConfig.success) return []
+
+    const outputPorts = getNodePorts(nodeType, parsedConfig.data).outputs
+
+    return Object.entries(outputPorts)
+      .filter(
+        ([portId, port]) =>
+          port.multiple === true ||
+          !edges.some((edge) => edge.source === node.id && edge.sourceHandle === portId),
+      )
+      .map(([portId]) => portId)
+  } catch {
+    return []
+  }
+}
+
+function findReconnectedEdge(
+  edge: WorkflowEdge,
+  targetNode: WorkflowCanvasNode,
+  nodes: readonly WorkflowCanvasNode[],
+  edges: readonly WorkflowEdge[],
+  workflow: WorkflowEditorSnapshot['workflow'],
+): WorkflowEdge | undefined {
+  const targetNodeType = nodeRegistry.get(targetNode.type)
+  if (!targetNodeType) return undefined
+
+  const parsedConfig = targetNodeType.schema.safeParse(targetNode.data.config)
+  if (!parsedConfig.success) return undefined
+
+  const targetHandleIds = Object.keys(getNodePorts(targetNodeType, parsedConfig.data).inputs)
+
+  for (const targetHandle of targetHandleIds) {
+    const candidateEdge = { ...edge, targetHandle }
+
+    if (canConnect(candidateEdge, workflow, nodes, edges)) return candidateEdge
+  }
+
+  return undefined
 }
 
 function getDisabledNodeTypes(nodes: readonly WorkflowCanvasNode[]): ReadonlySet<string> {
@@ -372,6 +443,138 @@ export function useWorkflowEditor({
     history.checkpoint()
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
     setDirty(true)
+  }
+
+  function getNextNodeTypes(sourceNodeId: string) {
+    const sourceNode = nodes.find((node) => node.id === sourceNodeId)
+
+    return sourceNode?.parentId ? loopEditor.availableNodeTypes : availableNodeTypes
+  }
+
+  function canAddNextNode(sourceNodeId: string) {
+    const sourceNode = nodes.find((node) => node.id === sourceNodeId)
+
+    return Boolean(sourceNode && getAvailableOutputPortIds(sourceNode, edges).length > 0)
+  }
+
+  function getNextDisabledNodeTypes(sourceNodeId: string): ReadonlySet<string> {
+    const nodeTypes = getNextNodeTypes(sourceNodeId)
+
+    if (!canAddNextNode(sourceNodeId)) {
+      return new Set(nodeTypes.map((nodeType) => nodeType.definition.type))
+    }
+
+    return new Set([...disabledNodeTypes, ...NEXT_NODE_UNAVAILABLE_NODE_TYPES])
+  }
+
+  function addConnectedNode(type: string, sourceNodeId: string) {
+    const sourceNode = nodes.find((node) => node.id === sourceNodeId)
+    if (!sourceNode) {
+      throw new Error('当前节点已不存在')
+    }
+
+    if (!getNextNodeTypes(sourceNodeId).some((nodeType) => nodeType.definition.type === type)) {
+      throw new Error('当前作用域不支持添加该节点')
+    }
+
+    if (getNextDisabledNodeTypes(sourceNodeId).has(type)) {
+      throw new Error('所选节点无法连接到当前节点')
+    }
+
+    const placementSize = getNodePlacementSize(type)
+    const parentLoop = sourceNode.parentId
+      ? nodes.find((node) => node.id === sourceNode.parentId && node.type === BuiltinNodeType.LOOP)
+      : undefined
+
+    if (sourceNode.parentId && !parentLoop) {
+      throw new Error('当前节点所在的 Loop 已不存在')
+    }
+
+    const sourceSize = getCanvasNodeSize(sourceNode)
+    const connectedTargetNodes = edges
+      .filter((edge) => edge.source === sourceNode.id)
+      .flatMap((edge) => {
+        const targetNode = nodes.find(
+          (node) => node.id === edge.target && node.parentId === sourceNode.parentId,
+        )
+
+        return targetNode ? [targetNode] : []
+      })
+    const centeredY =
+      sourceNode.position.y + Math.max(0, (sourceSize.height - placementSize.height) / 2)
+    const nextRootY = connectedTargetNodes.reduce(
+      (nextY, targetNode) =>
+        Math.max(
+          nextY,
+          targetNode.position.y + getCanvasNodeSize(targetNode).height + NEXT_NODE_VERTICAL_GAP,
+        ),
+      centeredY,
+    )
+    const position = sourceNode.parentId
+      ? getNextLoopChildPosition(sourceNode.parentId, nodes)
+      : {
+          x: sourceNode.position.x + sourceSize.width + NEXT_NODE_HORIZONTAL_GAP,
+          y: nextRootY,
+        }
+    const createdNodes = createCanvasNodes({
+      type,
+      existingNodes: nodes,
+      position,
+      ...(sourceNode.parentId
+        ? {
+            parentId: sourceNode.parentId,
+            parentSize: getLoopNodeSize(parentLoop!),
+          }
+        : {}),
+    })
+    const addedNode = createdNodes[0]
+    const addedNodeType = nodeRegistry.getOrThrow(addedNode.type)
+    const parsedAddedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
+
+    if (!parsedAddedConfig.success) {
+      throw new Error('新增节点的配置无效')
+    }
+
+    const inputPortIds = Object.keys(getNodePorts(addedNodeType, parsedAddedConfig.data).inputs)
+    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges)
+    const nextNodes = [...nodes, ...createdNodes]
+    let connection: Connection | undefined = undefined
+
+    for (const sourceHandle of outputPortIds) {
+      for (const targetHandle of inputPortIds) {
+        const candidate: Connection = {
+          source: sourceNode.id,
+          sourceHandle,
+          target: addedNode.id,
+          targetHandle,
+        }
+
+        if (canConnect(candidate, initialSnapshot.workflow, nextNodes, edges)) {
+          connection = candidate
+          break
+        }
+      }
+
+      if (connection) break
+    }
+
+    if (!connection) {
+      throw new Error('当前节点与所选节点之间没有可用连线')
+    }
+
+    const nextEdge = createWorkflowEdge(connection)
+    if (!nextEdge) {
+      throw new Error('无法创建当前节点到新增节点的连线')
+    }
+
+    history.checkpoint()
+    setNodes(nextNodes)
+    setEdges((currentEdges) => [...currentEdges, nextEdge])
+    setDirty(true)
+
+    if (sourceNode.parentId) {
+      requestAnimationFrame(() => updateNodeInternals(sourceNode.parentId!))
+    }
   }
 
   function insertNodeOnEdge(type: string, edgeId: string, requestedCenter: XYPosition) {
@@ -689,6 +892,16 @@ export function useWorkflowEditor({
     return deleteElements(new Set([nodeId]))
   }
 
+  function disconnectNodes(sourceNodeId: string, targetNodeId: string) {
+    const connectedEdgeIds = new Set(
+      edges
+        .filter((edge) => edge.source === sourceNodeId && edge.target === targetNodeId)
+        .map((edge) => edge.id),
+    )
+
+    return deleteElements(new Set(), connectedEdgeIds)
+  }
+
   function selectNodeForContextMenu(nodeId: string) {
     if (!nodes.some((node) => node.id === nodeId)) return false
 
@@ -768,8 +981,25 @@ export function useWorkflowEditor({
     return new Set([...getDisabledNodeTypes(remainingNodes), node.type])
   }
 
+  function getConnectedReplacementDisabledNodeTypes(nodeId: string): ReadonlySet<string> {
+    return new Set([
+      ...getReplacementDisabledNodeTypes(nodeId),
+      ...NEXT_NODE_UNAVAILABLE_NODE_TYPES,
+    ])
+  }
+
   function canReplaceNode(nodeId: string) {
     const disabledTypes = getReplacementDisabledNodeTypes(nodeId)
+
+    return getReplacementNodeTypes(nodeId).some(
+      ({ definition }) => !disabledTypes.has(definition.type),
+    )
+  }
+
+  function canReplaceConnectedNode(sourceNodeId: string, nodeId: string) {
+    if (!edges.some((edge) => edge.source === sourceNodeId && edge.target === nodeId)) return false
+
+    const disabledTypes = getConnectedReplacementDisabledNodeTypes(nodeId)
 
     return getReplacementNodeTypes(nodeId).some(
       ({ definition }) => !disabledTypes.has(definition.type),
@@ -780,10 +1010,12 @@ export function useWorkflowEditor({
    * 原位更换节点。根节点 ID 和位置保持不变，以便端口仍兼容时复用既有连线；
    * 配置、变量和容器子节点全部按新类型重新初始化。
    */
-  function replaceNode(nodeId: string, type: string) {
+  function replaceNodeByType(nodeId: string, type: string, connectionSourceNodeId?: string) {
     const currentNode = nodes.find((node) => node.id === nodeId)
     const availableTypes = getReplacementNodeTypes(nodeId)
-    const disabledTypes = getReplacementDisabledNodeTypes(nodeId)
+    const disabledTypes = connectionSourceNodeId
+      ? getConnectedReplacementDisabledNodeTypes(nodeId)
+      : getReplacementDisabledNodeTypes(nodeId)
 
     if (!currentNode || !availableTypes.some(({ definition }) => definition.type === type)) {
       throw new Error('当前节点不可更换为所选类型')
@@ -829,20 +1061,57 @@ export function useWorkflowEditor({
       (edge) =>
         !removedDescendantNodeIds.has(edge.source) && !removedDescendantNodeIds.has(edge.target),
     )
-    const nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges)
+    const nextNodes = nodes.flatMap((node) =>
+      node.id === nodeId
+        ? [nextRootNode, ...nextDescendants]
+        : removedNodeIds.has(node.id)
+          ? []
+          : [node],
+    )
+    let nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges)
+
+    if (connectionSourceNodeId) {
+      const connectedEdges = remainingEdges.filter(
+        (edge) => edge.source === connectionSourceNodeId && edge.target === nodeId,
+      )
+      const connectedEdge = connectedEdges[0]
+
+      if (!connectedEdge) {
+        throw new Error('当前节点与待更改节点之间的连接已不存在')
+      }
+
+      const connectedEdgeIds = new Set(connectedEdges.map((edge) => edge.id))
+      const disconnectedEdges = remainingEdges.filter((edge) => !connectedEdgeIds.has(edge.id))
+      const validDisconnectedEdges = removeDanglingEdges(
+        toWorkflowNode(nextRootNode),
+        disconnectedEdges,
+      )
+      const reconnectedEdge = findReconnectedEdge(
+        connectedEdge,
+        nextRootNode,
+        nextNodes,
+        validDisconnectedEdges,
+        initialSnapshot.workflow,
+      )
+
+      if (!reconnectedEdge) {
+        throw new Error('所选节点无法保持当前连接')
+      }
+
+      const nextEdgesById = new Map(validDisconnectedEdges.map((edge) => [edge.id, edge]))
+      nextEdgesById.set(connectedEdge.id, reconnectedEdge)
+
+      nextEdges = remainingEdges.flatMap((edge) => {
+        const nextEdge = nextEdgesById.get(edge.id)
+        return nextEdge ? [nextEdge] : []
+      })
+    }
+
     const nextEdgeIds = new Set(nextEdges.map((edge) => edge.id))
     const currentViewport = getViewport()
 
     history.checkpoint()
-    setNodes((currentNodes) =>
-      currentNodes.flatMap((node) =>
-        node.id === nodeId
-          ? [nextRootNode, ...nextDescendants]
-          : removedNodeIds.has(node.id)
-            ? []
-            : [node],
-      ),
-    )
+    setNodes(nextNodes)
     setEdges(nextEdges)
     setSelectedNodeIds((currentSelectedNodeIds) => {
       const nextSelectedNodeIds = new Set(
@@ -873,6 +1142,14 @@ export function useWorkflowEditor({
       void setReactFlowViewport(currentViewport)
     })
     return true
+  }
+
+  function replaceNode(nodeId: string, type: string) {
+    return replaceNodeByType(nodeId, type)
+  }
+
+  function replaceConnectedNode(sourceNodeId: string, nodeId: string, type: string) {
+    return replaceNodeByType(nodeId, type, sourceNodeId)
   }
 
   function createSnapshot(): WorkflowEditorSnapshot {
@@ -1002,10 +1279,12 @@ export function useWorkflowEditor({
     .filter((nodeType) => !ROOT_HIDDEN_NODE_TYPES.has(nodeType.definition.type))
 
   return {
+    addConnectedNode,
     addNode,
     applyNode,
     autoLayout,
     availableNodeTypes,
+    canAddNextNode,
     canRedo: history.canRedo,
     canUndo: history.canUndo,
     cancelConnection,
@@ -1018,6 +1297,7 @@ export function useWorkflowEditor({
       return Boolean(node && !isLoopSystemNodeType(node.type) && !disabledNodeTypes.has(node.type))
     },
     canPaste: clipboardRef.current !== undefined,
+    canReplaceConnectedNode,
     canReplaceNode,
     canRunNode: (nodeId: string) => {
       const node = nodes.find((candidate) => candidate.id === nodeId)
@@ -1029,6 +1309,7 @@ export function useWorkflowEditor({
     cutSelection,
     deleteNode,
     deleteSelection,
+    disconnectNodes,
     disabledNodeTypes,
     dirty,
     duplicateNode,
@@ -1037,6 +1318,9 @@ export function useWorkflowEditor({
     edges: renderedEdges,
     errors,
     finishNodeNudge,
+    getNextDisabledNodeTypes,
+    getNextNodeTypes,
+    getConnectedReplacementDisabledNodeTypes,
     getReplacementDisabledNodeTypes,
     getReplacementNodeTypes,
     handleBeforeDelete,
@@ -1056,6 +1340,7 @@ export function useWorkflowEditor({
     pasteSelection,
     pasteSelectionAt,
     replaceCanvas,
+    replaceConnectedNode,
     replaceNode,
     redo: history.redo,
     saveWorkflow,

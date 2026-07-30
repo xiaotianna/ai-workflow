@@ -20,18 +20,29 @@ import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
+import { Separator } from '@ai-workflow/ui/components/separator'
 import { X } from 'lucide-react'
 import { z } from 'zod'
 
 import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
 import { resolveNodeFormFields } from '../node-form-resolvers/registry'
+import { WorkflowNextStep } from './workflow-next-step'
 
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
   defaultLabel?: string
   availableVariables?: readonly AvailableVariableOption[]
+  nextStepDisabled?: boolean
+  nextStepOpen?: boolean
   onApply: (node: WorkflowNode) => void
   onClose: () => void
+  canChangeNextStepNode: (nodeId: string) => boolean
+  canDeleteNextStepNode: (nodeId: string) => boolean
+  onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
+  onDeleteNextStepNode: (nodeId: string) => void
+  onDisconnectNextStepNode: (nodeId: string) => void
+  onNextStepOpenChange: (open: boolean, trigger: HTMLButtonElement) => void
+  onNextStepNodeSelect: (nodeId: string) => void
 }
 
 const INLINE_TEXT_INPUT_CLASS_NAME =
@@ -51,8 +62,17 @@ export const WorkflowConfigPanel = ({
   node,
   defaultLabel,
   availableVariables = [],
+  nextStepDisabled = false,
+  nextStepOpen = false,
   onApply,
   onClose,
+  canChangeNextStepNode,
+  canDeleteNextStepNode,
+  onChangeNextStepNode,
+  onDeleteNextStepNode,
+  onDisconnectNextStepNode,
+  onNextStepOpenChange,
+  onNextStepNodeSelect,
 }: WorkflowConfigPanelProps) => {
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
@@ -270,9 +290,9 @@ export const WorkflowConfigPanel = ({
         <span className="border-primary inline-flex border-b-2 pb-2 text-sm font-medium">设置</span>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {hasPanelContent ? (
-          <div className="space-y-5">
+          <div className="space-y-5 px-5 py-3">
             {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
             {inputVariableSection ? (
               <NodeVariableSection
@@ -310,16 +330,32 @@ export const WorkflowConfigPanel = ({
                 onOutputsChange={handleOutputsChange}
               />
             ) : null}
-
-            {/* 下一个节点连接器渲染 */}
           </div>
         ) : (
-          <p className="text-muted-foreground text-sm">当前节点暂无可配置项</p>
+          <p className="text-muted-foreground px-5 py-3 text-sm">当前节点暂无可配置项</p>
         )}
 
         {errors.form ? (
-          <p className="text-destructive mt-3 text-xs leading-4">{errors.form}</p>
+          <p className="text-destructive mt-3 px-5 py-3 text-xs leading-4">{errors.form}</p>
         ) : null}
+
+        <Separator className="bg-border/50 mt-2" />
+
+        {/* 下一个节点连接器渲染 */}
+        <WorkflowNextStep
+          nodeId={node.id}
+          nodeType={nodeType}
+          disabled={nextStepDisabled}
+          open={nextStepOpen}
+          className="px-5 pt-3"
+          canChangeNode={canChangeNextStepNode}
+          canDeleteNode={canDeleteNextStepNode}
+          onChangeNode={onChangeNextStepNode}
+          onDeleteNode={onDeleteNextStepNode}
+          onDisconnectNode={onDisconnectNextStepNode}
+          onOpenChange={onNextStepOpenChange}
+          onSelectNode={onNextStepNodeSelect}
+        />
       </div>
     </aside>
   )
