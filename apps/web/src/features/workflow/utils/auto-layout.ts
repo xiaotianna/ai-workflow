@@ -1,4 +1,5 @@
 import { BuiltinNodeType, type WorkflowEdge } from '@ai-workflow/core'
+import type { XYPosition } from '@xyflow/react'
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import { getLoopNodeSize } from '@/utils/workflow/editor-elements'
@@ -15,6 +16,13 @@ const DEFAULT_NODE_SIZE = {
 
 const LAYER_GAP = 120
 const ROW_GAP = 64
+
+interface LayoutInsertedNodeOnEdgeOptions {
+  edgeCenter: XYPosition
+  insertedNodeId: string
+  sourceNodeId: string
+  targetNodeId: string
+}
 
 function getNodeLayoutSize(node: WorkflowCanvasNode) {
   if (node.type === BuiltinNodeType.LOOP) return getLoopNodeSize(node)
@@ -79,6 +87,86 @@ function getRootNodeRanks(
   }
 
   return ranks
+}
+
+function collectDownstreamNodeIds(
+  startNodeId: string,
+  edges: readonly WorkflowEdge[],
+): Set<string> {
+  const outgoingNodeIds = new Map<string, Set<string>>()
+
+  for (const edge of edges) {
+    const outgoing = outgoingNodeIds.get(edge.source) ?? new Set<string>()
+    outgoing.add(edge.target)
+    outgoingNodeIds.set(edge.source, outgoing)
+  }
+
+  const downstreamNodeIds = new Set<string>()
+  const pendingNodeIds = [startNodeId]
+
+  while (pendingNodeIds.length > 0) {
+    const nodeId = pendingNodeIds.shift()!
+    if (downstreamNodeIds.has(nodeId)) continue
+
+    downstreamNodeIds.add(nodeId)
+    pendingNodeIds.push(...(outgoingNodeIds.get(nodeId) ?? []))
+  }
+
+  return downstreamNodeIds
+}
+
+/**
+ * 把新增节点放到原连线中，并只向后推动空间不足的下游分支。
+ * 纵向沿用原贝塞尔连线的中点，后续节点整体平移以保留已有连线形态。
+ */
+export function layoutInsertedNodeOnEdge(
+  nodes: readonly WorkflowCanvasNode[],
+  edges: readonly WorkflowEdge[],
+  { edgeCenter, insertedNodeId, sourceNodeId, targetNodeId }: LayoutInsertedNodeOnEdgeOptions,
+): WorkflowCanvasNode[] {
+  const sourceNode = nodes.find((node) => node.id === sourceNodeId && !node.parentId)
+  const targetNode = nodes.find((node) => node.id === targetNodeId && !node.parentId)
+  const insertedNode = nodes.find((node) => node.id === insertedNodeId && !node.parentId)
+
+  if (!sourceNode || !targetNode || !insertedNode) return [...nodes]
+
+  const sourceSize = getNodeLayoutSize(sourceNode)
+  const insertedSize = getNodeLayoutSize(insertedNode)
+  const minimumInsertedX = sourceNode.position.x + sourceSize.width + LAYER_GAP
+  const maximumInsertedX = targetNode.position.x - insertedSize.width - LAYER_GAP
+  const centeredInsertedX = edgeCenter.x - insertedSize.width / 2
+  const insertedX =
+    maximumInsertedX >= minimumInsertedX
+      ? Math.min(Math.max(centeredInsertedX, minimumInsertedX), maximumInsertedX)
+      : minimumInsertedX
+  const insertedPosition = {
+    x: insertedX,
+    y: edgeCenter.y - insertedSize.height / 2,
+  }
+  const requiredTargetX = insertedX + insertedSize.width + LAYER_GAP
+  const downstreamOffsetX = Math.max(0, requiredTargetX - targetNode.position.x)
+  const downstreamNodeIds =
+    downstreamOffsetX > 0 ? collectDownstreamNodeIds(targetNodeId, edges) : new Set<string>()
+
+  // 环形连线不能反向推动本次插入的上游节点或新增节点。
+  downstreamNodeIds.delete(sourceNodeId)
+  downstreamNodeIds.delete(insertedNodeId)
+
+  return nodes.map((node) => {
+    if (node.id === insertedNodeId) {
+      return { ...node, position: insertedPosition }
+    }
+
+    if (node.parentId || !downstreamNodeIds.has(node.id)) return node
+
+    return {
+      ...node,
+      position: {
+        x: node.position.x + downstreamOffsetX,
+        y: node.position.y,
+      },
+    }
+  })
 }
 
 export function autoLayoutRootNodes(

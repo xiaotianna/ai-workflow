@@ -21,6 +21,7 @@ import {
   NodeContentItem,
   AddNode,
   AddNodeButton,
+  AddNodeIconButton,
   NodeSelectorPanel,
   NodeSelectorPopover,
   LoopNode,
@@ -115,6 +116,8 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
 - 通用基础控件从 `@ai-workflow/ui` 导入，节点业务内容保留在本包。
 - 通用节点选择器使用 `AddNode`；容器 renderer 通过 `NodeEditorCapabilities` 消费应用注入的
   编辑能力，不直接依赖应用 Hook。
+- 画布连线等紧凑位置的圆形添加入口使用 `AddNodeIconButton`；组件只提供 20px 主色圆形
+  按钮与加号，不包含节点选择器或 React Flow 逻辑。
 - `NodeSelectorPanel` 承担搜索、节点列表、主题图标和禁用项展示；`NodeSelectorPopover`
   组合独立受控 Popover、虚拟锚点、选择回调和失败 Toast，`AddNodeButton` 只提供标准添加
   触发器，`AddNode` 组合两者供 Loop 等局部场景使用。根画布等需要从按钮、快捷键和右键

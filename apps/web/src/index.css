@@ -23,3 +23,21 @@
 .workflow-editor .react-flow__edge.workflow-edge--node-hovered .react-flow__edge-path {
   stroke: var(--primary);
 }
+
+.workflow-editor .workflow-edge-add {
+  pointer-events: none;
+}
+
+.workflow-editor .workflow-edge-add__button {
+  pointer-events: none;
+  opacity: 0;
+}
+
+.workflow-editor .react-flow__edge:hover .workflow-edge-add,
+.workflow-editor .react-flow__edge:hover .workflow-edge-add__button {
+  pointer-events: auto;
+}
+
+.workflow-editor .react-flow__edge:hover .workflow-edge-add__button {
+  opacity: 1;
+}

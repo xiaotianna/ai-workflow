@@ -8,6 +8,7 @@ type WorkflowEditor = ReturnType<typeof useWorkflowEditor>
 type NodePickerState =
   | { kind: 'closed'; anchorPosition?: XYPosition }
   | { kind: 'add'; center?: XYPosition; anchorPosition?: XYPosition }
+  | { kind: 'insert-edge'; edgeId: string; center: XYPosition; anchorPosition: XYPosition }
   | { kind: 'replace'; nodeId: string; anchorPosition?: XYPosition }
 
 interface UseWorkflowNodePickerOptions {
@@ -25,13 +26,24 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     : editor.availableNodeTypes
   const disabledNodeTypes = replaceNodeId
     ? editor.getReplacementDisabledNodeTypes(replaceNodeId)
-    : editor.disabledNodeTypes
+    : state.kind === 'insert-edge'
+      ? editor.edgeInsertionDisabledNodeTypes
+      : editor.disabledNodeTypes
 
   function openAddNode(center?: XYPosition, nextAnchorPosition?: XYPosition) {
     setState({
       kind: 'add',
       ...(center ? { center } : {}),
       ...(nextAnchorPosition ? { anchorPosition: nextAnchorPosition } : {}),
+    })
+  }
+
+  function openInsertNode(edgeId: string, center: XYPosition, nextAnchorPosition: XYPosition) {
+    setState({
+      kind: 'insert-edge',
+      edgeId,
+      center,
+      anchorPosition: nextAnchorPosition,
     })
   }
 
@@ -76,6 +88,11 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
       return
     }
 
+    if (state.kind === 'insert-edge') {
+      editor.insertNodeOnEdge(type, state.edgeId, state.center)
+      return
+    }
+
     editor.addNode(type, state.kind === 'add' ? state.center : undefined)
   }
 
@@ -89,6 +106,7 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     nodeTypes,
     open,
     openAddNode,
+    openInsertNode,
     openReplaceNode,
     operationLabel: state.kind === 'replace' ? '更换' : '添加',
   }

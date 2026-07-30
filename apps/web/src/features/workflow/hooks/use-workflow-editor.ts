@@ -1,6 +1,8 @@
 import {
   BuiltinNodeType,
+  getNodePorts,
   nodeRegistry,
+  type NodeType,
   type WorkflowEdge,
   type WorkflowNode,
 } from '@ai-workflow/core'
@@ -54,7 +56,7 @@ import {
   pasteWorkflowClipboardPayload,
   type WorkflowClipboardPayload,
 } from '../utils/editor-clipboard'
-import { autoLayoutRootNodes } from '../utils/auto-layout'
+import { autoLayoutRootNodes, layoutInsertedNodeOnEdge } from '../utils/auto-layout'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
@@ -71,6 +73,25 @@ const DEFAULT_NODE_PLACEMENT_SIZE = {
 const ALWAYS_DISABLED_NODE_TYPES: ReadonlySet<string> = new Set()
 // 整个画布中只允许存在一个实例的节点类型
 const SINGLE_INSTANCE_NODE_TYPES: ReadonlySet<string> = new Set([BuiltinNodeType.START])
+
+function canInsertNodeTypeOnEdge(nodeType: NodeType) {
+  try {
+    const parsedConfig = nodeType.schema.safeParse(nodeType.createInitialConfig())
+    if (!parsedConfig.success) return false
+
+    const ports = getNodePorts(nodeType, parsedConfig.data)
+    return Object.keys(ports.inputs).length > 0 && Object.keys(ports.outputs).length > 0
+  } catch {
+    return false
+  }
+}
+
+const EDGE_INSERTION_UNAVAILABLE_NODE_TYPES: ReadonlySet<string> = new Set(
+  nodeRegistry
+    .list()
+    .filter((nodeType) => !canInsertNodeTypeOnEdge(nodeType))
+    .map((nodeType) => nodeType.definition.type),
+)
 
 function getNodePlacementSize(type: string) {
   return type === BuiltinNodeType.LOOP ? DEFAULT_LOOP_SIZE : DEFAULT_NODE_PLACEMENT_SIZE
@@ -198,6 +219,10 @@ export function useWorkflowEditor({
       })
     : []
   const disabledNodeTypes = getDisabledNodeTypes(nodes)
+  const edgeInsertionDisabledNodeTypes = new Set([
+    ...disabledNodeTypes,
+    ...EDGE_INSERTION_UNAVAILABLE_NODE_TYPES,
+  ])
 
   const { errors, saveWorkflow, saving } = useWorkflowSave({
     baseWorkflow: initialSnapshot.workflow,
@@ -319,6 +344,100 @@ export function useWorkflowEditor({
 
     history.checkpoint()
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
+    setDirty(true)
+  }
+
+  function insertNodeOnEdge(type: string, edgeId: string, requestedCenter: XYPosition) {
+    if (edgeInsertionDisabledNodeTypes.has(type)) {
+      throw new Error('所选节点需要同时提供输入和输出端口')
+    }
+
+    const replacedEdge = edges.find((edge) => edge.id === edgeId)
+    if (!replacedEdge) {
+      throw new Error('当前连线已不存在')
+    }
+
+    const sourceNode = nodes.find((node) => node.id === replacedEdge.source)
+    const targetNode = nodes.find((node) => node.id === replacedEdge.target)
+    if (!sourceNode || !targetNode || sourceNode.parentId || targetNode.parentId) {
+      throw new Error('当前连线不支持插入节点')
+    }
+
+    const placementSize = getNodePlacementSize(type)
+    const createdNodes = createCanvasNodes({
+      type,
+      existingNodes: nodes,
+      position: {
+        x: requestedCenter.x - placementSize.width / 2,
+        y: requestedCenter.y - placementSize.height / 2,
+      },
+    })
+    const addedNode = createdNodes[0]
+    const addedNodeType = nodeRegistry.getOrThrow(addedNode.type)
+    const parsedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
+    if (!parsedConfig.success) {
+      throw new Error('新增节点的配置无效')
+    }
+
+    const addedNodePorts = getNodePorts(addedNodeType, parsedConfig.data)
+    const inputPortId = Object.keys(addedNodePorts.inputs)[0]
+    const outputPortId = Object.keys(addedNodePorts.outputs)[0]
+    if (!inputPortId || !outputPortId) {
+      throw new Error('所选节点需要同时提供输入和输出端口')
+    }
+
+    const nextNodes = [...nodes, ...createdNodes]
+    const remainingEdges = edges.filter((edge) => edge.id !== edgeId)
+    const incomingConnection: Connection = {
+      source: replacedEdge.source,
+      sourceHandle: replacedEdge.sourceHandle,
+      target: addedNode.id,
+      targetHandle: inputPortId,
+    }
+    if (!canConnect(incomingConnection, initialSnapshot.workflow, nextNodes, remainingEdges)) {
+      throw new Error('无法连接原上游节点与新增节点')
+    }
+
+    const incomingEdge = createWorkflowEdge(incomingConnection)
+    if (!incomingEdge) {
+      throw new Error('无法创建新增节点的输入连线')
+    }
+
+    const outgoingConnection: Connection = {
+      source: addedNode.id,
+      sourceHandle: outputPortId,
+      target: replacedEdge.target,
+      targetHandle: replacedEdge.targetHandle,
+    }
+    if (
+      !canConnect(outgoingConnection, initialSnapshot.workflow, nextNodes, [
+        ...remainingEdges,
+        incomingEdge,
+      ])
+    ) {
+      throw new Error('无法连接新增节点与原下游节点')
+    }
+
+    const outgoingEdge = createWorkflowEdge(outgoingConnection)
+    if (!outgoingEdge) {
+      throw new Error('无法创建新增节点的输出连线')
+    }
+
+    const nextEdges = [...remainingEdges, incomingEdge, outgoingEdge]
+    const layoutedNodes = layoutInsertedNodeOnEdge(nextNodes, nextEdges, {
+      edgeCenter: requestedCenter,
+      insertedNodeId: addedNode.id,
+      sourceNodeId: replacedEdge.source,
+      targetNodeId: replacedEdge.target,
+    })
+
+    history.checkpoint()
+    setNodes(layoutedNodes)
+    setEdges(nextEdges)
+    setSelectedEdgeIds(
+      (currentSelectedEdgeIds) =>
+        new Set([...currentSelectedEdgeIds].filter((selectedId) => selectedId !== edgeId)),
+    )
     setDirty(true)
   }
 
@@ -875,6 +994,7 @@ export function useWorkflowEditor({
     dirty,
     duplicateNode,
     duplicateSelection,
+    edgeInsertionDisabledNodeTypes,
     edges: renderedEdges,
     errors,
     finishNodeNudge,
@@ -887,6 +1007,7 @@ export function useWorkflowEditor({
     handleNodesDelete,
     handleViewportChange,
     initialViewport: initialSnapshot.layout.viewport,
+    insertNodeOnEdge,
     isValidConnection,
     loopEditor,
     nodes: renderedNodes,
