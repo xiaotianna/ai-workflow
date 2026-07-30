@@ -109,6 +109,8 @@ function ExampleForm() {
 
 - `features/studio/hooks/use-studio-apps.ts` 负责 Studio 列表的搜索防抖、排序、opaque cursor、
   首屏与续载状态；页面只编排工具栏、弹窗和操作反馈。
+- Studio 当前排序值继续由 `useStudioApps` 持有并传入 Grid；排序选项、卡片时间字段与“编辑于”
+  /“创建于”文案由 Feature 内的排序策略表解析，不复制成额外状态。
 - 搜索、排序或主动重试时取消旧请求、清空旧游标并加载第一页；续载请求用查询版本隔离过期
   响应，合并时按应用 ID 去重。
 - 列表虚拟化只负责可见行与触底信号，不持有请求数据；加载失败后停止自动续载，由页面提供

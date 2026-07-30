@@ -1,4 +1,10 @@
-import { createStudioApp, updateStudioApp } from '@/api/studio'
+import {
+  createStudioApp,
+  deleteStudioApp,
+  duplicateStudioApp,
+  importStudioApp,
+  updateStudioApp,
+} from '@/api/studio'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useState } from 'react'
 
@@ -7,6 +13,7 @@ import { PageHeaderActions } from '@/components/page-header-actions'
 import { PageTitle } from '@/components/page-title'
 import {
   CreateBlankAppDialog,
+  DeleteStudioAppDialog,
   downloadStudioAppDsl,
   EditStudioAppDialog,
   ImportDslDialog,
@@ -41,6 +48,7 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [editingApp, setEditingApp] = useState<StudioAppListItem>()
+  const [deletingApp, setDeletingApp] = useState<StudioAppListItem>()
 
   async function handleCreateApp(input: CreateStudioAppInput) {
     await createStudioApp(input)
@@ -59,8 +67,18 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
     showToast('success', '应用信息已保存')
   }
 
-  function handleImportApp(_file: File) {
-    showToast('warning', '当前后端暂未提供 DSL 导入接口')
+  async function handleImportApp(dsl: unknown) {
+    await importStudioApp(dsl)
+    refresh()
+    showToast('success', 'DSL 已导入')
+  }
+
+  async function handleDeleteApp() {
+    if (!deletingApp) return
+
+    await deleteStudioApp(deletingApp.id)
+    refresh()
+    showToast('success', '工作流已删除')
   }
 
   function handleAppAction(action: Parameters<StudioAppActionHandler>[0], app: StudioAppListItem) {
@@ -74,11 +92,26 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
       return
     }
 
+    if (action === 'duplicate') {
+      void duplicateStudioApp(app.id)
+        .then((duplicatedApp) => {
+          refresh()
+          showToast('success', `已创建 ${duplicatedApp.title}`)
+        })
+        .catch(() => undefined)
+      return
+    }
+
+    if (action === 'delete') {
+      setDeletingApp(app)
+      return
+    }
+
     onAppAction?.(action, app)
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+    <div className="flex h-full min-h-0 flex-col">
       <PageTitle title="工作室" />
 
       <PageHeaderActions>
@@ -104,6 +137,17 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
         onImport={handleImportApp}
       />
 
+      {deletingApp ? (
+        <DeleteStudioAppDialog
+          app={deletingApp}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDeletingApp(undefined)
+          }}
+          onDelete={handleDeleteApp}
+        />
+      ) : undefined}
+
       {editingApp ? (
         <EditStudioAppDialog
           app={editingApp}
@@ -115,7 +159,7 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
         />
       ) : undefined}
 
-      <PageContent className="overflow-hidden">
+      <PageContent>
         <StudioAppGrid
           apps={apps}
           hasMore={hasMore}
@@ -123,6 +167,7 @@ export default function StudioPage({ onAppAction }: StudioPageProps) {
           initialLoading={initialLoading}
           loadMoreError={loadMoreError}
           loadingMore={loadingMore}
+          sort={sort}
           onLoadMore={loadMore}
           onRetryInitial={refresh}
           onRetryLoadMore={retryLoadMore}

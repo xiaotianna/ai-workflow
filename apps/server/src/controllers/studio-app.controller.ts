@@ -1,11 +1,17 @@
 import type { AuthenticatedRequest } from '@/common/interfaces/auth-context.interface'
 import { JwtAuth } from '@/decorators/jwt-auth.decorator'
-import { CreateStudioAppDto, ListStudioAppsDto, UpdateStudioAppDto } from '@/dto/studio.dto'
+import {
+  CreateStudioAppDto,
+  ImportStudioAppDslDto,
+  ListStudioAppsDto,
+  UpdateStudioAppDto,
+} from '@/dto/studio.dto'
 import { StudioAppService } from '@/services/studio-app.service'
 import type { StudioAppListVo, StudioAppVo } from '@/vo/studio.vo'
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -63,6 +69,22 @@ export class StudioAppController {
     return this.studioAppService.create(request.auth.userId, dto)
   }
 
+  @Post('import')
+  importDsl(
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ImportStudioAppDslDto,
+  ): Promise<StudioAppVo> {
+    return this.studioAppService.importDsl(request.auth.userId, dto)
+  }
+
+  @Post(':appId/duplicate')
+  duplicate(
+    @Req() request: AuthenticatedRequest,
+    @Param('appId', new ParseUUIDPipe({ version: '4' })) appId: string,
+  ): Promise<StudioAppVo> {
+    return this.studioAppService.duplicate(request.auth.userId, appId)
+  }
+
   @Patch(':appId')
   update(
     @Req() request: AuthenticatedRequest,
@@ -70,5 +92,13 @@ export class StudioAppController {
     @Body() dto: UpdateStudioAppDto,
   ): Promise<StudioAppVo> {
     return this.studioAppService.update(request.auth.userId, appId, dto)
+  }
+
+  @Delete(':appId')
+  remove(
+    @Req() request: AuthenticatedRequest,
+    @Param('appId', new ParseUUIDPipe({ version: '4' })) appId: string,
+  ): Promise<void> {
+    return this.studioAppService.remove(request.auth.userId, appId)
   }
 }

@@ -29,6 +29,14 @@
   `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿在导出前至少校验工作流
   顶层结构；在 Core 提供可被 NodeNext 服务端直接加载的构建入口后，改为复用
   `workflowSchema` 与 `validateWorkflow` 做完整校验。
+- Studio DSL 导入只接受 `dslVersion: 1` 的 JSON 结构；服务端校验应用元数据、节点与连线
+  基本结构、ID 唯一性、连线引用和画布布局后再持久化。导入会生成新的 App/Workflow ID，
+  保留草稿结构版本并从新的修订记录开始，不沿用导出文件中的系统修订号。
+- 复制应用只复制当前草稿和应用元数据，不复制版本、部署、运行或 API Key；工作流 ID
+  重新生成，副本名称在当前用户的未删除应用中按 `-副本`、`-副本2` 递增。
+- 删除 Studio 应用使用硬删除而不是只写入 `deletedAt`。Repository 在单个事务中按调用日志、
+  API Key、节点运行、工作流运行、部署、版本、草稿、Workflow、App 的顺序清理，避免版本
+  和运行之间的限制型外键阻止级联；只有当前 `ownerId` 的未删除应用可以进入删除事务。
 - 不把数据库连接或 Prisma client 暴露给 Controller。
 
 ## Redis

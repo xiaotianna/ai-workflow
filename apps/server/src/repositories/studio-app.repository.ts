@@ -37,6 +37,7 @@ interface CreateStudioAppOptions {
   title: string
   description?: string
   icon: string
+  schemaVersion?: number
   definition: Prisma.InputJsonValue
   layout: Prisma.InputJsonValue
 }
@@ -109,6 +110,45 @@ export class StudioAppRepository {
     })
   }
 
+  findForDuplicate(ownerId: string, appId: string) {
+    return this.prisma.app.findFirst({
+      where: {
+        id: appId,
+        ownerId,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        icon: true,
+        workflow: {
+          select: {
+            draft: {
+              select: {
+                schemaVersion: true,
+                definition: true,
+                layout: true,
+              },
+            },
+          },
+        },
+      },
+    })
+  }
+
+  listNames(ownerId: string) {
+    return this.prisma.app.findMany({
+      where: {
+        ownerId,
+        deletedAt: null,
+      },
+      select: {
+        name: true,
+      },
+    })
+  }
+
   create(options: CreateStudioAppOptions) {
     return this.prisma.app.create({
       data: {
@@ -122,6 +162,7 @@ export class StudioAppRepository {
             id: options.workflowId,
             draft: {
               create: {
+                schemaVersion: options.schemaVersion,
                 definition: options.definition,
                 layout: options.layout,
                 updatedById: options.ownerId,
@@ -151,6 +192,89 @@ export class StudioAppRepository {
       },
       select: studioAppSelect,
     })
+  }
+
+  async deleteOwnedAppGraph(ownerId: string, appId: string): Promise<boolean> {
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const app = await transaction.app.findFirst({
+          where: {
+            id: appId,
+            ownerId,
+            deletedAt: null,
+          },
+          select: {
+            workflow: {
+              select: {
+                id: true,
+              },
+            },
+          },
+        })
+
+        if (!app) return false
+
+        await transaction.apiCallLog.deleteMany({
+          where: {
+            appId,
+          },
+        })
+        await transaction.apiKey.deleteMany({
+          where: {
+            appId,
+          },
+        })
+
+        const workflowId = app.workflow?.id
+
+        if (workflowId) {
+          await transaction.workflowNodeRun.deleteMany({
+            where: {
+              run: {
+                workflowId,
+              },
+            },
+          })
+          await transaction.workflowRun.deleteMany({
+            where: {
+              workflowId,
+            },
+          })
+          await transaction.workflowDeployment.deleteMany({
+            where: {
+              workflowId,
+            },
+          })
+          await transaction.workflowVersion.deleteMany({
+            where: {
+              workflowId,
+            },
+          })
+          await transaction.workflowDraft.deleteMany({
+            where: {
+              workflowId,
+            },
+          })
+          await transaction.workflow.delete({
+            where: {
+              id: workflowId,
+            },
+          })
+        }
+
+        const deletedApp = await transaction.app.deleteMany({
+          where: {
+            id: appId,
+            ownerId,
+          },
+        })
+
+        return deletedApp.count === 1
+      },
+      {
+        timeout: 30_000,
+      },
+    )
   }
 
   private createCursorFilter(sort: StudioAppSort, cursor?: StudioAppCursor): Prisma.AppWhereInput {

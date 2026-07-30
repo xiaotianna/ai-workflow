@@ -16,6 +16,7 @@ import {
 } from '@ai-workflow/ui/components/select'
 import { ChevronDown, FileUp, Plus, Search, SquarePlus } from 'lucide-react'
 
+import { studioAppSortStrategies, studioAppSortValues } from '../studio-app-sort-strategies'
 import type { StudioAppSort } from '../types'
 
 interface StudioToolbarProps {
@@ -52,9 +53,11 @@ function StudioSortSelect({
         sideOffset={4}
         className="w-(--radix-select-trigger-width)"
       >
-        <SelectItem value="updated_desc">最近修改</SelectItem>
-        <SelectItem value="created_desc">最近创建</SelectItem>
-        <SelectItem value="created_asc">最早创建</SelectItem>
+        {studioAppSortValues.map((value) => (
+          <SelectItem key={value} value={value}>
+            {studioAppSortStrategies[value].optionLabel}
+          </SelectItem>
+        ))}
       </SelectContent>
     </Select>
   )

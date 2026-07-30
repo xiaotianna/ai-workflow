@@ -55,6 +55,18 @@ export function createStudioApp(values: SaveStudioAppParams): Promise<StudioAppD
   return apiClient.post<StudioAppDto, SaveStudioAppParams>('/studio/apps', values)
 }
 
+export function importStudioApp(dsl: unknown): Promise<StudioAppDto> {
+  return apiClient.post<StudioAppDto, unknown>('/studio/apps/import', dsl)
+}
+
+export function duplicateStudioApp(appId: string): Promise<StudioAppDto> {
+  return apiClient.post<StudioAppDto>(`/studio/apps/${encodeURIComponent(appId)}/duplicate`)
+}
+
+export function deleteStudioApp(appId: string): Promise<void> {
+  return apiClient.delete<void>(`/studio/apps/${encodeURIComponent(appId)}`)
+}
+
 export function updateStudioApp(appId: string, values: SaveStudioAppParams): Promise<StudioAppDto> {
   return apiClient.patch<StudioAppDto, SaveStudioAppParams>(
     `/studio/apps/${encodeURIComponent(appId)}`,

@@ -4,7 +4,6 @@ export interface StudioAppListItem {
   id: string
   title: string
   author: string
-  editedAtLabel: string
   createdAt: string
   updatedAt: string
   description?: string

@@ -1,3 +1,5 @@
+import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
+import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
 import {
   Dialog,
@@ -10,51 +12,91 @@ import {
 } from '@ai-workflow/ui/components/dialog'
 import { FileDropzone } from '@ai-workflow/ui/components/file-dropzone'
 import { Form } from '@ai-workflow/ui/components/form'
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 
-const maxDslFileSize = 10 * 1024 * 1024
+import { IMPORT_DSL_INITIAL_VALUES, importDslSchema, type ImportDslFormInput } from '../schema'
 
 interface ImportDslDialogProps {
   open: boolean
-  onImport: (file: File) => void
+  onImport: (dsl: unknown) => unknown | Promise<unknown>
   onOpenChange: (open: boolean) => void
 }
 
-function getFileError(file: File) {
-  if (!/\.ya?ml$/i.test(file.name)) return '仅支持 .yml 或 .yaml 格式的 DSL 文件'
-  if (file.size > maxDslFileSize) return 'DSL 文件不能超过 10 MB'
-  return undefined
-}
-
 export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialogProps) {
-  const [selectedFile, setSelectedFile] = useState<File>()
-  const [fileError, setFileError] = useState<string>()
+  const { form, resetForm, updateForm } = useFormData<ImportDslFormInput>(IMPORT_DSL_INITIAL_VALUES)
+  const [reading, setReading] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const fileReadRevision = useRef(0)
+  const validationResult = validateFormByZod(importDslSchema, form)
+  const fileError =
+    !reading && (submitted || form.file)
+      ? validationResult.success
+        ? undefined
+        : (validationResult.errors.file ?? validationResult.errors.content)
+      : undefined
 
-  function resetForm() {
-    setSelectedFile(undefined)
-    setFileError(undefined)
+  function resetDialog() {
+    fileReadRevision.current += 1
+    resetForm()
+    setReading(false)
+    setImporting(false)
+    setSubmitted(false)
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen) resetForm()
+    if (importing && !nextOpen) return
+    if (!nextOpen) resetDialog()
     onOpenChange(nextOpen)
   }
 
-  function handleFileChange(file: File | undefined) {
+  async function handleFileChange(file: File | undefined) {
+    const revision = fileReadRevision.current + 1
+
+    fileReadRevision.current = revision
+    setSubmitted(false)
+    updateForm({
+      file,
+      content: '',
+    })
+
     if (!file) return
 
-    const error = getFileError(file)
-    setFileError(error)
-    setSelectedFile(error ? undefined : file)
+    setReading(true)
+
+    try {
+      const content = await file.text()
+
+      if (fileReadRevision.current === revision) {
+        updateForm({
+          file,
+          content,
+        })
+      }
+    } finally {
+      if (fileReadRevision.current === revision) {
+        setReading(false)
+      }
+    }
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!selectedFile) return
+    setSubmitted(true)
 
-    onImport(selectedFile)
-    resetForm()
-    onOpenChange(false)
+    const result = validateFormByZod(importDslSchema, form)
+
+    if (!result.success) return
+
+    setImporting(true)
+
+    try {
+      await onImport(JSON.parse(result.data.content) as unknown)
+      resetDialog()
+      onOpenChange(false)
+    } catch {
+      setImporting(false)
+    }
   }
 
   return (
@@ -68,10 +110,11 @@ export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialo
         <Form onSubmit={handleSubmit}>
           <Form.Field required label="" error={fileError}>
             <FileDropzone
-              file={selectedFile}
-              accept=".yml,.yaml,application/x-yaml,text/yaml"
+              file={form.file}
+              accept=".json,application/json"
+              disabled={reading || importing}
               aria-invalid={Boolean(fileError)}
-              onFileChange={handleFileChange}
+              onFileChange={(file) => void handleFileChange(file)}
             />
           </Form.Field>
 
@@ -81,8 +124,13 @@ export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialo
                 取消
               </Button>
             </DialogClose>
-            <Button type="submit" variant="confirm" size="sm" disabled={!selectedFile}>
-              导入
+            <Button
+              type="submit"
+              variant="confirm"
+              size="sm"
+              disabled={reading || importing || !validationResult.success}
+            >
+              {importing ? '导入中...' : '导入'}
             </Button>
           </DialogFooter>
         </Form>

@@ -20,3 +20,34 @@ export const CREATE_STUDIO_APP_INITIAL_VALUES = {
   icon: studioAppIcons[0],
   description: '',
 } satisfies CreateStudioAppFormInput
+
+const maxDslFileSize = 10 * 1024 * 1024
+
+export const importDslSchema = z.object({
+  file: z
+    .custom<File | undefined>((value) => value === undefined || value instanceof File)
+    .refine((file) => file !== undefined, '请选择 JSON 格式的 DSL 文件')
+    .refine(
+      (file) => file === undefined || /\.json$/i.test(file.name),
+      '仅支持 .json 格式的 DSL 文件',
+    )
+    .refine((file) => file === undefined || file.size <= maxDslFileSize, 'DSL 文件不能超过 10 MB'),
+  content: z
+    .string()
+    .min(1, 'DSL 文件内容不能为空')
+    .refine((content) => {
+      try {
+        JSON.parse(content)
+        return true
+      } catch {
+        return false
+      }
+    }, 'DSL 文件不是有效的 JSON 格式'),
+})
+
+export type ImportDslFormInput = z.input<typeof importDslSchema>
+
+export const IMPORT_DSL_INITIAL_VALUES = {
+  file: undefined,
+  content: '',
+} satisfies ImportDslFormInput

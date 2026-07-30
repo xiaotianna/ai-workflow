@@ -10,7 +10,7 @@ import type { StudioAppActionHandler, StudioAppListItem } from '../types'
 interface AppDetailIdentityProps {
   app?: StudioAppListItem
   onAppAction?: StudioAppActionHandler
-  onImportDsl?: (file: File, app: StudioAppListItem) => void
+  onImportDsl?: (dsl: unknown, app: StudioAppListItem) => unknown | Promise<unknown>
 }
 
 export function AppDetailIdentity({ app, onAppAction, onImportDsl }: AppDetailIdentityProps) {
@@ -22,9 +22,9 @@ export function AppDetailIdentity({ app, onAppAction, onImportDsl }: AppDetailId
       })
     : []
 
-  function handleImportDsl(file: File) {
+  function handleImportDsl(dsl: unknown) {
     if (!app) return
-    onImportDsl?.(file, app)
+    return onImportDsl?.(dsl, app)
   }
 
   return (

@@ -26,7 +26,8 @@ export function KnowledgeBaseGrid({
             title={knowledgeBase.title}
             kindLabel={knowledgeBase.kindLabel}
             author={knowledgeBase.author}
-            editedAtLabel={knowledgeBase.editedAtLabel}
+            timeLabel="编辑于"
+            timeValue={knowledgeBase.editedAtLabel}
             description={knowledgeBase.description}
             icon={knowledgeBase.icon}
             iconBackground={knowledgeBaseIconBackground}

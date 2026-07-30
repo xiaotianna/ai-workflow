@@ -13,7 +13,8 @@ export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'articl
   title: string
   kindLabel: string
   author: string
-  editedAtLabel: string
+  timeLabel: string
+  timeValue: string
   to?: To
   linkAriaLabel?: string
   actions?: readonly ResourceCardAction[]
@@ -31,7 +32,8 @@ export function ResourceCard({
   title,
   kindLabel,
   author,
-  editedAtLabel,
+  timeLabel,
+  timeValue,
   to,
   linkAriaLabel,
   actions,
@@ -114,7 +116,9 @@ export function ResourceCard({
         <div className="flex min-w-0 flex-1 items-center gap-1 whitespace-nowrap">
           <div className="min-w-0 truncate">{author}</div>
           <div className="shrink-0">·</div>
-          <div className="min-w-0 truncate">编辑于 {editedAtLabel}</div>
+          <div className="min-w-0 truncate">
+            {timeLabel} {timeValue}
+          </div>
         </div>
       </div>
     </article>

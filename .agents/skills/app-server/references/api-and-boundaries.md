@@ -42,7 +42,13 @@
   `nextCursor`。前端不得解析或自行构造游标。
 - `GET /studio/apps/:appId`：获取应用详情。
 - `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
+- `POST /studio/apps/import`：导入 `dslVersion: 1` 的 JSON DSL，校验应用元数据、工作流定义
+  与布局后创建新的应用、Workflow 和草稿；导入时重新生成应用与工作流 ID。
+- `POST /studio/apps/:appId/duplicate`：复制当前用户的应用与工作流草稿；副本名称依次使用
+  `原名称-副本`、`原名称-副本2` 等当前用户下尚未占用的名称。
 - `PATCH /studio/apps/:appId`：编辑应用名称、图标或描述，至少提供一个字段。
+- `DELETE /studio/apps/:appId`：永久删除当前用户的应用，以及关联工作流、草稿、版本、部署、
+  运行、节点运行、API Key 与 API 调用日志；删除操作不可恢复。
 - `GET /studio/apps/:appId/dsl`：以 `application/json` 附件直接下载 DSL，不套统一成功响应；
   DSL 使用 `dslVersion: 1`，包含应用元数据、草稿结构版本、修订号、工作流定义与布局。
 

@@ -104,6 +104,10 @@ function getErrorMessage(error: {
 }
 
 export const apiClient = {
+  delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    return client.delete<ApiResponse<T>, T>(url, config)
+  },
+
   get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return client.get<ApiResponse<T>, T>(url, config)
   },

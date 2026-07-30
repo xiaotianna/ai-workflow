@@ -13,7 +13,14 @@
 
 ## Studio 资源卡片
 
-- Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；Studio 当前只有工作流应用，`StudioAppListItem` 不维护分类字段，列表卡片与应用侧栏标识区统一传入并显示固定分类文字“工作流”。应用侧栏通过 `onImportDsl` 追加“导入 DSL”并打开文件选择弹窗，Studio 页面与资源卡片不提供导入入口。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
+- Studio 菜单项配置维护在 `features/studio` 内，资源卡片与应用侧栏标识区复用同一份配置；Studio 当前只有工作流应用，`StudioAppListItem` 不维护分类字段，列表卡片与应用侧栏标识区统一传入并显示固定分类文字“工作流”。Studio 工具栏通过 `onImportApp` 打开 DSL 文件选择弹窗，导入只接受 `.json` 文件并创建应用，资源卡片不提供导入入口；应用侧栏仍可通过 `onImportDsl` 追加“导入 DSL”。页面通过回调传入实际操作，不在展示组件中内置编辑、复制、导入、删除等业务。
+- Studio 排序选项及卡片时间展示统一由 `studio-app-sort-strategies.ts` 的策略表维护：
+  `updated_desc` 使用 `updatedAt` 并显示“编辑于”，`created_desc`、`created_asc` 使用
+  `createdAt` 并显示“创建于”。Toolbar 与 Grid 必须消费同一策略表，不在组件中按排序值写
+  条件分支；通用 `ResourceCard` 只接收时间文案和值，不判断业务排序。
+- Studio 与应用详情页删除工作流时统一先打开 `DeleteStudioAppDialog`；弹窗明确列出草稿、版本、
+  部署、运行内容、API Key 和调用日志均会永久删除，请求期间禁止关闭和重复提交。列表删除
+  成功后刷新当前查询，详情页删除成功后返回 Studio。
 - 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示知识库条目，角标使用 `BookOpen` 与 Studio 的工作流图标区分，角标内图标统一为 `size-2.5`；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内。
 - 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 `useFormData` 管理 `FileDropzone` 字段，通过 `validateFormByZod` 与对应 Zod schema 完成校验和提交。表格与分页的详细约定见下方「知识库文档表格」。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。

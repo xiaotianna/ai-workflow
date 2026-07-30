@@ -8,7 +8,8 @@ import {
 } from '@/components/card/resource-card-skeleton'
 import { ResourceCard } from '@/components/card/resource-card'
 
-import type { StudioAppActionHandler, StudioAppListItem } from '../types'
+import { getStudioAppTimeDisplay } from '../studio-app-sort-strategies'
+import type { StudioAppActionHandler, StudioAppListItem, StudioAppSort } from '../types'
 import { getStudioAppActions } from './studio-app-actions'
 
 interface StudioAppGridProps {
@@ -18,6 +19,7 @@ interface StudioAppGridProps {
   initialLoading: boolean
   loadMoreError: boolean
   loadingMore: boolean
+  sort: StudioAppSort
   onLoadMore: () => void
   onRetryInitial: () => void
   onRetryLoadMore: () => void
@@ -31,6 +33,7 @@ export function StudioAppGrid({
   initialLoading,
   loadMoreError,
   loadingMore,
+  sort,
   onLoadMore,
   onRetryInitial,
   onRetryLoadMore,
@@ -111,7 +114,7 @@ export function StudioAppGrid({
   }
 
   return (
-    <div ref={scrollElementRef} className="relative h-full min-h-0 overflow-auto">
+    <div ref={scrollElementRef} className="relative -mx-4 h-full min-h-0 overflow-auto px-4 pt-4">
       <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() + 16 }}>
         {virtualRows.map((virtualRow) => {
           const isFooterRow = virtualRow.index >= rowCount
@@ -124,8 +127,8 @@ export function StudioAppGrid({
               key={virtualRow.key}
               ref={rowVirtualizer.measureElement}
               data-index={virtualRow.index}
-              className="2k:grid-cols-6 absolute top-0 left-0 grid w-full grid-cols-1 gap-2.5 pb-2.5 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
-              style={{ transform: `translateY(${virtualRow.start + 16}px)` }}
+              className="2k:grid-cols-6 absolute top-0 left-0 z-0 grid w-full grid-cols-1 gap-2.5 pb-2.5 focus-within:z-10 hover:z-10 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5"
+              style={{ transform: `translateY(${virtualRow.start}px)` }}
             >
               {isFooterRow ? (
                 loadMoreError ? (
@@ -142,6 +145,7 @@ export function StudioAppGrid({
               ) : (
                 rowApps.map((app) => {
                   const actions = getStudioAppActions(app, onAppAction)
+                  const timeDisplay = getStudioAppTimeDisplay(app, sort)
 
                   return (
                     <ResourceCard
@@ -149,12 +153,14 @@ export function StudioAppGrid({
                       title={app.title}
                       kindLabel="工作流"
                       author={app.author}
-                      editedAtLabel={app.editedAtLabel}
+                      timeLabel={timeDisplay.label}
+                      timeValue={timeDisplay.value}
                       description={app.description}
                       icon={app.icon}
                       to={`/app/${encodeURIComponent(app.id)}/workflow`}
                       linkAriaLabel={`打开应用 ${app.title}`}
                       actions={actions}
+                      className="z-0 focus-within:z-10 hover:z-10"
                     />
                   )
                 })

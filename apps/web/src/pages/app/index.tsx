@@ -1,11 +1,12 @@
-import { getStudioApp, updateStudioApp } from '@/api/studio'
+import { deleteStudioApp, duplicateStudioApp, getStudioApp, updateStudioApp } from '@/api/studio'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import { DetailLayout } from '@/components/detail-layout'
 import {
   AppDetailIdentity,
+  DeleteStudioAppDialog,
   downloadStudioAppDsl,
   EditStudioAppDialog,
   toStudioAppListItem,
@@ -18,13 +19,15 @@ import { getNavigationItemsFromRoute } from '@/router/navigation'
 
 export interface AppPageProps {
   onAppAction?: StudioAppActionHandler
-  onImportDsl?: (file: File, app: StudioAppListItem) => void
+  onImportDsl?: (dsl: unknown, app: StudioAppListItem) => unknown | Promise<unknown>
 }
 
 export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [app, setApp] = useState<StudioAppListItem>()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const encodedAppId = encodeURIComponent(id ?? '')
 
   useEffect(() => {
@@ -50,6 +53,14 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
     showToast('success', '应用信息已保存')
   }
 
+  async function handleDeleteApp() {
+    if (!app) return
+
+    await deleteStudioApp(app.id)
+    showToast('success', '工作流已删除')
+    navigate('/studio', { replace: true })
+  }
+
   function handleAppAction(
     action: Parameters<StudioAppActionHandler>[0],
     selectedApp: StudioAppListItem,
@@ -64,18 +75,40 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
       return
     }
 
+    if (action === 'duplicate') {
+      void duplicateStudioApp(selectedApp.id)
+        .then((duplicatedApp) => {
+          showToast('success', `已创建 ${duplicatedApp.title}`)
+        })
+        .catch(() => undefined)
+      return
+    }
+
+    if (action === 'delete') {
+      setDeleteDialogOpen(true)
+      return
+    }
+
     onAppAction?.(action, selectedApp)
   }
 
   return (
     <>
       {app ? (
-        <EditStudioAppDialog
-          app={app}
-          open={editDialogOpen}
-          onOpenChange={setEditDialogOpen}
-          onUpdate={handleUpdateApp}
-        />
+        <>
+          <EditStudioAppDialog
+            app={app}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+            onUpdate={handleUpdateApp}
+          />
+          <DeleteStudioAppDialog
+            app={app}
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+            onDelete={handleDeleteApp}
+          />
+        </>
       ) : undefined}
 
       <DetailLayout
