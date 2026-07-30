@@ -4,17 +4,17 @@ import { WorkflowCanvasToolbar } from './workflow-canvas-toolbar'
 import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
-import type { NodeType, WorkflowNode } from '@ai-workflow/core'
+import type { WorkflowNode } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { WorkflowShortcutHelp } from './workflow-shortcut-help'
+import type { RefObject } from 'react'
 
 const MotionPanel = motion.create(Panel)
 
 interface WorkflowPanelProps {
-  nodeTypes: readonly NodeType[]
+  addNodeButtonRef: RefObject<HTMLButtonElement | null>
   disabled?: boolean
-  disabledNodeTypes?: ReadonlySet<string>
   addNodeOpen: boolean
   shortcutHelpOpen: boolean
   canRedo: boolean
@@ -22,19 +22,18 @@ interface WorkflowPanelProps {
   selectedNode?: WorkflowNode
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
-  onAddNode: (type: string) => void
   onAddNodeOpenChange: (open: boolean) => void
   onApplyNode: (node: WorkflowNode) => void
   onCloseNodeConfig: () => void
   onRedo: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
+  onTestRun: () => void
   onUndo: () => void
 }
 
 export const WorkflowPanel = ({
-  nodeTypes,
+  addNodeButtonRef,
   disabled = false,
-  disabledNodeTypes,
   addNodeOpen,
   shortcutHelpOpen,
   canRedo,
@@ -42,12 +41,12 @@ export const WorkflowPanel = ({
   selectedNode,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
-  onAddNode,
   onAddNodeOpenChange,
   onApplyNode,
   onCloseNodeConfig,
   onRedo,
   onShortcutHelpOpenChange,
+  onTestRun,
   onUndo,
 }: WorkflowPanelProps) => {
   return (
@@ -58,18 +57,16 @@ export const WorkflowPanel = ({
       </Panel>
       {/* 右上角操作栏 */}
       <Panel position="top-right">
-        <WorkflowActionBar disabled={disabled} />
+        <WorkflowActionBar disabled={disabled} onTestRun={onTestRun} />
       </Panel>
       {/* 底部工具栏 */}
       <Panel position="bottom-center">
         <WorkflowCanvasToolbar
-          nodeTypes={nodeTypes}
+          addNodeButtonRef={addNodeButtonRef}
           disabled={disabled}
-          disabledNodeTypes={disabledNodeTypes}
           addNodeOpen={addNodeOpen}
           canRedo={canRedo}
           canUndo={canUndo}
-          onAddNode={onAddNode}
           onAddNodeOpenChange={onAddNodeOpenChange}
           onRedo={onRedo}
           onUndo={onUndo}

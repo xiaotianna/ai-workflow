@@ -16,6 +16,7 @@ export const WORKFLOW_SHORTCUT_GROUPS: readonly WorkflowShortcutGroup[] = [
     label: '工作流',
     shortcuts: [
       { id: 'save', label: '保存工作流', keys: [['⌘ / Ctrl', 'S']] },
+      { id: 'test-run', label: '测试运行', keys: [['⌥ / Alt', 'R']] },
       { id: 'undo', label: '撤销', keys: [['⌘ / Ctrl', 'Z']] },
       {
         id: 'redo',
@@ -55,3 +56,9 @@ export const WORKFLOW_SHORTCUT_GROUPS: readonly WorkflowShortcutGroup[] = [
     ],
   },
 ]
+
+export function getWorkflowShortcutDefinition(id: string) {
+  return WORKFLOW_SHORTCUT_GROUPS.flatMap((group) => group.shortcuts).find(
+    (shortcut) => shortcut.id === id,
+  )
+}

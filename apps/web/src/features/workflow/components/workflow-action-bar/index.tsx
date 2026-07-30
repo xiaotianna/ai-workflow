@@ -8,9 +8,10 @@ import { VersionHistory } from './version-history'
 
 interface WorkflowActionBarProps {
   disabled?: boolean
+  onTestRun: () => void
 }
 
-export const WorkflowActionBar = ({ disabled = false }: WorkflowActionBarProps) => {
+export const WorkflowActionBar = ({ disabled = false, onTestRun }: WorkflowActionBarProps) => {
   return (
     <fieldset
       disabled={disabled}
@@ -18,7 +19,7 @@ export const WorkflowActionBar = ({ disabled = false }: WorkflowActionBarProps) 
       className="m-0 flex min-w-0 items-center gap-1.5 border-0 p-0"
     >
       {/* 测试运行 */}
-      <TestRun />
+      <TestRun onClick={onTestRun} />
       {/* 运行历史 */}
       <RunHistory />
       {/* 检查清单 */}

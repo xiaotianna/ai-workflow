@@ -1,10 +1,9 @@
-import type { ComponentProps } from 'react'
-import { AddNode } from '@ai-workflow/nodes-ui'
+import type { ComponentProps, RefObject } from 'react'
+import { AddNodeButton } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { OpenAIPanel } from './open-ai-panel'
 import { ToolbarTooltip } from './toolbar-tooltip'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import type { NodeType } from '@ai-workflow/core'
 import { Redo2, Undo2 } from 'lucide-react'
 
 export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'div'>) => (
@@ -21,26 +20,22 @@ export const WorkflowToolbarGroup = ({ className, ...props }: ComponentProps<'di
 )
 
 interface WorkflowCanvasToolbarProps {
-  nodeTypes: readonly NodeType[]
+  addNodeButtonRef: RefObject<HTMLButtonElement | null>
   disabled?: boolean
-  disabledNodeTypes?: ReadonlySet<string>
   addNodeOpen: boolean
   canRedo: boolean
   canUndo: boolean
-  onAddNode: (type: string) => void
   onAddNodeOpenChange: (open: boolean) => void
   onRedo: () => void
   onUndo: () => void
 }
 
 export const WorkflowCanvasToolbar = ({
-  nodeTypes,
+  addNodeButtonRef,
   disabled = false,
-  disabledNodeTypes,
   addNodeOpen,
   canRedo,
   canUndo,
-  onAddNode,
   onAddNodeOpenChange,
   onRedo,
   onUndo,
@@ -49,7 +44,7 @@ export const WorkflowCanvasToolbar = ({
     <fieldset
       disabled={disabled}
       aria-label="工作流画布操作"
-      className="relative m-0 ml-[-84px] min-w-0 border-0 p-0"
+      className="relative m-0 -ml-21 min-w-0 border-0 p-0"
     >
       <WorkflowToolbarGroup aria-label="历史操作" className="absolute top-0 right-full mr-2">
         <ToolbarTooltip label="撤销" shortcut={['⌘', 'Z']}>
@@ -81,12 +76,10 @@ export const WorkflowCanvasToolbar = ({
       </WorkflowToolbarGroup>
 
       <WorkflowToolbarGroup aria-label="添加节点">
-        <AddNode
-          nodeTypes={nodeTypes}
-          disabledNodeTypes={disabledNodeTypes}
-          open={addNodeOpen}
-          onAddNode={onAddNode}
-          onOpenChange={onAddNodeOpenChange}
+        <AddNodeButton
+          ref={addNodeButtonRef}
+          aria-expanded={addNodeOpen}
+          onClick={() => onAddNodeOpenChange(!addNodeOpen)}
         />
       </WorkflowToolbarGroup>
 

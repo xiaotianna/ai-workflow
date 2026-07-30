@@ -11,6 +11,7 @@ import {
 import { CircleHelp } from 'lucide-react'
 
 import { WORKFLOW_SHORTCUT_GROUPS } from '../workflow-shortcut-definitions'
+import { WorkflowShortcutKeys } from './workflow-shortcut-keys'
 
 interface WorkflowShortcutHelpProps {
   open: boolean
@@ -66,26 +67,7 @@ export function WorkflowShortcutHelp({
                       className="flex min-h-9 items-center justify-between gap-4 rounded-lg px-2 py-1.5"
                     >
                       <span className="text-sm">{shortcut.label}</span>
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        {shortcut.keys.map((keyCombination, combinationIndex) => (
-                          <span
-                            key={`${shortcut.id}-${keyCombination.join('-')}`}
-                            className="flex items-center gap-1"
-                          >
-                            {combinationIndex > 0 ? (
-                              <span className="text-muted-foreground text-xs">或</span>
-                            ) : null}
-                            {keyCombination.map((key) => (
-                              <kbd
-                                key={key}
-                                className="border-border bg-muted text-muted-foreground min-w-6 rounded-md border-[0.5px] px-1.5 py-1 text-center text-[11px] leading-3 shadow-xs"
-                              >
-                                {key}
-                              </kbd>
-                            ))}
-                          </span>
-                        ))}
-                      </span>
+                      <WorkflowShortcutKeys keys={shortcut.keys} />
                     </li>
                   ))}
                 </ul>

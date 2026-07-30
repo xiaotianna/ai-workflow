@@ -15,6 +15,7 @@ import {
   type NodeChange,
   type OnBeforeDelete,
   type Viewport,
+  type XYPosition,
 } from '@xyflow/react'
 import { useRef, useState, type RefObject } from 'react'
 
@@ -39,9 +40,15 @@ import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/wo
 import {
   getDefaultNodePosition,
   toCanvasNodes,
+  toWorkflow,
+  toWorkflowEditorLayout,
   toWorkflowNode,
 } from '@/utils/workflow/editor-transform'
-import { ROOT_HIDDEN_NODE_TYPES } from '@/utils/workflow/node-type-visibility'
+import {
+  isLoopSystemNodeType,
+  LOOP_UNAVAILABLE_NODE_TYPES,
+  ROOT_HIDDEN_NODE_TYPES,
+} from '@/utils/workflow/node-type-visibility'
 import {
   createWorkflowClipboardPayload,
   pasteWorkflowClipboardPayload,
@@ -112,7 +119,9 @@ export function useWorkflowEditor({
   const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
     ...initialSnapshot.workflow.edges,
   ])
-  const [viewport, setViewport] = useState<Viewport | undefined>(initialSnapshot.layout.viewport)
+  const [viewport, setWorkflowViewport] = useState<Viewport | undefined>(
+    initialSnapshot.layout.viewport,
+  )
   const [selectedNodeIds, setSelectedNodeIds] = useState<ReadonlySet<string>>(new Set())
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(new Set())
   // 当前打开配置面板的节点 ID，和画布多选状态分开维护。
@@ -126,7 +135,12 @@ export function useWorkflowEditor({
   const updateNodeInternals = useUpdateNodeInternals()
   const reactFlowStore = useStoreApi<WorkflowCanvasNode, WorkflowEdge>()
   // 到屏幕中间
-  const { fitView, screenToFlowPosition } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
+  const {
+    fitView,
+    getViewport,
+    screenToFlowPosition,
+    setViewport: setReactFlowViewport,
+  } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
 
   const history = useWorkflowHistory({
     nodes,
@@ -277,19 +291,20 @@ export function useWorkflowEditor({
   }
 
   // 使用预设尺寸一次确定新增位置，避免渲染后重新测量导致节点跳动
-  function addNode(type: string) {
+  function addNode(type: string, requestedCenter?: XYPosition) {
     if (disabledNodeTypes.has(type)) {
       throw new Error('当前节点类型不可重复添加或已被禁用')
     }
 
     const canvasBounds = canvasRef.current?.getBoundingClientRect()
     const viewportCenter =
-      canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0
+      requestedCenter ??
+      (canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0
         ? screenToFlowPosition({
             x: canvasBounds.left + canvasBounds.width / 2,
             y: canvasBounds.top + canvasBounds.height / 2,
           })
-        : undefined
+        : undefined)
     const placementSize = getNodePlacementSize(type)
     const createdNodes = createCanvasNodes({
       type,
@@ -430,6 +445,10 @@ export function useWorkflowEditor({
     return createWorkflowClipboardPayload(nodes, edges, selectedNodeIds)
   }
 
+  function createNodeClipboardPayload(nodeId: string) {
+    return createWorkflowClipboardPayload(nodes, edges, new Set([nodeId]))
+  }
+
   function copySelection() {
     const payload = createCurrentClipboardPayload()
     if (!payload) return false
@@ -439,7 +458,16 @@ export function useWorkflowEditor({
     return true
   }
 
-  function pastePayload(payload: WorkflowClipboardPayload, offset: number) {
+  function copyNode(nodeId: string) {
+    const payload = createNodeClipboardPayload(nodeId)
+    if (!payload) return false
+
+    clipboardRef.current = payload
+    clipboardPasteCountRef.current = 0
+    return true
+  }
+
+  function pastePayload(payload: WorkflowClipboardPayload, offset: number | XYPosition) {
     const pasted = pasteWorkflowClipboardPayload({
       payload,
       currentNodes: nodes,
@@ -484,9 +512,31 @@ export function useWorkflowEditor({
     return pasted
   }
 
+  function pasteSelectionAt(position: XYPosition) {
+    const payload = clipboardRef.current
+    return payload ? pastePayload(payload, position) : false
+  }
+
   function duplicateSelection() {
     const payload = createCurrentClipboardPayload()
     return payload ? pastePayload(payload, 32) : false
+  }
+
+  function duplicateNode(nodeId: string) {
+    const payload = createNodeClipboardPayload(nodeId)
+    return payload ? pastePayload(payload, 32) : false
+  }
+
+  function deleteNode(nodeId: string) {
+    return deleteElements(new Set([nodeId]))
+  }
+
+  function selectNodeForContextMenu(nodeId: string) {
+    if (!nodes.some((node) => node.id === nodeId)) return false
+
+    setSelectedNodeIds(new Set([nodeId]))
+    setSelectedEdgeIds(new Set())
+    return true
   }
 
   function openNodeConfig(nodeId: string) {
@@ -536,9 +586,179 @@ export function useWorkflowEditor({
     }
   }
 
+  function getReplacementNodeTypes(nodeId: string) {
+    const node = nodes.find((candidate) => candidate.id === nodeId)
+
+    if (!node || isLoopSystemNodeType(node.type)) return []
+
+    const unavailableNodeTypes = node.parentId
+      ? LOOP_UNAVAILABLE_NODE_TYPES
+      : ROOT_HIDDEN_NODE_TYPES
+
+    return nodeRegistry
+      .list()
+      .filter((nodeType) => !unavailableNodeTypes.has(nodeType.definition.type))
+  }
+
+  function getReplacementDisabledNodeTypes(nodeId: string): ReadonlySet<string> {
+    const node = nodes.find((candidate) => candidate.id === nodeId)
+    if (!node) return new Set()
+
+    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes)
+    const remainingNodes = nodes.filter((candidate) => !removedNodeIds.has(candidate.id))
+
+    return new Set([...getDisabledNodeTypes(remainingNodes), node.type])
+  }
+
+  function canReplaceNode(nodeId: string) {
+    const disabledTypes = getReplacementDisabledNodeTypes(nodeId)
+
+    return getReplacementNodeTypes(nodeId).some(
+      ({ definition }) => !disabledTypes.has(definition.type),
+    )
+  }
+
+  /**
+   * 原位更换节点。根节点 ID 和位置保持不变，以便端口仍兼容时复用既有连线；
+   * 配置、变量和容器子节点全部按新类型重新初始化。
+   */
+  function replaceNode(nodeId: string, type: string) {
+    const currentNode = nodes.find((node) => node.id === nodeId)
+    const availableTypes = getReplacementNodeTypes(nodeId)
+    const disabledTypes = getReplacementDisabledNodeTypes(nodeId)
+
+    if (!currentNode || !availableTypes.some(({ definition }) => definition.type === type)) {
+      throw new Error('当前节点不可更换为所选类型')
+    }
+
+    if (disabledTypes.has(type)) {
+      throw new Error('所选节点类型不可重复添加、已被禁用或与当前类型相同')
+    }
+
+    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes)
+    const removedDescendantNodeIds = new Set(
+      [...removedNodeIds].filter((removedNodeId) => removedNodeId !== nodeId),
+    )
+    const remainingNodes = nodes.filter((node) => !removedNodeIds.has(node.id))
+    const parentNode = currentNode.parentId
+      ? remainingNodes.find((node) => node.id === currentNode.parentId)
+      : undefined
+    const createdNodes = createCanvasNodes({
+      type,
+      existingNodes: remainingNodes,
+      position: currentNode.position,
+      ...(currentNode.parentId
+        ? {
+            parentId: currentNode.parentId,
+            ...(parentNode ? { parentSize: getCanvasNodeSize(parentNode) } : {}),
+          }
+        : {}),
+    })
+    const [createdRootNode, ...createdDescendants] = createdNodes
+    const nextRootNode: WorkflowCanvasNode = {
+      ...createdRootNode,
+      id: nodeId,
+      position: currentNode.position,
+    }
+    const nextDescendants: WorkflowCanvasNode[] = []
+
+    for (const node of createdDescendants) {
+      nextDescendants.push(
+        node.parentId === createdRootNode.id ? { ...node, parentId: nodeId } : node,
+      )
+    }
+    const remainingEdges = edges.filter(
+      (edge) =>
+        !removedDescendantNodeIds.has(edge.source) && !removedDescendantNodeIds.has(edge.target),
+    )
+    const nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges)
+    const nextEdgeIds = new Set(nextEdges.map((edge) => edge.id))
+    const currentViewport = getViewport()
+
+    history.checkpoint()
+    setNodes((currentNodes) =>
+      currentNodes.flatMap((node) =>
+        node.id === nodeId
+          ? [nextRootNode, ...nextDescendants]
+          : removedNodeIds.has(node.id)
+            ? []
+            : [node],
+      ),
+    )
+    setEdges(nextEdges)
+    setSelectedNodeIds((currentSelectedNodeIds) => {
+      const nextSelectedNodeIds = new Set(
+        [...currentSelectedNodeIds].filter(
+          (selectedId) => selectedId === nodeId || !removedNodeIds.has(selectedId),
+        ),
+      )
+
+      nextSelectedNodeIds.add(nodeId)
+      return nextSelectedNodeIds
+    })
+    setSelectedEdgeIds(
+      (currentSelectedEdgeIds) =>
+        new Set([...currentSelectedEdgeIds].filter((edgeId) => nextEdgeIds.has(edgeId))),
+    )
+
+    if (selectedNodeId && removedNodeIds.has(selectedNodeId)) {
+      setSelectedNodeId(undefined)
+    }
+
+    setDirty(true)
+    requestAnimationFrame(() => {
+      for (const node of [nextRootNode, ...nextDescendants]) {
+        updateNodeInternals(node.id)
+      }
+
+      // 节点类型重建或浮层回收焦点都不能改变用户当前观察位置。
+      void setReactFlowViewport(currentViewport)
+    })
+    return true
+  }
+
+  function createSnapshot(): WorkflowEditorSnapshot {
+    return {
+      workflow: toWorkflow(initialSnapshot.workflow, nodes, edges),
+      layout: toWorkflowEditorLayout(nodes, viewport),
+    }
+  }
+
+  function replaceCanvas(snapshot: WorkflowEditorSnapshot) {
+    const importedWorkflow = {
+      ...initialSnapshot.workflow,
+      nodes: snapshot.workflow.nodes,
+      edges: snapshot.workflow.edges,
+    }
+    const nextSnapshot = {
+      workflow: importedWorkflow,
+      layout: snapshot.layout,
+    }
+    const nextNodes = toCanvasNodes(nextSnapshot)
+
+    history.checkpoint()
+    setNodes(nextNodes)
+    setEdges([...importedWorkflow.edges])
+    setSelectedNodeIds(new Set())
+    setSelectedEdgeIds(new Set())
+    setSelectedNodeId(undefined)
+    setWorkflowViewport(snapshot.layout.viewport)
+    setDirty(true)
+
+    requestAnimationFrame(() => {
+      nextNodes.forEach((node) => updateNodeInternals(node.id))
+
+      if (snapshot.layout.viewport) {
+        void setReactFlowViewport(snapshot.layout.viewport)
+      } else {
+        void fitView({ padding: 0.2, maxZoom: 1, duration: 200 })
+      }
+    })
+  }
+
   // 记录最新视口；只有用户主动移动画布时才设置 dirty
   function handleViewportChange(nextViewport: Viewport, userInitiated: boolean) {
-    setViewport(nextViewport)
+    setWorkflowViewport(nextViewport)
     if (userInitiated) setDirty(true)
   }
 
@@ -632,15 +852,34 @@ export function useWorkflowEditor({
     canUndo: history.canUndo,
     cancelConnection,
     clearSelection,
+    canCopyNode: (nodeId: string) => Boolean(createNodeClipboardPayload(nodeId)),
+    canDeleteNode: (nodeId: string) =>
+      loopEditor.getDeletableRootIds(new Set([nodeId])).has(nodeId),
+    canDuplicateNode: (nodeId: string) => {
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+      return Boolean(node && !isLoopSystemNodeType(node.type) && !disabledNodeTypes.has(node.type))
+    },
+    canPaste: clipboardRef.current !== undefined,
+    canReplaceNode,
+    canRunNode: (nodeId: string) => {
+      const node = nodes.find((candidate) => candidate.id === nodeId)
+      return Boolean(node && !isLoopSystemNodeType(node.type))
+    },
+    copyNode,
     copySelection,
+    createSnapshot,
     cutSelection,
+    deleteNode,
     deleteSelection,
     disabledNodeTypes,
     dirty,
+    duplicateNode,
     duplicateSelection,
     edges: renderedEdges,
     errors,
     finishNodeNudge,
+    getReplacementDisabledNodeTypes,
+    getReplacementNodeTypes,
     handleBeforeDelete,
     handleConnect,
     handleEdgesChange,
@@ -655,10 +894,14 @@ export function useWorkflowEditor({
     openNodeConfig,
     openSelectedNodeConfig,
     pasteSelection,
+    pasteSelectionAt,
+    replaceCanvas,
+    replaceNode,
     redo: history.redo,
     saveWorkflow,
     saving,
     selectAllNodes,
+    selectNodeForContextMenu,
     selectedNode,
     selectedNodeAvailableVariables,
     selectedNodeDefaultLabel,

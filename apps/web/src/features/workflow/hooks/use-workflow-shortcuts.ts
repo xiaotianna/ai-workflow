@@ -7,8 +7,10 @@ interface UseWorkflowShortcutsOptions {
   addNodeOpen: boolean
   shortcutHelpOpen: boolean
   disabled?: boolean
+  interactionBlocked?: boolean
   onAddNodeOpenChange: (open: boolean) => void
   onShortcutHelpOpenChange: (open: boolean) => void
+  onTestRun: () => void
 }
 
 function isTextEditingTarget(target: EventTarget | null) {
@@ -46,8 +48,10 @@ export function useWorkflowShortcuts({
   addNodeOpen,
   shortcutHelpOpen,
   disabled = false,
+  interactionBlocked = false,
   onAddNodeOpenChange,
   onShortcutHelpOpenChange,
+  onTestRun,
 }: UseWorkflowShortcutsOptions) {
   useEffect(() => {
     if (disabled) {
@@ -57,6 +61,7 @@ export function useWorkflowShortcuts({
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.defaultPrevented) return
+      if (interactionBlocked) return
 
       const key = event.key.toLocaleLowerCase()
       const modifierPressed = event.metaKey || event.ctrlKey
@@ -82,6 +87,19 @@ export function useWorkflowShortcuts({
       if (isTextEditingTarget(event.target)) return
 
       if (shortcutHelpOpen || addNodeOpen) return
+
+      if (
+        event.altKey &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        key === 'r' &&
+        !event.repeat
+      ) {
+        event.preventDefault()
+        onTestRun()
+        return
+      }
 
       if (modifierPressed && !event.altKey) {
         if (key === 's' && !event.shiftKey) {
@@ -152,8 +170,10 @@ export function useWorkflowShortcuts({
     addNodeOpen,
     disabled,
     editor,
+    interactionBlocked,
     onAddNodeOpenChange,
     onShortcutHelpOpenChange,
+    onTestRun,
     shortcutHelpOpen,
   ])
 }

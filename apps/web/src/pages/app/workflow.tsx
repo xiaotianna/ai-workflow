@@ -1,32 +1,54 @@
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
+import type { StudioAppListItem } from '@/features/studio'
 import { useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import type { AppDetailOutletContext } from '.'
 
-export default function AppWorkflowPage() {
-  const { isResourceAvailable } = useOutletContext<AppDetailOutletContext>()
-  // const { id: appId } = useParams<{ id: string }>()
+interface AppWorkflowEditorProps {
+  app: StudioAppListItem
+  disabled: boolean
+}
 
-  // if (!appId) {
-  //   return (
-  //     <div className="text-destructive p-6 text-sm" role="alert">
-  //       缺少应用 ID
-  //     </div>
-  //   )
-  // }
-
+function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   const [snapshot, setSnapshot] = useState<WorkflowEditorSnapshot>(() =>
-    createEmptyWorkflowDocument('appId'),
+    createEmptyWorkflowDocument(app.id, {
+      name: app.title,
+      description: app.description,
+    }),
   )
 
   return (
     <WorkflowEditorProvider
+      applicationMetadata={{
+        id: app.id,
+        title: app.title,
+        description: app.description,
+        icon: app.icon,
+      }}
       initialSnapshot={snapshot}
-      disabled={!isResourceAvailable}
+      disabled={disabled}
       onSave={setSnapshot}
     />
   )
+}
+
+function UnavailableWorkflowEditor() {
+  const [snapshot, setSnapshot] = useState<WorkflowEditorSnapshot>(() =>
+    createEmptyWorkflowDocument('unavailable'),
+  )
+
+  return <WorkflowEditorProvider initialSnapshot={snapshot} disabled onSave={setSnapshot} />
+}
+
+export default function AppWorkflowPage() {
+  const { app, isResourceAvailable } = useOutletContext<AppDetailOutletContext>()
+
+  if (!app) {
+    return <UnavailableWorkflowEditor />
+  }
+
+  return <AppWorkflowEditor key={app.id} app={app} disabled={!isResourceAvailable} />
 }

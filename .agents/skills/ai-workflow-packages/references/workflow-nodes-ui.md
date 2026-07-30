@@ -20,6 +20,9 @@ import {
   NodeContentList,
   NodeContentItem,
   AddNode,
+  AddNodeButton,
+  NodeSelectorPanel,
+  NodeSelectorPopover,
   LoopNode,
   getNodeThemeColor,
   NODE_THEMES,
@@ -112,9 +115,17 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
 - 通用基础控件从 `@ai-workflow/ui` 导入，节点业务内容保留在本包。
 - 通用节点选择器使用 `AddNode`；容器 renderer 通过 `NodeEditorCapabilities` 消费应用注入的
   编辑能力，不直接依赖应用 Hook。
+- `NodeSelectorPanel` 承担搜索、节点列表、主题图标和禁用项展示；`NodeSelectorPopover`
+  组合独立受控 Popover、虚拟锚点、选择回调和失败 Toast，`AddNodeButton` 只提供标准添加
+  触发器，`AddNode` 组合两者供 Loop 等局部场景使用。根画布等需要从按钮、快捷键和右键
+  复用同一弹窗的场景应分别渲染 `AddNodeButton` 与 `NodeSelectorPopover`，并根据入口传入
+  按钮元素或弹出目标的屏幕坐标；屏幕坐标由 Popover 内的真实固定定位 Anchor 承载，不复用
+  按钮的虚拟锚点。与保持打开的菜单组成级联浮层时，使用 `keepOpenOnFocusOutside` 阻止菜单
+  焦点回收关闭选择器，同时仍保留点击外部和 Esc 关闭。通过 `operationLabel` 调整失败文案，
+  不复制搜索和节点列表。
 - `AddNode` 通过可选的 `disabledNodeTypes` 接收调用方当前不可添加的节点类型集合；禁用项
   保留在搜索和列表结果中，使用原生 `disabled` 阻止选择，并展示禁用光标与透明度反馈。
-  根画布等需要由外部快捷键控制面板时，通过可选的 `open`、`onOpenChange` 使用受控模式；
+  `AddNode` 需要由外部快捷键控制面板时，通过可选的 `open`、`onOpenChange` 使用受控模式；
   Loop 内未传入时继续使用内部开关状态。无论关闭来自触发器、Esc 还是外部状态，搜索条件
   都必须重置。
 - 修改节点视觉时读取 `docs/design-system.md`，使用语义 token 和无障碍交互。

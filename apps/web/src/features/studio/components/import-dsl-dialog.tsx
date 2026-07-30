@@ -20,9 +20,19 @@ interface ImportDslDialogProps {
   open: boolean
   onImport: (dsl: unknown) => unknown | Promise<unknown>
   onOpenChange: (open: boolean) => void
+  confirmLabel?: string
+  description?: string
+  title?: string
 }
 
-export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialogProps) {
+export function ImportDslDialog({
+  open,
+  onImport,
+  onOpenChange,
+  confirmLabel = '导入',
+  description = '上传 DSL 文件以导入当前工作流配置',
+  title = '导入 DSL',
+}: ImportDslDialogProps) {
   const { form, resetForm, updateForm } = useFormData<ImportDslFormInput>(IMPORT_DSL_INITIAL_VALUES)
   const [reading, setReading] = useState(false)
   const [importing, setImporting] = useState(false)
@@ -103,8 +113,8 @@ export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialo
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>导入 DSL</DialogTitle>
-          <DialogDescription>上传 DSL 文件以导入当前工作流配置</DialogDescription>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
 
         <Form onSubmit={handleSubmit}>
@@ -130,7 +140,7 @@ export function ImportDslDialog({ open, onImport, onOpenChange }: ImportDslDialo
               size="sm"
               disabled={reading || importing || !validationResult.success}
             >
-              {importing ? '导入中...' : '导入'}
+              {importing ? '导入中...' : confirmLabel}
             </Button>
           </DialogFooter>
         </Form>

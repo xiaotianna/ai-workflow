@@ -29,6 +29,7 @@ type AppResourceState =
     }
 
 export interface AppDetailOutletContext {
+  app: StudioAppListItem | undefined
   isResourceAvailable: boolean
 }
 
@@ -160,7 +161,7 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
         }
         navigationItems={getNavigationItemsFromRoute(routes, 'app', `/app/${encodedAppId}`)}
         navigationLabel="应用导航"
-        outletContext={{ isResourceAvailable } satisfies AppDetailOutletContext}
+        outletContext={{ app, isResourceAvailable } satisfies AppDetailOutletContext}
       />
     </>
   )

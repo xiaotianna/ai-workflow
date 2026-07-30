@@ -1,5 +1,6 @@
 import type { WorkflowEdge } from '@ai-workflow/core'
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
+import type { XYPosition } from '@xyflow/react'
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import { collectDescendantNodeIds, getSelectionRootNodeIds } from '@/utils/workflow/editor-elements'
@@ -89,7 +90,7 @@ export function pasteWorkflowClipboardPayload({
   payload: WorkflowClipboardPayload
   currentNodes: readonly WorkflowCanvasNode[]
   disabledNodeTypes: ReadonlySet<string>
-  offset: number
+  offset: number | XYPosition
 }): PasteWorkflowClipboardResult | undefined {
   const copiedNodeIds = new Set(payload.nodes.map((node) => node.id))
   const currentNodeIds = new Set(currentNodes.map((node) => node.id))
@@ -120,6 +121,15 @@ export function pasteWorkflowClipboardPayload({
   const nodeIdMap = new Map(
     [...allowedSourceNodeIds].map((sourceNodeId) => [sourceNodeId, generateUuid()]),
   )
+  const rootNodes = payload.nodes.filter((node) => payload.rootNodeIds.includes(node.id))
+  const sourceAnchor = {
+    x: Math.min(...rootNodes.map((node) => node.position.x)),
+    y: Math.min(...rootNodes.map((node) => node.position.y)),
+  }
+  const translation =
+    typeof offset === 'number'
+      ? { x: offset, y: offset }
+      : { x: offset.x - sourceAnchor.x, y: offset.y - sourceAnchor.y }
   const pastedNodes = payload.nodes.flatMap((node) => {
     const nextNodeId = nodeIdMap.get(node.id)
     if (!nextNodeId) return []
@@ -133,8 +143,8 @@ export function pasteWorkflowClipboardPayload({
         id: nextNodeId,
         position: shouldOffsetPosition
           ? {
-              x: node.position.x + offset,
-              y: node.position.y + offset,
+              x: node.position.x + translation.x,
+              y: node.position.y + translation.y,
             }
           : { ...node.position },
         parentId: copiedParentId ?? node.parentId,
