@@ -6,6 +6,7 @@ import {
   type WorkflowEdge,
   type WorkflowNode,
 } from '@ai-workflow/core'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import {
   useEdgesState,
   useNodesState,
@@ -123,6 +124,32 @@ function getDisabledNodeTypes(nodes: readonly WorkflowCanvasNode[]): ReadonlySet
   )
 
   return new Set([...ALWAYS_DISABLED_NODE_TYPES, ...existingSingleInstanceNodeTypes])
+}
+
+function getBlockedSingleInstanceNodeLabels(
+  payload: WorkflowClipboardPayload,
+  disabledNodeTypes: ReadonlySet<string>,
+) {
+  return [
+    ...new Set(
+      payload.nodes.flatMap((node) => {
+        if (!SINGLE_INSTANCE_NODE_TYPES.has(node.type) || !disabledNodeTypes.has(node.type)) {
+          return []
+        }
+
+        return [nodeRegistry.get(node.type)?.definition.label ?? node.type]
+      }),
+    ),
+  ]
+}
+
+function showBlockedSingleInstancePasteToast(nodeLabels: readonly string[]) {
+  if (nodeLabels.length === 0) return
+
+  const nodeDescription =
+    nodeLabels.length === 1 ? `「${nodeLabels[0]}」节点` : `「${nodeLabels.join('、')}」节点`
+
+  showToast('warning', `画布中只能存在一个${nodeDescription}，已跳过粘贴`)
 }
 
 /**
@@ -586,7 +613,17 @@ export function useWorkflowEditor({
     return true
   }
 
-  function pastePayload(payload: WorkflowClipboardPayload, offset: number | XYPosition) {
+  function pastePayload(
+    payload: WorkflowClipboardPayload,
+    offset: number | XYPosition,
+    options: { notifyBlockedSingleInstance?: boolean } = {},
+  ) {
+    if (options.notifyBlockedSingleInstance) {
+      showBlockedSingleInstancePasteToast(
+        getBlockedSingleInstanceNodeLabels(payload, disabledNodeTypes),
+      )
+    }
+
     const pasted = pasteWorkflowClipboardPayload({
       payload,
       currentNodes: nodes,
@@ -625,7 +662,9 @@ export function useWorkflowEditor({
     if (!payload) return false
 
     const nextPasteCount = clipboardPasteCountRef.current + 1
-    const pasted = pastePayload(payload, nextPasteCount * 32)
+    const pasted = pastePayload(payload, nextPasteCount * 32, {
+      notifyBlockedSingleInstance: true,
+    })
 
     if (pasted) clipboardPasteCountRef.current = nextPasteCount
     return pasted
@@ -633,7 +672,7 @@ export function useWorkflowEditor({
 
   function pasteSelectionAt(position: XYPosition) {
     const payload = clipboardRef.current
-    return payload ? pastePayload(payload, position) : false
+    return payload ? pastePayload(payload, position, { notifyBlockedSingleInstance: true }) : false
   }
 
   function duplicateSelection() {

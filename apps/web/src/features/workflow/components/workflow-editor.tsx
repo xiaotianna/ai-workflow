@@ -128,9 +128,9 @@ export function WorkflowEditor({
                 proOptions={{ hideAttribution: true }}
                 onNodesChange={editor.handleNodesChange}
                 // 设置画布的初始视口
-                defaultViewport={editor.initialViewport}
+                defaultViewport={contextMenu.viewportBeforeRemount ?? editor.initialViewport}
                 // editor.initialViewport为空，自动展示全部节点
-                fitView={!editor.initialViewport}
+                fitView={!contextMenu.viewportBeforeRemount && !editor.initialViewport}
                 // 自动适配设置最大缩放
                 fitViewOptions={{
                   padding: 0.2,

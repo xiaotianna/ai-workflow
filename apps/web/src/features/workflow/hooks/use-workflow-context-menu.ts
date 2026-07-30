@@ -5,6 +5,7 @@ import {
   type EdgeMouseHandler,
   type NodeMouseHandler,
   type ReactFlowProps,
+  type Viewport,
 } from '@xyflow/react'
 import { useState, useSyncExternalStore } from 'react'
 
@@ -27,9 +28,10 @@ export function useWorkflowContextMenu({
   operations,
   disabled = false,
 }: UseWorkflowContextMenuOptions) {
-  const { screenToFlowPosition } = useReactFlow()
+  const { getViewport, screenToFlowPosition } = useReactFlow()
   const [open, setOpen] = useState(false)
   const [instanceKey, setInstanceKey] = useState(0)
+  const [viewportBeforeRemount, setViewportBeforeRemount] = useState<Viewport>()
   const [target, setTarget] = useState<
     | {
         scope: 'canvas'
@@ -101,6 +103,9 @@ export function useWorkflowContextMenu({
   }
 
   function close() {
+    if (!open) return
+
+    setViewportBeforeRemount(getViewport())
     setOpen(false)
     setInstanceKey((currentKey) => currentKey + 1)
   }
@@ -116,5 +121,6 @@ export function useWorkflowContextMenu({
     handlePaneContextMenu,
     instanceKey,
     open: disabled ? false : open,
+    viewportBeforeRemount,
   }
 }

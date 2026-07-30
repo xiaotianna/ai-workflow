@@ -287,6 +287,7 @@ export const WorkflowConfigPanel = ({
               />
             ) : null}
 
+            {/* schema配置渲染 */}
             {hasFields ? (
               <NodeConfigFields
                 fields={formFields}
@@ -309,6 +310,8 @@ export const WorkflowConfigPanel = ({
                 onOutputsChange={handleOutputsChange}
               />
             ) : null}
+
+            {/* 下一个节点连接器渲染 */}
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">当前节点暂无可配置项</p>

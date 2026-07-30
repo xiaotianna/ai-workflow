@@ -8,7 +8,6 @@ import {
 } from '@xyflow/react'
 import type { MouseEvent } from 'react'
 
-import type { WorkflowEdge as WorkflowEdgeModel } from '@ai-workflow/core'
 import type { WorkflowCanvasNode } from './types'
 import { useWorkflowAddNode } from './workflow-add-node-context'
 
@@ -28,7 +27,7 @@ function WorkflowEdge({
   targetPosition,
   targetX,
   targetY,
-}: EdgeProps<WorkflowEdgeModel>) {
+}: EdgeProps) {
   const { disabled, openInsertNode } = useWorkflowAddNode()
   const sourceNode = useInternalNode<WorkflowCanvasNode>(source)
   const targetNode = useInternalNode<WorkflowCanvasNode>(target)

@@ -1,4 +1,4 @@
-import { CheckIcon, InfoIcon, TriangleAlertIcon, XIcon, type LucideIcon } from 'lucide-react'
+import { CircleAlert, CircleCheck, CircleX, InfoIcon, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Toaster as Sonner, toast, type ToasterProps } from 'sonner'
 
@@ -12,30 +12,24 @@ interface ToastStatusIconProps {
 
 function ToastStatusIcon({ className, icon: Icon }: ToastStatusIconProps) {
   return (
-    <span
-      className={cn(
-        'text-primary-foreground flex size-4 items-center justify-center rounded-full',
-        className,
-      )}
-      aria-hidden
-    >
-      <Icon className="m-0! size-3" strokeWidth={2.25} />
+    <span className={cn('flex size-5 items-center justify-center', className)} aria-hidden>
+      <Icon className="m-0! size-5" strokeWidth={2} />
     </span>
   )
 }
 
 const TOAST_ICON_MAP = {
-  success: <ToastStatusIcon className="bg-success" icon={CheckIcon} />,
-  error: <ToastStatusIcon className="bg-destructive" icon={XIcon} />,
-  warning: <ToastStatusIcon className="bg-warning" icon={TriangleAlertIcon} />,
-  info: <ToastStatusIcon className="bg-info" icon={InfoIcon} />,
+  success: <ToastStatusIcon className="text-success" icon={CircleCheck} />,
+  error: <ToastStatusIcon className="text-destructive" icon={CircleX} />,
+  warning: <ToastStatusIcon className="text-warning" icon={CircleAlert} />,
+  info: <ToastStatusIcon className="text-info" icon={InfoIcon} />,
 } satisfies Record<ToastType, ReactNode>
 
 const TOAST_COLOR_CLASS_MAP = {
-  success: 'toast-status-gradient toast-success-gradient !border-success/20',
-  error: 'toast-status-gradient toast-error-gradient !border-destructive/20',
-  warning: 'toast-status-gradient toast-warning-gradient !border-warning/20',
-  info: 'toast-status-gradient toast-info-gradient !border-info/20',
+  success: 'toast-status-gradient toast-success-gradient',
+  error: 'toast-status-gradient toast-error-gradient',
+  warning: 'toast-status-gradient toast-warning-gradient',
+  info: 'toast-status-gradient toast-info-gradient',
 } satisfies Record<ToastType, string>
 
 function Toaster(props: ToasterProps) {
@@ -47,9 +41,9 @@ function Toaster(props: ToasterProps) {
       toastOptions={{
         classNames: {
           toast:
-            'toast-layout group toast !w-[min(22rem,calc(100vw-2rem))] !rounded-xl !border-[0.5px] !border-border !bg-background !text-foreground !shadow-lg',
+            'toast-layout group toast !w-[min(22rem,calc(100vw-2rem))] !rounded-xl !border-0 !bg-background !text-foreground !shadow-lg',
           ...TOAST_COLOR_CLASS_MAP,
-          icon: '!m-0 !size-5 !shrink-0 !p-0.5',
+          icon: '!m-0 !size-5 !shrink-0 !p-0',
           content: '!min-w-0 !flex-1 !px-1 !py-0',
           title: '!break-words !text-sm !leading-5 !font-semibold',
           description: '!text-muted-foreground',

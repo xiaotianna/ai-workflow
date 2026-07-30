@@ -38,6 +38,8 @@ import '@ai-workflow/ui/globals.css'
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`Popover`、`DropdownMenu`、`Tooltip`。
 - 布局与反馈：`Sidebar`、`Separator`、`Skeleton`、基于 Sonner 的 `Toaster` 与
   `showToast`。
+- `Toaster` 使用无边框状态渐变背景与 20px 描边状态图标；图标直接使用对应的
+  `text-success`、`text-destructive`、`text-warning`、`text-info` 语义色，不叠加实心圆底。
 - Hook：`useIsMobile`。
 - 业务界面共享 token：`--workflow-edge` 用于工作流画布普通连线。
 - 状态 token：`--success`、`--warning`、`--info` 分别用于成功、警告、信息通知和
