@@ -16,7 +16,7 @@
 - Prisma 7 的 `migrate dev` 和 `db push` 不自动生成 Client；schema 或 generator 配置变化后显式执行 `prisma:generate`。`--name init` 只用于创建第一条迁移，已有迁移的项目首次启动使用不带名称的 `prisma:migrate:dev`。
 - 服务端 `build` 固定先执行 `prisma:generate` 再编译；`start:prod:migrate` 用于简单部署时执行 `prisma:migrate:deploy` 后启动。多实例或独立发布流水线应将 migration 作为单次发布任务执行，再分别运行 `start:prod`。
 - Prisma CLI 从 `apps/server/prisma.config.ts` 读取 `DATABASE_URL`，NestJS 通过 `ConfigModule` 加载应用环境变量。
-- PostgreSQL driver adapter 依赖已安装，但当前 NestJS 源码尚未提供 Prisma Module/Service；业务开始访问数据库时再补充实际的数据访问入口和连接生命周期管理。
+- PostgreSQL driver adapter 已通过全局 `PrismaModule`/`PrismaService` 接入 NestJS，并由各业务 Repository 封装数据访问。
 - 把 Prisma schema、migration 和 client 生命周期放在服务端基础设施边界。
 - 由应用服务定义事务边界，Repository 不自行开启彼此无法组合的事务。
 - JSON 字段保存工作流前，先使用 `@ai-workflow/core` 校验结构和业务规则。
@@ -42,6 +42,24 @@
   API Key、节点运行、工作流运行、部署、版本、草稿、Workflow、App 的顺序清理，避免版本
   和运行之间的限制型外键阻止级联；只有当前 `ownerId` 的未删除应用可以进入删除事务。
 - 不把数据库连接或 Prisma client 暴露给 Controller。
+
+## 模型配置持久化
+
+- `ModelGroup` 按 `ownerId` 归属用户，通过 `ModelType.CHAT`/`EMBEDDING` 区分对话和嵌入配置；
+  供应商类型保存稳定字符串，并在 DTO 与服务端供应商注册表中校验。
+- `ConfiguredModel` 通过 UUID 保持稳定身份，`normalizedModelId` 保存
+  `modelId.trim().toLowerCase()` 并与 `groupId` 建立唯一约束；`sortOrder` 保留表单顺序。
+- 模型组和单模型分别保存 `enabled`，运行时有效状态为两者同时启用；关闭组不得覆盖模型状态。
+- 保存完整模型组时在一个 Prisma 事务中完成组字段、凭证和模型集合变更；已有模型先使用临时
+  唯一规范 ID，再写入最终 ID，保证模型 ID 互换时不会触发中间态唯一约束冲突。
+- 模型供应商 API Key 使用 AES-256-GCM 加密，组 UUID 作为 AAD；数据库只保存密文、IV、认证
+  标签和密钥版本。生产环境必须通过 `MODEL_CREDENTIAL_ENCRYPTION_KEY` 提供 32 字节 Base64
+  密钥；开发/测试未配置时使用 HKDF 从 `JWT_SECRET` 派生用途隔离密钥。
+- 模型组响应中的 `maskedApiKey` 由服务端解密后即时生成，只保留 Key 前 4 位、`***` 和后 4 位；
+  不持久化掩码，也不返回 Key 明文。
+- 用户配置的模型 Base URL 只允许 HTTP/HTTPS，不得包含 URL 凭证、查询参数或片段。服务端默认
+  阻止私有、回环和保留地址；通过 `MODEL_CONNECTION_PRIVATE_HOSTS` 显式放行需要访问的 Ollama
+  或可信内网端点，探测请求禁止自动跟随重定向并限制超时与响应体大小。
 
 ## Redis
 

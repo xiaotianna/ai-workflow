@@ -1,0 +1,39 @@
+model ModelGroup {
+  id                   String    @id @default(uuid()) @db.Uuid
+  ownerId              String    @db.Uuid
+  modelType            ModelType
+  name                 String    @db.VarChar(40)
+  providerType         String    @db.VarChar(32)
+  baseUrl              String?   @db.VarChar(300)
+  enabled              Boolean   @default(true)
+  apiKeyCiphertext     Bytes?
+  apiKeyIv             Bytes?
+  apiKeyAuthTag        Bytes?
+  credentialKeyVersion Int?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  owner  User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  models ConfiguredModel[]
+
+  @@index([ownerId, modelType, createdAt])
+  @@map("model_groups")
+}
+
+model ConfiguredModel {
+  id                String     @id @default(uuid()) @db.Uuid
+  groupId           String     @db.Uuid
+  modelId           String     @db.VarChar(100)
+  normalizedModelId String     @db.VarChar(100)
+  displayName       String?    @db.VarChar(100)
+  enabled           Boolean    @default(true)
+  sortOrder         Int
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  group ModelGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, normalizedModelId])
+  @@index([groupId, sortOrder])
+  @@map("configured_models")
+}

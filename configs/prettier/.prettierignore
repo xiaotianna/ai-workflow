@@ -5,4 +5,6 @@
 **/coverage/**
 **/.cache/**
 **/.next/**
+**/logs/**
+**/src/generated/**
 pnpm-lock.yaml

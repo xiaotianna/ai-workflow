@@ -22,6 +22,8 @@ import { showToast } from '@ai-workflow/ui/lib/toast'
 import { Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
+import { testModelConnection, type ModelConnectionTestResult } from '@/api/models'
+
 import { getModelProviderStrategy, modelProviderStrategies } from '../provider-strategies'
 import {
   createEmptyModelGroupForm,
@@ -43,7 +45,7 @@ interface ModelGroupDialogProps {
   group?: ModelGroup
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (input: ModelGroupInput) => void
+  onSave: (input: ModelGroupInput) => Promise<void>
 }
 
 export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGroupDialogProps) {
@@ -51,12 +53,14 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     useFormData<ModelGroupFormInput>(createEmptyModelGroupForm())
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
   const connectionTestControllerRef = useRef<AbortController | null>(null)
   const validationResult = validateFormByZod(modelGroupFormSchema, form)
   const connectionValidationResult = validateFormByZod(modelConnectionFormSchema, {
     providerType: form.providerType,
     baseUrl: form.baseUrl,
+    apiKey: form.apiKey,
   })
   const formErrors = validationResult.errors
   const providerStrategy = getModelProviderStrategy(form.providerType)
@@ -69,6 +73,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     setForm(group ? toModelGroupFormInput(group) : createEmptyModelGroupForm())
     setTouchedFields({})
     setSubmitted(false)
+    setIsSaving(false)
     setIsTestingConnection(false)
   }, [group, open, setForm])
 
@@ -128,29 +133,38 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     resetForm()
     setTouchedFields({})
     setSubmitted(false)
+    setIsSaving(false)
   }
 
   function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen && (isSaving || isTestingConnection)) return
     if (!nextOpen) resetDialogForm()
     onOpenChange(nextOpen)
   }
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setSubmitted(true)
 
     const result = validateFormByZod(modelGroupFormSchema, form)
     if (!result.success) return
 
-    onSave(result.data)
-    resetDialogForm()
-    onOpenChange(false)
+    setIsSaving(true)
+
+    try {
+      await onSave(result.data)
+      resetDialogForm()
+      onOpenChange(false)
+    } catch {
+      setIsSaving(false)
+    }
   }
 
   async function handleTestConnection() {
     const result = validateFormByZod(modelConnectionFormSchema, {
       providerType: form.providerType,
       baseUrl: form.baseUrl,
+      apiKey: form.apiKey,
     })
     if (!result.success) return
 
@@ -167,17 +181,30 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     }, CONNECTION_TEST_TIMEOUT_MS)
 
     try {
-      await providerStrategy.testConnection(result.data, controller.signal)
+      const credentialGroupId =
+        group &&
+        group.providerType === result.data.providerType &&
+        group.maskedApiKey &&
+        result.data.apiKey === group.maskedApiKey
+          ? group.id
+          : undefined
+
+      const connectionResult = await testModelConnection(
+        {
+          providerType: result.data.providerType,
+          baseUrl: result.data.baseUrl ?? null,
+          ...(result.data.apiKey && !credentialGroupId ? { apiKey: result.data.apiKey } : {}),
+          ...(credentialGroupId ? { credentialGroupId } : {}),
+        },
+        controller.signal,
+      )
 
       if (connectionTestControllerRef.current !== controller) return
-      showToast('success', `${providerStrategy.label} 服务可达`)
-    } catch (error) {
+      showConnectionTestResult(providerStrategy.label, connectionResult)
+    } catch {
       if (controller.signal.aborted && !didTimeout) return
 
-      showToast(
-        'error',
-        didTimeout ? '连接超时，请检查服务地址和网络' : getConnectionTestErrorMessage(error),
-      )
+      if (didTimeout) showToast('error', '连接超时，请检查服务地址和网络')
     } finally {
       globalThis.clearTimeout(timeoutId)
 
@@ -192,6 +219,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         aria-describedby={undefined}
+        onOpenAutoFocus={(event) => event.preventDefault()}
         className="max-h-[calc(100svh-2rem)] max-w-3xl grid-rows-[auto_minmax(0,1fr)]"
       >
         <DialogHeader>
@@ -247,6 +275,9 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
               </div>
 
               <ModelProviderConfiguration
+                savedApiKey={
+                  group?.providerType === form.providerType ? group.maskedApiKey : undefined
+                }
                 strategy={providerStrategy}
                 values={form}
                 getFieldError={getFieldError}
@@ -352,13 +383,18 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
               type="button"
               variant="secondary"
               size="sm"
-              disabled={isTestingConnection || !connectionValidationResult.success}
+              disabled={isSaving || isTestingConnection || !connectionValidationResult.success}
               onClick={handleTestConnection}
             >
               {isTestingConnection ? '测试中...' : '测试连通性'}
             </Button>
             <DialogClose asChild>
-              <Button type="button" variant="secondary" size="sm">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={isSaving || isTestingConnection}
+              >
                 取消
               </Button>
             </DialogClose>
@@ -366,9 +402,9 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
               type="submit"
               variant="confirm"
               size="sm"
-              disabled={isTestingConnection || !validationResult.success}
+              disabled={isSaving || isTestingConnection || !validationResult.success}
             >
-              {group ? '保存' : '创建'}
+              {isSaving ? '保存中...' : group ? '保存' : '创建'}
             </Button>
           </DialogFooter>
         </Form>
@@ -377,14 +413,36 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
   )
 }
 
-function getConnectionTestErrorMessage(error: unknown) {
-  if (error instanceof TypeError) {
-    return '无法连接到模型服务，请检查 Base URL、网络和跨域配置'
+function showConnectionTestResult(providerLabel: string, result: ModelConnectionTestResult) {
+  const latency = `${result.latencyMs}ms`
+
+  if (!result.reachable) {
+    showToast('error', `${result.message}（${latency}）`)
+    return
   }
 
-  if (error instanceof Error && error.message) {
-    return error.message
+  if (result.authentication === 'failed') {
+    showToast('error', `${result.message}（${latency}）`)
+    return
   }
 
-  return '测试连接失败，请稍后重试'
+  if (
+    result.authentication === 'not_checked' &&
+    (result.responseValid || result.upstreamStatus === 401 || result.upstreamStatus === 403)
+  ) {
+    showToast('info', `${result.message}（${latency}）`)
+    return
+  }
+
+  if (!result.responseValid) {
+    showToast('error', `${result.message}（${latency}）`)
+    return
+  }
+
+  if (result.authentication === 'passed' || result.authentication === 'not_required') {
+    showToast('success', `${providerLabel} 配置可用（${latency}）`)
+    return
+  }
+
+  showToast('success', `${result.message}（${latency}）`)
 }

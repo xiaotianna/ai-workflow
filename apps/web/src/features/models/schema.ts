@@ -1,15 +1,29 @@
 import { z } from 'zod'
 
+import type { ModelGroupDto } from '@/api/models'
+
 export const MODEL_PROVIDER_TYPES = ['openai', 'deepseek', 'ollama'] as const
 
 const baseUrlSchema = z
   .string()
   .trim()
   .max(300, 'Base URL 不能超过 300 个字符')
-  .refine((value) => value === '' || URL.canParse(value), 'Base URL 需要包含正确的协议和地址')
+  .refine((value) => {
+    if (value === '' || !URL.canParse(value)) return value === ''
+
+    const url = new URL(value)
+    return (
+      (url.protocol === 'http:' || url.protocol === 'https:') &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash
+    )
+  }, 'Base URL 需要使用 HTTP/HTTPS，且不能包含凭证、查询参数或片段')
   .transform((value) => value || undefined)
 
 const modelItemFormSchema = z.object({
+  id: z.uuid().optional(),
   modelId: z.string().trim().min(1, '模型 ID 不能为空').max(100, '模型 ID 不能超过 100 个字符'),
   displayName: z
     .string()
@@ -19,19 +33,21 @@ const modelItemFormSchema = z.object({
   enabled: z.boolean(),
 })
 
+const apiKeySchema = z
+  .string()
+  .trim()
+  .max(300, 'Key 不能超过 300 个字符')
+  .transform((value) => value || undefined)
+
 export const modelConnectionFormSchema = z.object({
   providerType: z.enum(MODEL_PROVIDER_TYPES),
   baseUrl: baseUrlSchema,
+  apiKey: apiKeySchema,
 })
 
 export const modelGroupFormSchema = modelConnectionFormSchema
   .extend({
     name: z.string().trim().min(1, '模型组名称不能为空').max(40, '模型组名称不能超过 40 个字符'),
-    apiKey: z
-      .string()
-      .trim()
-      .max(300, 'Key 不能超过 300 个字符')
-      .transform((value) => value || undefined),
     models: z.array(modelItemFormSchema).min(1, '至少添加一个模型').max(30, '最多添加 30 个模型'),
   })
   .superRefine((value, context) => {
@@ -59,10 +75,7 @@ export type ModelConnection = z.output<typeof modelConnectionFormSchema>
 export type ModelGroupFormInput = z.input<typeof modelGroupFormSchema>
 export type ModelGroupInput = z.output<typeof modelGroupFormSchema>
 export type ModelItemFormInput = ModelGroupFormInput['models'][number]
-export type ModelGroup = ModelGroupInput & {
-  id: string
-  enabled: boolean
-}
+export type ModelGroup = ModelGroupDto
 
 export function createEmptyModelItem(): ModelItemFormInput {
   return {
@@ -87,8 +100,9 @@ export function toModelGroupFormInput(group: ModelGroup): ModelGroupFormInput {
     name: group.name,
     providerType: group.providerType,
     baseUrl: group.baseUrl ?? '',
-    apiKey: group.apiKey ?? '',
+    apiKey: group.maskedApiKey ?? '',
     models: group.models.map((model) => ({
+      id: model.id,
       modelId: model.modelId,
       displayName: model.displayName ?? '',
       enabled: model.enabled,

@@ -61,6 +61,31 @@
 Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修改都同时检查资源归属，不允许
 仅凭应用 ID 跨用户访问。
 
+## 当前模型配置接口
+
+以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离模型组：
+
+- `GET /models/groups`：获取当前用户全部模型组；可选 `modelType=chat|embedding` 筛选。
+- `GET /models/groups/:groupId`：获取单个模型组；不存在或不属于当前用户时返回 `404`。
+- `POST /models/groups`：创建对话或嵌入模型组；每组包含 1–30 个模型，模型 ID 忽略大小写后
+  不得重复。
+- `PUT /models/groups/:groupId`：原子保存组配置与完整模型列表；模型项携带 ID 时更新原记录，
+  未携带时创建，响应中缺失的旧模型会删除。Key 不传表示保留，字符串表示替换，`null` 表示
+  清除；修改供应商时必须明确设置或清除 Key。
+- `PATCH /models/groups/:groupId/enabled`：只修改模型组启用状态，不覆盖组内模型状态。
+- `PATCH /models/groups/:groupId/models/:modelId/enabled`：按配置模型 UUID 修改单模型启用状态。
+- `DELETE /models/groups/:groupId`：硬删除模型组并级联删除组内模型。
+- `POST /models/test-connection`：按供应商模型列表接口探测连接。输入可携带本次 Key，或通过
+  `credentialGroupId` 使用当前用户已保存的 Key；两者不可同时提供。上游 `401/403` 等预期
+  探测结果仍使用本接口的 `200` 返回，不得把上游认证状态透传为会触发前端退出的 HTTP 状态。
+
+模型组响应禁止返回 API Key 明文、密文、IV 或认证标签；存在凭证时返回 `maskedApiKey`，值固定
+为 Key 前 4 位、`***` 和后 4 位的组合。
+连通性响应分别返回 `reachable`、`authentication`、`responseValid`、`latencyMs` 和可选的
+`upstreamStatus`/`errorType`，网络可达不等于配置或具体模型能力可用。
+`authentication=not_required` 表示 Ollama 等供应商无需 Key；支持 Key 但未携带时才返回
+`not_checked`，不得把“无需认证”展示成“未验证 Key”。
+
 ## 依赖方向
 
 - 传输层依赖应用服务，应用服务依赖抽象的数据访问或运行时接口。

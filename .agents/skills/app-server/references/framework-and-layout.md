@@ -24,6 +24,7 @@ apps/server/
 ├── prisma/
 │   ├── migrations/
 │   ├── models/
+│   │   ├── model-group.prisma
 │   │   └── *.prisma
 │   ├── enum.prisma
 │   └── schema.prisma
@@ -32,18 +33,28 @@ apps/server/
 │   ├── main.ts
 │   ├── controllers/
 │   │   ├── auth.controller.ts
+│   │   ├── model.controller.ts
 │   │   └── studio-app.controller.ts
 │   ├── dto/
 │   │   ├── auth.dto.ts
+│   │   ├── model.dto.ts
 │   │   └── studio.dto.ts
 │   ├── generated/prisma/
+│   ├── infra/model-provider/
+│   │   ├── model-credential.service.ts
+│   │   ├── model-endpoint-policy.service.ts
+│   │   └── *adapter.ts
 │   ├── modules/
 │   │   ├── auth.module.ts
+│   │   ├── models.module.ts
 │   │   └── studio.module.ts
 │   ├── repositories/
+│   │   ├── model-group.repository.ts
 │   │   └── studio-app.repository.ts
 │   └── services/
 │       ├── auth.service.ts
+│       ├── model-connection-test.service.ts
+│       ├── model-group.service.ts
 │       └── studio-app.service.ts
 ├── .oxlintrc.json
 ├── nest-cli.json

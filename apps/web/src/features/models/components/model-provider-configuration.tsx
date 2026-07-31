@@ -9,6 +9,7 @@ import {
 import { type ModelGroupFormInput } from '../schema'
 
 interface ModelProviderConfigurationProps {
+  savedApiKey?: string
   strategy: ModelProviderStrategy
   values: ModelGroupFormInput
   getFieldError: (name: ModelProviderConfigurationFieldName) => string | undefined
@@ -17,6 +18,7 @@ interface ModelProviderConfigurationProps {
 }
 
 export function ModelProviderConfiguration({
+  savedApiKey,
   strategy,
   values,
   getFieldError,
@@ -28,11 +30,13 @@ export function ModelProviderConfiguration({
       <div className="grid gap-3 sm:grid-cols-2">
         {strategy.configurationFields.map((field) => {
           const error = getFieldError(field.name)
+          const isSavedApiKey =
+            field.name === 'apiKey' && Boolean(savedApiKey) && values.apiKey === savedApiKey
 
           return (
             <Form.Field key={field.name} label={field.label} error={error}>
               <Input
-                type={field.type}
+                type={isSavedApiKey ? 'text' : field.type}
                 value={values[field.name]}
                 onChange={(event) => onFieldChange(field.name, event.target.value)}
                 onBlur={() => onFieldBlur(field.name)}

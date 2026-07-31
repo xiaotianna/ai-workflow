@@ -46,6 +46,7 @@ apps/server/
 │   ├── generated/prisma/        # Prisma 自动生成代码，不手动修改
 │   ├── guards/                  # JWT 等请求守卫
 │   ├── infra/
+│   │   ├── model-provider/      # 模型供应商适配、凭证加密与地址策略
 │   │   ├── prisma/              # Prisma Client 和连接生命周期
 │   │   └── redis/               # Redis Client 和连接生命周期
 │   ├── interceptors/            # 成功响应统一封装
@@ -72,6 +73,7 @@ apps/server/
 - JWT 签发、Guard 鉴权和 Redis 登录会话。
 - 当前用户查询、用户名和密码修改、退出登录。
 - Prisma 和 Redis 的 NestJS 生命周期管理。
+- 对话/嵌入模型组的持久化、启停、加密凭证和模型列表连通性测试。
 - 全局 DTO 校验、成功响应封装和异常过滤。
 - Winston 控制台日志与按日期切割的文件日志。
 - `/images/` 和 `/avatars/` 静态资源访问。
@@ -98,8 +100,7 @@ apps/server/
 
 ## 数据表设计
 
-当前 migration 只落地了 `users` 表。工作流相关模型已经按多文件 Schema 定义，但尚未生成
-和执行 migration，也尚未接入 Repository 或 Service：
+当前 Prisma schema 与 migration 包含用户、工作流和模型配置数据：
 
 | 表                     | 简要职责                             |
 | ---------------------- | ------------------------------------ |
@@ -112,6 +113,8 @@ apps/server/
 | `api_call_logs`        | HTTP/API 调用结果和耗时              |
 | `workflow_runs`        | 一次完整工作流运行                   |
 | `workflow_node_runs`   | 节点级执行状态、输入输出、错误和耗时 |
+| `model_groups`         | 用户的对话/嵌入供应商配置与加密凭证  |
+| `configured_models`    | 模型组内稳定模型 ID、顺序和启用状态  |
 
 工作流节点、连线和输出使用 JSONB 整体保存，React Flow 的位置、Loop 尺寸和 viewport
 使用独立 layout JSONB。API 调用日志和运行日志分离，因为 API 可能在启动工作流前失败，
@@ -124,14 +127,34 @@ apps/server/
 
 服务端通过 ConfigModule 校验以下环境变量：
 
-| 变量             | 用途                                  |
-| ---------------- | ------------------------------------- |
-| `NODE_ENV`       | `development`、`test` 或 `production` |
-| `PORT`           | HTTP 监听端口，默认 `3000`            |
-| `DATABASE_URL`   | PostgreSQL 连接地址                   |
-| `REDIS_URL`      | Redis 连接地址                        |
-| `JWT_SECRET`     | JWT 签名密钥                          |
-| `JWT_EXPIRES_IN` | JWT 有效期，默认 `7d`                 |
+| 变量                              | 用途                                                  |
+| --------------------------------- | ----------------------------------------------------- |
+| `NODE_ENV`                        | `development`、`test` 或 `production`                 |
+| `PORT`                            | HTTP 监听端口，默认 `3000`                            |
+| `DATABASE_URL`                    | PostgreSQL 连接地址                                   |
+| `REDIS_URL`                       | Redis 连接地址                                        |
+| `JWT_SECRET`                      | JWT 签名密钥                                          |
+| `JWT_EXPIRES_IN`                  | JWT 有效期，默认 `7d`                                 |
+| `MODEL_CREDENTIAL_ENCRYPTION_KEY` | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
+| `MODEL_CONNECTION_PRIVATE_HOSTS`  | 允许模型探测访问的私有 `host[:port]`，逗号分隔        |
+
+开发和测试环境未配置模型凭证密钥时，会通过 HKDF 从 `JWT_SECRET` 派生用途隔离密钥；生产环境
+必须配置专用密钥。开发环境默认只放行 `localhost:11434`、`127.0.0.1:11434` 和
+`[::1]:11434` 访问本机 Ollama，其他私有端点需要显式加入白名单。
+
+## 模型配置接口
+
+模型接口统一使用 Bearer Token，并按当前用户隔离：
+
+- `GET/POST /models/groups`：查询或创建模型组。
+- `GET/PUT/DELETE /models/groups/:groupId`：读取、完整保存或删除模型组。
+- `PATCH /models/groups/:groupId/enabled`：启停模型组。
+- `PATCH /models/groups/:groupId/models/:modelId/enabled`：启停单模型。
+- `POST /models/test-connection`：通过 OpenAI/DeepSeek 的 `GET /models` 或 Ollama 的
+  `GET /api/tags` 返回网络、认证、响应结构和耗时结果。
+
+模型组响应不会返回 Key 明文；已配置凭证时只返回 `maskedApiKey`，格式固定为前 4 位、`***`
+和后 4 位。
 
 Prisma 7 从 `prisma.config.ts` 读取整个 `prisma/` schema 目录和数据库地址，不在
 `schema.prisma` 的 datasource 中声明连接地址。

@@ -30,11 +30,12 @@
 
 ## 模型管理
 
-- `/models` 的业务界面放在 `features/models`，页面只管理模型组集合与弹窗开关；模型组表单
-  使用统一 Zod、`useFormData` 和 `validateFormByZod` 方案。
-- OpenAI、DeepSeek、Ollama 等供应商的名称、图标、默认地址、配置字段、API 文档地址、默认
-  模型和建组行为由 `provider-strategies.ts` 的策略注册表统一提供；新增供应商时注册新策略，
-  不在页面、手风琴或弹窗中增加供应商类型分支。
+- `/models` 的业务界面放在 `features/models`，请求契约与调用统一放在 `src/api/models`；页面从
+  `GET /models/groups` 加载当前用户配置并管理请求状态和弹窗开关，不再生成客户端 ID 或内置
+  默认模型组。模型组表单继续使用统一 Zod、`useFormData` 和 `validateFormByZod` 方案。
+- OpenAI、DeepSeek、Ollama 等供应商的名称、图标、默认地址、配置字段和 API 文档地址由
+  `provider-strategies.ts` 的前端展示策略统一提供；持久化、默认探测地址和响应校验由后端供应商
+  注册表负责。新增供应商时两端分别注册策略，不在页面、手风琴或弹窗中增加类型分支。
 - 模型组列表使用可多项展开的手风琴；模型组与模型项分别保留独立启用状态，关闭模型组不覆盖
   各模型项原有状态。模型组默认折叠；模型组头部和模型项整行只在鼠标 Hover 时使用
   `bg-input`，展开、选中或控件获得焦点时不保留整行背景；行内普通图标按钮的 Hover 与
@@ -47,11 +48,19 @@
   声明的字段动态渲染（OpenAI、DeepSeek 为可选 Base URL 与 Key，Ollama 为可选 Base URL）。
   配置项下方展示当前供应商的 API 文档链接，使用主题色、外链图标并在新窗口打开，不在 Base
   URL 下显示默认值提示。模型列表支持动态添加、删除模型 ID 和可选显示名称。Dialog 提供
-  “测试连通性”按钮，由当前供应商策略决定探测地址；测试只验证服务可达性，不携带 Key，测试中
-  状态不写入表单值，结果使用 Toast 反馈。删除模型组需先展示确认 Dialog。
+  “测试连通性”按钮通过 `POST /models/test-connection` 请求后端：表单输入了 Key 时验证当前
+  配置；编辑已有模型组时将响应中的 `maskedApiKey` 回填到 Key 输入框，值仍等于原掩码时通过
+  `credentialGroupId` 使用已保存密文，用户输入与掩码不同时才作为新 Key；主动清空表示清除
+  凭证。没有可用 Key 时先验证
+  网络，匿名请求返回 2xx 时再验证响应结构。结果按网络可达、认证和响应结构三部分使用 Toast 反馈，测试中状态不写入
+  表单值；Ollama 等无需 Key 的供应商在接口返回 `authentication=not_required` 且响应结构有效时
+  直接提示“配置可用”，不得提示“未验证 Key”。Key 输入框不额外展示“已保存”等说明文字；
+  掩码只用于展示和变更判断，不得作为新 Key 提交。切换供应商且未输入新 Key 时明确清除旧
+  Key。删除模型组需先展示确认 Dialog。
 - 模型页工具栏左侧使用 `@ai-workflow/ui/components/tabs` 在“对话”和“嵌入”之间切换，
   右侧放置“新增模型组”并保持水平对齐；两类模型组使用相互独立的页面状态，当前分类由
-  `tab=chat|embedding` 查询参数驱动。
+  `tab=chat|embedding` 查询参数驱动。组与单模型启停使用服务端 UUID，前端可以先乐观更新，
+  请求失败时恢复原状态；关闭模型组不得覆盖各模型的启用状态。
 
 ## 知识库文档表格
 

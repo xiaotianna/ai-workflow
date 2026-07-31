@@ -40,3 +40,9 @@ enum WorkflowNodeRunStatus {
   CANCELLED // 运行取消
   TIMED_OUT // 节点自身执行超时
 }
+
+// 配置模型的用途分类
+enum ModelType {
+  CHAT
+  EMBEDDING
+}
