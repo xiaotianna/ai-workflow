@@ -25,12 +25,28 @@ export type VariableReferenceDisplayResolver = (
   reference: VariableReference,
 ) => VariableReferenceDisplay | undefined
 
+export interface ModelReference {
+  readonly groupId: string
+  readonly configuredModelId: string
+}
+
+export interface ModelReferenceDisplay {
+  readonly groupName: string
+  readonly modelName: string
+  readonly providerIcon: ReactNode
+}
+
+export type ModelReferenceDisplayResolver = (
+  reference: ModelReference,
+) => ModelReferenceDisplay | undefined
+
 // 统一节点内容组件的入参
 export interface NodeContentProps<TConfig = unknown> {
   readonly node: ResolvedWorkflowNode<TConfig>
   readonly definition: NodeDefinition
   readonly ports: NodeDefinition['ports']
   readonly resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
+  readonly resolveModelReferenceDisplay?: ModelReferenceDisplayResolver
 }
 
 // 组件children类型

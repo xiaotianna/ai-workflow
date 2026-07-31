@@ -1,6 +1,7 @@
 import { getNodePorts } from '@ai-workflow/core'
 import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
 import type {
+  ModelReferenceDisplayResolver,
   NodeEditorCapabilities,
   NodePortRender,
   VariableReferenceDisplayResolver,
@@ -19,6 +20,7 @@ export interface RenderNodeProps {
   onDelete?: (nodeId: string) => void
   renderPort?: NodePortRender
   resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
+  resolveModelReferenceDisplay?: ModelReferenceDisplayResolver
   // 提供给节点的操作能力（给完整自定义节点使用，非base-node基础组件）
   editorCapabilities?: NodeEditorCapabilities
   // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
@@ -40,6 +42,7 @@ export const RenderNode = ({
   onDelete,
   renderPort,
   resolveVariableReferenceDisplay,
+  resolveModelReferenceDisplay,
   editorCapabilities,
   dragHandleClassName,
 }: RenderNodeProps) => {
@@ -104,6 +107,7 @@ export const RenderNode = ({
         onDelete={deleteNode}
         renderPort={renderPort}
         resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+        resolveModelReferenceDisplay={resolveModelReferenceDisplay}
         editorCapabilities={editorCapabilities}
         dragHandleClassName={dragHandleClassName}
       />
@@ -117,6 +121,7 @@ export const RenderNode = ({
       definition={resolvedDefinition}
       ports={ports}
       resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+      resolveModelReferenceDisplay={resolveModelReferenceDisplay}
     />
   ) : hasDefaultNodeContent(resolvedDefinition) ? (
     <DefaultNodeContent
@@ -124,6 +129,7 @@ export const RenderNode = ({
       definition={resolvedDefinition}
       ports={ports}
       resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+      resolveModelReferenceDisplay={resolveModelReferenceDisplay}
     />
   ) : null
 

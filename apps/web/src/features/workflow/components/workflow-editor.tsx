@@ -20,6 +20,7 @@ import type { WorkflowApplicationMetadata } from '../utils/workflow-application-
 import { NodeSelectorPopover } from '@ai-workflow/nodes-ui'
 import { WorkflowAddNodeProvider } from '@/components/workflow/workflow-add-node-context'
 import { workflowEdgeTypes } from '@/components/workflow/workflow-edge'
+import { WorkflowModelCatalogProvider } from '@/components/workflow/workflow-model-catalog-context'
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
@@ -136,138 +137,140 @@ export function WorkflowEditor({
         onOpenChange={operations.setImportDialogOpen}
       />
 
-      <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
-        <WorkflowContextMenu
-          actions={contextMenu.actions}
-          context={contextMenu.context}
-          disabled={disabled}
-          instanceKey={contextMenu.instanceKey}
-          keepOpen={nodePicker.open}
-          onAction={contextMenu.executeAction}
-          onOpenChange={contextMenu.handleOpenChange}
-        >
-          <WorkflowAddNodeProvider
+      <WorkflowModelCatalogProvider>
+        <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
+          <WorkflowContextMenu
+            actions={contextMenu.actions}
+            context={contextMenu.context}
             disabled={disabled}
-            openInsertNode={(edgeId, center, anchorPosition) =>
-              nodePicker.openInsertNode(edgeId, center, anchorPosition)
-            }
+            instanceKey={contextMenu.instanceKey}
+            keepOpen={nodePicker.open}
+            onAction={contextMenu.executeAction}
+            onOpenChange={contextMenu.handleOpenChange}
           >
-            <div className="h-full min-h-0 w-full">
-              <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
-                ref={canvasRef}
-                nodes={editor.nodes}
-                edges={renderedEdges}
-                nodeTypes={workflowNodeTypes}
-                edgeTypes={workflowEdgeTypes}
-                defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
-                connectionLineType={ConnectionLineType.Bezier}
-                proOptions={{ hideAttribution: true }}
-                onNodesChange={editor.handleNodesChange}
-                // 设置画布的初始视口
-                defaultViewport={contextMenu.viewportBeforeRemount ?? editor.initialViewport}
-                // editor.initialViewport为空，自动展示全部节点
-                fitView={!contextMenu.viewportBeforeRemount && !editor.initialViewport}
-                // 自动适配设置最大缩放
-                fitViewOptions={{
-                  padding: 0.2,
-                  maxZoom: 1,
-                }}
-                deleteKeyCode={null}
-                nodesDraggable={!disabled}
-                nodesConnectable={!disabled}
-                nodesFocusable={!disabled}
-                edgesFocusable={!disabled}
-                elementsSelectable={!disabled}
-                selectNodesOnDrag={false}
-                onEdgesChange={editor.handleEdgesChange}
-                onEdgeContextMenu={contextMenu.handleEdgeContextMenu}
-                onConnect={editor.handleConnect}
-                isValidConnection={(connection) =>
-                  !disabled && editor.isValidConnection(connection)
-                }
-                onBeforeDelete={editor.handleBeforeDelete}
-                onNodesDelete={editor.handleNodesDelete}
-                onNodeClick={(event, node) => {
-                  if (disabled) return
-                  if (event.metaKey || event.ctrlKey || event.shiftKey) return
-                  editor.openNodeConfig(node.id)
-                }}
-                onNodeContextMenu={contextMenu.handleNodeContextMenu}
-                onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
-                onNodeMouseLeave={(_event, node) =>
-                  setHoveredNodeId((currentNodeId) =>
-                    currentNodeId === node.id ? undefined : currentNodeId,
-                  )
-                }
-                onPaneClick={() => editor.clearSelection()}
-                onPaneContextMenu={contextMenu.handlePaneContextMenu}
-                aria-disabled={disabled}
-                className="bg-muted/30 workflow-editor"
-              >
-                {/* 总面板组件 */}
-                <WorkflowPanel
-                  addNodeButtonRef={addNodeButtonRef}
-                  selectedNode={editor.selectedNode}
-                  selectedNodeCanAddNextNode={
-                    editor.selectedNode ? editor.canAddNextNode(editor.selectedNode.id) : false
+            <WorkflowAddNodeProvider
+              disabled={disabled}
+              openInsertNode={(edgeId, center, anchorPosition) =>
+                nodePicker.openInsertNode(edgeId, center, anchorPosition)
+              }
+            >
+              <div className="h-full min-h-0 w-full">
+                <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
+                  ref={canvasRef}
+                  nodes={editor.nodes}
+                  edges={renderedEdges}
+                  nodeTypes={workflowNodeTypes}
+                  edgeTypes={workflowEdgeTypes}
+                  defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
+                  connectionLineType={ConnectionLineType.Bezier}
+                  proOptions={{ hideAttribution: true }}
+                  onNodesChange={editor.handleNodesChange}
+                  // 设置画布的初始视口
+                  defaultViewport={contextMenu.viewportBeforeRemount ?? editor.initialViewport}
+                  // editor.initialViewport为空，自动展示全部节点
+                  fitView={!contextMenu.viewportBeforeRemount && !editor.initialViewport}
+                  // 自动适配设置最大缩放
+                  fitViewOptions={{
+                    padding: 0.2,
+                    maxZoom: 1,
+                  }}
+                  deleteKeyCode={null}
+                  nodesDraggable={!disabled}
+                  nodesConnectable={!disabled}
+                  nodesFocusable={!disabled}
+                  edgesFocusable={!disabled}
+                  elementsSelectable={!disabled}
+                  selectNodesOnDrag={false}
+                  onEdgesChange={editor.handleEdgesChange}
+                  onEdgeContextMenu={contextMenu.handleEdgeContextMenu}
+                  onConnect={editor.handleConnect}
+                  isValidConnection={(connection) =>
+                    !disabled && editor.isValidConnection(connection)
                   }
-                  selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
-                  selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
-                  lastSavedAt={save.lastSavedAt}
-                  saveStatus={save.status}
-                  canRedo={editor.canRedo}
-                  canUndo={editor.canUndo}
-                  addNodeOpen={disabled ? false : nodePicker.open}
-                  nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
-                  shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
-                  disabled={disabled}
-                  onAddNodeOpenChange={handleNodePickerOpenChange}
-                  onApplyNode={editor.applyNode}
-                  canChangeNextStepNode={(nodeId) =>
-                    editor.selectedNode
-                      ? editor.canReplaceConnectedNode(editor.selectedNode.id, nodeId)
-                      : false
+                  onBeforeDelete={editor.handleBeforeDelete}
+                  onNodesDelete={editor.handleNodesDelete}
+                  onNodeClick={(event, node) => {
+                    if (disabled) return
+                    if (event.metaKey || event.ctrlKey || event.shiftKey) return
+                    editor.openNodeConfig(node.id)
+                  }}
+                  onNodeContextMenu={contextMenu.handleNodeContextMenu}
+                  onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
+                  onNodeMouseLeave={(_event, node) =>
+                    setHoveredNodeId((currentNodeId) =>
+                      currentNodeId === node.id ? undefined : currentNodeId,
+                    )
                   }
-                  canDeleteNextStepNode={editor.canDeleteNode}
-                  onCloseNodeConfig={() => editor.clearSelection()}
-                  onChangeNextStepNode={(nodeId, anchorPosition) =>
-                    editor.selectedNode
-                      ? nodePicker.openReplaceConnectedNode(
-                          editor.selectedNode.id,
-                          nodeId,
-                          anchorPosition,
-                        )
-                      : false
-                  }
-                  onDeleteNextStepNode={editor.deleteNode}
-                  onDisconnectNextStepNode={editor.disconnectNodes}
-                  onNextStepOpenChange={handleNextStepOpenChange}
-                  onNextStepNodeSelect={editor.openNodeConfig}
-                  onRedo={editor.redo}
-                  onShortcutHelpOpenChange={setShortcutHelpOpen}
-                  onTestRun={() => void operations.testRun()}
-                  onUndo={editor.undo}
+                  onPaneClick={() => editor.clearSelection()}
+                  onPaneContextMenu={contextMenu.handlePaneContextMenu}
+                  aria-disabled={disabled}
+                  className="bg-muted/30 workflow-editor"
+                >
+                  {/* 总面板组件 */}
+                  <WorkflowPanel
+                    addNodeButtonRef={addNodeButtonRef}
+                    selectedNode={editor.selectedNode}
+                    selectedNodeCanAddNextNode={
+                      editor.selectedNode ? editor.canAddNextNode(editor.selectedNode.id) : false
+                    }
+                    selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
+                    selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
+                    lastSavedAt={save.lastSavedAt}
+                    saveStatus={save.status}
+                    canRedo={editor.canRedo}
+                    canUndo={editor.canUndo}
+                    addNodeOpen={disabled ? false : nodePicker.open}
+                    nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
+                    shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
+                    disabled={disabled}
+                    onAddNodeOpenChange={handleNodePickerOpenChange}
+                    onApplyNode={editor.applyNode}
+                    canChangeNextStepNode={(nodeId) =>
+                      editor.selectedNode
+                        ? editor.canReplaceConnectedNode(editor.selectedNode.id, nodeId)
+                        : false
+                    }
+                    canDeleteNextStepNode={editor.canDeleteNode}
+                    onCloseNodeConfig={() => editor.clearSelection()}
+                    onChangeNextStepNode={(nodeId, anchorPosition) =>
+                      editor.selectedNode
+                        ? nodePicker.openReplaceConnectedNode(
+                            editor.selectedNode.id,
+                            nodeId,
+                            anchorPosition,
+                          )
+                        : false
+                    }
+                    onDeleteNextStepNode={editor.deleteNode}
+                    onDisconnectNextStepNode={editor.disconnectNodes}
+                    onNextStepOpenChange={handleNextStepOpenChange}
+                    onNextStepNodeSelect={editor.openNodeConfig}
+                    onRedo={editor.redo}
+                    onShortcutHelpOpenChange={setShortcutHelpOpen}
+                    onTestRun={() => void operations.testRun()}
+                    onUndo={editor.undo}
+                  />
+                  {/* 背景 */}
+                  <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
+                </ReactFlow>
+                <NodeSelectorPopover
+                  anchor={nodePicker.anchor}
+                  anchorPosition={nodePicker.anchorPosition}
+                  nodeTypes={nodePicker.nodeTypes}
+                  disabledNodeTypes={nodePicker.disabledNodeTypes}
+                  open={!disabled && nodePicker.open}
+                  operationLabel={nodePicker.operationLabel}
+                  keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}
+                  side={nodePicker.popoverSide}
+                  align={nodePicker.popoverAlign}
+                  onOpenChange={handleNodePickerOpenChange}
+                  onSelectNode={nodePicker.handleSelectNode}
                 />
-                {/* 背景 */}
-                <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
-              </ReactFlow>
-              <NodeSelectorPopover
-                anchor={nodePicker.anchor}
-                anchorPosition={nodePicker.anchorPosition}
-                nodeTypes={nodePicker.nodeTypes}
-                disabledNodeTypes={nodePicker.disabledNodeTypes}
-                open={!disabled && nodePicker.open}
-                operationLabel={nodePicker.operationLabel}
-                keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}
-                side={nodePicker.popoverSide}
-                align={nodePicker.popoverAlign}
-                onOpenChange={handleNodePickerOpenChange}
-                onSelectNode={nodePicker.handleSelectNode}
-              />
-            </div>
-          </WorkflowAddNodeProvider>
-        </WorkflowContextMenu>
-      </WorkflowLoopEditorProvider>
+              </div>
+            </WorkflowAddNodeProvider>
+          </WorkflowContextMenu>
+        </WorkflowLoopEditorProvider>
+      </WorkflowModelCatalogProvider>
     </>
   )
 }

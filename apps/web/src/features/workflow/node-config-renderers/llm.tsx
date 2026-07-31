@@ -19,9 +19,10 @@ import {
 } from '@ai-workflow/ui/components/select'
 import { Textarea } from '@ai-workflow/ui/components/textarea'
 import { RefreshCw, SlidersHorizontal } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
-import { listModelGroups, type ModelGroupDto, type ModelProviderType } from '@/api/models'
+import { type ModelGroupDto, type ModelProviderType } from '@/api/models'
+import { useWorkflowModelCatalog } from '@/components/workflow/workflow-model-catalog-context'
 import { getModelProviderStrategy } from '@/features/models'
 
 import { LlmModelParametersDialog } from './llm-model-parameters-dialog'
@@ -86,11 +87,8 @@ export function LlmNodeConfigEditor({
   errors,
   onConfigChange,
 }: NodeConfigRendererProps) {
-  const [modelGroups, setModelGroups] = useState<ModelGroupDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [reloadRevision, setReloadRevision] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const { loadError, loading, modelGroups, reload } = useWorkflowModelCatalog()
   const modelReference = getModelReference(config)
   const availableModelGroups = getAvailableModelGroups(modelGroups)
   const availableModels = availableModelGroups.flatMap((group) => group.models)
@@ -103,24 +101,6 @@ export function LlmNodeConfigEditor({
   const hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
   const modelError =
     errors?.model ?? errors?.['model.groupId'] ?? errors?.['model.configuredModelId']
-
-  useEffect(() => {
-    const controller = new AbortController()
-
-    setLoading(true)
-    setLoadError(false)
-
-    void listModelGroups('chat', controller.signal)
-      .then(({ items }) => setModelGroups(items))
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadError(true)
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-
-    return () => controller.abort()
-  }, [reloadRevision])
 
   function handleModelChange(configuredModelId: string) {
     const nextModel = availableModels.find((model) => model.configuredModelId === configuredModelId)
@@ -159,7 +139,7 @@ export function LlmNodeConfigEditor({
               variant="ghost"
               size="xs"
               disabled={disabled || loading}
-              onClick={() => setReloadRevision((revision) => revision + 1)}
+              onClick={reload}
             >
               <RefreshCw aria-hidden />
               重试

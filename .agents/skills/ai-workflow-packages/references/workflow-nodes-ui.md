@@ -42,8 +42,9 @@ import {
 5. 未注册专属 UI 时只在实例有效描述非空时使用默认内容；普通内容由 `BaseNode` 负责外壳、
    选择、删除和端口区域。
 6. 画布通过 `renderPort` 注入具体 Handle，不让本包依赖某个画布库；节点摘要需要展示引用
-   变量的人类可读名称时，通过 `resolveVariableReferenceDisplay` 注入来源名称与变量名，
-   Nodes UI 不遍历工作流或依赖 Form 的候选项。
+   变量的人类可读名称时，通过 `resolveVariableReferenceDisplay` 注入来源名称与变量名；LLM
+   模型摘要通过 `resolveModelReferenceDisplay` 注入模型组名称、模型名称与供应商图标。
+   Nodes UI 不遍历工作流、不请求 Web API，也不依赖 Form 的候选项。
 
 循环容器通过 `defineNodeRendererUI(loopNode, LoopNode)` 加入
 `builtinNodeUIRegistrations`，由 `RenderNode` 自动选择完整节点渲染器。`LoopNode`
@@ -80,7 +81,7 @@ Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容�
 数字、字面量、内置对象、函数与方法、括号、运算符和注释。预览只负责画布摘要，不加载或
 复制 Form 包的 Monaco 编辑能力。
 `NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
-`rounded-md bg-muted/60 px-2 py-1.5 text-slate-500` 并由内容自然撑开高度。Condition 和
+`rounded-md bg-muted/60 px-2 py-1.5 text-muted-foreground` 并由内容自然撑开高度。Condition 和
 其他节点只负责组合条目内部信息，不重复维护背景、圆角、间距和默认文字颜色；Condition
 使用完整节点 renderer，继续复用 `NodeWrapper`、`NodeHeader`、`NodeContentList` 和
 `NodePortsRender`。每个 IF / ELIF / ELSE 分支标题行保持透明，只有存在规则的分支才在标题
@@ -100,9 +101,10 @@ HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容�
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
 请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和
 请求地址都继承 `NodeContentItem` 的默认文字颜色。
-LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，直接读取经过 LLM
-schema 解析后的 `node.config.prompt`，使用 `NodeContentList` 和 `NodeContentItem` 展示
-最多三行的提示词摘要；长文本保留完整 `title`，不在 Nodes UI 中复制配置表单字段。
+LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，不再展示 Prompt；它读取
+经过 LLM schema 解析后的模型引用，并通过画布注入的 `resolveModelReferenceDisplay` 获取
+模型组名称、模型名称与供应商图标，在 `NodeContentItem` 中展示紧凑的两级模型摘要。未选择、
+展示数据加载中或引用失效时显示对应空状态；Nodes UI 不请求 Web 的模型接口，也不复制供应商策略。
 RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，读取经过 RAG schema
 解析后的 `node.config.knowledgeBaseId`，以紧凑条目展示当前知识库标识；未选择时显示明确
 空状态。字段标签和空状态提示复用 Core 的 RAG form 定义；Nodes UI 不读取 Web 的知识库

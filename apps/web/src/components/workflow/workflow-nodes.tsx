@@ -10,6 +10,7 @@ import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
 import { WorkflowNodeHandle } from './workflow-node-handle'
 import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 import { LoopNodeResizeControl } from './loop-node-resize-control'
+import { useWorkflowModelCatalog } from './workflow-model-catalog-context'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
@@ -109,6 +110,7 @@ function WorkflowNodeActionTrigger({ selected }: WorkflowNodeActionTriggerProps)
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
   const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
+  const { resolveModelReferenceDisplay } = useWorkflowModelCatalog()
   const nodeDisplayLabels = useStore(
     (state) =>
       type === BuiltinNodeType.CONDITION
@@ -141,6 +143,9 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
           type === BuiltinNodeType.CONDITION
             ? (reference) => resolveVariableReferenceDisplay(reference, nodeDisplayLabels)
             : undefined
+        }
+        resolveModelReferenceDisplay={
+          type === BuiltinNodeType.LLM ? resolveModelReferenceDisplay : undefined
         }
         dragHandleClassName="drag-handle"
         editorCapabilities={
