@@ -307,7 +307,7 @@ export * from './constant'
 | `loop`         | `maxIterations`   | 可直接映射 | 使用数字 `INPUT`，现有字段类型和组件可以覆盖                                                                        |
 | `loop_start`   | 空对象            | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
 | `loop_exit`    | 空对象            | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
-| `condition`    | `conditions`      | 暂不处理   | `conditions` 是动态数组，并会生成动态端口；当前没有条件列表 renderer                                                |
+| `condition`    | `conditions`      | 专属映射   | 使用 `NodeType.configRenderer` 与 Condition 专属 renderer，保留动态端口规则                                         |
 | `sub_workflow` | `workflowId`      | 暂不处理   | 需要从外部工作流列表生成动态选项，当前静态 `options` 无法完整表达                                                   |
 
 ### Loop 节点
@@ -452,17 +452,20 @@ interface ConditionNodeConfig {
   conditions: Array<{
     portId: string
     conditionLabel: string
-    condition?: string
+    rules: Array<{
+      id: string
+      left: VariableValue
+      operator: ConditionOperator
+      right?: VariableValue
+    }>
     isFallback: boolean
   }>
 }
 ```
 
-暂不处理原因：
-
-- `conditions` 是支持增删和排序的动态数组。
-- `portId` 还与动态输出端口关联。
-- 当前没有条件列表 renderer，也不在普通字段映射中复制端口规则。
+当前通过 `NodeType.configRenderer` 声明专属配置 renderer，不把动态数组加入普通字段映射。
+每个普通分支的规则固定使用 AND，最后一个分支是唯一 ELSE；`portId` 继续作为动态输出端口的
+稳定标识。规则两侧使用公共 `VariableValue`，运算符使用 Core 公共枚举。
 
 #### Sub Workflow
 

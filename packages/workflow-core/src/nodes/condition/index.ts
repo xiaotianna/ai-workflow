@@ -1,8 +1,10 @@
 import type { z } from 'zod'
+import { NODE_CONFIG_RENDERER_TYPES } from '../../form/node-config-renderer'
 import { createInitialConfig } from '../../node/create-initial-config'
 import type { NodeType } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import type { PortDefinition } from '../../port/port-types'
+import { CONDITION_LOGICAL_OPERATOR_KINDS } from './constant'
 import { conditionNodeDefinition } from './definition'
 import { conditionNodeSchema } from './schema'
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
@@ -10,18 +12,20 @@ import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 export const conditionNode = {
   schema: conditionNodeSchema,
   definition: conditionNodeDefinition,
+  configRenderer: NODE_CONFIG_RENDERER_TYPES.CONDITION,
   createInitialConfig: () =>
     createInitialConfig(conditionNodeSchema, {
       conditions: [
         {
           portId: generateUuid(),
-          conditionLabel: '条件 1',
-          condition: '',
+          conditionLabel: 'CASE1',
+          rules: [],
           isFallback: false,
         },
         {
           portId: generateUuid(),
-          conditionLabel: '其他',
+          conditionLabel: 'ELSE',
+          rules: [],
           isFallback: true,
         },
       ],
@@ -57,11 +61,23 @@ export const conditionNode = {
         {
           label: condition.conditionLabel,
           dataType: DATA_TYPE_KINDS.JSON,
-          description: condition.isFallback ? '其他条件均不满足时进入该分支' : condition.condition,
+          description: condition.isFallback
+            ? '其他条件均不满足时进入该分支'
+            : `需要${
+                condition.logicalOperator === CONDITION_LOGICAL_OPERATOR_KINDS.AND ? '同时' : '任意'
+              }满足 ${condition.rules.length} 个条件`,
         },
       ]),
     ),
   }),
 } satisfies NodeType<typeof conditionNodeSchema>
 
-export type { ConditionNodeConfig } from './schema'
+export * from './constant'
+export type {
+  ConditionItem,
+  ConditionItemInput,
+  ConditionNodeConfig,
+  ConditionNodeConfigInput,
+  ConditionRule,
+  ConditionRuleInput,
+} from './schema'

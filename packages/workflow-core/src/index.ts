@@ -18,5 +18,6 @@ export * from './port/port-types'
 
 export * from './form/field-schema-types'
 export * from './form/field-ui-constants'
+export * from './form/node-config-renderer'
 export * from './form/node-variable-form'
 export * from './variable'

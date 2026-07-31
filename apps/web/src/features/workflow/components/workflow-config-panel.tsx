@@ -9,6 +9,7 @@ import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
+import { NodeConfigSection } from '@ai-workflow/form/components/node-config-section'
 import {
   NodeVariableSection,
   type AvailableVariableOption,
@@ -189,11 +190,7 @@ export const WorkflowConfigPanel = ({
     }
   }
 
-  function handleFieldChange(name: string, value: unknown) {
-    const nextConfig = {
-      ...form.config,
-      [name]: value,
-    }
+  function handleConfigChange(nextConfig: Record<string, unknown>) {
     const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
 
     updateFormField('config', nextConfig)
@@ -203,6 +200,13 @@ export const WorkflowConfigPanel = ({
     onApply({
       ...node,
       config: parsedConfig.data,
+    })
+  }
+
+  function handleFieldChange(name: string, value: unknown) {
+    handleConfigChange({
+      ...form.config,
+      [name]: value,
     })
   }
 
@@ -232,10 +236,13 @@ export const WorkflowConfigPanel = ({
 
   const formFields = resolveNodeFormFields(nodeType, builtinNodeFormFieldsResolvers)
   const hasFields = formFields && Object.keys(formFields).length > 0
+  const configRenderer = nodeType.configRenderer
   const variableForm = resolveNodeVariableForm(nodeType.variableForm)
   const inputVariableSection = variableForm.input
   const outputVariableSection = variableForm.output
-  const hasPanelContent = Boolean(inputVariableSection || hasFields || outputVariableSection)
+  const hasPanelContent = Boolean(
+    inputVariableSection || configRenderer || hasFields || outputVariableSection,
+  )
 
   return (
     <aside className="nodrag nowheel bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
@@ -307,8 +314,16 @@ export const WorkflowConfigPanel = ({
               />
             ) : null}
 
-            {/* schema配置渲染 */}
-            {hasFields ? (
+            {/* 复杂配置使用节点声明的专属renderer，普通字段继续使用schema字段映射 */}
+            {configRenderer ? (
+              <NodeConfigSection
+                renderer={configRenderer}
+                config={form.config}
+                availableVariables={availableVariables}
+                errors={errors}
+                onConfigChange={handleConfigChange}
+              />
+            ) : hasFields ? (
               <NodeConfigFields
                 fields={formFields}
                 values={form.config}
@@ -347,7 +362,7 @@ export const WorkflowConfigPanel = ({
           nodeType={nodeType}
           disabled={nextStepDisabled}
           open={nextStepOpen}
-          className="px-5 pt-3"
+          className="px-5 pt-3 pb-5"
           canChangeNode={canChangeNextStepNode}
           canDeleteNode={canDeleteNextStepNode}
           onChangeNode={onChangeNextStepNode}

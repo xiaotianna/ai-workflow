@@ -1,4 +1,5 @@
 import type { NodeFormSchema } from '../form/field-schema-types'
+import type { NodeConfigRendererType } from '../form/node-config-renderer'
 import type { NodeVariableForm } from '../form/node-variable-form'
 import type { PortMap } from '../port/port-types'
 import type { z } from 'zod'
@@ -26,6 +27,8 @@ export interface NodeType<TSchema extends z.ZodType = z.ZodType<any, any>> {
   definition: NodeDefinition
   // 当前节点的表单配置（不包含node.inputs、node.outputs，仅有node.input数据），start、end节点没有config数据可以为空
   form?: NodeFormSchema<TSchema>
+  // 复杂节点配置使用的专属renderer，仅保存与具体UI实现解耦的renderer名称
+  configRenderer?: NodeConfigRendererType
   // 节点输入、输出变量区域的声明配置。具体使用在web中
   variableForm?: NodeVariableForm
   /**

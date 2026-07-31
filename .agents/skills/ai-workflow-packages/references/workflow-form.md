@@ -2,7 +2,8 @@
 
 ## 职责
 
-基于 Core 字段 schema 提供节点配置字段 renderer 和内置字段映射。Form 负责组合
+基于 Core 字段 schema 提供普通字段 renderer，并为动态数组等复杂配置提供专属 renderer。
+Form 负责组合
 `@ai-workflow/ui` 基础控件与字段标签、说明、错误、禁用态和值转换，不把字段表单语义下沉到
 UI 包。
 
@@ -38,6 +39,12 @@ import {
 } from '@ai-workflow/form/components/node-config-fields'
 
 import {
+  NodeConfigSection,
+  builtinNodeConfigRenderers,
+  type NodeConfigRendererMap,
+} from '@ai-workflow/form/components/node-config-section'
+
+import {
   NodeVariableSection,
   builtinNodeVariableRenderers,
   type AvailableVariableOption,
@@ -51,10 +58,15 @@ import {
   type DataTypeIconProps,
   type DataTypeSelectProps,
 } from '@ai-workflow/form/components/data-type-select'
+
+import {
+  VariableValueEditor,
+  type VariableValueEditorProps,
+} from '@ai-workflow/form/components/variable-value-editor'
 ```
 
-`src/variables` 只维护包内置的变量编辑器和 renderer 注册表，不提供独立公开入口。
-不要从 `variables` 内部文件或 `packages/workflow-form/src/*` 深层导入。
+`src/config` 与 `src/variables` 只维护包内置的配置/变量编辑器和 renderer 注册表，不提供
+独立公开入口。不要从这些内部目录或 `packages/workflow-form/src/*` 深层导入。
 
 ## 目录结构
 
@@ -62,7 +74,12 @@ import {
 src/components/
 ├── data-type-select.tsx
 ├── node-config-fields.tsx
-└── node-variable-section.tsx
+├── node-config-section.tsx
+├── node-variable-section.tsx
+└── variable-value-editor.tsx
+src/config/
+├── condition-config-editor.tsx
+└── node-config-renderer-registry.ts
 src/fields/
 ├── code-field/
 ├── number-field/
@@ -95,6 +112,12 @@ renderer，并把字段当前值、错误、禁用态和变更回调传给对应
 传入的 `fields` 必须已经是调用方解析后的完整字段配置；动态选项或其他业务数据由应用层
 Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属的动态数据入口，也不请求或
 持有业务数据。
+
+`NodeConfigSection` 读取 Core `NodeType.configRenderer` 声明的名称，从专属配置 renderer
+注册表选择受控组件，并统一透传当前 `config`、Zod 错误、上游变量候选和完整配置变更回调。
+Condition 使用该入口维护动态 IF / ELIF / ELSE 分支和规则，不进入普通字段映射，也不要求
+Web 按节点类型分支。内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
+通过可选 `renderers` 注入扩展时，名称必须与 Core 声明一致。
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
 中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；
@@ -178,6 +201,17 @@ export const builtinFields = {
   浮层继续提供搜索、来源分组、类型展示与选中高亮。普通节点的输入区和 End 的输出区共用该
   renderer，交互必须保持一致。首期只消费调用方提供的候选，不自行生成系统变量、环境变量
   或嵌套 Path。
+- `VariableValueEditor` 是直接值/变量引用的公共受控组合控件，普通输入变量和 Condition
+  规则必须复用它；组件只消费调用方提供的 `AvailableVariableOption`，不遍历工作流。变量
+  选择浮层默认与组合控件等宽；组件右侧存在额外固定区域时，通过可选
+  `variablePickerEndOffset`（像素）同步扩展浮层宽度和末端对齐位置。
+- `ConditionConfigEditor` 维护稳定 `portId` 的分支和稳定 `id` 的规则；新增 ELIF 插在唯一
+  ELSE 前，删除分支后重新编号 CASE 标签；同一分支内多条规则使用 Core 公共逻辑关系统一
+  选择 AND 或 OR，规则数大于一时显示关系按钮，点击直接在两种关系间切换，不打开下拉菜单。
+  每条规则使用一个圆角背景容器组合左值、运算符和可选右值，第一行内部与上下两行之间使用
+  细分割线，不把同一规则拆成多个独立圆角输入块；Hover 与 Focus 只改变当前具体控件的背景，
+  不改变整个规则背景，也不在分割线外叠加控件边框。`为空`和`不为空`切换时删除右值，其余
+  运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
   默认值元数据。默认输入与默认输出变量区都使用 UI `Form.Field` 统一标题、说明、内容间距
@@ -196,12 +230,14 @@ export const builtinFields = {
   阴影，默认展示 Key、显示名称、必填状态与 `DataTypeIcon`；Hover 或键盘聚焦项时切换为
   编辑、删除按钮。条目前导变量标识复用 UI 包的 `VariableIcon` 并使用 `text-primary`，
   不使用 JSON 数据类型图标。变量项内容本身不触发编辑，只允许对应操作按钮修改或删除变量。
-- 所有 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
+- 所有普通字段 renderer 使用 UI `Form.Field` 展示 label、description、required 和 error，
   实际控件提供 `aria-label`、`aria-invalid` 与 disabled 状态。
 
 ## 边界与注意事项
 
 - Form 依赖 Core 契约和 UI primitives，不承载路由、请求、持久化或节点执行。
+- 专属配置 renderer 只编辑 Core `config`，不自行维护节点、Edge 或端口；动态端口与失效
+  Edge 仍由 Core `resolvePorts` 和 Web 编辑器统一处理。
 - 节点变量区由 Core `resolveNodeVariableForm` 解析；整个配置缺省时使用 Core 默认输入、
   输出区，配置对象存在但缺少某方向时调用方不渲染该方向。Form 不合并缺失的变量区配置，
   也不在 Form 或 Web 中维护节点类型白名单。

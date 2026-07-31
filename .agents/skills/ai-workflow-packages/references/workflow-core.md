@@ -14,8 +14,13 @@ import {
   endNode,
   workflowSchema,
   nodeRegistry,
+  CONDITION_LOGICAL_OPERATOR_KINDS,
+  CONDITION_LOGICAL_OPERATOR_OPTIONS,
+  CONDITION_OPERATOR_KINDS,
+  CONDITION_OPERATOR_OPTIONS,
   DEFAULT_NODE_VARIABLE_FORM,
   FIELD_UI_TYPES,
+  NODE_CONFIG_RENDERER_TYPES,
   NODE_VARIABLE_RENDERER_TYPES,
   getNodePorts,
   resolveNodeVariableForm,
@@ -29,8 +34,8 @@ import {
 
 不要从 `packages/workflow-core/src/*` 深层导入。
 需要由其他 package 实现专属界面的内置节点通过根入口导出节点对象及其配置类型；当前
-Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，供 Nodes UI 保持 schema
-与组件类型关联。
+Code、HTTP、LLM、RAG 与 Condition 节点分别公开对应节点对象和配置类型，供 Form 与
+Nodes UI 保持 schema 和组件类型关联。
 
 ## 核心模型
 
@@ -57,6 +62,9 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
   语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
   表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
+- `NodeType.configRenderer` 为动态数组等复杂配置声明专属 renderer 名称；Core 只通过
+  `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，React renderer 和注册表属于
+  `@ai-workflow/form`。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `NodeType.variableForm` 以可选的 `input` / `output` 区域声明节点变量表单；每个区域只保存
   标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
@@ -71,6 +79,12 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过
   `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
+- Condition 的 `config.conditions` 保存按顺序匹配的 IF / ELIF 分支和最后一个唯一 ELSE；
+  普通分支通过公共 `ConditionLogicalOperator` 使用统一 AND 或 OR 组合 `rules`，旧配置缺少
+  该字段时默认按 AND 解析；每条规则以两个 `VariableValue` 和公共 `ConditionOperator`
+  表达。`IS_EMPTY`、`IS_NOT_EMPTY` 不保存右值，其余运算符必须保存右值。
+  `portId` 是动态输出端口的稳定标识，修改规则不重建端口；旧的字符串 `condition` 不再属于
+  当前 schema。旧版空字符串默认配置会安全转换为 `rules: []`，非空旧表达式拒绝有损转换。
 - Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
 - 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
@@ -86,11 +100,13 @@ Code、HTTP、LLM 与 RAG 节点分别公开对应节点对象和配置类型，
 2. 定义稳定唯一的 type、标签、说明、图标和静态端口。
 3. 需要通用配置表单时使用 `NodeFormSchema<typeof nodeSchema>` 声明 form，以
    `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
-4. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
-5. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
-6. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
-7. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
-8. 默认变量区满足需求时不声明 `NodeType.variableForm`；需要自定义时只声明实际显示的方向，
+4. 动态数组等无法由普通字段表达的配置通过 `NodeType.configRenderer` 声明专属 renderer，
+   并在 `@ai-workflow/form` 注册；不要扩展普通字段参数承载节点专属上下文。
+5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
+6. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
+7. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
+8. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
+9. 默认变量区满足需求时不声明 `NodeType.variableForm`；需要自定义时只声明实际显示的方向，
    缺少的方向不渲染且不写 `null`，不在 Web 中按节点类型维护另一份映射。
 
 ## 校验顺序

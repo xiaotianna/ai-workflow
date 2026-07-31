@@ -80,7 +80,9 @@ Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容�
 `NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
 `rounded-md bg-muted/60 px-2 py-1.5 text-slate-500` 并由内容自然撑开高度。Condition 和
 其他节点只负责组合条目内部信息，不重复维护背景、圆角、间距和默认文字颜色；Condition
-显式使用 `NodeContentList` 包裹并排列多个 `NodeContentItem`。
+显式使用 `NodeContentList` 包裹并排列多个 `NodeContentItem`，从结构化 `rules` 生成
+“左值 运算符 右值”的摘要，并按分支的公共逻辑关系使用 AND 或 OR 连接；运算符和逻辑关系
+文案复用 Core 公共映射，变量引用按作用域格式化，未配置规则时显示明确空状态。
 HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
 请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和

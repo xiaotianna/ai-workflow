@@ -98,7 +98,10 @@
 - 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web
-  中复制字段类型分发逻辑。配置面板通过 Core `resolveNodeVariableForm` 解析
+  中复制字段类型分发逻辑。复杂动态配置通过 Core `NodeType.configRenderer` 声明，由
+  `@ai-workflow/form/components/node-config-section` 的 `NodeConfigSection` 从注册表选择
+  受控 renderer；Web 只透传 config、错误、上游变量和变更回调，不按节点类型分支。
+  配置面板通过 Core `resolveNodeVariableForm` 解析
   `NodeType.variableForm`，再使用
   `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、
   输出变量区；整个配置未声明时默认同时显示两区，配置对象存在时只显示其中实际声明的
@@ -108,6 +111,10 @@
   可通过同一 Dialog 编辑；Dialog 编辑字段类型、变量名称、显示名称、类型匹配的默认值与
   必填状态，不提供最大长度或隐藏预填，最终仍写入 `node.outputs`；End 的“输出变量”通过输入
   绑定 renderer 写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量排列。
+  Condition 使用专属配置 renderer 编辑 IF / ELIF / ELSE 分支；条件两侧复用 Form 的
+  `VariableValueEditor`，支持直接值和完整上游变量引用，比较运算符和同一分支统一使用的
+  AND/OR 逻辑关系都来自 Core 公共契约。Condition 声明空 `variableForm`，不再同时显示与
+  分支配置重复的默认输入/输出变量区。
   当前节点可
   引用变量由 Web 根据执行 Edge 收集所有可达
   上游节点的动态输出和静态输出端口，并将来源节点、变量名称和数据类型作为结构化候选传入

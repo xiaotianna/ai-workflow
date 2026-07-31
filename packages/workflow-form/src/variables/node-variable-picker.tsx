@@ -20,6 +20,7 @@ interface NodeVariablePickerProps {
   options: readonly AvailableVariableOption[]
   disabled?: boolean
   invalid?: boolean
+  endOffset?: number
   onValueChange: (option: AvailableVariableOption) => void
 }
 
@@ -58,6 +59,7 @@ function NodeVariablePicker({
   options,
   disabled,
   invalid,
+  endOffset = 0,
   onValueChange,
 }: NodeVariablePickerProps) {
   const [open, setOpen] = useState(false)
@@ -109,9 +111,13 @@ function NodeVariablePicker({
 
       <PopoverContent
         align="end"
+        alignOffset={-endOffset}
         sideOffset={4}
         collisionPadding={16}
-        className="flex max-h-[min(30rem,var(--radix-popover-content-available-height))] w-[calc(var(--radix-popover-trigger-width)+2.25rem)] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
+        className="flex max-h-[min(30rem,var(--radix-popover-content-available-height))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
+        style={{
+          width: `calc(var(--radix-popover-trigger-width) + 2.25rem + ${endOffset}px)`,
+        }}
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="border-border border-b-[0.5px] p-2.5">
