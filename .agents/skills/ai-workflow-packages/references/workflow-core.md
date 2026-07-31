@@ -58,13 +58,19 @@ Nodes UI 保持 schema 和组件类型关联。
   `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
-- 当前 `llm`、`http`、`loop`、`code` 和 `rag` 已声明通用节点配置 form；Code 使用
+- 当前 `http`、`loop`、`code` 和 `rag` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
   语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
   表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
 - `NodeType.configRenderer` 为动态数组等复杂配置声明专属 renderer 名称；Core 只通过
-  `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，React renderer 和注册表属于
-  `@ai-workflow/form`。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
+  `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，通用 React renderer 与内置注册表属于
+  `@ai-workflow/form`，需要应用业务数据的 renderer 由应用通过 `NodeConfigSection.renderers`
+  注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
+- LLM 通过 `LLM` 专属 renderer 编辑模型与 Prompt；`config.model` 保存稳定的 `groupId`、
+  `configuredModelId` 和可选 `parameters`。参数 schema 统一覆盖温度、Top P、最大输出 Token、
+  停止序列、响应格式、推理强度、思考模式以及 Ollama 的 Top K、重复惩罚和 Seed；所有字段
+  缺失时表示沿用供应商默认值，旧节点由 schema 补为空引用与空参数。Core 只定义可序列化领域
+  契约，不保存供应商展示信息、模型组凭证、参数界面策略或 Web 请求数据。
 - `NodeType.createInitialInputs()` 与 `createInitialOutputs()` 为需要预置变量的节点分别生成
   独立的输入绑定和输出定义；`createInitialConfig(variables)` 可以读取同一批初始变量，
   让配置模板与变量名保持一致。未声明变量工厂的节点继续使用空输入和空输出。
@@ -105,8 +111,9 @@ Nodes UI 保持 schema 和组件类型关联。
 2. 定义稳定唯一的 type、标签、说明、图标和静态端口。
 3. 需要通用配置表单时使用 `NodeFormSchema<typeof nodeSchema>` 声明 form，以
    `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
-4. 动态数组等无法由普通字段表达的配置通过 `NodeType.configRenderer` 声明专属 renderer，
-   并在 `@ai-workflow/form` 注册；不要扩展普通字段参数承载节点专属上下文。
+4. 动态数组等无法由普通字段表达的配置通过 `NodeType.configRenderer` 声明专属 renderer；
+   通用实现在 `@ai-workflow/form` 注册，依赖应用业务数据的实现由应用注入；不要扩展普通
+   字段参数承载节点专属上下文。
 5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`；需要预置节点变量时同时
    实现 `createInitialInputs()` / `createInitialOutputs()`，配置模板需要变量名时从
    `createInitialConfig(variables)` 的参数读取。

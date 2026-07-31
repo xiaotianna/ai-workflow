@@ -36,6 +36,11 @@
 - 工作流节点表单依赖的知识库、工作流列表等动态业务数据，在
   `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
   `NodeConfigFields` 不增加控件或业务数据专属参数。
+- 无法由普通字段 renderer 表达且需要 API 数据的节点配置界面，放在
+  `features/workflow/node-config-renderers`，通过 `NodeConfigSection.renderers` 注入；Core 只保存
+  renderer 名称和领域 schema，Form 不依赖 Web API。
+- 模型供应商的节点参数能力放在 `features/models/model-parameter-strategies.ts` 注册；工作流
+  renderer 和参数 Dialog 只消费策略输出，不复制供应商条件分支。
 - 节点变量区先通过 Core `resolveNodeVariableForm` 解析 `NodeType.variableForm`；整个配置
   未声明时默认拥有输入、输出区，配置对象存在时只渲染其中实际声明的方向，不使用 `null`
   占位。通用编辑组件由 `@ai-workflow/form` 提供；Web 只计算上游变量候选、管理表单状态并

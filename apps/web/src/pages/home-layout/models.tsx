@@ -15,7 +15,6 @@ import {
   type CreateModelGroupParams,
   type ModelGroupDto,
   type ModelType,
-  type UpdateModelGroupParams,
 } from '@/api/models'
 import { PageContent } from '@/components/page-content'
 import { PageHeaderActions } from '@/components/page-header-actions'
@@ -24,6 +23,7 @@ import {
   DeleteModelGroupDialog,
   ModelGroupAccordion,
   ModelGroupDialog,
+  toUpdateModelGroupParams,
   type ModelGroupInput,
 } from '@/features/models'
 
@@ -289,27 +289,6 @@ function toCreateModelGroupParams(
     baseUrl: input.baseUrl ?? null,
     ...(input.apiKey ? { apiKey: input.apiKey } : {}),
     models: input.models.map((model) => ({
-      modelId: model.modelId,
-      displayName: model.displayName,
-      enabled: model.enabled,
-    })),
-  }
-}
-
-function toUpdateModelGroupParams(
-  input: ModelGroupInput,
-  currentGroup: ModelGroupDto,
-): UpdateModelGroupParams {
-  const apiKeyUnchanged =
-    currentGroup.providerType === input.providerType && currentGroup.maskedApiKey === input.apiKey
-
-  return {
-    name: input.name,
-    providerType: input.providerType,
-    baseUrl: input.baseUrl ?? null,
-    apiKey: apiKeyUnchanged ? undefined : (input.apiKey ?? null),
-    models: input.models.map((model) => ({
-      id: model.id,
       modelId: model.modelId,
       displayName: model.displayName,
       enabled: model.enabled,

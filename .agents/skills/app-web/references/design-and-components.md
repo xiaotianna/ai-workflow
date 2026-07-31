@@ -33,6 +33,17 @@
 - `/models` 的业务界面放在 `features/models`，请求契约与调用统一放在 `src/api/models`；页面从
   `GET /models/groups` 加载当前用户配置并管理请求状态和弹窗开关，不再生成客户端 ID 或内置
   默认模型组。模型组表单继续使用统一 Zod、`useFormData` 和 `validateFormByZod` 方案。
+- LLM 节点模型选择器复用 `GET /models/groups?modelType=chat`，在 Web 中只保留已启用的模型组和
+  已启用的对话模型；Select 以模型组为分组，组标题显示供应商图标与模型组名称，模型项显示
+  模型名称与 `CHAT` 标签。节点配置写回 `groupId`、`configuredModelId` 与可选模型参数；右侧
+  设置入口打开模型参数 Dialog，不得编辑模型组。参数能力、初始值、字段可见性与保存前清理由
+  `model-parameter-strategies.ts` 统一管理，Dialog 不按供应商添加条件分支。DeepSeek 开启或沿用
+  默认思考模式时不展示并清除 `temperature`、`topP`。参数 Dialog 的每个参数直接使用
+  `Form.Field` 与策略默认值，不增加逐字段开关；Select、输入框、Slider 组合和停止序列操作区
+  都占满字段整行。字段错误只在对应控件失焦或提交后展示；停止序列删除按钮默认使用弱化色，
+  仅在 Hover 或键盘 Focus visible 时进入 destructive 状态。已选模型被停用或删除时保留节点
+  原引用，并在 Select 占位文案中提示重新选择，字段下方不显示额外描述。模型 Select 与设置按钮只共用静态 `bg-input`
+  底色，Hover / Focus 的背景和边框只反馈当前具体子控件，不改变整个组合容器。
 - OpenAI、DeepSeek、Ollama 等供应商的名称、图标、默认地址、配置字段和 API 文档地址由
   `provider-strategies.ts` 的前端展示策略统一提供；持久化、默认探测地址和响应校验由后端供应商
   注册表负责。新增供应商时两端分别注册策略，不在页面、手风琴或弹窗中增加类型分支。
@@ -138,6 +149,8 @@
   中复制字段类型分发逻辑。复杂动态配置通过 Core `NodeType.configRenderer` 声明，由
   `@ai-workflow/form/components/node-config-section` 的 `NodeConfigSection` 从注册表选择
   受控 renderer；Web 只透传 config、错误、上游变量和变更回调，不按节点类型分支。
+  依赖 Web API 的业务 renderer 由 `features/workflow/node-config-renderers` 集中注册并通过
+  `NodeConfigSection.renderers` 注入；LLM 模型选择器属于该扩展，不将模型 API 下沉到 Form。
   配置面板通过 Core `resolveNodeVariableForm` 解析
   `NodeType.variableForm`，再使用
   `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、

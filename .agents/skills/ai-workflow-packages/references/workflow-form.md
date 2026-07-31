@@ -117,7 +117,8 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 注册表选择受控组件，并统一透传当前 `config`、Zod 错误、上游变量候选和完整配置变更回调。
 Condition 使用该入口维护动态 IF / ELIF / ELSE 分支和规则，不进入普通字段映射，也不要求
 Web 按节点类型分支。内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
-通过可选 `renderers` 注入扩展时，名称必须与 Core 声明一致。
+通过可选 `renderers` 注入扩展时，名称必须与 Core 声明一致。需要 API、路由或其他应用
+业务数据的 renderer 必须使用该注入入口留在应用层，Form 不请求数据或反向依赖应用。
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
 中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；

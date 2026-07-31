@@ -27,6 +27,7 @@ import { z } from 'zod'
 
 import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
 import { resolveNodeFormFields } from '../node-form-resolvers/registry'
+import { builtinWorkflowNodeConfigRenderers } from '../node-config-renderers/builtin'
 import { WorkflowNextStep } from './workflow-next-step'
 
 interface WorkflowConfigPanelProps {
@@ -326,6 +327,7 @@ export const WorkflowConfigPanel = ({
               <div className="px-5">
                 <NodeConfigSection
                   renderer={configRenderer}
+                  renderers={builtinWorkflowNodeConfigRenderers}
                   config={form.config}
                   availableVariables={availableVariables}
                   errors={errors}
