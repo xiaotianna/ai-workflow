@@ -99,6 +99,8 @@ const createCanvasNode = (
 ): WorkflowCanvasNode => {
   const nodeType = nodeRegistry.getOrThrow(type)
   const label = getNextNodeLabel(type, existingNodes)
+  const inputs = nodeType.createInitialInputs?.() ?? {}
+  const outputs = nodeType.createInitialOutputs?.() ?? []
 
   return {
     id: generateUuid(),
@@ -106,9 +108,9 @@ const createCanvasNode = (
     position,
     data: {
       ...(label ? { label } : {}),
-      config: nodeType.createInitialConfig(),
-      inputs: {},
-      outputs: [],
+      config: nodeType.createInitialConfig({ inputs, outputs }),
+      inputs,
+      outputs,
     },
   }
 }

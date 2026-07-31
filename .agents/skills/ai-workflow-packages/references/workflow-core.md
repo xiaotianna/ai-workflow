@@ -65,6 +65,9 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeType.configRenderer` 为动态数组等复杂配置声明专属 renderer 名称；Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，React renderer 和注册表属于
   `@ai-workflow/form`。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
+- `NodeType.createInitialInputs()` 与 `createInitialOutputs()` 为需要预置变量的节点分别生成
+  独立的输入绑定和输出定义；`createInitialConfig(variables)` 可以读取同一批初始变量，
+  让配置模板与变量名保持一致。未声明变量工厂的节点继续使用空输入和空输出。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `NodeType.variableForm` 以可选的 `input` / `output` 区域声明节点变量表单；每个区域只保存
   标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
@@ -91,6 +94,8 @@ Nodes UI 保持 schema 和组件类型关联。
   End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段。
 - 当前正式注册的内置节点包括 `start`、`end`、`llm`、`rag`、`code`、`http`、
   `loop`、`loop_start`、`loop_exit`、`condition` 和 `sub_workflow`。
+- Code 节点新增时默认创建直接值输入 `arg1`、`arg2` 和 string 输出 `result`，初始代码
+  通过这些变量生成 `main` 函数模板。
 - 每个 Loop 必须恰好直接包含一个 `loop_start` 和一个 `loop_exit`；两者不能脱离 Loop，
   边也不能跨越 Loop 作用域。
 
@@ -102,7 +107,9 @@ Nodes UI 保持 schema 和组件类型关联。
    `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
 4. 动态数组等无法由普通字段表达的配置通过 `NodeType.configRenderer` 声明专属 renderer，
    并在 `@ai-workflow/form` 注册；不要扩展普通字段参数承载节点专属上下文。
-5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`，字段 schema 不保存默认值。
+5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`；需要预置节点变量时同时
+   实现 `createInitialInputs()` / `createInitialOutputs()`，配置模板需要变量名时从
+   `createInitialConfig(variables)` 的参数读取。
 6. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
 7. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
 8. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
@@ -133,4 +140,6 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 - 节点 `config` 的字段契约不提供 `defaultValue`，配置默认值唯一来源是
   `NodeType.createInitialConfig()`；这与 `NodeOutputDefinition.defaultValue` 的输入变量元数据
   语义不同。
+- 节点变量默认值只由 `NodeType.createInitialInputs()` / `createInitialOutputs()` 提供，
+  Web 的节点工厂不得按节点类型复制默认变量。
 - `src/node/get-node-ports使用文档.md` 和 `src/validate/validate使用.md` 是补充示例；示例与当前 API 不一致时以源码为准并同步更新文档。

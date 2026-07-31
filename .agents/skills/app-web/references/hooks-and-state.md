@@ -145,6 +145,9 @@ function ExampleForm() {
 - 根画布和 Loop 容器内新增节点都通过 `createCanvasNodes` 创建；新增 Loop 必须在同一次
   状态更新中原子生成 Loop 容器、Loop Start 和 Loop Exit。根画布新增节点通过预设尺寸
   一次计算初始位置，Loop 使用默认容器尺寸；不得在渲染测量后再次修正坐标造成视觉跳动。
+- 普通节点的 `config`、`inputs`、`outputs` 统一由节点类型的 `createInitialConfig`、
+  `createInitialInputs`、`createInitialOutputs` 工厂初始化；配置工厂接收同一批初始变量，
+  Web 不按节点类型复制默认变量或配置模板。
 - 新增节点按整个工作流内的节点类型生成实例名称：首个实例沿用类型默认 label，后续实例写入
   `默认 label 2`、`默认 label 3`。编号同时参考同类型实例数量和已存在的最大标准编号，
   避免节点删除或改成自定义名称后生成重复名称；根画布与 Loop 内新增必须共用该规则。

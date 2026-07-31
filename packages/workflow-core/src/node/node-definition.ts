@@ -2,7 +2,13 @@ import type { NodeFormSchema } from '../form/field-schema-types'
 import type { NodeConfigRendererType } from '../form/node-config-renderer'
 import type { NodeVariableForm } from '../form/node-variable-form'
 import type { PortMap } from '../port/port-types'
+import type { NodeInputBindings, NodeOutputDefinition } from './workflow-node-schema'
 import type { z } from 'zod'
+
+export interface NodeInitialVariables {
+  inputs: NodeInputBindings
+  outputs: NodeOutputDefinition[]
+}
 
 // 节点定义
 export interface NodeDefinition {
@@ -32,7 +38,8 @@ export interface NodeType<TSchema extends z.ZodType = z.ZodType<any, any>> {
   // 节点输入、输出变量区域的声明配置。具体使用在web中
   variableForm?: NodeVariableForm
   /**
-   * 每次创建节点时生成一份独立的初始配置（根据zod类型自动创建，采用工厂函数）
+   * 每次创建节点时生成一份独立的初始配置（根据zod类型自动创建，采用工厂函数）。
+   * 需要让代码等配置引用节点初始变量时，可以读取variables。
    * 示例：
    * {
       schema: startNodeSchema,
@@ -40,7 +47,10 @@ export interface NodeType<TSchema extends z.ZodType = z.ZodType<any, any>> {
       createInitialConfig: () => ({})
   * }
   */
-  createInitialConfig: () => z.input<TSchema>
+  createInitialConfig: (variables?: NodeInitialVariables) => z.input<TSchema>
+  // 节点类型需要预置输入、输出变量时，分别通过工厂生成独立数据。
+  createInitialInputs?: () => NodeInputBindings
+  createInitialOutputs?: () => NodeOutputDefinition[]
   // 根据节点实例config生成动态端口，针对于像【条件节点】这样需要动态节点端口的情况，没有动态端口的节点不需要实现
   resolvePorts?: (config: z.output<TSchema>) => NodeDefinition['ports']
 }
