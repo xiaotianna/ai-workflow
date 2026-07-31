@@ -1,8 +1,11 @@
 import { Button } from '@ai-workflow/ui/components/button'
+import { DropdownMenu, DropdownMenuTrigger } from '@ai-workflow/ui/components/dropdown-menu'
 import { Switch } from '@ai-workflow/ui/components/switch'
-import { ChevronDown, Pencil, Trash2 } from 'lucide-react'
+import { ChevronDown, MoreHorizontal } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState } from 'react'
+
+import { ActionMenuContent, type ActionMenuAction } from '@/components/action-menu-content'
 
 import { getModelProviderStrategy } from '../provider-strategies'
 import { type ModelGroup } from '../schema'
@@ -26,6 +29,20 @@ function ModelGroupAccordionItem({
   const strategy = getModelProviderStrategy(group.providerType)
   const ProviderIcon = strategy.icon
   const contentId = `model-group-${group.id}`
+  const actions: ActionMenuAction[] = [
+    {
+      id: 'edit',
+      label: '编辑',
+      onSelect: () => onEdit(group),
+    },
+    {
+      id: 'delete',
+      label: '删除',
+      destructive: true,
+      separatorBefore: true,
+      onSelect: () => onDelete(group),
+    },
+  ]
 
   return (
     <motion.article
@@ -36,13 +53,13 @@ function ModelGroupAccordionItem({
       transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
       className="border-border/50 overflow-hidden border-b-[0.5px] last:border-b-0"
     >
-      <div className="hover:bg-input flex min-h-16 items-center gap-2 px-4 py-2 transition-colors">
+      <div className="hover:bg-input flex min-h-16 items-center gap-2 px-4 transition-colors">
         <button
           type="button"
           aria-expanded={open}
           aria-controls={contentId}
           onClick={() => setOpen((currentOpen) => !currentOpen)}
-          className="focus-visible:text-primary flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left outline-none"
+          className="focus-visible:text-primary flex min-w-0 flex-1 cursor-pointer items-center gap-3 self-stretch py-2 text-left outline-none"
         >
           <span className="bg-muted flex size-10 shrink-0 items-center justify-center rounded-xl">
             <ProviderIcon aria-hidden className="text-foreground size-5" />
@@ -65,26 +82,21 @@ function ModelGroupAccordionItem({
             aria-label={`${group.enabled ? '停用' : '启用'}模型组 ${group.name}`}
             className="mr-2"
           />
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`编辑模型组 ${group.name}`}
-            onClick={() => onEdit(group)}
-            className="hover:bg-button-secondary-bg-active focus-visible:bg-button-secondary-bg-active dark:hover:bg-button-secondary-bg-active dark:focus-visible:bg-button-secondary-bg-active"
-          >
-            <Pencil aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`删除模型组 ${group.name}`}
-            onClick={() => onDelete(group)}
-            className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
-          >
-            <Trash2 aria-hidden />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`${group.name} 的更多操作`}
+                className="text-muted-foreground hover:bg-button-secondary-bg-active focus-visible:bg-button-secondary-bg-active aria-expanded:bg-button-secondary-bg-active"
+              >
+                <MoreHorizontal aria-hidden className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <ActionMenuContent actions={actions} sideOffset={6} />
+          </DropdownMenu>
         </div>
 
         <Button

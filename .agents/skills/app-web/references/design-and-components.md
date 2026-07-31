@@ -40,6 +40,8 @@
   `bg-input`，展开、选中或控件获得焦点时不保留整行背景；行内普通图标按钮的 Hover 与
   Focus visible 使用更深一级的 `bg-button-secondary-bg-active`，危险按钮继续使用 destructive
   状态，确保局部按钮不会与整行背景混在一起。键盘焦点由实际控件自身的文字或局部状态表达。
+  模型组的编辑与删除收纳到横向三点操作菜单，并复用 `ActionMenuContent`；删除项使用危险态
+  且与普通编辑操作分组，两个菜单项只显示文字，不在组头并列展示编辑、删除图标按钮。
   展开折叠、组新增与删除使用 Motion，并通过 `MotionConfig` 遵循系统减少动态效果设置。
 - 新增和编辑复用同一模型组 Dialog；模型组名称与供应商类型固定展示，供应商配置表单根据策略
   声明的字段动态渲染（OpenAI、DeepSeek 为可选 Base URL 与 Key，Ollama 为可选 Base URL）。
