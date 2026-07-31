@@ -6,6 +6,10 @@
 - `App.tsx` 作为 `/` 路由树的统一鉴权边界：存在本地登录会话时渲染根 `Outlet`，否则
   重定向到 `/auth`。
 - `/` 下的布局页面直接组合 `LayoutSidebar` 和主内容区域，并通过子路由渲染页面。
+- 首页布局当前包含 `/studio`、`/knowledge-base`、`/models` 和 `/plugin`；模型页导航位于
+  知识库与插件之间，继续从 `models` 路由的 `handle.meta` 派生。
+- `/models` 使用 `tab=chat|embedding` 保存“对话 / 嵌入”分类；缺失或无效值通过 replace
+  规范化为 `tab=chat`，切换时保留其他查询参数。
 - `/app/:id` 与 `/knowledge-base/:id` 是与首页布局并列的根级详情布局，不渲染首页侧栏内容；两者复用 `components/detail-layout`，由内容区承载子路由。
 - 应用卡片进入 `/app/:id/workflow`；应用内页面使用 `/app/:id/:section` 形式的嵌套路由，当前包含 `workflow`、`api` 和 `logs`，父路由保留 `Outlet`，索引路由重定向到 `workflow`。
 - `/knowledge-base/:id` 与 `/app/:id` 同级，为知识库详情布局；子路由包含 `documents` 和 `recall-test`，索引路由重定向到 `documents`。

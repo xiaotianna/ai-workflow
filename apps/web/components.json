@@ -17,6 +17,9 @@
     "lib": "@ai-workflow/ui/lib",
     "ui": "@ai-workflow/ui/components"
   },
+  "registries": {
+    "@svgl": "https://svgl.app/r/{name}.json"
+  },
   "rtl": false,
   "menuColor": "default",
   "menuAccent": "subtle"

@@ -8,6 +8,7 @@ import {
   SquareMousePointer,
   SquareTerminal,
   ToolCase,
+  ToyBrick,
 } from 'lucide-react'
 import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-dom'
 
@@ -17,6 +18,7 @@ import LazyLoad from '../components/lazy-load'
 const AuthPage = lazy(() => import('../pages/auth'))
 const LayoutPage = lazy(() => import('../pages/home-layout'))
 const KnowledgeBasePage = lazy(() => import('../pages/home-layout/knowledge-base'))
+const ModelsPage = lazy(() => import('../pages/home-layout/models'))
 const PluginPage = lazy(() => import('../pages/home-layout/plugin'))
 const StudioPage = lazy(() => import('../pages/home-layout/studio'))
 const AppPage = lazy(() => import('../pages/app'))
@@ -97,6 +99,22 @@ export const routes = [
             },
           },
           {
+            id: 'models',
+            path: 'models',
+            element: (
+              <LazyLoad>
+                <ModelsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '模型',
+                requiresAuth: true,
+                icon: ToolCase,
+              },
+            },
+          },
+          {
             id: 'plugin',
             path: 'plugin',
             element: (
@@ -108,7 +126,7 @@ export const routes = [
               meta: {
                 title: '插件',
                 requiresAuth: true,
-                icon: ToolCase,
+                icon: ToyBrick,
               },
             },
           },

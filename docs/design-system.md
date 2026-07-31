@@ -105,6 +105,17 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 </Form>
 ```
 
+## Tabs
+
+- 通用分类切换使用 `@ai-workflow/ui/components/tabs`，保留 Radix Tabs 的 Tab、方向键与
+  TabPanel 语义，不用普通按钮组或 Radio DOM 复制同类交互。
+- `TabsList` 保持透明、无外框并允许换行，标签间距使用 `gap-1`；`TabsTrigger` 统一为
+  `h-8 min-w-12 rounded-lg px-2.5 text-[13px]`。
+- 默认文字使用 `text-muted-foreground`；Hover 与 Focus visible 使用 `bg-muted/70` 和正文
+  文字色；选中态使用 `bg-muted`、正文文字色和半粗字重，不增加边框、ring 或阴影。
+- Disabled 状态使用禁用光标和透明度反馈；状态变化只过渡背景色与文字色，并遵循系统减少
+  动态效果设置。
+
 ## 文件选择与拖拽
 
 - 单文件拖拽或点击选择统一使用 `packages/ui/src/components/file-dropzone.tsx` 中的 `FileDropzone`。组件基于原生 `input[type="file"]`，业务侧通过 `accept` 限制文件类型，并通过 `file`、`onFileChange` 管理受控状态。

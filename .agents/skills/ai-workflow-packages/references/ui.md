@@ -36,6 +36,9 @@ import '@ai-workflow/ui/globals.css'
 - 表单布局：`Form`、`Form.Field`。
 - 上传：单文件受控 `FileDropzone`。
 - 操作与浮层：`Button`、`Dialog`、`Sheet`、`Popover`、`DropdownMenu`、`Tooltip`。
+- 导航与切换：`Tabs`、`TabsList`、`TabsTrigger`、`TabsContent` 基于 Radix Tabs，支持受控、
+  非受控状态和标准方向键键盘交互；列表保持透明、支持换行，触发器统一为 32px 高的轻量
+  标签，选中、Hover 与 Focus 只使用语义背景和文字色变化，不使用 ring 或额外阴影。
 - 布局与反馈：`Sidebar`、`Separator`、`Skeleton`、基于 Sonner 的 `Toaster` 与
   `showToast`。
 - `Toaster` 使用无边框状态渐变背景与 20px 描边状态图标；图标直接使用对应的
@@ -75,6 +78,8 @@ import '@ai-workflow/ui/globals.css'
   `warning`、`info`，可选 `duration` 使用毫秒。不要在业务组件中直接依赖 Sonner
   或重复实现通知容器。
 - 使用 `cn()` 合并类名，变体较多时使用 CVA，不在调用方重做基础状态。
+- 同级内容分类使用 `Tabs` 组合；业务层只传入受控值、标签与内容，不复制触发器的选中、
+  Hover、Focus、Disabled 样式，也不使用普通按钮组替代 Tabs 键盘语义。
 - 表格或列表底部分页使用 `Pagination`；传入 `pageSizeOptions` 与 `onPageSizeChange` 时显示每页条数切换，否则只保留页码导航。分页器独立于表格容器，不带顶部分隔线。
 
 ## 新增组件

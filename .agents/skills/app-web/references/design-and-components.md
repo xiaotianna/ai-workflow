@@ -28,6 +28,29 @@
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
 
+## 模型管理
+
+- `/models` 的业务界面放在 `features/models`，页面只管理模型组集合与弹窗开关；模型组表单
+  使用统一 Zod、`useFormData` 和 `validateFormByZod` 方案。
+- OpenAI、DeepSeek、Ollama 等供应商的名称、图标、默认地址、配置字段、API 文档地址、默认
+  模型和建组行为由 `provider-strategies.ts` 的策略注册表统一提供；新增供应商时注册新策略，
+  不在页面、手风琴或弹窗中增加供应商类型分支。
+- 模型组列表使用可多项展开的手风琴；模型组与模型项分别保留独立启用状态，关闭模型组不覆盖
+  各模型项原有状态。模型组默认折叠；模型组头部和模型项整行只在鼠标 Hover 时使用
+  `bg-input`，展开、选中或控件获得焦点时不保留整行背景；行内普通图标按钮的 Hover 与
+  Focus visible 使用更深一级的 `bg-button-secondary-bg-active`，危险按钮继续使用 destructive
+  状态，确保局部按钮不会与整行背景混在一起。键盘焦点由实际控件自身的文字或局部状态表达。
+  展开折叠、组新增与删除使用 Motion，并通过 `MotionConfig` 遵循系统减少动态效果设置。
+- 新增和编辑复用同一模型组 Dialog；模型组名称与供应商类型固定展示，供应商配置表单根据策略
+  声明的字段动态渲染（OpenAI、DeepSeek 为可选 Base URL 与 Key，Ollama 为可选 Base URL）。
+  配置项下方展示当前供应商的 API 文档链接，使用主题色、外链图标并在新窗口打开，不在 Base
+  URL 下显示默认值提示。模型列表支持动态添加、删除模型 ID 和可选显示名称。Dialog 提供
+  “测试连通性”按钮，由当前供应商策略决定探测地址；测试只验证服务可达性，不携带 Key，测试中
+  状态不写入表单值，结果使用 Toast 反馈。删除模型组需先展示确认 Dialog。
+- 模型页工具栏左侧使用 `@ai-workflow/ui/components/tabs` 在“对话”和“嵌入”之间切换，
+  右侧放置“新增模型组”并保持水平对齐；两类模型组使用相互独立的页面状态，当前分类由
+  `tab=chat|embedding` 查询参数驱动。
+
 ## 知识库文档表格
 
 参考实现：`features/knowledge-base/components/document-table.tsx`、`document-action-menu.tsx`、`document-pagination.tsx`。
