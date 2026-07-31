@@ -167,8 +167,10 @@
   `NodeType.configRenderer` 声明，由
   `@ai-workflow/form/components/node-config-section` 的 `NodeConfigSection` 从注册表选择
   受控 renderer；Web 只透传 config、错误、上游变量和变更回调，不按节点类型分支。
-  依赖 Web API 的业务 renderer 由 `features/workflow/node-config-renderers` 集中注册并通过
-  `NodeConfigSection.renderers` 注入；LLM 模型选择器属于该扩展，不将模型 API 下沉到 Form。
+  依赖 Web API 的业务 renderer 由 `features/workflow/node-config-renderers` 集中注册；字段级
+  renderer 通过 `NodeConfigFields.renderers` 注入，完整表单通过 `NodeConfigSection.renderers`
+  注入。LLM 已通过 `llmNodeForm` 拆为两个字段：模型选择器使用 `LLM_MODEL` 并留在 Web，
+  上下文使用 Form 内置的 `CONTEXT_MESSAGES`；模型 API 不下沉到 Form。
   配置面板通过 Core `resolveNodeVariableForm` 解析
   `NodeType.variableForm`，再使用
   `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、

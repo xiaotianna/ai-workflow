@@ -18,6 +18,7 @@ import {
   builtinFields,
   CodeField,
   ConditionBranchesField,
+  ContextMessagesField,
   NumberField,
   SelectField,
   SliderField,
@@ -30,6 +31,7 @@ import {
   RequestBodyField,
   type AnyFieldRenderer,
   type ConditionBranchesFieldValue,
+  type ContextMessagesFieldValue,
   type EditableTableColumn,
   type FieldRenderer,
   type FieldRendererProps,
@@ -97,6 +99,7 @@ src/config/
 src/fields/
 ├── code-field/
 ├── condition-branches-field/
+├── context-messages-field/
 ├── editable-table-field/
 ├── key-value-table-field/
 ├── number-field/
@@ -134,8 +137,8 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 
 `NodeConfigSection` 读取 Core `NodeType.configRenderer` 声明的名称，从整节点配置 renderer
 注册表选择受控组件，并统一透传当前 `config`、Zod 错误、上游变量候选和完整配置变更回调。
-当前 LLM 由 Web 注入该入口；该能力继续为无法按顶层字段拆分的完整表单和第三方插件保留。
-HTTP 与 Condition 已迁移为字段级 form，不再通过整节点 renderer 重复组合配置字段。
+当前内置节点均已使用字段级 form；该能力继续为无法按顶层字段拆分的完整表单和第三方插件
+保留。HTTP、Condition 与 LLM 不再通过整节点 renderer 重复组合配置字段。
 内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
 通过可选 `renderers` 注入扩展时，名称必须与 Core 声明一致。需要 API、路由或其他应用
 业务数据的 renderer 必须使用该注入入口留在应用层，Form 不请求数据或反向依赖应用。
@@ -185,10 +188,10 @@ Core `DataType` 的受控选择统一复用公开组件 `DataTypeSelect`；组�
 ## 内置映射
 
 `src/fields/builtin-fields.ts` 直接复用 Core 的 `FIELD_UI_TYPES`，不重复声明枚举或维护
-`FieldValueByUI`：
+`FieldValueByUI`。映射允许缺少必须由应用注入的字段类型：
 
 ```ts
-export const builtinFields = {
+export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRenderer>>> = {
   [FIELD_UI_TYPES.TEXT]: TextField,
   [FIELD_UI_TYPES.NUMBER]: NumberField,
   [FIELD_UI_TYPES.TEXTAREA]: TextareaField,
@@ -199,10 +202,12 @@ export const builtinFields = {
   [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableField,
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
-} satisfies Record<FieldUIType, AnyFieldRenderer>
+  [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+}
 ```
 
-- `Record<FieldUIType, AnyFieldRenderer>` 保证 Core 每个字段 UI 枚举都有 renderer。
+- 平台无业务依赖的字段由 `builtinFields` 提供；`LLM_MODEL` 依赖 Web 模型目录，必须通过
+  `NodeConfigFields.renderers` 注入，不在 Form 中提供占位实现。
 - `AnyFieldRenderer` 只用于异构组件 map 的动态边界。
 - 每个组件通过 `FieldRendererProps<TField, TValue>` 保留具体 schema 和值类型，例如
   `NumberField` 使用 `FieldRendererProps<NumberFieldSchema, number>`。
@@ -266,6 +271,12 @@ export const builtinFields = {
   不改变整个规则背景，也不在分割线外叠加控件边框。`为空`和`不为空`切换时删除右值，其余
   运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。节点配置
   写回、动态端口解析、失效 Edge 清理与 Handle 刷新仍由 Web 和 Core 的通用链路负责。
+- `ContextMessagesField` 是 `FIELD_UI_TYPES.CONTEXT_MESSAGES` 对应的字段 renderer，只接收和
+  回写 `messages` 数组。组件通过 `Form.Field.actions` 新增带稳定 ID 的消息，继续复用
+  `NodeVariablePicker` 与 UI `TiptapEditor` 插入序列化变量 token，并按字段名从完整错误映射派生
+  每条消息的内容错误；角色、删除、禁用态、至少保留一条消息以及 Motion 过渡行为保持在同一
+  受控字段内。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
+  错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
   默认值元数据。默认输入与默认输出变量区都使用 UI `Form.Field` 统一标题、说明、内容间距

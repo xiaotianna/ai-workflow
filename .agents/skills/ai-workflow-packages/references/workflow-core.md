@@ -53,17 +53,18 @@ Nodes UI 保持 schema 和组件类型关联。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
-  `code_editor`、`key_value_table`、`request_body` 和 `condition_branches` 作为字段 schema
-  的唯一判别值，不再同时声明数据 `type` 和 `ui`。
+  `code_editor`、`key_value_table`、`request_body`、`condition_branches`、`llm_model` 和
+  `context_messages` 作为字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
-  `KeyValueTableFieldSchema`、`RequestBodyFieldSchema` 和 `ConditionBranchesFieldSchema` 都继承
-  `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
+  `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionBranchesFieldSchema`、
+  `LlmModelFieldSchema` 和 `ContextMessagesFieldSchema` 都继承 `BaseFieldSchema`。
+  `NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
-- 当前 `loop`、`code`、`rag`、`http` 和 `condition` 已声明通用节点配置 form；Code 使用
+- 当前 `loop`、`code`、`rag`、`http`、`condition` 和 `llm` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
   语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
   表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
@@ -71,8 +72,10 @@ Nodes UI 保持 schema 和组件类型关联。
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于
   `@ai-workflow/form`，需要应用业务数据的 renderer 由应用通过 `NodeConfigSection.renderers`
-  注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
-- LLM 通过 `LLM` 专属 renderer 编辑模型与“上下文”；`config.messages` 按顺序保存带稳定 `id` 的
+  注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。当前内置节点均已
+  使用字段级 form，`NODE_CONFIG_RENDERER_TYPES` 保留为空注册表，扩展机制本身继续保留。
+- LLM 通过 `llmNodeForm` 按顺序声明 `LLM_MODEL` 与 `CONTEXT_MESSAGES`。模型字段由 Web 注入
+  renderer，上下文字段由 Form 内置 renderer 提供；`config.messages` 按顺序保存带稳定 `id` 的
   `system`、`assistant`、`user` 消息及纯字符串内容，至少保留一条且消息内容不能为空。旧版
   `config.prompt` 在 schema 解析时自动迁移为 SYSTEM 消息，不在解析结果中继续保留 Prompt 字段。
   `config.model` 保存稳定的 `groupId`、`configuredModelId` 和可选 `parameters`。参数 schema

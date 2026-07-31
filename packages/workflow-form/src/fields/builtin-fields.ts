@@ -2,6 +2,7 @@ import { FIELD_UI_TYPES, type FieldUIType } from '@ai-workflow/core'
 import type { AnyFieldRenderer } from '../contracts/field-renderer'
 import { CodeField } from './code-field'
 import { ConditionBranchesField } from './condition-branches-field'
+import { ContextMessagesField } from './context-messages-field'
 import { KeyValueTableField } from './key-value-table-field'
 import { NumberField } from './number-field'
 import { RequestBodyField } from './request-body-field'
@@ -13,7 +14,7 @@ import { TextareaField } from './textarea-field'
 
 export { FIELD_UI_TYPES }
 
-export const builtinFields = {
+export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRenderer>>> = {
   [FIELD_UI_TYPES.TEXT]: TextField,
   [FIELD_UI_TYPES.NUMBER]: NumberField,
   [FIELD_UI_TYPES.TEXTAREA]: TextareaField,
@@ -24,4 +25,5 @@ export const builtinFields = {
   [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableField,
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
-} satisfies Record<FieldUIType, AnyFieldRenderer>
+  [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+}

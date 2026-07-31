@@ -57,6 +57,14 @@ export interface ConditionBranchesFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CONDITION_BRANCHES
 }
 
+export interface LlmModelFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.LLM_MODEL
+}
+
+export interface ContextMessagesFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.CONTEXT_MESSAGES
+}
+
 export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.TEXT]: TextFieldSchema
   [FIELD_UI_TYPES.NUMBER]: NumberFieldSchema
@@ -68,6 +76,8 @@ export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableFieldSchema
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyFieldSchema
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesFieldSchema
+  [FIELD_UI_TYPES.LLM_MODEL]: LlmModelFieldSchema
+  [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesFieldSchema
 }
 
 export type FieldSchema<TUI extends FieldUIType = FieldUIType> = FieldSchemaByUI[TUI]

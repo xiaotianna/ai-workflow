@@ -1,8 +1,11 @@
-import { NODE_CONFIG_RENDERER_TYPES } from '@ai-workflow/core'
+import { FIELD_UI_TYPES } from '@ai-workflow/core'
+import type { NodeConfigFieldRendererMap } from '@ai-workflow/form/components/node-config-fields'
 import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 
-import { LlmNodeConfigEditor } from './llm'
+import { LlmModelField } from './llm-model-field'
 
-export const builtinWorkflowNodeConfigRenderers = {
-  [NODE_CONFIG_RENDERER_TYPES.LLM]: LlmNodeConfigEditor,
-} satisfies NodeConfigRendererMap
+export const builtinWorkflowNodeConfigFieldRenderers = {
+  [FIELD_UI_TYPES.LLM_MODEL]: LlmModelField,
+} satisfies NodeConfigFieldRendererMap
+
+export const builtinWorkflowNodeConfigRenderers: NodeConfigRendererMap = {}

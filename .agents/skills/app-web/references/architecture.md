@@ -37,9 +37,10 @@
   `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
   `NodeConfigFields` 只透传字段通用上下文，不请求业务数据。
 - 平台可复用的复杂配置优先建模为字段 UI 类型，并由 `NodeConfigFields` 与字段 renderer
-  registry 分发；依赖 Web API 的字段 renderer 留在 Web，通过 `renderers` 注入。无法按顶层
-  配置字段拆分且需要 API 数据的完整节点配置界面，放在
-  `features/workflow/node-config-renderers`，通过 `NodeConfigSection.renderers` 注入；Core 只保存
+  registry 分发；依赖 Web API 的字段 renderer 留在
+  `features/workflow/node-config-renderers`，通过 `NodeConfigFields.renderers` 注入。LLM 模型字段
+  使用该路径，上下文字段由 Form 内置实现。无法按顶层配置字段拆分且需要 API 数据的完整节点
+  配置界面继续通过同目录的整节点 registry 与 `NodeConfigSection.renderers` 注入；Core 只保存
   renderer 名称和领域 schema，Form 不依赖 Web API。
 - 模型供应商的节点参数能力放在 `features/models/model-parameter-strategies.ts` 注册；工作流
   renderer 和参数 Dialog 只消费策略输出，不复制供应商条件分支。

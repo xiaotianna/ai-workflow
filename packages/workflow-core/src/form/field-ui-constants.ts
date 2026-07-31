@@ -9,6 +9,8 @@ export const FIELD_UI_TYPES = {
   KEY_VALUE_TABLE: 'key_value_table',
   REQUEST_BODY: 'request_body',
   CONDITION_BRANCHES: 'condition_branches',
+  LLM_MODEL: 'llm_model',
+  CONTEXT_MESSAGES: 'context_messages',
 } as const
 
 export type FieldUIType = (typeof FIELD_UI_TYPES)[keyof typeof FIELD_UI_TYPES]

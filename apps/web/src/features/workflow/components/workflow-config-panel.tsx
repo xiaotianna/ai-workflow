@@ -27,7 +27,10 @@ import { z } from 'zod'
 
 import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
 import { resolveNodeFormFields } from '../node-form-resolvers/registry'
-import { builtinWorkflowNodeConfigRenderers } from '../node-config-renderers/builtin'
+import {
+  builtinWorkflowNodeConfigFieldRenderers,
+  builtinWorkflowNodeConfigRenderers,
+} from '../node-config-renderers/builtin'
 import { WorkflowNextStep } from './workflow-next-step'
 
 interface WorkflowConfigPanelProps {
@@ -322,7 +325,7 @@ export const WorkflowConfigPanel = ({
               <Separator className="bg-border/50 mt-5 mb-3" />
             ) : null}
 
-            {/* 复杂配置使用节点声明的专属renderer，普通字段继续使用schema字段映射 */}
+            {/* 完整配置使用专属 renderer；字段配置统一按 field.ui 分发。 */}
             {configRenderer ? (
               <div className="px-5">
                 <NodeConfigSection
@@ -338,6 +341,7 @@ export const WorkflowConfigPanel = ({
               <div className="px-5">
                 <NodeConfigFields
                   fields={formFields}
+                  renderers={builtinWorkflowNodeConfigFieldRenderers}
                   values={form.config}
                   errors={errors}
                   availableVariables={availableVariables}

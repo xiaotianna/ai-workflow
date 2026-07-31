@@ -15,13 +15,14 @@
 当前节点配置面板存在两种配置方式：
 
 1. 普通配置通过 `NodeType.form` 声明字段，并由 `NodeConfigFields` 根据 `field.ui` 选择
-   `@ai-workflow/form` 内置字段 renderer。
+   `@ai-workflow/form` 内置字段 renderer，或选择 Web 通过 `renderers` 注入的平台字段。
 2. 复杂配置通过 `NodeType.configRenderer` 声明专属 renderer 名称，再由
    `NodeConfigSection` 从 renderer map 中选择完整配置表单。
 
 Web 当前在
-`apps/web/src/features/workflow/node-config-renderers/builtin.ts` 中注册需要 Web API 或应用上下文的
-第一方 renderer，例如 LLM 节点配置表单。
+`apps/web/src/features/workflow/node-config-renderers/builtin.ts` 中分别维护需要 Web API 或应用
+上下文的第一方字段 renderer 与整节点 renderer。LLM 模型选择器属于字段 renderer；当前第一方
+整节点 registry 为空，但继续保留给无法按顶层配置字段拆分的后续能力。
 
 如果把插件节点需要的变量选择、远程数据请求和复杂交互继续拆进普通 field，可能产生以下问题：
 
@@ -38,7 +39,7 @@ Web 当前在
 
 现有 Core、Form、Web 分层保持不变，后续只增加插件模块加载和 renderer 注册适配：
 
-- `form.ui`：平台维护的标准字段类型。
+- `form.ui`：平台维护的标准字段类型，可由 Form 内置或由 Web 字段 registry 注入。
 - `configRenderer`：第一方或第三方接管完整节点配置表单的扩展点。
 - `NodeConfigRendererProps.availableVariables`：宿主向表单提供当前节点可用的变量候选。
 - `onConfigChange`：配置表单写回节点配置的唯一入口。
@@ -67,12 +68,12 @@ Web 当前在
 这些字段由 `NodeConfigFields` 和 `builtinFields` 统一维护，适合简单、稳定、无应用业务依赖的
 受控字段。
 
-第三方只传入一个自定义 `form.ui` 字符串并不足以完成扩展，因为当前还需要同时修改：
+第三方只传入一个自定义 `form.ui` 字符串并不足以完成扩展。`NodeConfigFields` 虽然支持宿主注入
+renderer，但插件字段仍需要同时解决：
 
 - Core 的 `FieldUIType` 联合类型。
 - `FieldSchemaByUI` 的 schema 映射。
-- Form 的 `builtinFields` 映射。
-- `NodeConfigFields` 的 renderer 查找逻辑。
+- 宿主字段 registry 的命名空间、冲突与卸载。
 - 自定义字段所需的变量、请求客户端等运行时依赖。
 
 这会把插件业务重新耦合进平台字段协议。

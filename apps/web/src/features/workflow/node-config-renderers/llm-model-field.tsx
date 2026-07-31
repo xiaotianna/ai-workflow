@@ -1,12 +1,10 @@
 import {
-  LLM_CONTEXT_MESSAGE_ROLE_VALUES,
   llmModelSchema,
-  llmNodeSchema,
-  type LlmContextMessageInput,
   type LlmModelConfig,
+  type LlmModelFieldSchema,
   type LlmModelParametersInput,
 } from '@ai-workflow/core'
-import type { NodeConfigRendererProps } from '@ai-workflow/form/components/node-config-section'
+import type { FieldRendererProps } from '@ai-workflow/form'
 import { Badge } from '@ai-workflow/ui/components/badge'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
@@ -20,14 +18,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Plus, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 import { type ModelGroupDto, type ModelProviderType } from '@/api/models'
 import { useWorkflowModelCatalog } from '@/components/workflow/workflow-model-catalog-context'
 import { getModelProviderStrategy } from '@/features/models'
 
-import { ContextMessagesEditor } from './context-messages-editor'
 import { LlmModelParametersDialog } from './llm-model-parameters-dialog'
 
 interface AvailableModelOption {
@@ -46,31 +43,12 @@ interface AvailableModelGroup {
   providerType: ModelProviderType
 }
 
-function getModelReference(config: Readonly<Record<string, unknown>>): LlmModelConfig {
-  const result = llmModelSchema.safeParse(config.model)
+type LlmModelFieldProps = FieldRendererProps<LlmModelFieldSchema, LlmModelConfig>
+
+function getModelReference(value: unknown): LlmModelConfig {
+  const result = llmModelSchema.safeParse(value)
 
   return result.success ? result.data : llmModelSchema.parse({})
-}
-
-function isContextMessage(value: unknown): value is LlmContextMessageInput {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
-
-  const message = value as Record<string, unknown>
-
-  return (
-    typeof message.id === 'string' &&
-    typeof message.content === 'string' &&
-    typeof message.role === 'string' &&
-    LLM_CONTEXT_MESSAGE_ROLE_VALUES.includes(message.role as LlmContextMessageInput['role'])
-  )
-}
-
-function getContextMessages(config: Readonly<Record<string, unknown>>): LlmContextMessageInput[] {
-  if (Array.isArray(config.messages)) return config.messages.filter(isContextMessage)
-
-  const result = llmNodeSchema.safeParse(config)
-
-  return result.success ? result.data.messages : llmNodeSchema.parse({}).messages
 }
 
 function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableModelGroup[] {
@@ -105,16 +83,10 @@ function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableMod
   })
 }
 
-export function LlmNodeConfigEditor({
-  config,
-  availableVariables = [],
-  disabled,
-  errors,
-  onConfigChange,
-}: NodeConfigRendererProps) {
+export function LlmModelField({ field, value, error, disabled, onChange }: LlmModelFieldProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const { loadError, loading, modelGroups, reload } = useWorkflowModelCatalog()
-  const modelReference = getModelReference(config)
+  const modelReference = getModelReference(value)
   const availableModelGroups = getAvailableModelGroups(modelGroups)
   const availableModels = availableModelGroups.flatMap((group) => group.models)
   const selectedModel = availableModels.find(
@@ -122,41 +94,33 @@ export function LlmNodeConfigEditor({
       model.groupId === modelReference.groupId &&
       model.configuredModelId === modelReference.configuredModelId,
   )
-  const messages = getContextMessages(config)
   const hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
-  const modelError =
-    errors?.model ?? errors?.['model.groupId'] ?? errors?.['model.configuredModelId']
 
   function handleModelChange(configuredModelId: string) {
     const nextModel = availableModels.find((model) => model.configuredModelId === configuredModelId)
     if (!nextModel) return
 
-    onConfigChange({
-      ...config,
-      model: {
-        groupId: nextModel.groupId,
-        configuredModelId: nextModel.configuredModelId,
-        parameters: {},
-      },
+    onChange({
+      groupId: nextModel.groupId,
+      configuredModelId: nextModel.configuredModelId,
+      parameters: {},
     })
   }
 
   function handleSaveModelParameters(parameters: LlmModelParametersInput) {
-    onConfigChange({
-      ...config,
-      model: {
-        ...modelReference,
-        parameters,
-      },
+    onChange({
+      ...modelReference,
+      parameters,
     })
   }
 
   return (
-    <div className="space-y-3">
+    <>
       <Form.Field
-        required
-        label="模型"
-        error={modelError}
+        label={field.label}
+        description={field.description}
+        error={error}
+        required={field.required}
         actions={
           loadError ? (
             <Button
@@ -179,8 +143,8 @@ export function LlmNodeConfigEditor({
             onValueChange={handleModelChange}
           >
             <SelectTrigger
-              aria-label="对话模型"
-              aria-invalid={Boolean(modelError)}
+              aria-label={field.label}
+              aria-invalid={Boolean(error)}
               className="h-9 min-w-0 flex-1 rounded-r-none bg-transparent hover:z-10 focus-visible:z-10"
             >
               <SelectValue
@@ -252,50 +216,6 @@ export function LlmNodeConfigEditor({
         </div>
       </Form.Field>
 
-      <Form.Field
-        required
-        label="上下文"
-        error={errors?.messages}
-        actions={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="text-muted-foreground"
-            disabled={disabled}
-            aria-label="添加上下文消息"
-            onClick={() =>
-              onConfigChange({
-                ...config,
-                messages: [
-                  ...messages,
-                  {
-                    id: crypto.randomUUID(),
-                    role: 'user',
-                    content: '',
-                  },
-                ],
-              })
-            }
-          >
-            <Plus className="size-4" aria-hidden />
-          </Button>
-        }
-      >
-        <ContextMessagesEditor
-          messages={messages}
-          availableVariables={availableVariables}
-          errors={errors}
-          disabled={disabled}
-          onChange={(nextMessages) =>
-            onConfigChange({
-              ...config,
-              messages: nextMessages,
-            })
-          }
-        />
-      </Form.Field>
-
       {settingsOpen && selectedModel ? (
         <LlmModelParametersDialog
           open
@@ -307,7 +227,7 @@ export function LlmNodeConfigEditor({
           onSave={handleSaveModelParameters}
         />
       ) : null}
-    </div>
+    </>
   )
 }
 

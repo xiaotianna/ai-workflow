@@ -1,6 +1,6 @@
 # 节点配置字段级 Renderer 重构清单
 
-> 状态：HTTP、Condition 已完成字段级重构；LLM 待后续重构。
+> 状态：已完成。HTTP、Condition、LLM 均已迁移为字段级 renderer。
 
 ## 1. 重构目标
 
@@ -72,26 +72,29 @@ Condition 的配置对象只有 `conditions` 一个顶层字段，现在通过
 不变边界：`conditionNode.resolvePorts()` 仍属于 Core，字段 renderer 不负责 Edge 或端口清理；
 Web 在合法配置写回节点后继续统一清理失效端口 Edge 并刷新 Handle。
 
-### 3.2 LlmNodeConfigEditor
+### 3.2 LLM（已完成）
 
 当前文件：
 
-- `apps/web/src/features/workflow/node-config-renderers/llm.tsx`
-- `apps/web/src/features/workflow/node-config-renderers/context-messages-editor.tsx`
+- `packages/workflow-core/src/nodes/llm/form.ts`
+- `apps/web/src/features/workflow/node-config-renderers/llm-model-field.tsx`
+- `packages/workflow-form/src/fields/context-messages-field/index.tsx`
 - `packages/workflow-core/src/nodes/llm/index.ts`
 
-问题：LLM renderer 同时编辑 `model` 和 `messages` 两个独立顶层字段。模型字段依赖 Web 模型目录，
-上下文字段只依赖 Core、Form、UI 和上游变量；当前整节点接管把两种依赖强制绑定在同一组件中。
+LLM 现在通过 `llmNodeForm` 按顺序声明 `model` 和 `messages`。两个字段继续共用
+`NodeConfigFields` 的统一数据流，但按依赖边界使用不同注册位置，不再由整节点 renderer
+同时接管。
 
-目标：
+已完成：
 
 1. 新增 `llmNodeForm`，按顺序声明 `model` 和 `messages`。
-2. `model` 使用稳定字段类型，例如 `LLM_MODEL`。字段 renderer 留在 Web，通过
-   `NodeConfigFields.renderers` 注入，因为它依赖模型 API、模型目录 Context 和供应商展示策略。
-3. `messages` 使用稳定字段类型，例如 `CONTEXT_MESSAGES`。把上下文编辑器迁入
-   `@ai-workflow/form`，继续复用 `NodeVariablePicker`、Tiptap 和 Motion。
-4. 模型参数 Dialog 继续作为模型字段内部的临时子表单，不提升为节点顶层字段。
-5. 两个字段完成迁移后删除 LLM 的 `configRenderer`、`LlmNodeConfigEditor` 和 Web 整节点注册项。
+2. `model` 使用稳定字段类型 `LLM_MODEL`。`LlmModelField` 留在 Web，并通过
+   `NodeConfigFields.renderers` 注入，继续消费模型目录 Context、模型 API 状态和供应商展示策略。
+3. `messages` 使用稳定字段类型 `CONTEXT_MESSAGES`。`ContextMessagesField` 已迁入
+   `@ai-workflow/form`，继续复用 `NodeVariablePicker`、Tiptap、Motion、上游变量和嵌套错误。
+4. 模型参数 Dialog 仍是模型字段内部的临时子表单，没有提升为节点顶层字段。
+5. 已删除 LLM 的 `configRenderer`、`NODE_CONFIG_RENDERER_TYPES.LLM`、`LlmNodeConfigEditor`、
+   Web 整节点注册项和旧 `ContextMessagesEditor`，不存在双轨实现。
 
 `configRenderer` 机制本身继续保留，用于无法按顶层配置字段拆分的完整动态表单，以及需要完整
 接管节点配置界面的第三方插件；完成内置节点迁移不等于删除该扩展能力。
@@ -119,12 +122,11 @@ Web 在合法配置写回节点后继续统一清理失效端口 Edge 并刷新 
 9. `label` 可以修改、重复或国际化；注册表只使用稳定的 `ui` 标识。
 10. 删除整节点 renderer 前，必须同步清理 Core 常量、Form/Web 注册表、公开导出和技能文档。
 
-## 6. 后续验收标准
+## 6. 验收结果
 
-- Condition 的 `conditions` 已能在 `NodeType.form` 中看到；LLM 完成后，其所有顶层配置键也应
-  在 `NodeType.form` 中看到。
+- HTTP、Condition、LLM 的所有顶层配置键都能在对应 `NodeType.form` 中看到。
 - 普通字段与复杂字段由同一个 `NodeConfigFields` 按声明顺序渲染。
-- Web 配置面板不按节点类型增加 JSX 分支。
-- 字段级 renderer 只更新自己的配置键。
+- Web 配置面板没有增加节点类型 JSX 分支；Web 数据字段通过字段 registry 注入。
+- 每个字段级 renderer 只更新自己的配置键。
 - 原有变量插入、嵌套错误、禁用态、动态端口和模型加载行为保持不变。
-- 对应整节点 renderer、注册项和失效类型全部删除，无双轨实现。
+- 对应整节点 renderer、注册项和失效类型已删除，无双轨实现。
