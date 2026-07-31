@@ -19,10 +19,15 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { showToast } from '@ai-workflow/ui/lib/toast'
-import { Plus, Trash2 } from 'lucide-react'
+import { Cable, Plus, Trash2 } from 'lucide-react'
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 
-import { testModelConnection, type ModelConnectionTestResult } from '@/api/models'
+import {
+  testModel,
+  testModelConnection,
+  type ModelConnectionTestResult,
+  type ModelType,
+} from '@/api/models'
 
 import { getModelProviderStrategy, modelProviderStrategies } from '../provider-strategies'
 import {
@@ -30,6 +35,7 @@ import {
   createEmptyModelItem,
   modelConnectionFormSchema,
   modelGroupFormSchema,
+  modelTestFormSchema,
   toModelGroupFormInput,
   type ModelGroup,
   type ModelGroupFormInput,
@@ -40,22 +46,32 @@ import {
 import { ModelProviderConfiguration } from './model-provider-configuration'
 
 const CONNECTION_TEST_TIMEOUT_MS = 10_000
+const MODEL_TEST_TIMEOUT_MS = 35_000
 
 interface ModelGroupDialogProps {
   group?: ModelGroup
+  modelType: ModelType
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (input: ModelGroupInput) => Promise<void>
 }
 
-export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGroupDialogProps) {
+export function ModelGroupDialog({
+  group,
+  modelType,
+  open,
+  onOpenChange,
+  onSave,
+}: ModelGroupDialogProps) {
   const { form, setForm, updateForm, updateFormField, resetForm } =
     useFormData<ModelGroupFormInput>(createEmptyModelGroupForm())
   const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
   const [submitted, setSubmitted] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isTestingConnection, setIsTestingConnection] = useState(false)
+  const [testingModelIndex, setTestingModelIndex] = useState<number | null>(null)
   const connectionTestControllerRef = useRef<AbortController | null>(null)
+  const modelTestControllerRef = useRef<AbortController | null>(null)
   const validationResult = validateFormByZod(modelGroupFormSchema, form)
   const connectionValidationResult = validateFormByZod(modelConnectionFormSchema, {
     providerType: form.providerType,
@@ -70,16 +86,20 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
 
     connectionTestControllerRef.current?.abort()
     connectionTestControllerRef.current = null
+    modelTestControllerRef.current?.abort()
+    modelTestControllerRef.current = null
     setForm(group ? toModelGroupFormInput(group) : createEmptyModelGroupForm())
     setTouchedFields({})
     setSubmitted(false)
     setIsSaving(false)
     setIsTestingConnection(false)
+    setTestingModelIndex(null)
   }, [group, open, setForm])
 
   useEffect(
     () => () => {
       connectionTestControllerRef.current?.abort()
+      modelTestControllerRef.current?.abort()
     },
     [],
   )
@@ -96,6 +116,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
   }
 
   function updateModel(index: number, values: Partial<ModelItemFormInput>) {
+    cancelModelTest()
     updateFormField('models', (models) =>
       models.map((model, modelIndex) =>
         modelIndex === index
@@ -128,8 +149,15 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     setIsTestingConnection(false)
   }
 
+  function cancelModelTest() {
+    modelTestControllerRef.current?.abort()
+    modelTestControllerRef.current = null
+    setTestingModelIndex(null)
+  }
+
   function resetDialogForm() {
     cancelConnectionTest()
+    cancelModelTest()
     resetForm()
     setTouchedFields({})
     setSubmitted(false)
@@ -137,7 +165,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
   }
 
   function handleOpenChange(nextOpen: boolean) {
-    if (!nextOpen && (isSaving || isTestingConnection)) return
+    if (!nextOpen && (isSaving || isTestingConnection || testingModelIndex !== null)) return
     if (!nextOpen) resetDialogForm()
     onOpenChange(nextOpen)
   }
@@ -181,20 +209,11 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
     }, CONNECTION_TEST_TIMEOUT_MS)
 
     try {
-      const credentialGroupId =
-        group &&
-        group.providerType === result.data.providerType &&
-        group.maskedApiKey &&
-        result.data.apiKey === group.maskedApiKey
-          ? group.id
-          : undefined
-
       const connectionResult = await testModelConnection(
         {
           providerType: result.data.providerType,
           baseUrl: result.data.baseUrl ?? null,
-          ...(result.data.apiKey && !credentialGroupId ? { apiKey: result.data.apiKey } : {}),
-          ...(credentialGroupId ? { credentialGroupId } : {}),
+          ...getCredentialTestParams(group, result.data.providerType, result.data.apiKey),
         },
         controller.signal,
       )
@@ -211,6 +230,63 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
       if (connectionTestControllerRef.current === controller) {
         connectionTestControllerRef.current = null
         setIsTestingConnection(false)
+      }
+    }
+  }
+
+  async function handleTestModel(index: number) {
+    const model = form.models[index]
+    if (!model) return
+
+    const result = validateFormByZod(modelTestFormSchema, {
+      providerType: form.providerType,
+      baseUrl: form.baseUrl,
+      apiKey: form.apiKey,
+      modelId: model.modelId,
+    })
+    if (!result.success) return
+
+    cancelModelTest()
+
+    const controller = new AbortController()
+    let didTimeout = false
+    modelTestControllerRef.current = controller
+    setTestingModelIndex(index)
+
+    const timeoutId = globalThis.setTimeout(() => {
+      didTimeout = true
+      controller.abort()
+    }, MODEL_TEST_TIMEOUT_MS)
+
+    try {
+      const modelResult = await testModel(
+        {
+          providerType: result.data.providerType,
+          baseUrl: result.data.baseUrl ?? null,
+          modelId: result.data.modelId,
+          ...getCredentialTestParams(group, result.data.providerType, result.data.apiKey),
+        },
+        controller.signal,
+      )
+
+      if (modelTestControllerRef.current !== controller) return
+
+      const latency = `${modelResult.latencyMs}ms`
+      showToast(
+        modelResult.available ? 'success' : 'error',
+        modelResult.available
+          ? `${result.data.modelId} 模型可用（${latency}）`
+          : `${result.data.modelId}：${modelResult.message}（${latency}）`,
+      )
+    } catch {
+      if (controller.signal.aborted && !didTimeout) return
+      if (didTimeout) showToast('error', `${result.data.modelId}：模型响应超时`)
+    } finally {
+      globalThis.clearTimeout(timeoutId)
+
+      if (modelTestControllerRef.current === controller) {
+        modelTestControllerRef.current = null
+        setTestingModelIndex(null)
       }
     }
   }
@@ -248,6 +324,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                     value={form.providerType}
                     onValueChange={(value) => {
                       cancelConnectionTest()
+                      cancelModelTest()
                       updateForm({
                         providerType: value as ModelProviderType,
                         baseUrl: '',
@@ -284,6 +361,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                 onFieldBlur={markFieldTouched}
                 onFieldChange={(name, value) => {
                   cancelConnectionTest()
+                  cancelModelTest()
                   updateFormField(name, value)
                 }}
               />
@@ -305,11 +383,21 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                   const displayNamePath = `models.${index}.displayName`
                   const modelIdError = getFieldError(modelIdPath)
                   const displayNameError = getFieldError(displayNamePath)
+                  const modelTestValidationResult = validateFormByZod(modelTestFormSchema, {
+                    providerType: form.providerType,
+                    baseUrl: form.baseUrl,
+                    apiKey: form.apiKey,
+                    modelId: model.modelId,
+                  })
 
                   return (
                     <div
                       key={index}
-                      className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]"
+                      className={
+                        modelType === 'chat'
+                          ? 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto_auto]'
+                          : 'grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto]'
+                      }
                     >
                       <div className="min-w-0">
                         <Input
@@ -349,12 +437,33 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                         ) : null}
                       </div>
 
+                      {modelType === 'chat' ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          aria-label={`测试模型 ${model.modelId || index + 1} 连通性`}
+                          aria-busy={testingModelIndex === index}
+                          disabled={
+                            isSaving ||
+                            isTestingConnection ||
+                            testingModelIndex !== null ||
+                            !modelTestValidationResult.success
+                          }
+                          onClick={() => {
+                            void handleTestModel(index)
+                          }}
+                        >
+                          <Cable aria-hidden />
+                        </Button>
+                      ) : null}
+
                       <Button
                         type="button"
                         variant="ghost"
                         size="icon"
                         aria-label={`在模型 ${index + 1} 后添加模型`}
-                        disabled={form.models.length >= 30}
+                        disabled={form.models.length >= 30 || testingModelIndex !== null}
                         onClick={() => addModel(index)}
                       >
                         <Plus aria-hidden />
@@ -365,7 +474,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                         variant="ghost"
                         size="icon"
                         aria-label={`删除模型 ${index + 1}`}
-                        disabled={form.models.length === 1}
+                        disabled={form.models.length === 1 || testingModelIndex !== null}
                         onClick={() => removeModel(index)}
                         className="text-destructive hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive"
                       >
@@ -383,7 +492,12 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
               type="button"
               variant="secondary"
               size="sm"
-              disabled={isSaving || isTestingConnection || !connectionValidationResult.success}
+              disabled={
+                isSaving ||
+                isTestingConnection ||
+                testingModelIndex !== null ||
+                !connectionValidationResult.success
+              }
               onClick={handleTestConnection}
             >
               {isTestingConnection ? '测试中...' : '测试连通性'}
@@ -393,7 +507,7 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
                 type="button"
                 variant="secondary"
                 size="sm"
-                disabled={isSaving || isTestingConnection}
+                disabled={isSaving || isTestingConnection || testingModelIndex !== null}
               >
                 取消
               </Button>
@@ -402,7 +516,12 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
               type="submit"
               variant="confirm"
               size="sm"
-              disabled={isSaving || isTestingConnection || !validationResult.success}
+              disabled={
+                isSaving ||
+                isTestingConnection ||
+                testingModelIndex !== null ||
+                !validationResult.success
+              }
             >
               {isSaving ? '保存中...' : group ? '保存' : '创建'}
             </Button>
@@ -411,6 +530,18 @@ export function ModelGroupDialog({ group, open, onOpenChange, onSave }: ModelGro
       </DialogContent>
     </Dialog>
   )
+}
+
+function getCredentialTestParams(
+  group: ModelGroup | undefined,
+  providerType: ModelProviderType,
+  apiKey: string | undefined,
+): { apiKey?: string; credentialGroupId?: string } {
+  if (group?.providerType === providerType && group.maskedApiKey && apiKey === group.maskedApiKey) {
+    return { credentialGroupId: group.id }
+  }
+
+  return apiKey ? { apiKey } : {}
 }
 
 function showConnectionTestResult(providerLabel: string, result: ModelConnectionTestResult) {

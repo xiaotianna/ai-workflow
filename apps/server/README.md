@@ -152,6 +152,8 @@ apps/server/
 - `PATCH /models/groups/:groupId/models/:modelId/enabled`：启停单模型。
 - `POST /models/test-connection`：通过 OpenAI/DeepSeek 的 `GET /models` 或 Ollama 的
   `GET /api/tags` 返回网络、认证、响应结构和耗时结果。
+- `POST /models/test-model`：向指定对话模型发送最小流式消息；收到首个有效消息片段后立即断开
+  上游流，失败时优先返回上游响应中的核心错误信息。
 
 模型组响应不会返回 Key 明文；已配置凭证时只返回 `maskedApiKey`，格式固定为前 4 位、`***`
 和后 4 位。

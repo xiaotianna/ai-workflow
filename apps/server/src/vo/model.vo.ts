@@ -53,3 +53,11 @@ export interface ModelConnectionTestVo {
   errorType?: ModelConnectionErrorType
   message: string
 }
+
+export interface ModelTestVo {
+  available: boolean
+  latencyMs: number
+  upstreamStatus?: number
+  errorType?: ModelConnectionErrorType
+  message: string
+}

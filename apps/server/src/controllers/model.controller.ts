@@ -4,6 +4,7 @@ import {
   CreateModelGroupDto,
   ListModelGroupsDto,
   TestModelConnectionDto,
+  TestModelDto,
   UpdateModelEnabledDto,
   UpdateModelGroupDto,
 } from '@/dto/model.dto'
@@ -14,6 +15,7 @@ import type {
   ModelEnabledVo,
   ModelGroupListVo,
   ModelGroupVo,
+  ModelTestVo,
 } from '@/vo/model.vo'
 import {
   Body,
@@ -111,5 +113,11 @@ export class ModelController {
     @Body() dto: TestModelConnectionDto,
   ): Promise<ModelConnectionTestVo> {
     return this.connectionTestService.test(request.auth.userId, dto)
+  }
+
+  @Post('test-model')
+  @HttpCode(HttpStatus.OK)
+  testModel(@Req() request: AuthenticatedRequest, @Body() dto: TestModelDto): Promise<ModelTestVo> {
+    return this.connectionTestService.testModel(request.auth.userId, dto)
   }
 }

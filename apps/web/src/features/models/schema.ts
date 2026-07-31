@@ -22,9 +22,15 @@ const baseUrlSchema = z
   }, 'Base URL 需要使用 HTTP/HTTPS，且不能包含凭证、查询参数或片段')
   .transform((value) => value || undefined)
 
+const modelIdSchema = z
+  .string()
+  .trim()
+  .min(1, '模型 ID 不能为空')
+  .max(100, '模型 ID 不能超过 100 个字符')
+
 const modelItemFormSchema = z.object({
   id: z.uuid().optional(),
-  modelId: z.string().trim().min(1, '模型 ID 不能为空').max(100, '模型 ID 不能超过 100 个字符'),
+  modelId: modelIdSchema,
   displayName: z
     .string()
     .trim()
@@ -43,6 +49,10 @@ export const modelConnectionFormSchema = z.object({
   providerType: z.enum(MODEL_PROVIDER_TYPES),
   baseUrl: baseUrlSchema,
   apiKey: apiKeySchema,
+})
+
+export const modelTestFormSchema = modelConnectionFormSchema.extend({
+  modelId: modelIdSchema,
 })
 
 export const modelGroupFormSchema = modelConnectionFormSchema

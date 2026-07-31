@@ -145,3 +145,11 @@ export class TestModelConnectionDto {
   @IsOptional()
   credentialGroupId?: string
 }
+
+export class TestModelDto extends TestModelConnectionDto {
+  @Transform(trimString)
+  @MaxLength(100, { message: '模型 ID 不能超过 100 个字符' })
+  @IsNotEmpty({ message: '模型 ID 不能为空' })
+  @IsString({ message: '模型 ID 必须是字符串' })
+  modelId!: string
+}

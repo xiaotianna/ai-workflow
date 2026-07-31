@@ -1,4 +1,9 @@
-import { createProbeUrl, isRecord, type ModelProviderAdapter } from './model-provider.adapter'
+import {
+  createProbeUrl,
+  isRecord,
+  type ModelChatStreamProbe,
+  type ModelProviderAdapter,
+} from './model-provider.adapter'
 
 export class OllamaModelProviderAdapter implements ModelProviderAdapter {
   readonly type = 'ollama'
@@ -9,6 +14,24 @@ export class OllamaModelProviderAdapter implements ModelProviderAdapter {
     return createProbeUrl(baseUrl || this.defaultBaseUrl, 'api/tags')
   }
 
+  createChatStreamProbe(
+    modelId: string,
+    prompt: string,
+    baseUrl?: string | null,
+  ): ModelChatStreamProbe {
+    return {
+      url: createProbeUrl(baseUrl || this.defaultBaseUrl, 'api/chat'),
+      protocol: 'ndjson',
+      body: {
+        model: modelId,
+        messages: [{ role: 'user', content: prompt }],
+        stream: true,
+        think: false,
+      },
+      extractMessage: extractOllamaMessage,
+    }
+  }
+
   isValidResponse(value: unknown): boolean {
     if (!isRecord(value) || !Array.isArray(value.models)) return false
 
@@ -17,4 +40,14 @@ export class OllamaModelProviderAdapter implements ModelProviderAdapter {
         isRecord(model) && (typeof model.model === 'string' || typeof model.name === 'string'),
     )
   }
+}
+
+function extractOllamaMessage(value: unknown): string | undefined {
+  if (!isRecord(value) || !isRecord(value.message)) return undefined
+
+  const message = value.message
+  if (typeof message.content === 'string' && message.content.trim()) return message.content
+  if (typeof message.thinking === 'string' && message.thinking.trim()) return message.thinking
+
+  return undefined
 }

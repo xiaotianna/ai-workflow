@@ -78,6 +78,11 @@ Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修�
 - `POST /models/test-connection`：按供应商模型列表接口探测连接。输入可携带本次 Key，或通过
   `credentialGroupId` 使用当前用户已保存的 Key；两者不可同时提供。上游 `401/403` 等预期
   探测结果仍使用本接口的 `200` 返回，不得把上游认证状态透传为会触发前端退出的 HTTP 状态。
+- `POST /models/test-model`：使用当前供应商、Base URL、Key 和模型 ID 发起最小流式对话请求；
+  OpenAI/DeepSeek 读取 SSE `delta.content`；Ollama 请求关闭 thinking，读取 NDJSON
+  `message.content`，对于无法关闭 thinking 的模型也将首个 `message.thinking` 分片视为模型已正常
+  响应。收到首个非空消息分片后立即取消上游响应体；上游非成功响应或流内错误仍以本接口 `200`
+  返回，并优先提取 `error.message`、`error`、`message` 或 `detail` 作为响应 `message`。
 
 模型组响应禁止返回 API Key 明文、密文、IV 或认证标签；存在凭证时返回 `maskedApiKey`，值固定
 为 Key 前 4 位、`***` 和后 4 位的组合。

@@ -249,6 +249,7 @@ export default function ModelsPage() {
 
       <ModelGroupDialog
         group={editingGroup}
+        modelType={editingGroup?.modelType ?? activeTab}
         open={modelGroupDialogOpen}
         onOpenChange={handleModelGroupDialogOpenChange}
         onSave={handleSaveGroup}

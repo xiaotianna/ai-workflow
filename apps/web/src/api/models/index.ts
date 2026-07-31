@@ -81,6 +81,18 @@ export interface ModelConnectionTestResult {
   message: string
 }
 
+export interface TestModelParams extends TestModelConnectionParams {
+  modelId: string
+}
+
+export interface ModelTestResult {
+  available: boolean
+  latencyMs: number
+  upstreamStatus?: number
+  errorType?: ModelConnectionErrorType
+  message: string
+}
+
 export interface ModelEnabledResult {
   id: string
   enabled: boolean
@@ -144,4 +156,10 @@ export function testModelConnection(
     values,
     { signal },
   )
+}
+
+export function testModel(values: TestModelParams, signal?: AbortSignal): Promise<ModelTestResult> {
+  return apiClient.post<ModelTestResult, TestModelParams>('/models/test-model', values, {
+    signal,
+  })
 }
