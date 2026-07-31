@@ -94,10 +94,13 @@ LLM 现在通过 `llmNodeForm` 按顺序声明 `model` 和 `messages`。两个�
    `@ai-workflow/form`，继续复用 `NodeVariablePicker`、Tiptap、Motion、上游变量和嵌套错误。
 4. 模型参数 Dialog 仍是模型字段内部的临时子表单，没有提升为节点顶层字段。
 5. 已删除 LLM 的 `configRenderer`、`NODE_CONFIG_RENDERER_TYPES.LLM`、`LlmNodeConfigEditor`、
-   Web 整节点注册项和旧 `ContextMessagesEditor`，不存在双轨实现。
+   Web 整节点注册项、空的 `builtinWorkflowNodeConfigRenderers` 占位和旧
+   `ContextMessagesEditor`，不存在双轨实现。
 
 `configRenderer` 机制本身继续保留，用于无法按顶层配置字段拆分的完整动态表单，以及需要完整
-接管节点配置界面的第三方插件；完成内置节点迁移不等于删除该扩展能力。
+接管节点配置界面的第三方插件；完成内置节点迁移不等于删除该扩展能力。Web 通过
+`WorkflowEditor.configRenderers` 将宿主合并后的完整表单 registry 透传给
+`WorkflowConfigPanel`，不再在 LLM 字段 registry 旁维护空的整节点 registry。
 
 ## 4. 不属于本问题的组件
 

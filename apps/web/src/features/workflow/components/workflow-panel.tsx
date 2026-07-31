@@ -6,6 +6,7 @@ import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
 import type { WorkflowNode } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
+import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 import type { RefObject } from 'react'
@@ -20,6 +21,7 @@ interface WorkflowPanelProps {
   shortcutHelpOpen: boolean
   canRedo: boolean
   canUndo: boolean
+  configRenderers?: NodeConfigRendererMap
   nextStepSourceNodeId?: string
   selectedNode?: WorkflowNode
   selectedNodeCanAddNextNode?: boolean
@@ -50,6 +52,7 @@ export const WorkflowPanel = ({
   shortcutHelpOpen,
   canRedo,
   canUndo,
+  configRenderers,
   nextStepSourceNodeId,
   selectedNode,
   selectedNodeCanAddNextNode = false,
@@ -123,6 +126,7 @@ export const WorkflowPanel = ({
               <WorkflowConfigPanel
                 key={selectedNode.id}
                 node={selectedNode}
+                configRenderers={configRenderers}
                 defaultLabel={selectedNodeDefaultLabel}
                 availableVariables={selectedNodeAvailableVariables}
                 nextStepDisabled={!selectedNodeCanAddNextNode}

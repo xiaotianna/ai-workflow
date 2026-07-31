@@ -21,9 +21,11 @@ import { NodeSelectorPopover } from '@ai-workflow/nodes-ui'
 import { WorkflowAddNodeProvider } from '@/components/workflow/workflow-add-node-context'
 import { workflowEdgeTypes } from '@/components/workflow/workflow-edge'
 import { WorkflowModelCatalogProvider } from '@/components/workflow/workflow-model-catalog-context'
+import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
+  configRenderers?: NodeConfigRendererMap
   initialSavedAt?: Date
   initialSnapshot: WorkflowEditorSnapshot
   disabled?: boolean
@@ -34,6 +36,7 @@ interface WorkflowEditorProps {
 
 export function WorkflowEditor({
   applicationMetadata,
+  configRenderers,
   initialSavedAt,
   initialSnapshot,
   disabled = false,
@@ -219,6 +222,7 @@ export function WorkflowEditor({
                     saveStatus={save.status}
                     canRedo={editor.canRedo}
                     canUndo={editor.canUndo}
+                    configRenderers={configRenderers}
                     addNodeOpen={disabled ? false : nodePicker.open}
                     nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
                     shortcutHelpOpen={disabled ? false : shortcutHelpOpen}

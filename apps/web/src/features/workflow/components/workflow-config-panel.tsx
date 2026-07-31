@@ -9,7 +9,10 @@ import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
-import { NodeConfigSection } from '@ai-workflow/form/components/node-config-section'
+import {
+  NodeConfigSection,
+  type NodeConfigRendererMap,
+} from '@ai-workflow/form/components/node-config-section'
 import {
   NodeVariableSection,
   type AvailableVariableOption,
@@ -27,14 +30,12 @@ import { z } from 'zod'
 
 import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
 import { resolveNodeFormFields } from '../node-form-resolvers/registry'
-import {
-  builtinWorkflowNodeConfigFieldRenderers,
-  builtinWorkflowNodeConfigRenderers,
-} from '../node-config-renderers/builtin'
+import { builtinWorkflowNodeConfigFieldRenderers } from '../node-config-renderers/builtin'
 import { WorkflowNextStep } from './workflow-next-step'
 
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
+  configRenderers?: NodeConfigRendererMap
   defaultLabel?: string
   availableVariables?: readonly AvailableVariableOption[]
   nextStepDisabled?: boolean
@@ -65,6 +66,7 @@ type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema
 
 export const WorkflowConfigPanel = ({
   node,
+  configRenderers,
   defaultLabel,
   availableVariables = [],
   nextStepDisabled = false,
@@ -330,7 +332,7 @@ export const WorkflowConfigPanel = ({
               <div className="px-5">
                 <NodeConfigSection
                   renderer={configRenderer}
-                  renderers={builtinWorkflowNodeConfigRenderers}
+                  renderers={configRenderers}
                   config={form.config}
                   availableVariables={availableVariables}
                   errors={errors}

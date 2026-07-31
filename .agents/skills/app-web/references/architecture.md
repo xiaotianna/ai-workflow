@@ -40,8 +40,9 @@
   registry 分发；依赖 Web API 的字段 renderer 留在
   `features/workflow/node-config-renderers`，通过 `NodeConfigFields.renderers` 注入。LLM 模型字段
   使用该路径，上下文字段由 Form 内置实现。无法按顶层配置字段拆分且需要 API 数据的完整节点
-  配置界面继续通过同目录的整节点 registry 与 `NodeConfigSection.renderers` 注入；Core 只保存
-  renderer 名称和领域 schema，Form 不依赖 Web API。
+  配置界面由宿主合并为 `NodeConfigRendererMap`，通过 `WorkflowEditor.configRenderers` 逐层透传
+  到 `NodeConfigSection.renderers`；当前没有第一方完整表单时不维护空的 Web built-in registry。
+  Core 只保存 renderer 名称和领域 schema，Form 不依赖 Web API。
 - 模型供应商的节点参数能力放在 `features/models/model-parameter-strategies.ts` 注册；工作流
   renderer 和参数 Dialog 只消费策略输出，不复制供应商条件分支。
 - 节点变量区先通过 Core `resolveNodeVariableForm` 解析 `NodeType.variableForm`；整个配置

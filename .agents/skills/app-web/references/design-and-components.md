@@ -169,8 +169,9 @@
   受控 renderer；Web 只透传 config、错误、上游变量和变更回调，不按节点类型分支。
   依赖 Web API 的业务 renderer 由 `features/workflow/node-config-renderers` 集中注册；字段级
   renderer 通过 `NodeConfigFields.renderers` 注入，完整表单通过 `NodeConfigSection.renderers`
-  注入。LLM 已通过 `llmNodeForm` 拆为两个字段：模型选择器使用 `LLM_MODEL` 并留在 Web，
-  上下文使用 Form 内置的 `CONTEXT_MESSAGES`；模型 API 不下沉到 Form。
+  注入。完整表单 registry 由 `WorkflowEditor.configRenderers` 接收并透传，当前没有第一方完整
+  表单时不保留空的 Web registry。LLM 已通过 `llmNodeForm` 拆为两个字段：模型选择器使用
+  `LLM_MODEL` 并留在 Web，上下文使用 Form 内置的 `CONTEXT_MESSAGES`；模型 API 不下沉到 Form。
   配置面板通过 Core `resolveNodeVariableForm` 解析
   `NodeType.variableForm`，再使用
   `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、

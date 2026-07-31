@@ -167,7 +167,6 @@ export default {
 
 ```ts
 const configRenderers = mergeNodeConfigRenderers(
-  builtinWorkflowNodeConfigRenderers,
   ...loadedPlugins.map((plugin) => plugin.configRenderers ?? {}),
 )
 ```
@@ -289,7 +288,7 @@ interface WorkflowPluginRuntime {
 - 增加 renderer 合并与重复名称检查。
 - 将合并后的 `NodeConfigRendererMap` 注入 `WorkflowConfigPanel`。
 - 给异步插件和第三方 renderer 增加加载态与 Error Boundary。
-- 保持 `builtinWorkflowNodeConfigRenderers` 只包含第一方 Web renderer。
+- 只有出现真实的第一方完整表单时才建立第一方 registry；没有注册项时不保留空 map 占位。
 
 ### 阶段二：平台能力 SDK
 
