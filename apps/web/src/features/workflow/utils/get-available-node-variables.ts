@@ -1,6 +1,8 @@
 import { getNodePorts, nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 
+import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
+
 function collectUpstreamNodeIds(nodeId: string, edges: readonly WorkflowEdge[]) {
   const incomingNodeIds = new Map<string, string[]>()
 
@@ -43,7 +45,7 @@ export function getAvailableNodeVariables({
     const nodeType = nodeRegistry.get(node.type)
     if (!nodeType) continue
 
-    const nodeLabel = node.label?.trim() || nodeType.definition.label
+    const nodeLabel = getWorkflowNodeDisplayLabel(node)
     const outputs = new Map(
       node.outputs.map((output) => [
         output.key,

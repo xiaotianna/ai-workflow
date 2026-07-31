@@ -1,6 +1,10 @@
 import { getNodePorts } from '@ai-workflow/core'
 import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
-import type { NodeEditorCapabilities, NodePortRender } from '../contracts/node-content'
+import type {
+  NodeEditorCapabilities,
+  NodePortRender,
+  VariableReferenceDisplayResolver,
+} from '../contracts/node-content'
 import type { NodeUIRegistry } from '../registry'
 import { BaseNode, NodeContentList } from './base-node'
 import { DefaultNodeContent, hasDefaultNodeContent } from './default-node-content'
@@ -14,6 +18,7 @@ export interface RenderNodeProps {
   onSelect?: (nodeId: string) => void
   onDelete?: (nodeId: string) => void
   renderPort?: NodePortRender
+  resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
   // 提供给节点的操作能力（给完整自定义节点使用，非base-node基础组件）
   editorCapabilities?: NodeEditorCapabilities
   // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
@@ -34,6 +39,7 @@ export const RenderNode = ({
   onSelect,
   onDelete,
   renderPort,
+  resolveVariableReferenceDisplay,
   editorCapabilities,
   dragHandleClassName,
 }: RenderNodeProps) => {
@@ -97,6 +103,7 @@ export const RenderNode = ({
         onSelect={selectNode}
         onDelete={deleteNode}
         renderPort={renderPort}
+        resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
         editorCapabilities={editorCapabilities}
         dragHandleClassName={dragHandleClassName}
       />
@@ -105,9 +112,19 @@ export const RenderNode = ({
 
   const Content = registration?.component
   const body = Content ? (
-    <Content node={resolvedNode} definition={resolvedDefinition} ports={ports} />
+    <Content
+      node={resolvedNode}
+      definition={resolvedDefinition}
+      ports={ports}
+      resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+    />
   ) : hasDefaultNodeContent(resolvedDefinition) ? (
-    <DefaultNodeContent node={resolvedNode} definition={resolvedDefinition} ports={ports} />
+    <DefaultNodeContent
+      node={resolvedNode}
+      definition={resolvedDefinition}
+      ports={ports}
+      resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+    />
   ) : null
 
   return (

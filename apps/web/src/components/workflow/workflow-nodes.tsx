@@ -1,16 +1,60 @@
-import type { NodeProps, NodeTypes } from '@xyflow/react'
+import { useStore, type NodeProps, type NodeTypes, type ReactFlowState } from '@xyflow/react'
 import type { WorkflowCanvasNode } from './types'
 import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
-import { BuiltinNodeType, nodeRegistry } from '@ai-workflow/core'
+import { BuiltinNodeType, nodeRegistry, type VariableReference } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Ellipsis } from 'lucide-react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
+import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
 import { WorkflowNodeHandle } from './workflow-node-handle'
 import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 import { LoopNodeResizeControl } from './loop-node-resize-control'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
+const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
+
+function selectNodeDisplayLabels(state: ReactFlowState): ReadonlyMap<string, string> {
+  return new Map(
+    state.nodes.map((node) => [
+      node.id,
+      getWorkflowNodeDisplayLabel({
+        type: node.type ?? node.id,
+        label: typeof node.data.label === 'string' ? node.data.label : undefined,
+      }),
+    ]),
+  )
+}
+
+function nodeDisplayLabelsEqual(
+  left: ReadonlyMap<string, string>,
+  right: ReadonlyMap<string, string>,
+) {
+  if (left.size !== right.size) return false
+
+  for (const [nodeId, label] of left) {
+    if (right.get(nodeId) !== label) return false
+  }
+
+  return true
+}
+
+function resolveVariableReferenceDisplay(
+  reference: VariableReference,
+  nodeDisplayLabels: ReadonlyMap<string, string>,
+) {
+  if (reference.scope !== 'node') return undefined
+
+  const sourceLabel = nodeDisplayLabels.get(reference.nodeId)
+  if (!sourceLabel) return undefined
+
+  const path = reference.path.length > 0 ? `.${reference.path.join('.')}` : ''
+
+  return {
+    sourceLabel,
+    variableName: `${reference.outputKey}${path}`,
+  }
+}
 
 interface WorkflowNodeActionTriggerProps {
   selected: boolean
@@ -65,6 +109,13 @@ function WorkflowNodeActionTrigger({ selected }: WorkflowNodeActionTriggerProps)
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
   const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
+  const nodeDisplayLabels = useStore(
+    (state) =>
+      type === BuiltinNodeType.CONDITION
+        ? selectNodeDisplayLabels(state)
+        : EMPTY_NODE_DISPLAY_LABELS,
+    nodeDisplayLabelsEqual,
+  )
 
   return (
     <div
@@ -86,6 +137,11 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
         selected={selected}
         disabled={disabled}
         renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
+        resolveVariableReferenceDisplay={
+          type === BuiltinNodeType.CONDITION
+            ? (reference) => resolveVariableReferenceDisplay(reference, nodeDisplayLabels)
+            : undefined
+        }
         dragHandleClassName="drag-handle"
         editorCapabilities={
           disabled

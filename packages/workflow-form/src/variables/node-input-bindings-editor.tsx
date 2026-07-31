@@ -65,11 +65,7 @@ export function NodeInputBindingsEditor({
         </Button>
       }
     >
-      {entries.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs">
-          暂未配置{section.label}
-        </p>
-      ) : (
+      {entries.length > 0 ? (
         <div className="space-y-2">
           {entries.map(([key, value], index) => {
             const error = getFieldError(inputErrors, key)
@@ -122,7 +118,7 @@ export function NodeInputBindingsEditor({
             )
           })}
         </div>
-      )}
+      ) : null}
     </Form.Field>
   )
 }

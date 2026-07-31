@@ -237,6 +237,7 @@ export const WorkflowConfigPanel = ({
   const formFields = resolveNodeFormFields(nodeType, builtinNodeFormFieldsResolvers)
   const hasFields = formFields && Object.keys(formFields).length > 0
   const configRenderer = nodeType.configRenderer
+  const hasConfigSection = Boolean(configRenderer || hasFields)
   const variableForm = resolveNodeVariableForm(nodeType.variableForm)
   const inputVariableSection = variableForm.input
   const outputVariableSection = variableForm.output
@@ -299,51 +300,67 @@ export const WorkflowConfigPanel = ({
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {hasPanelContent ? (
-          <div className="space-y-5 px-5 py-3">
+          <div className="py-3">
             {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
             {inputVariableSection ? (
-              <NodeVariableSection
-                section={inputVariableSection}
-                inputs={inputs}
-                outputs={outputs}
-                availableVariables={availableVariables}
-                inputErrors={inputErrors}
-                outputErrors={outputErrors}
-                onInputsChange={handleInputsChange}
-                onOutputsChange={handleOutputsChange}
-              />
+              <div className="px-5">
+                <NodeVariableSection
+                  section={inputVariableSection}
+                  inputs={inputs}
+                  outputs={outputs}
+                  availableVariables={availableVariables}
+                  inputErrors={inputErrors}
+                  outputErrors={outputErrors}
+                  onInputsChange={handleInputsChange}
+                  onOutputsChange={handleOutputsChange}
+                />
+              </div>
+            ) : null}
+
+            {inputVariableSection && hasConfigSection ? (
+              <Separator className="bg-border/50 mt-5 mb-3" />
             ) : null}
 
             {/* 复杂配置使用节点声明的专属renderer，普通字段继续使用schema字段映射 */}
             {configRenderer ? (
-              <NodeConfigSection
-                renderer={configRenderer}
-                config={form.config}
-                availableVariables={availableVariables}
-                errors={errors}
-                onConfigChange={handleConfigChange}
-              />
+              <div className="px-5">
+                <NodeConfigSection
+                  renderer={configRenderer}
+                  config={form.config}
+                  availableVariables={availableVariables}
+                  errors={errors}
+                  onConfigChange={handleConfigChange}
+                />
+              </div>
             ) : hasFields ? (
-              <NodeConfigFields
-                fields={formFields}
-                values={form.config}
-                errors={errors}
-                onChange={handleFieldChange}
-              />
+              <div className="px-5">
+                <NodeConfigFields
+                  fields={formFields}
+                  values={form.config}
+                  errors={errors}
+                  onChange={handleFieldChange}
+                />
+              </div>
+            ) : null}
+
+            {outputVariableSection && (inputVariableSection || hasConfigSection) ? (
+              <Separator className="bg-border/50 mt-5 mb-3" />
             ) : null}
 
             {/* 输出变量配置 */}
             {outputVariableSection ? (
-              <NodeVariableSection
-                section={outputVariableSection}
-                inputs={inputs}
-                outputs={outputs}
-                availableVariables={availableVariables}
-                inputErrors={inputErrors}
-                outputErrors={outputErrors}
-                onInputsChange={handleInputsChange}
-                onOutputsChange={handleOutputsChange}
-              />
+              <div className="px-5">
+                <NodeVariableSection
+                  section={outputVariableSection}
+                  inputs={inputs}
+                  outputs={outputs}
+                  availableVariables={availableVariables}
+                  inputErrors={inputErrors}
+                  outputErrors={outputErrors}
+                  onInputsChange={handleInputsChange}
+                  onOutputsChange={handleOutputsChange}
+                />
+              </div>
             ) : null}
           </div>
         ) : (
@@ -354,7 +371,7 @@ export const WorkflowConfigPanel = ({
           <p className="text-destructive mt-3 px-5 py-3 text-xs leading-4">{errors.form}</p>
         ) : null}
 
-        <Separator className="bg-border/50 mt-2" />
+        <Separator className="bg-border/50 mt-3" />
 
         {/* 下一个节点连接器渲染 */}
         <WorkflowNextStep

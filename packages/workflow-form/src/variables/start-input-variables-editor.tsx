@@ -260,11 +260,7 @@ export function StartInputVariablesEditor({
           </Button>
         }
       >
-        {outputs.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs">
-            暂未配置{section.label}
-          </p>
-        ) : (
+        {outputs.length > 0 ? (
           <div className="space-y-2">
             {outputs.map((output, index) => {
               const error = getOutputError(outputErrors, index)
@@ -337,7 +333,7 @@ export function StartInputVariablesEditor({
               )
             })}
           </div>
-        )}
+        ) : null}
       </Form.Field>
 
       <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>

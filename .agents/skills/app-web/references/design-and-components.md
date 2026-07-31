@@ -105,8 +105,9 @@
   `NodeType.variableForm`，再使用
   `@ai-workflow/form/components/node-variable-section` 的 `NodeVariableSection` 渲染输入、
   输出变量区；整个配置未声明时默认同时显示两区，配置对象存在时只显示其中实际声明的
-  方向，不使用 `null` 占位。Core 只声明区域和 renderer，Form 提供受控组件，Web 不按节点
-  类型复制映射。
+  方向，不使用 `null` 占位。输入变量、节点配置和输出变量中相邻且实际存在的分区之间使用
+  面板全宽的独立 `Separator`，不在字段容器上拼接边框；缺失分区不保留分割线占位。
+  Core 只声明区域和 renderer，Form 提供受控组件，Web 不按节点类型复制映射。
   Start 的“输入变量”通过专属 renderer 展示紧凑列表，右上角加号打开新增 Dialog，已有变量
   可通过同一 Dialog 编辑；Dialog 编辑字段类型、变量名称、显示名称、类型匹配的默认值与
   必填状态，不提供最大长度或隐藏预填，最终仍写入 `node.outputs`；End 的“输出变量”通过输入
@@ -120,6 +121,9 @@
   上游节点的动态输出和静态输出端口，并将来源节点、变量名称和数据类型作为结构化候选传入
   Form；Form 的变量选择器按节点分组，支持搜索并显示变量类型，普通节点输入区与 End 输出区
   共用该交互。首期只支持直接值和完整上游变量引用，不包含系统变量、环境变量和嵌套 Path。
+  Condition 画布摘要通过 Nodes UI 的 `resolveVariableReferenceDisplay` 消费 Web 根据当前
+  React Flow 节点生成的来源名称与变量名，显示文案必须与 Config Form 的“来源名称 / 变量名”
+  一致，不得直接展示持久化 `nodeId`；源节点实例名称变化时摘要同步更新。
   名称、描述、`config`、`inputs`、
   `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
   校验后即时写回节点。动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的

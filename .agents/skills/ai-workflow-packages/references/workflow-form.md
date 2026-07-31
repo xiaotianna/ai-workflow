@@ -125,7 +125,8 @@ Web 按节点类型分支。内置映射集中维护在 `src/config/node-config-
 同步；description 通过数据类型组合控件左侧的说明入口打开 Dialog 编辑；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
 Dialog 新增或编辑 Start 输入变量的 key、label、dataType、defaultValue 和 required；不提供
-最大长度或隐藏预填字段。调用方负责提供当前节点可引用的
+最大长度或隐藏预填字段。三种变量编辑器在集合为空时只显示区域标题和新增按钮，不渲染空状态
+占位。调用方负责提供当前节点可引用的
 `AvailableVariableOption`、Zod 错误、当前值和写回回调，Form 不遍历工作流、Edge 或
 React Flow。候选项同时提供 `sourceId`、`sourceLabel`、`variableName` 和 `dataType`，
 供内置选择器按来源分组、搜索并展示类型；`label` 保留完整的“来源 / 变量”文本，不在 Form

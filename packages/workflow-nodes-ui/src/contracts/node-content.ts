@@ -4,6 +4,7 @@ import type {
   NodeDefinition,
   PortDefinition,
   NodeType,
+  VariableReference,
   WorkflowNode,
 } from '@ai-workflow/core'
 import type { ComponentType, ReactNode } from 'react'
@@ -15,11 +16,21 @@ export type ResolvedWorkflowNode<TConfig = unknown> = Readonly<
   }
 >
 
+export interface VariableReferenceDisplay {
+  readonly sourceLabel: string
+  readonly variableName: string
+}
+
+export type VariableReferenceDisplayResolver = (
+  reference: VariableReference,
+) => VariableReferenceDisplay | undefined
+
 // 统一节点内容组件的入参
 export interface NodeContentProps<TConfig = unknown> {
   readonly node: ResolvedWorkflowNode<TConfig>
   readonly definition: NodeDefinition
   readonly ports: NodeDefinition['ports']
+  readonly resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
 }
 
 // 组件children类型

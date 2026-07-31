@@ -74,11 +74,7 @@ export function NodeOutputDefinitionsEditor({
         </Button>
       }
     >
-      {outputs.length === 0 ? (
-        <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-4 text-center text-xs">
-          暂未配置{section.label}
-        </p>
-      ) : (
+      {outputs.length > 0 ? (
         <div className="space-y-2">
           {outputs.map((output, index) => {
             const keyError = getFieldError(outputErrors, `${index}.key`)
@@ -197,7 +193,7 @@ export function NodeOutputDefinitionsEditor({
             )
           })}
         </div>
-      )}
+      ) : null}
     </Form.Field>
   )
 }

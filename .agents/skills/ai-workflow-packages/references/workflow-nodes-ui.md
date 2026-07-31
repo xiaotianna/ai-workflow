@@ -41,7 +41,9 @@ import {
 4. 从 `NodeUIRegistry` 获取注册项：`content` 复用 `BaseNode`，`renderer` 接管完整节点。
 5. 未注册专属 UI 时只在实例有效描述非空时使用默认内容；普通内容由 `BaseNode` 负责外壳、
    选择、删除和端口区域。
-6. 画布通过 `renderPort` 注入具体 Handle，不让本包依赖某个画布库。
+6. 画布通过 `renderPort` 注入具体 Handle，不让本包依赖某个画布库；节点摘要需要展示引用
+   变量的人类可读名称时，通过 `resolveVariableReferenceDisplay` 注入来源名称与变量名，
+   Nodes UI 不遍历工作流或依赖 Form 的候选项。
 
 循环容器通过 `defineNodeRendererUI(loopNode, LoopNode)` 加入
 `builtinNodeUIRegistrations`，由 `RenderNode` 自动选择完整节点渲染器。`LoopNode`
@@ -80,9 +82,20 @@ Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容�
 `NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
 `rounded-md bg-muted/60 px-2 py-1.5 text-slate-500` 并由内容自然撑开高度。Condition 和
 其他节点只负责组合条目内部信息，不重复维护背景、圆角、间距和默认文字颜色；Condition
-显式使用 `NodeContentList` 包裹并排列多个 `NodeContentItem`，从结构化 `rules` 生成
-“左值 运算符 右值”的摘要，并按分支的公共逻辑关系使用 AND 或 OR 连接；运算符和逻辑关系
-文案复用 Core 公共映射，变量引用按作用域格式化，未配置规则时显示明确空状态。
+使用完整节点 renderer，继续复用 `NodeWrapper`、`NodeHeader`、`NodeContentList` 和
+`NodePortsRender`。每个 IF / ELIF / ELSE 分支标题行保持透明，只有存在规则的分支才在标题
+下方显示规则摘要；每条规则分别使用独立的 `NodeContentItem`，相邻 item 使用 `space-y-0.5`
+保持紧凑间距，AND / OR 绝对定位在前一个 item 的右下边界，不额外占用文档流高度。空分支和
+ELSE 只显示标题，不显示背景或“未配置条件”。
+对应稳定 `portId` 的输出端口放在分支标题行的垂直中点，不再按端口索引和固定间距定位；
+规则增删、长值和节点高度变化时，后续标题及 Handle 必须随实际内容自然移动，当前分支
+Handle 始终与标题对齐。分支摘要直接从结构化 `rules` 逐条展示“左值 运算符 右值”，并按
+公共逻辑关系插入 AND 或 OR；运算符和逻辑关系文案复用 Core 公共映射，直接值显示配置中的
+实际值。单条规则摘要使用与 Start 变量条目一致的 12px 中等字重，并使用 20px 行高为换行
+内容保留清晰间距；引用值在“来源名称 / 变量名”前展示主色 `VariableIcon`，直接值不显示
+变量图标。摘要最多展示两行，超出时显示省略号并通过 `title` 保留完整内容。变量引用优先使用画布注入的
+`resolveVariableReferenceDisplay` 显示与 Config Form 一致的“来源名称 / 变量名”，缺少解析
+结果时才回退到作用域稳定标识。
 HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
 请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和
