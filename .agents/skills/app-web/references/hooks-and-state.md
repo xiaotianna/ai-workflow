@@ -133,7 +133,8 @@ function ExampleForm() {
 
 - 工作流自动保存由 `WorkflowEditor` 组件层编排：`useWorkflowEditor` 只维护编辑状态、历史与
   `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
-  页面只提供草稿读取与写入函数。不得把接口请求重新耦合进 `useWorkflowEditor`。
+  页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载
+  也展示最近一次自动保存时间。不得把接口请求重新耦合进 `useWorkflowEditor`。
 - 只有持久化节点/连线变化才触发自动保存：React Flow 变更继续统一复用
   `hasNodeMutation`、`hasEdgeMutation` 判断，节点增删替换、拖动位置、主动缩放尺寸和连线
   增删替换会置脏；选择、Hover、面板开关以及画布平移/缩放不得置脏或发请求。自动保存期间

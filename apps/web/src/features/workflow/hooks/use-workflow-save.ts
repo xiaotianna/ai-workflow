@@ -9,6 +9,7 @@ export type WorkflowSaveStatus = 'saved' | 'pending' | 'saving' | 'error'
 interface UseWorkflowSaveOptions {
   snapshot: WorkflowEditorSnapshot
   dirty: boolean
+  initialSavedAt?: Date
   onSave: (snapshot: WorkflowEditorSnapshot) => void | Promise<void>
   onSaved: () => void
 }
@@ -21,10 +22,16 @@ function getSnapshotSignature(snapshot: WorkflowEditorSnapshot) {
  * 编排工作流自动保存。
  * 是否发生持久化修改由 useWorkflowEditor 的 dirty 状态决定；本 Hook 只负责防抖、校验和请求排队。
  */
-export function useWorkflowSave({ dirty, onSave, onSaved, snapshot }: UseWorkflowSaveOptions) {
+export function useWorkflowSave({
+  dirty,
+  initialSavedAt,
+  onSave,
+  onSaved,
+  snapshot,
+}: UseWorkflowSaveOptions) {
   const signature = getSnapshotSignature(snapshot)
   const [errors, setErrors] = useState<string[]>([])
-  const [lastSavedAt, setLastSavedAt] = useState<Date>()
+  const [lastSavedAt, setLastSavedAt] = useState<Date | undefined>(initialSavedAt)
   const [pending, setPending] = useState(false)
   const [status, setStatus] = useState<WorkflowSaveStatus>('saved')
   const debounceElapsedRef = useRef(false)

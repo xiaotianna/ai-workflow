@@ -96,6 +96,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
         workflow: draft.definition,
         layout: draft.layout,
       }}
+      initialSavedAt={new Date(draft.updatedAt)}
       disabled={disabled}
       onSave={handleSave}
     />

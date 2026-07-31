@@ -23,6 +23,7 @@ import { workflowEdgeTypes } from '@/components/workflow/workflow-edge'
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
+  initialSavedAt?: Date
   initialSnapshot: WorkflowEditorSnapshot
   disabled?: boolean
   onRunNode?: (node: WorkflowNode, snapshot: WorkflowEditorSnapshot) => unknown | Promise<unknown>
@@ -32,6 +33,7 @@ interface WorkflowEditorProps {
 
 export function WorkflowEditor({
   applicationMetadata,
+  initialSavedAt,
   initialSnapshot,
   disabled = false,
   onRunNode,
@@ -45,6 +47,7 @@ export function WorkflowEditor({
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
   const save = useWorkflowSave({
     dirty: editor.dirty,
+    initialSavedAt,
     snapshot: editor.createSnapshot(),
     onSave,
     onSaved: editor.markSaved,
