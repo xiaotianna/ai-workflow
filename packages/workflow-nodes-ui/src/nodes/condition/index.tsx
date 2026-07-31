@@ -167,14 +167,14 @@ export function ConditionNode({
           return (
             <div key={condition.portId} className="min-w-0">
               <div className="relative -mx-3 flex min-h-5 items-center justify-between gap-2 px-3">
-                <div className="text-muted-foreground truncate text-[10px] leading-4 font-semibold tracking-wide">
-                  {formatConditionLabel(condition.conditionLabel)}
-                </div>
                 {!condition.isFallback ? (
-                  <div className="text-foreground shrink-0 text-xs leading-4 font-semibold">
-                    {branchType}
+                  <div className="text-muted-foreground truncate text-[10px] leading-4 font-semibold tracking-wide">
+                    {formatConditionLabel(condition.conditionLabel)}
                   </div>
                 ) : null}
+                <div className="text-foreground ml-auto shrink-0 text-xs leading-4 font-semibold">
+                  {branchType}
+                </div>
 
                 {/* 输出端口 */}
                 {outputPort ? (

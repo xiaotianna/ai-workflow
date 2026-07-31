@@ -2,7 +2,8 @@
 
 ## 职责
 
-基于 Core 字段 schema 提供普通字段 renderer，并为动态数组等复杂配置提供专属 renderer。
+基于 Core 字段 schema 提供基础与复杂字段 renderer，并为无法按顶层字段拆分的配置保留整节点
+renderer。
 Form 负责组合
 `@ai-workflow/ui` 基础控件与字段标签、说明、错误、禁用态和值转换，不把字段表单语义下沉到
 UI 包。
@@ -16,15 +17,24 @@ import {
   FIELD_UI_TYPES,
   builtinFields,
   CodeField,
+  ConditionBranchesField,
   NumberField,
   SelectField,
   SliderField,
   SwitchField,
   TextField,
   TextareaField,
+  EditableTableField,
+  KeyValueTable,
+  KeyValueTableField,
+  RequestBodyField,
   type AnyFieldRenderer,
+  type ConditionBranchesFieldValue,
+  type EditableTableColumn,
   type FieldRenderer,
   type FieldRendererProps,
+  type KeyValueTableEntry,
+  type RequestBodyType,
 } from '@ai-workflow/form'
 ```
 
@@ -35,6 +45,7 @@ import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
   type NodeConfigFieldMap,
+  type NodeConfigFieldRendererMap,
   type NodeConfigFieldValues,
 } from '@ai-workflow/form/components/node-config-fields'
 
@@ -66,12 +77,15 @@ import {
 } from '@ai-workflow/form/components/variable-value-editor'
 ```
 
-`src/config` 与 `src/variables` 只维护包内置的配置/变量编辑器和 renderer 注册表，不提供
-独立公开入口。不要从这些内部目录或 `packages/workflow-form/src/*` 深层导入。
+`src/config` 维护整节点 renderer 注册表，`src/variables` 维护包内置的变量编辑器和 renderer
+注册表；两者不提供独立公开入口。不要从这些内部目录或 `packages/workflow-form/src/*` 深层导入。
 
 ## 目录结构
 
 ```text
+src/contracts/
+├── available-variable-option.ts
+└── field-renderer.ts
 src/components/
 ├── data-type-select.tsx
 ├── node-config-fields.tsx
@@ -79,11 +93,14 @@ src/components/
 ├── node-variable-section.tsx
 └── variable-value-editor.tsx
 src/config/
-├── condition-config-editor.tsx
 └── node-config-renderer-registry.ts
 src/fields/
 ├── code-field/
+├── condition-branches-field/
+├── editable-table-field/
+├── key-value-table-field/
 ├── number-field/
+├── request-body-field/
 ├── select-field/
 ├── slider-field/
 ├── switch-field/
@@ -107,17 +124,19 @@ renderer；带字段语义的组合组件也不移动到 `@ai-workflow/ui`。
 
 ## 字段组合
 
-`NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从 `builtinFields` 选择
-renderer，并把字段当前值、错误、禁用态和变更回调传给对应组件。它不读取节点注册表，
+`NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从调用方 `renderers` 或
+`builtinFields` 选择 renderer，并把字段当前值、字段错误、完整错误映射、上游变量候选、
+禁用态和变更回调传给对应组件。它不读取节点注册表，
 不管理配置校验、提交或工作流状态；这些内容由使用方按统一表单规范负责。
 传入的 `fields` 必须已经是调用方解析后的完整字段配置；动态选项或其他业务数据由应用层
 Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属的动态数据入口，也不请求或
 持有业务数据。
 
-`NodeConfigSection` 读取 Core `NodeType.configRenderer` 声明的名称，从专属配置 renderer
+`NodeConfigSection` 读取 Core `NodeType.configRenderer` 声明的名称，从整节点配置 renderer
 注册表选择受控组件，并统一透传当前 `config`、Zod 错误、上游变量候选和完整配置变更回调。
-Condition 使用该入口维护动态 IF / ELIF / ELSE 分支和规则，不进入普通字段映射，也不要求
-Web 按节点类型分支。内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
+当前 LLM 由 Web 注入该入口；该能力继续为无法按顶层字段拆分的完整表单和第三方插件保留。
+HTTP 与 Condition 已迁移为字段级 form，不再通过整节点 renderer 重复组合配置字段。
+内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
 通过可选 `renderers` 注入扩展时，名称必须与 Core 声明一致。需要 API、路由或其他应用
 业务数据的 renderer 必须使用该注入入口留在应用层，Form 不请求数据或反向依赖应用。
 
@@ -154,8 +173,9 @@ Core `DataType` 的受控选择统一复用公开组件 `DataTypeSelect`；组�
   字段变更通过 `updateFormField` 或 `updateForm` 回写。
 - `validateFormByZod` 返回的字段错误映射为 `NodeConfigFieldErrors` 再传入
   `NodeConfigFields`；提交或写回节点配置前必须重新校验，只能使用成功结果中的 `data`。
-- 字段 renderer 保持受控和无状态，只接收当前值、错误与 `onChange`，不得各自引入表单库、
-  复制 Zod schema 或维护另一份已提交值。纯 UI 临时状态（例如 Dialog 开关）可以留在
+- 字段 renderer 保持受控和无状态，只接收当前值、字段描述、错误、通用字段上下文与
+  `onChange`，不得各自引入表单库、复制 Zod schema 或维护另一份已提交值。纯 UI 临时状态
+  （例如 Dialog 开关）可以留在
   renderer 内；一旦内部组合多个待提交字段或承担数据校验，必须改用 `useFormData` 和
   `validateFormByZod`。
 - Dialog 或 Popover 中的字段在浮层打开后不得自动聚焦；禁止使用 `autoFocus` 或代码调用
@@ -176,6 +196,9 @@ export const builtinFields = {
   [FIELD_UI_TYPES.SWITCH]: SwitchField,
   [FIELD_UI_TYPES.SLIDER]: SliderField,
   [FIELD_UI_TYPES.CODE_EDITOR]: CodeField,
+  [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableField,
+  [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyField,
+  [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
 } satisfies Record<FieldUIType, AnyFieldRenderer>
 ```
 
@@ -208,17 +231,41 @@ export const builtinFields = {
   规则必须复用它；组件只消费调用方提供的 `AvailableVariableOption`，不遍历工作流。变量
   选择浮层默认与组合控件等宽；组件右侧存在额外固定区域时，通过可选
   `variablePickerEndOffset`（像素）同步扩展浮层宽度和末端对齐位置。
+- `EditableTableField` 是 Form 内可编辑表格的公共受控骨架，基于 UI `Table` 组合并通过
+  `EditableTableColumn` 完整声明表头、列宽、单元格样式和渲染内容；组件不持有行数据，新增行
+  只调用 `onAddRow`。底部新增命中区默认不绘制额外线条或图标，Hover 或键盘聚焦时只把表格
+  自身底边切换为主色，并在底边中点显示与画布一致的圆形 Plus，避免线条伸出圆角两侧。行本身
+  不切换背景，只有当前 Hover 或 Focus 的 Input、Select 等具体单元格控件切换为背景色。
+- `KeyValueTableField` 复用 `EditableTableField` 统一承载 Headers、Params 等键值集合；Key 和
+  Value 都使用 `VariableValueEditor` 的 `table-cell` 模式，普通输入保存直接值，输入 `/` 打开
+  上游变量选择器，行 Hover 或内部聚焦时显示删除入口。作为字段 renderer 使用时从完整错误
+  映射派生行级错误，并消费统一透传的变量候选；只需要表格内容、不需要 `Form.Field` 标题时使用同一
+  入口导出的 `KeyValueTable`，不要重复键值列和删除交互。表格单元格错误态使用轻量状态背景与
+  字段错误文案，不在单元格内部绘制会贴住表格圆角的完整红色输入边框。HTTP 配置通过 Core
+  默认值提供首条空行，表格组件本身不根据空数组补行，因此删除唯一一行后可以保持为空。
+- `RequestBodyField` 是 `FIELD_UI_TYPES.REQUEST_BODY` 对应的字段 renderer，统一编辑完整
+  `HttpRequestBodyInput` 并渲染 none、form-data、x-www-form-urlencoded、JSON、raw、binary
+  类型；form-data 通过
+  `EditableTableField` 组合 Key、text/file 类型、Value 三列，x-www-form-urlencoded 复用
+  `KeyValueTable`，JSON、raw、binary 使用 `VariableValueEditor`。类型常量复用 Core
+  `HTTP_BODY_TYPES`，组件不复制 HTTP schema，只通过标准字段回调写回 Body。
+- HTTP 的 URL、Method、Headers、Params、Body 与连接超时全部由 `httpNodeForm` 声明；
+  `NodeConfigFields` 根据声明顺序组合基础字段、`KeyValueTableField` 与 `RequestBodyField`。
+  Headers、Params 和切换后的表格 Body 默认各显示一条空行；显式空数组原样保留，删除最后一行
+  后不会自动补回。
 - `NodeVariablePicker` 通过 `node-variable-section` 公开，可继续使用默认的完整变量值触发器，
   也可传入 `trigger` 组合图标按钮等业务入口；自定义触发器场景使用 `matchTriggerWidth={false}`
   获得标准紧凑浮层宽度。搜索、来源分组、数据类型和选中回调继续由同一组件维护，不在 Web
   renderer 中复制变量列表。
-- `ConditionConfigEditor` 维护稳定 `portId` 的分支和稳定 `id` 的规则；新增 ELIF 插在唯一
+- `ConditionBranchesField` 是 `FIELD_UI_TYPES.CONDITION_BRANCHES` 对应的字段 renderer，只接收
+  和回写 `conditions` 数组。组件维护稳定 `portId` 的分支和稳定 `id` 的规则；新增 ELIF 插在唯一
   ELSE 前，删除分支后重新编号 CASE 标签；同一分支内多条规则使用 Core 公共逻辑关系统一
   选择 AND 或 OR，规则数大于一时显示关系按钮，点击直接在两种关系间切换，不打开下拉菜单。
   每条规则使用一个圆角背景容器组合左值、运算符和可选右值，第一行内部与上下两行之间使用
   细分割线，不把同一规则拆成多个独立圆角输入块；Hover 与 Focus 只改变当前具体控件的背景，
   不改变整个规则背景，也不在分割线外叠加控件边框。`为空`和`不为空`切换时删除右值，其余
-  运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。
+  运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。节点配置
+  写回、动态端口解析、失效 Edge 清理与 Handle 刷新仍由 Web 和 Core 的通用链路负责。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
   默认值元数据。默认输入与默认输出变量区都使用 UI `Form.Field` 统一标题、说明、内容间距

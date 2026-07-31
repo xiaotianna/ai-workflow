@@ -5,6 +5,10 @@
 > 本文记录第三方插件接管节点完整配置表单的扩展方向。当前代码仍以
 > `@ai-workflow/core`、`@ai-workflow/form` 和 Web 内已有实现为准；正式实现插件加载后，应同步
 > 更新对应 package 技能文档与公开 API 说明。
+>
+> 平台第一方可复用复杂字段的当前方案与剩余重构清单见
+> [节点配置字段级 Renderer 重构清单](node-config-field-renderer-refactor.md)。本文继续约束无法形成
+> 平台标准字段的第三方插件完整表单，不要求插件把专属业务控件注册为公共字段。
 
 ## 1. 背景
 
@@ -57,6 +61,8 @@ Web 当前在
 - Switch。
 - Slider。
 - Code Editor。
+- 平台维护的键值表格。
+- 平台维护的 HTTP Request Body。
 
 这些字段由 `NodeConfigFields` 和 `builtinFields` 统一维护，适合简单、稳定、无应用业务依赖的
 受控字段。
@@ -291,11 +297,12 @@ interface WorkflowPluginRuntime {
 - 统一认证、权限、错误协议和 API 版本。
 - 明确插件卸载、会话失效和请求取消行为。
 
-### 阶段三：评估字段级扩展
+### 阶段三：评估插件字段协议
 
 只有出现多个插件共享相同字段类型，并且完整 renderer 造成明显重复时，才评估：
 
-- 可扩展 `FieldRendererRegistry`。
+- 如何把当前第一方使用的 `NodeConfigFields.renderers` 扩展为带插件命名空间、冲突检测和卸载
+  能力的正式插件字段注册表。
 - 自定义 `FieldSchema` 的命名空间和序列化协议。
 - 字段运行时上下文。
 - 字段值与 Core Zod schema 的类型关联。

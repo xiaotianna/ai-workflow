@@ -35,8 +35,10 @@
 - 只有无业务语义且可跨应用复用时，才把能力下沉到 package。
 - 工作流节点表单依赖的知识库、工作流列表等动态业务数据，在
   `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
-  `NodeConfigFields` 不增加控件或业务数据专属参数。
-- 无法由普通字段 renderer 表达且需要 API 数据的节点配置界面，放在
+  `NodeConfigFields` 只透传字段通用上下文，不请求业务数据。
+- 平台可复用的复杂配置优先建模为字段 UI 类型，并由 `NodeConfigFields` 与字段 renderer
+  registry 分发；依赖 Web API 的字段 renderer 留在 Web，通过 `renderers` 注入。无法按顶层
+  配置字段拆分且需要 API 数据的完整节点配置界面，放在
   `features/workflow/node-config-renderers`，通过 `NodeConfigSection.renderers` 注入；Core 只保存
   renderer 名称和领域 schema，Form 不依赖 Web API。
 - 模型供应商的节点参数能力放在 `features/models/model-parameter-strategies.ts` 注册；工作流

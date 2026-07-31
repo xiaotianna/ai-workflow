@@ -1,23 +1,12 @@
 import type {
-  DataType,
   NodeInputBindingsInput,
   NodeOutputDefinition,
   NodeVariableFormSection,
-  VariableReference,
 } from '@ai-workflow/core'
 import type { ComponentType } from 'react'
 
+import type { AvailableVariableOption } from '../contracts/available-variable-option'
 import { builtinNodeVariableRenderers } from '../variables/node-variable-renderer-registry'
-
-export interface AvailableVariableOption {
-  id: string
-  label: string
-  sourceId: string
-  sourceLabel: string
-  variableName: string
-  dataType: DataType
-  reference: VariableReference
-}
 
 export type NodeVariableFieldErrors = Readonly<Record<string, string | undefined>>
 export type NodeInputBindingsFormValue = Exclude<NodeInputBindingsInput, undefined>
@@ -60,3 +49,4 @@ export { NodeOutputDefinitionsEditor } from '../variables/node-output-definition
 export { builtinNodeVariableRenderers } from '../variables/node-variable-renderer-registry'
 export { StartInputVariablesEditor } from '../variables/start-input-variables-editor'
 export { NodeVariablePicker, type NodeVariablePickerProps } from '../variables/node-variable-picker'
+export type { AvailableVariableOption } from '../contracts/available-variable-option'

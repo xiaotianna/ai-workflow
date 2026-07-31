@@ -1,6 +1,5 @@
 // 特点node config form面板渲染的组件
 export const NODE_CONFIG_RENDERER_TYPES = {
-  CONDITION: 'condition',
   LLM: 'llm',
 } as const
 

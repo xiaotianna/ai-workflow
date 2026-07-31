@@ -11,6 +11,5 @@ export const httpNode = {
   createInitialConfig: () => createInitialConfig(httpNodeSchema),
 } satisfies NodeType<typeof httpNodeSchema>
 
-export type { HttpNodeConfig } from './schema'
-
 export * from './constant'
+export * from './schema'

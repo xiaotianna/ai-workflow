@@ -340,6 +340,7 @@ export const WorkflowConfigPanel = ({
                   fields={formFields}
                   values={form.config}
                   errors={errors}
+                  availableVariables={availableVariables}
                   onChange={handleFieldChange}
                 />
               </div>

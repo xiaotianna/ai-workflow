@@ -1,6 +1,6 @@
-import type { NodeVariableFieldErrors } from '../components/node-variable-section'
+import type { FieldRendererErrors } from '../contracts/field-renderer'
 
-export function getFieldError(errors: NodeVariableFieldErrors | undefined, path: string) {
+export function getFieldError(errors: FieldRendererErrors | undefined, path: string) {
   if (!errors) return undefined
 
   const matchingEntry = Object.entries(errors).find(

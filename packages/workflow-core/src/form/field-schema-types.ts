@@ -45,6 +45,18 @@ export interface CodeEditorFieldSchema extends BaseFieldSchema {
   content: string
 }
 
+export interface KeyValueTableFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.KEY_VALUE_TABLE
+}
+
+export interface RequestBodyFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.REQUEST_BODY
+}
+
+export interface ConditionBranchesFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.CONDITION_BRANCHES
+}
+
 export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.TEXT]: TextFieldSchema
   [FIELD_UI_TYPES.NUMBER]: NumberFieldSchema
@@ -53,6 +65,9 @@ export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.SWITCH]: SwitchFieldSchema
   [FIELD_UI_TYPES.SLIDER]: SliderFieldSchema
   [FIELD_UI_TYPES.CODE_EDITOR]: CodeEditorFieldSchema
+  [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableFieldSchema
+  [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyFieldSchema
+  [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesFieldSchema
 }
 
 export type FieldSchema<TUI extends FieldUIType = FieldUIType> = FieldSchemaByUI[TUI]

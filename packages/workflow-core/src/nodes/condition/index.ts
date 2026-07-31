@@ -1,18 +1,18 @@
 import type { z } from 'zod'
-import { NODE_CONFIG_RENDERER_TYPES } from '../../form/node-config-renderer'
 import { createInitialConfig } from '../../node/create-initial-config'
 import type { NodeType } from '../../node/node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import type { PortDefinition } from '../../port/port-types'
 import { CONDITION_LOGICAL_OPERATOR_KINDS } from './constant'
 import { conditionNodeDefinition } from './definition'
+import { conditionNodeForm } from './form'
 import { conditionNodeSchema } from './schema'
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 
 export const conditionNode = {
   schema: conditionNodeSchema,
   definition: conditionNodeDefinition,
-  configRenderer: NODE_CONFIG_RENDERER_TYPES.CONDITION,
+  form: conditionNodeForm,
   createInitialConfig: () =>
     createInitialConfig(conditionNodeSchema, {
       conditions: [

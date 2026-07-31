@@ -12,6 +12,9 @@
 import {
   codeNode,
   endNode,
+  HTTP_BODY_TYPES,
+  HTTP_FORM_DATA_VALUE_TYPES,
+  HTTP_METHODS,
   workflowSchema,
   nodeRegistry,
   CONDITION_LOGICAL_OPERATOR_KINDS,
@@ -49,21 +52,24 @@ Nodes UI 保持 schema 和组件类型关联。
   输入元数据的普通节点输出。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
-- `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`
-  和 `code_editor` 作为字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
+- `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
+  `code_editor`、`key_value_table`、`request_body` 和 `condition_branches` 作为字段 schema
+  的唯一判别值，不再同时声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
-  `SwitchFieldSchema`、`SliderFieldSchema` 和 `CodeEditorFieldSchema` 都继承
+  `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
+  `KeyValueTableFieldSchema`、`RequestBodyFieldSchema` 和 `ConditionBranchesFieldSchema` 都继承
   `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
-- 当前 `http`、`loop`、`code` 和 `rag` 已声明通用节点配置 form；Code 使用
+- 当前 `loop`、`code`、`rag`、`http` 和 `condition` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
   语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
   表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
-- `NodeType.configRenderer` 为动态数组等复杂配置声明专属 renderer 名称；Core 只通过
-  `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，通用 React renderer 与内置注册表属于
+- `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
+  可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
+  `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于
   `@ai-workflow/form`，需要应用业务数据的 renderer 由应用通过 `NodeConfigSection.renderers`
   注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
 - LLM 通过 `LLM` 专属 renderer 编辑模型与“上下文”；`config.messages` 按顺序保存带稳定 `id` 的
@@ -74,6 +80,17 @@ Nodes UI 保持 schema 和组件类型关联。
   停止序列、响应格式、推理强度、思考模式以及 Ollama 的 Top K、重复惩罚和 Seed；所有字段
   缺失时表示沿用供应商默认值，旧节点由 schema 补为空引用与空参数。Core 只定义可序列化领域
   契约，不保存供应商展示信息、模型组凭证、参数界面策略或 Web 请求数据。
+- HTTP 通过 `httpNodeForm` 按顺序声明 URL、Method、Headers、Params、Body 和连接超时；基础
+  字段与复杂字段都由 `NodeConfigFields` 按 `field.ui` 分发，不再声明整节点 renderer。
+  `connectionTimeout` 使用秒为单位的正数并默认设为 30，旧配置缺省时由 schema 自动补齐。
+  Headers、Params
+  以带稳定 `id` 的键值条目数组保存，Key 与 Value 都使用 `VariableValue`，空 Key 和空 Value
+  允许保留；字段缺省时各创建一条空行，用户删除后显式保存的空数组不会自动补回。Body 使用
+  `type` 判别 none、form-data、x-www-form-urlencoded、json、raw、binary，
+  form-data 条目额外保存 `text` / `file` 类型，其余内容继续使用 `VariableValue`。
+  `createHttpRequestBody(type)` 负责创建切换 Body 类型时的合法初始结构，其中两种表格 Body
+  默认各包含一条可删除的空行；旧 HTTP 配置缺少新增字段时由 schema 默认补齐 Headers、Params
+  的初始空行和 none Body。
 - `NodeType.createInitialInputs()` 与 `createInitialOutputs()` 为需要预置变量的节点分别生成
   独立的输入绑定和输出定义；`createInitialConfig(variables)` 可以读取同一批初始变量，
   让配置模板与变量名保持一致。未声明变量工厂的节点继续使用空输入和空输出。
@@ -97,6 +114,8 @@ Nodes UI 保持 schema 和组件类型关联。
   表达。`IS_EMPTY`、`IS_NOT_EMPTY` 不保存右值，其余运算符必须保存右值。
   `portId` 是动态输出端口的稳定标识，修改规则不重建端口；旧的字符串 `condition` 不再属于
   当前 schema。旧版空字符串默认配置会安全转换为 `rules: []`，非空旧表达式拒绝有损转换。
+  Condition 通过 `conditionNodeForm` 将 `conditions` 声明为 `CONDITION_BRANCHES` 字段，不再
+  使用整节点 `configRenderer`；画布摘要和动态输出端口继续从写回后的同一份配置派生。
 - Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
 - 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
@@ -114,9 +133,10 @@ Nodes UI 保持 schema 和组件类型关联。
 2. 定义稳定唯一的 type、标签、说明、图标和静态端口。
 3. 需要通用配置表单时使用 `NodeFormSchema<typeof nodeSchema>` 声明 form，以
    `FIELD_UI_TYPES` 中的 `ui` 选择控件；不要在字段中重复声明值类型。
-4. 动态数组等无法由普通字段表达的配置通过 `NodeType.configRenderer` 声明专属 renderer；
-   通用实现在 `@ai-workflow/form` 注册，依赖应用业务数据的实现由应用注入；不要扩展普通
-   字段参数承载节点专属上下文。
+4. 可按单个配置键表达且存在平台复用价值的复杂配置应增加字段 UI 类型，并在
+   `@ai-workflow/form` 注册字段 renderer；依赖应用业务数据的字段 renderer 由应用通过字段
+   registry 注入。只有无法按顶层字段拆分或第三方插件完整接管时才使用
+   `NodeType.configRenderer`，不要让整节点 renderer 重复渲染已有基础字段。
 5. 使用 `createInitialConfig()` 实现 `NodeType.createInitialConfig`；需要预置节点变量时同时
    实现 `createInitialInputs()` / `createInitialOutputs()`，配置模板需要变量名时从
    `createInitialConfig(variables)` 的参数读取。

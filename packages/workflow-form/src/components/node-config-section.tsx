@@ -32,4 +32,3 @@ export function NodeConfigSection({ renderer, renderers, ...props }: NodeConfigS
 }
 
 export { builtinNodeConfigRenderers } from '../config/node-config-renderer-registry'
-export { ConditionConfigEditor } from '../config/condition-config-editor'
