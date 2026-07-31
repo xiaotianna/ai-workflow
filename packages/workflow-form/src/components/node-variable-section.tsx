@@ -59,3 +59,4 @@ export { NodeInputBindingsEditor } from '../variables/node-input-bindings-editor
 export { NodeOutputDefinitionsEditor } from '../variables/node-output-definitions-editor'
 export { builtinNodeVariableRenderers } from '../variables/node-variable-renderer-registry'
 export { StartInputVariablesEditor } from '../variables/start-input-variables-editor'
+export { NodeVariablePicker, type NodeVariablePickerProps } from '../variables/node-variable-picker'

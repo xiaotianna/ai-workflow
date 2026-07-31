@@ -103,8 +103,9 @@ HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容�
 请求地址都继承 `NodeContentItem` 的默认文字颜色。
 LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，不再展示 Prompt；它读取
 经过 LLM schema 解析后的模型引用，并通过画布注入的 `resolveModelReferenceDisplay` 获取
-模型组名称、模型名称与供应商图标，在 `NodeContentItem` 中展示紧凑的两级模型摘要。未选择、
-展示数据加载中或引用失效时显示对应空状态；Nodes UI 不请求 Web 的模型接口，也不复制供应商策略。
+模型组名称、模型名称与供应商图标，在 `NodeContentItem` 中按“模型组 / 模型名”单行展示紧凑
+摘要；模型组与模型名统一继承条目的弱化文字色、字号和字重，超长时整行省略。未选择、展示
+数据加载中或引用失效时显示对应空状态；Nodes UI 不请求 Web 的模型接口，也不复制供应商策略。
 RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，读取经过 RAG schema
 解析后的 `node.config.knowledgeBaseId`，以紧凑条目展示当前知识库标识；未选择时显示明确
 空状态。字段标签和空状态提示复用 Core 的 RAG form 定义；Nodes UI 不读取 Web 的知识库

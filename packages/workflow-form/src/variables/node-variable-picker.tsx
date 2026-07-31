@@ -4,7 +4,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@ai-workflow/ui/compone
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Box, Search } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactElement } from 'react'
 
 import { getDataTypeTag } from '../components/data-type-select'
 import type { AvailableVariableOption } from '../components/node-variable-section'
@@ -15,12 +15,15 @@ interface VariableOptionGroup {
   options: AvailableVariableOption[]
 }
 
-interface NodeVariablePickerProps {
+export interface NodeVariablePickerProps {
   value?: string
   options: readonly AvailableVariableOption[]
   disabled?: boolean
   invalid?: boolean
   endOffset?: number
+  trigger?: ReactElement
+  matchTriggerWidth?: boolean
+  contentClassName?: string
   onValueChange: (option: AvailableVariableOption) => void
 }
 
@@ -60,6 +63,9 @@ function NodeVariablePicker({
   disabled,
   invalid,
   endOffset = 0,
+  trigger,
+  matchTriggerWidth = true,
+  contentClassName,
   onValueChange,
 }: NodeVariablePickerProps) {
   const [open, setOpen] = useState(false)
@@ -69,44 +75,48 @@ function NodeVariablePicker({
   const resultCount = groups.reduce((count, group) => count + group.options.length, 0)
 
   function handleOpenChange(nextOpen: boolean) {
+    if (disabled && nextOpen) return
+
     setOpen(nextOpen)
     if (!nextOpen) setSearchValue('')
   }
 
   return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
+    <Popover open={disabled ? false : open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={disabled}
-          aria-label="上游变量"
-          aria-invalid={invalid}
-          className="hover:border-input-focus hover:bg-background focus-visible:border-input-focus focus-visible:bg-background aria-invalid:border-destructive h-8 min-w-0 flex-1 justify-start gap-1 rounded-l-none border border-transparent bg-transparent px-2.5 text-xs font-normal shadow-none transition-[background-color,border-color] hover:z-10 focus-visible:z-10"
-        >
-          {selectedOption ? (
-            <>
-              <Box className="text-foreground size-3.5 shrink-0" aria-hidden />
-              <span
-                className="flex min-w-0 flex-1 items-center gap-1"
-                title={`${selectedOption.sourceLabel} / ${selectedOption.variableName}`}
-              >
-                <span className="max-w-[40%] truncate font-medium">
-                  {selectedOption.sourceLabel}
+        {trigger ?? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            aria-label="上游变量"
+            aria-invalid={invalid}
+            className="hover:border-input-focus hover:bg-background focus-visible:border-input-focus focus-visible:bg-background aria-invalid:border-destructive h-8 min-w-0 flex-1 justify-start gap-1 rounded-l-none border border-transparent bg-transparent px-2.5 text-xs font-normal shadow-none transition-[background-color,border-color] hover:z-10 focus-visible:z-10"
+          >
+            {selectedOption ? (
+              <>
+                <Box className="text-foreground size-3.5 shrink-0" aria-hidden />
+                <span
+                  className="flex min-w-0 flex-1 items-center gap-1"
+                  title={`${selectedOption.sourceLabel} / ${selectedOption.variableName}`}
+                >
+                  <span className="max-w-[40%] truncate font-medium">
+                    {selectedOption.sourceLabel}
+                  </span>
+                  <span className="text-muted-foreground shrink-0">/</span>
+                  <span className="text-primary flex min-w-0 flex-1 items-center gap-1 font-medium">
+                    <VariableIcon className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{selectedOption.variableName}</span>
+                  </span>
                 </span>
-                <span className="text-muted-foreground shrink-0">/</span>
-                <span className="text-primary flex min-w-0 flex-1 items-center gap-1 font-medium">
-                  <VariableIcon className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">{selectedOption.variableName}</span>
-                </span>
+              </>
+            ) : (
+              <span className="text-input-placeholder truncate">
+                {options.length > 0 ? '设置变量值' : '无可用上游变量'}
               </span>
-            </>
-          ) : (
-            <span className="text-input-placeholder truncate">
-              {options.length > 0 ? '设置变量值' : '无可用上游变量'}
-            </span>
-          )}
-        </Button>
+            )}
+          </Button>
+        )}
       </PopoverTrigger>
 
       <PopoverContent
@@ -114,10 +124,18 @@ function NodeVariablePicker({
         alignOffset={-endOffset}
         sideOffset={4}
         collisionPadding={16}
-        className="flex max-h-[min(30rem,var(--radix-popover-content-available-height))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0"
-        style={{
-          width: `calc(var(--radix-popover-trigger-width) + 2.25rem + ${endOffset}px)`,
-        }}
+        className={cn(
+          'flex max-h-[min(30rem,var(--radix-popover-content-available-height))] max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0',
+          !matchTriggerWidth && 'w-72',
+          contentClassName,
+        )}
+        style={
+          matchTriggerWidth
+            ? {
+                width: `calc(var(--radix-popover-trigger-width) + 2.25rem + ${endOffset}px)`,
+              }
+            : undefined
+        }
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div className="border-border border-b-[0.5px] p-2.5">

@@ -10,6 +10,9 @@ export const LLM_REASONING_EFFORT_VALUES = [
   'max',
 ] as const
 export const LLM_THINKING_MODE_VALUES = ['enabled', 'disabled'] as const
+export const LLM_CONTEXT_MESSAGE_ROLE_VALUES = ['system', 'assistant', 'user'] as const
+
+const DEFAULT_LLM_CONTEXT = '请根据输入生成回答'
 
 export const llmModelParametersSchema = z.object({
   temperature: z.number().min(0, '温度不能小于 0').max(2, '温度不能大于 2').optional(),
@@ -37,21 +40,75 @@ export const llmModelSchema = z.object({
   parameters: llmModelParametersSchema.default({}),
 })
 
+export const llmContextMessageSchema = z.object({
+  id: z.string().trim().min(1, '上下文消息 ID 不能为空'),
+  role: z.enum(LLM_CONTEXT_MESSAGE_ROLE_VALUES),
+  content: z.string().trim().min(1, '上下文内容不能为空'),
+})
+
+export const llmContextMessagesSchema = z
+  .array(llmContextMessageSchema)
+  .min(1, '至少需要一条上下文消息')
+  .superRefine((messages, context) => {
+    const ids = new Set<string>()
+
+    messages.forEach((message, index) => {
+      if (ids.has(message.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'id'],
+          message: '上下文消息 ID 不能重复',
+        })
+      }
+      ids.add(message.id)
+    })
+  })
+
+function migrateLegacyPrompt(value: unknown): unknown {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+
+  const config = value as Record<string, unknown>
+  if (Array.isArray(config.messages) || typeof config.prompt !== 'string') return value
+
+  return {
+    ...config,
+    messages: [
+      {
+        id: 'legacy-system-message',
+        role: 'system',
+        content: config.prompt,
+      },
+    ],
+  }
+}
+
 /**
  * 运行时可以直接复用：
  * const config = startNodeSchema.parse(rawConfig)
- * config 已获得可靠类型：console.log(config.prompt)
+ * config 已获得可靠类型：console.log(config.messages)
  */
-export const llmNodeSchema = z.object({
-  model: llmModelSchema.default({
-    groupId: '',
-    configuredModelId: '',
-    parameters: {},
+export const llmNodeSchema = z.preprocess(
+  migrateLegacyPrompt,
+  z.object({
+    model: llmModelSchema.default({
+      groupId: '',
+      configuredModelId: '',
+      parameters: {},
+    }),
+    messages: llmContextMessagesSchema.default(() => [
+      {
+        id: 'default-system-message',
+        role: 'system' as const,
+        content: DEFAULT_LLM_CONTEXT,
+      },
+    ]),
   }),
-  prompt: z.string().trim().min(1, 'Prompt 不能为空').default('请根据输入生成回答'),
-})
+)
 
 export type LlmModelParametersInput = z.input<typeof llmModelParametersSchema>
 export type LlmModelParameters = z.output<typeof llmModelParametersSchema>
 export type LlmModelConfig = z.output<typeof llmModelSchema>
+export type LlmContextMessageRole = (typeof LLM_CONTEXT_MESSAGE_ROLE_VALUES)[number]
+export type LlmContextMessageInput = z.input<typeof llmContextMessageSchema>
+export type LlmContextMessage = z.output<typeof llmContextMessageSchema>
 export type LlmNodeConfig = z.output<typeof llmNodeSchema>

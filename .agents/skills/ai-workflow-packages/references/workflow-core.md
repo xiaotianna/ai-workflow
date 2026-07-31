@@ -66,8 +66,11 @@ Nodes UI 保持 schema 和组件类型关联。
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，通用 React renderer 与内置注册表属于
   `@ai-workflow/form`，需要应用业务数据的 renderer 由应用通过 `NodeConfigSection.renderers`
   注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。
-- LLM 通过 `LLM` 专属 renderer 编辑模型与 Prompt；`config.model` 保存稳定的 `groupId`、
-  `configuredModelId` 和可选 `parameters`。参数 schema 统一覆盖温度、Top P、最大输出 Token、
+- LLM 通过 `LLM` 专属 renderer 编辑模型与“上下文”；`config.messages` 按顺序保存带稳定 `id` 的
+  `system`、`assistant`、`user` 消息及纯字符串内容，至少保留一条且消息内容不能为空。旧版
+  `config.prompt` 在 schema 解析时自动迁移为 SYSTEM 消息，不在解析结果中继续保留 Prompt 字段。
+  `config.model` 保存稳定的 `groupId`、`configuredModelId` 和可选 `parameters`。参数 schema
+  统一覆盖温度、Top P、最大输出 Token、
   停止序列、响应格式、推理强度、思考模式以及 Ollama 的 Top K、重复惩罚和 Seed；所有字段
   缺失时表示沿用供应商默认值，旧节点由 schema 补为空引用与空参数。Core 只定义可序列化领域
   契约，不保存供应商展示信息、模型组凭证、参数界面策略或 Web 请求数据。

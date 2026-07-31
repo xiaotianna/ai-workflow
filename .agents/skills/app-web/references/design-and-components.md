@@ -47,6 +47,18 @@
   工作流编辑器通过共享模型目录上下文加载一次完整对话模型组列表，模型选择器与画布摘要共用
   同一份数据和重试入口；画布将模型组名称、模型名称及供应商图标解析后注入 Nodes UI，不让
   Nodes UI 请求 Web API。LLM 画布摘要不展示 Prompt，并为加载中、未选择和失效引用保留明确状态。
+  LLM 配置的 Prompt 已替换为“上下文”消息编辑器；旧 Prompt 由 Core schema 自动迁移为 SYSTEM
+  消息。消息支持 SYSTEM、ASSISTANT、USER 角色，卡片工具区只保留插入变量与删除，字段标题区
+  提供新增消息；变量选择复用 Form 的 `NodeVariablePicker`，编辑核心复用 UI 的 `TiptapEditor`。
+  变量在编辑器中显示为 token，持久化仍使用 `{{#来源标识.变量名#}}` 形式的纯文本模板。
+  消息卡片沿用代码字段的 `rounded-lg` 轻量外壳与 36px 工具栏，默认使用 `bg-input` 并预留
+  1px 描边；角色选择与图标按钮作为同高的内嵌控件，不显示独立输入框轮廓。角色 Trigger 为
+  24px 高，菜单使用紧凑宽度、28px 选项与浅色交互背景，并保留 Select 原有的主色勾选标记。
+  Hover 使用 `border-input-focus` 语义色，任一内部控件聚焦时切换 `bg-background`，并沿外边
+  显示主色到信息色的流动渐变描边；动画必须遵循 reduced motion，错误态优先显示 destructive
+  实体边框；校验文案切换时消息项只做位置布局动画，不缩放编辑卡片。上下文字段标题的新增
+  按钮与输入、输出变量字段统一使用 Ghost `icon-xs`、弱化前景色和 16px Plus 图标。消息新增
+  和删除使用 Motion，并保持至少一条消息。
 - OpenAI、DeepSeek、Ollama 等供应商的名称、图标、默认地址、配置字段和 API 文档地址由
   `provider-strategies.ts` 的前端展示策略统一提供；持久化、默认探测地址和响应校验由后端供应商
   注册表负责。新增供应商时两端分别注册策略，不在页面、手风琴或弹窗中增加类型分支。

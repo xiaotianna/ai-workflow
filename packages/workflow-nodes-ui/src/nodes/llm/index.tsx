@@ -27,17 +27,16 @@ export function LlmNodeContent({
         >
           {modelDisplay.providerIcon}
         </span>
-        <div className="min-w-0 flex-1">
-          <p title={modelDisplay.groupName} className="truncate text-[10px] leading-3">
-            {modelDisplay.groupName}
-          </p>
-          <p
-            title={modelDisplay.modelName}
-            className="text-foreground truncate text-xs leading-4 font-medium"
-          >
-            {modelDisplay.modelName}
-          </p>
-        </div>
+        <p
+          title={`${modelDisplay.groupName} / ${modelDisplay.modelName}`}
+          className="min-w-0 flex-1 truncate text-xs leading-4"
+        >
+          <span>{modelDisplay.groupName}</span>
+          <span aria-hidden className="text-muted-foreground/60 mx-1">
+            /
+          </span>
+          <span>{modelDisplay.modelName}</span>
+        </p>
       </div>
     )
   }

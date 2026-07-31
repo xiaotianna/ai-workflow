@@ -12,6 +12,7 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
 import { Form } from '@ai-workflow/ui/components/form'
+import { TiptapEditor } from '@ai-workflow/ui/components/tiptap-editor'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { useIsMobile } from '@ai-workflow/ui/hooks/use-mobile'
 import { showToast } from '@ai-workflow/ui/lib/toast'
@@ -27,6 +28,11 @@ import '@ai-workflow/ui/globals.css'
   提供 12px 代码字号、随行号位数自适应并额外预留一个字符左侧留白的行号区、透明主题、
   明暗主题自动适配、加载态和禁用态。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等
   场景 UI 由使用方组合，不下沉到 UI 包。
+- `TiptapEditor` 是基于 Tiptap 的无业务外壳受控文本编辑核心，使用纯字符串 `value` / `onChange`
+  契约并支持换行、占位、禁用、错误语义和键盘编辑。调用方可以通过 `tokens` 声明可序列化的
+  内联 token，并使用公开 ref 的 `insertToken` 在当前光标插入；编辑器将 token 显示为紧凑标签，
+  回写时仍输出 token 的原始字符串值，不把 HTML 或 Tiptap JSON 泄漏到业务配置。角色、工具栏、
+  变量选择器、外层边框和业务校验由使用方组合。
 - 数据展示：`Table`、`Badge`、`Pagination`。
 - 图标：`VariableIcon` 使用内置 `system-icon.svg` 作为 CSS Mask，通过 `currentColor`
   继承调用处的语义文字色；需要主题主色时传入 `text-primary`，不要用 `<img>` 固定 SVG
@@ -64,6 +70,8 @@ import '@ai-workflow/ui/globals.css'
   `monaco-editor/editor/*` 和
   `monaco-editor/language/*` 公开子路径导入，不使用会绕过 0.56 `exports` 映射的
   `monaco-editor/esm/vs/*` 深路径。
+- 需要无格式工具栏的富文本内核或内联业务 token 时使用 `TiptapEditor`；业务层只把稳定、可解析
+  的字符串作为 token `value`，展示文案放在 `label`，不得保存业务组件、DOM、HTML 或编辑器实例。
 - 提交型按钮使用 `confirm` 且在不可提交时设置 `disabled`；取消和返回使用 `secondary`。
 - 单文件选择使用 `FileDropzone`，业务校验保留在调用方。
 - `SelectContent` 与 `DropdownMenuContent` 统一使用半透明背景、0.5px 语义边框、`shadow-lg`、圆角和背景模糊，不在调用方分别覆盖阴影。

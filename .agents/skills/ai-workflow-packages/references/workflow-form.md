@@ -46,6 +46,7 @@ import {
 
 import {
   NodeVariableSection,
+  NodeVariablePicker,
   builtinNodeVariableRenderers,
   type AvailableVariableOption,
   type NodeVariableRendererMap,
@@ -207,6 +208,10 @@ export const builtinFields = {
   规则必须复用它；组件只消费调用方提供的 `AvailableVariableOption`，不遍历工作流。变量
   选择浮层默认与组合控件等宽；组件右侧存在额外固定区域时，通过可选
   `variablePickerEndOffset`（像素）同步扩展浮层宽度和末端对齐位置。
+- `NodeVariablePicker` 通过 `node-variable-section` 公开，可继续使用默认的完整变量值触发器，
+  也可传入 `trigger` 组合图标按钮等业务入口；自定义触发器场景使用 `matchTriggerWidth={false}`
+  获得标准紧凑浮层宽度。搜索、来源分组、数据类型和选中回调继续由同一组件维护，不在 Web
+  renderer 中复制变量列表。
 - `ConditionConfigEditor` 维护稳定 `portId` 的分支和稳定 `id` 的规则；新增 ELIF 插在唯一
   ELSE 前，删除分支后重新编号 CASE 标签；同一分支内多条规则使用 Core 公共逻辑关系统一
   选择 AND 或 OR，规则数大于一时显示关系按钮，点击直接在两种关系间切换，不打开下拉菜单。

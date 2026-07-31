@@ -78,7 +78,7 @@ const workflowNode: WorkflowNode = {
   inputs: {},
   outputs: [],
   config: {
-    prompt: '你好',
+    messages: [{ id: 'system-message', role: 'system', content: '你好' }],
   },
 }
 const nodeType = registry.getOrThrow(workflowNode.type)

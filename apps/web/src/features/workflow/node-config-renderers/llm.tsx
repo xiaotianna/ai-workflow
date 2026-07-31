@@ -1,5 +1,8 @@
 import {
+  LLM_CONTEXT_MESSAGE_ROLE_VALUES,
   llmModelSchema,
+  llmNodeSchema,
+  type LlmContextMessageInput,
   type LlmModelConfig,
   type LlmModelParametersInput,
 } from '@ai-workflow/core'
@@ -17,14 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Textarea } from '@ai-workflow/ui/components/textarea'
-import { RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { Plus, RefreshCw, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 
 import { type ModelGroupDto, type ModelProviderType } from '@/api/models'
 import { useWorkflowModelCatalog } from '@/components/workflow/workflow-model-catalog-context'
 import { getModelProviderStrategy } from '@/features/models'
 
+import { ContextMessagesEditor } from './context-messages-editor'
 import { LlmModelParametersDialog } from './llm-model-parameters-dialog'
 
 interface AvailableModelOption {
@@ -47,6 +50,27 @@ function getModelReference(config: Readonly<Record<string, unknown>>): LlmModelC
   const result = llmModelSchema.safeParse(config.model)
 
   return result.success ? result.data : llmModelSchema.parse({})
+}
+
+function isContextMessage(value: unknown): value is LlmContextMessageInput {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+
+  const message = value as Record<string, unknown>
+
+  return (
+    typeof message.id === 'string' &&
+    typeof message.content === 'string' &&
+    typeof message.role === 'string' &&
+    LLM_CONTEXT_MESSAGE_ROLE_VALUES.includes(message.role as LlmContextMessageInput['role'])
+  )
+}
+
+function getContextMessages(config: Readonly<Record<string, unknown>>): LlmContextMessageInput[] {
+  if (Array.isArray(config.messages)) return config.messages.filter(isContextMessage)
+
+  const result = llmNodeSchema.safeParse(config)
+
+  return result.success ? result.data.messages : llmNodeSchema.parse({}).messages
 }
 
 function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableModelGroup[] {
@@ -83,6 +107,7 @@ function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableMod
 
 export function LlmNodeConfigEditor({
   config,
+  availableVariables = [],
   disabled,
   errors,
   onConfigChange,
@@ -97,7 +122,7 @@ export function LlmNodeConfigEditor({
       model.groupId === modelReference.groupId &&
       model.configuredModelId === modelReference.configuredModelId,
   )
-  const prompt = typeof config.prompt === 'string' ? config.prompt : ''
+  const messages = getContextMessages(config)
   const hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
   const modelError =
     errors?.model ?? errors?.['model.groupId'] ?? errors?.['model.configuredModelId']
@@ -229,21 +254,43 @@ export function LlmNodeConfigEditor({
 
       <Form.Field
         required
-        label="Prompt"
-        error={errors?.prompt}
-        description="输入发送给模型的提示词"
+        label="上下文"
+        error={errors?.messages}
+        actions={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-xs"
+            className="text-muted-foreground"
+            disabled={disabled}
+            aria-label="添加上下文消息"
+            onClick={() =>
+              onConfigChange({
+                ...config,
+                messages: [
+                  ...messages,
+                  {
+                    id: crypto.randomUUID(),
+                    role: 'user',
+                    content: '',
+                  },
+                ],
+              })
+            }
+          >
+            <Plus className="size-4" aria-hidden />
+          </Button>
+        }
       >
-        <Textarea
-          value={prompt}
+        <ContextMessagesEditor
+          messages={messages}
+          availableVariables={availableVariables}
+          errors={errors}
           disabled={disabled}
-          aria-label="Prompt"
-          aria-invalid={Boolean(errors?.prompt)}
-          placeholder="请输入提示词"
-          className="min-h-28"
-          onChange={(event) =>
+          onChange={(nextMessages) =>
             onConfigChange({
               ...config,
-              prompt: event.target.value,
+              messages: nextMessages,
             })
           }
         />
