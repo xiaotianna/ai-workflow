@@ -10,7 +10,6 @@ export interface ActionMenuAction {
   id: string
   label: ReactNode
   onSelect: () => void
-  icon?: ReactNode
   disabled?: boolean
   destructive?: boolean
   separatorBefore?: boolean
@@ -42,7 +41,6 @@ export function ActionMenuContent({
                 'text-destructive data-highlighted:bg-destructive/10 data-highlighted:text-destructive',
             )}
           >
-            {action.icon}
             <span>{action.label}</span>
           </DropdownMenuItem>
         </Fragment>

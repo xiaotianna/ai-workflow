@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { ChevronDown, FileUp, Plus, Search, SquarePlus } from 'lucide-react'
+import { ChevronDown, Plus, Search } from 'lucide-react'
 
 import { studioAppSortStrategies, studioAppSortValues } from '../studio-app-sort-strategies'
 import type { StudioAppSort } from '../types'
@@ -110,14 +110,12 @@ export function StudioToolbar({
 
         <DropdownMenuContent align="end" className="w-56">
           <DropdownMenuItem onSelect={onCreateBlankApp}>
-            <SquarePlus className="text-muted-foreground size-4" />
             <span>创建空白应用</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
 
           <DropdownMenuItem className="items-start" onSelect={onImportApp}>
-            <FileUp className="text-muted-foreground mt-0.5 size-4" />
             <span className="flex min-w-0 flex-col gap-0.5">
               <span>导入 DSL 文件</span>
               <span className="text-muted-foreground text-xs font-normal">

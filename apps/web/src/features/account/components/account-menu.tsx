@@ -7,7 +7,6 @@ import {
 } from '@ai-workflow/ui/components/dropdown-menu'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { CircleUserRound, Power } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
@@ -19,14 +18,12 @@ import { EditAccountDialog } from './edit-account-dialog'
 import { LogoutConfirmDialog } from './logout-confirm-dialog'
 
 function AccountMenuItem({
-  icon: Icon,
   label,
   className,
   destructive,
   disabled,
   onSelect,
 }: {
-  icon: typeof CircleUserRound
   label: string
   className?: string
   destructive?: boolean
@@ -43,7 +40,6 @@ function AccountMenuItem({
         className,
       )}
     >
-      <Icon aria-hidden className={destructive ? 'text-current' : 'text-muted-foreground'} />
       <span className="min-w-0 flex-1">{label}</span>
     </DropdownMenuItem>
   )
@@ -132,7 +128,6 @@ export function AccountMenu({ className }: { className?: string }) {
           </div>
 
           <AccountMenuItem
-            icon={CircleUserRound}
             label="账户"
             disabled={!user}
             onSelect={() => setIsEditDialogOpen(true)}
@@ -140,7 +135,6 @@ export function AccountMenu({ className }: { className?: string }) {
 
           <DropdownMenuSeparator className="my-1" />
           <AccountMenuItem
-            icon={Power}
             label="退出登录"
             destructive
             onSelect={() => setIsLogoutDialogOpen(true)}

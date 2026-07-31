@@ -25,7 +25,7 @@
 - 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 `useFormData` 管理 `FileDropzone` 字段，通过 `validateFormByZod` 与对应 Zod schema 完成校验和提交。表格与分页的详细约定见下方「知识库文档表格」。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
-- 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。
+- 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。下拉操作项默认只显示文字，不提供通用 `icon` 配置；只有用户或业务规范明确要求时才单独实现图标。
 - 卡片的整面导航由 `ResourceCard` 内部链接承载，菜单触发器与链接保持为并列交互区域，禁止把按钮嵌套到链接中。
 
 ## 模型管理

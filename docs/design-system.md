@@ -127,6 +127,7 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 ## 浮层与容器
 
 - Select 与 Dropdown 菜单统一使用 `bg-popover/95 rounded-xl border-[0.5px] border-border shadow-lg backdrop-blur-[5px]`，业务页面不得分别覆盖浮层阴影。
+- Dropdown 操作项默认只显示文字，不添加装饰图标；只有用户或业务规范明确要求图标时才可使用。Select 的选中状态标记及图标选择器中的图标属于功能语义，不受此限制。
 - 标准 Select 菜单使用 `position="popper"`、`align="start"` 和 `sideOffset={4}` 从 Trigger
   下方展开，宽度跟随 `--radix-select-trigger-width`；不得使用 `item-aligned` 让已选项覆盖
   Trigger，只有明确需要原生菜单式选项对齐的特殊场景可以例外。
