@@ -61,6 +61,10 @@ export interface LlmModelFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.LLM_MODEL
 }
 
+export interface KnowledgeBaseFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.KNOWLEDGE_BASE
+}
+
 export interface ContextMessagesFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CONTEXT_MESSAGES
 }
@@ -77,6 +81,7 @@ export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyFieldSchema
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesFieldSchema
   [FIELD_UI_TYPES.LLM_MODEL]: LlmModelFieldSchema
+  [FIELD_UI_TYPES.KNOWLEDGE_BASE]: KnowledgeBaseFieldSchema
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesFieldSchema
 }
 

@@ -1,6 +1,6 @@
 # 节点配置字段级 Renderer 重构清单
 
-> 状态：已完成。HTTP、Condition、LLM 均已迁移为字段级 renderer。
+> 状态：已完成。HTTP、Condition、LLM、RAG 均已迁移为字段级 renderer。
 
 ## 1. 重构目标
 
@@ -15,7 +15,7 @@
 
 ```text
 Core NodeType.form
-  -> Web 解析动态字段配置
+  -> Web 注入依赖应用数据的字段 renderer
   -> Form NodeConfigFields 按 field.ui 查找 renderer
   -> 字段 renderer 接收 value / error / errors / availableVariables
   -> onChange(name, value)
@@ -102,13 +102,35 @@ LLM 现在通过 `llmNodeForm` 按顺序声明 `model` 和 `messages`。两个�
 `WorkflowEditor.configRenderers` 将宿主合并后的完整表单 registry 透传给
 `WorkflowConfigPanel`，不再在 LLM 字段 registry 旁维护空的整节点 registry。
 
+### 3.3 RAG（已完成）
+
+当前文件：
+
+- `packages/workflow-core/src/nodes/rag/form.ts`
+- `apps/web/src/features/workflow/node-config-renderers/knowledge-base-field.tsx`
+- `packages/workflow-core/src/nodes/rag/index.ts`
+
+RAG 的 `knowledgeBaseId` 通过 Core `ragNodeForm` 和稳定字段类型
+`FIELD_UI_TYPES.KNOWLEDGE_BASE` 进入通用字段分发。字段名、标签、默认说明和必填约束
+不再由 Web 节点 Resolver 重组。
+
+已完成：
+
+1. 增加稳定字段类型 `KNOWLEDGE_BASE` 和 `KnowledgeBaseFieldSchema`。
+2. `ragNodeForm.knowledgeBaseId` 改为使用知识库字段类型，不再以空 `SELECT.options`
+   占位。
+3. Web `KnowledgeBaseField` 通过字段 registry 注入，只消费
+   `WorkflowKnowledgeBaseCatalogProvider` 的目录、加载和错误状态。
+4. 已保存但当前目录不存在的知识库 ID 继续保留为不可用选项，不会被目录刷新
+   静默清空。
+5. 已删除 `apps/web/src/features/workflow/node-form-resolvers` 的 RAG resolver、内置注册表和
+   通用解析层，配置面板直接消费 Core `NodeType.form`。
+
 ## 4. 不属于本问题的组件
 
 - `LlmModelParametersDialog`：它是 `model.parameters` 的嵌套临时 Dialog，不接管节点顶层字段列表。
 - `NodeInputBindingsEditor`、`NodeOutputDefinitionsEditor`、`StartInputVariablesEditor`：它们编辑
   `node.inputs` 或 `node.outputs`，由变量区 renderer 契约管理，不属于 `node.config` 字段分发。
-- RAG 表单 Resolver：它只向已有 `SELECT` 字段注入动态知识库选项，仍由 `NodeConfigFields`
-  渲染，结构正确。
 - 第三方插件完整表单：插件拥有专属交互、运行时能力且无法形成平台标准字段时，可以继续使用
   `configRenderer`；详细边界见 `docs/plugin-node-config-form-design.md`。
 
@@ -127,7 +149,7 @@ LLM 现在通过 `llmNodeForm` 按顺序声明 `model` 和 `messages`。两个�
 
 ## 6. 验收结果
 
-- HTTP、Condition、LLM 的所有顶层配置键都能在对应 `NodeType.form` 中看到。
+- HTTP、Condition、LLM、RAG 的所有顶层配置键都能在对应 `NodeType.form` 中看到。
 - 普通字段与复杂字段由同一个 `NodeConfigFields` 按声明顺序渲染。
 - Web 配置面板没有增加节点类型 JSX 分支；Web 数据字段通过字段 registry 注入。
 - 每个字段级 renderer 只更新自己的配置键。

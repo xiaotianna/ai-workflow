@@ -205,11 +205,12 @@
   一致，不得直接展示持久化 `nodeId`；源节点实例名称变化时摘要同步更新。
   名称、描述、`config`、`inputs`、
   `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
-  校验后即时写回节点。动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
-  Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从
-  `WorkflowKnowledgeBaseCatalogProvider` 加载的真实知识库目录生成选项，并保留当前不可用引用；
-  Core 与 Form 不依赖 Web 数据；新增其他动态控件时增加对应 Resolver，
-  不扩展 `NodeConfigFields` 的控件专属参数。
+  校验后即时写回节点。动态业务数据不得在 Web 重组节点字段配置；对应字段的
+  `ui`、标签、默认说明与必填约束由 Core `NodeType.form` 声明，Web 通过
+  `features/workflow/node-config-renderers` 中的字段 renderer 消费 Context 或 API 数据。
+  RAG 通过 Core `KNOWLEDGE_BASE` 字段契约进入通用分发，Web `KnowledgeBaseField` 从
+  `WorkflowKnowledgeBaseCatalogProvider` 获取真实知识库目录，并保留当前不可用引用。
+  Core 与 Form 不依赖 Web 数据，`NodeConfigFields` 不增加控件专属参数。
 - 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
   `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；
   不在 Web 层复制节点标识色或图标。节点实例名称通过 `NodeHeader.label` 插槽渲染原生

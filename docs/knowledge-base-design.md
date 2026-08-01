@@ -95,7 +95,8 @@ flowchart LR
 - `apps/web/src/api/knowledge-bases`：知识库请求与响应契约。
 - `apps/web/src/features/knowledge-base`：知识库业务组件、表单、页面状态和数据 Hook。
 - `apps/web/src/pages`：读取路由参数、组合页面和管理页面级状态。
-- `features/workflow/node-form-resolvers`：加载当前用户的知识库目录并为 RAG Select 注入动态选项。
+- `features/workflow/node-config-renderers/knowledge-base-field.tsx`：消费当前用户的知识库目录，
+  并为 Core 声明的 RAG 知识库字段呈现动态选项。
 
 Web 不解析文件、不生成向量，也不根据文件大小模拟字符数、文档数量、召回次数或索引状态。
 
@@ -782,7 +783,8 @@ interface RetrievedChunk {
 ## 14. 推荐实施顺序
 
 1. 已落地最小 `KnowledgeBase` Prisma 模型和迁移，只承载空白资源身份、用户归属与列表索引。
-2. 已实现空白知识库创建/列表/详情/编辑/删除，并让 Web 和 RAG Resolver 使用真实 API 数据。
+2. 已实现空白知识库创建/列表/详情/编辑/删除，并让 Web `KnowledgeBaseField`
+   使用真实 API 数据；RAG 字段配置由 Core `ragNodeForm` 统一声明。
 3. 文档入库开始前，再落地 Index、Source、Version、Head、Chunk、Attempt、Outbox 和清理模型，
    同时补齐自定义 pgvector migration、外键、CHECK 和索引。
 4. 扩展嵌入模型适配器，完成真实 Embedding 探测、批量调用和维度识别。

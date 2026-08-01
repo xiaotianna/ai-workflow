@@ -53,21 +53,23 @@ Nodes UI 保持 schema 和组件类型关联。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
-  `code_editor`、`key_value_table`、`request_body`、`condition_branches`、`llm_model` 和
-  `context_messages` 作为字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
+  `code_editor`、`key_value_table`、`request_body`、`condition_branches`、`llm_model`、
+  `knowledge_base` 和 `context_messages` 作为字段 schema 的唯一判别值，不再同时声明数据
+  `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
   `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionBranchesFieldSchema`、
-  `LlmModelFieldSchema` 和 `ContextMessagesFieldSchema` 都继承 `BaseFieldSchema`。
+  `LlmModelFieldSchema`、`KnowledgeBaseFieldSchema` 和 `ContextMessagesFieldSchema` 都继承
+  `BaseFieldSchema`。
   `NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
 - 当前 `loop`、`code`、`rag`、`http`、`condition` 和 `llm` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
-  语言元数据。RAG 使用空的静态 `SELECT` 选项声明知识库字段，具体知识库选项由应用在渲染
-  表单前通过节点表单 Resolver 合并，Core 不依赖外部知识库数据。
+  语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明知识库字段，
+  Web 通过字段 registry 注入依赖知识库目录的 renderer；Core 不依赖外部知识库数据。
 - `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于

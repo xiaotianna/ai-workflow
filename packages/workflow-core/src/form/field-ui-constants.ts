@@ -10,6 +10,7 @@ export const FIELD_UI_TYPES = {
   REQUEST_BODY: 'request_body',
   CONDITION_BRANCHES: 'condition_branches',
   LLM_MODEL: 'llm_model',
+  KNOWLEDGE_BASE: 'knowledge_base',
   CONTEXT_MESSAGES: 'context_messages',
 } as const
 

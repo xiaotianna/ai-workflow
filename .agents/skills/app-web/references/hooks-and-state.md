@@ -136,8 +136,8 @@ function ExampleForm() {
   不在前端模拟分页或截断。
 - 知识库列表编辑或删除成功后刷新当前搜索与排序；详情页编辑成功后直接使用接口响应更新父级
   资源状态，删除成功后返回知识库列表。删除失败保留确认弹窗，错误继续由统一 API 客户端提示。
-- 工作流编辑器通过 `WorkflowKnowledgeBaseCatalogProvider` 独立加载当前用户的知识库目录，RAG
-  表单 Resolver 消费目录生成选项。已保存但目录中不存在的知识库 ID 必须保留为不可用选项并
+- 工作流编辑器通过 `WorkflowKnowledgeBaseCatalogProvider` 独立加载当前用户的知识库目录，
+  `KnowledgeBaseField` 消费目录生成选项。已保存但目录中不存在的知识库 ID 必须保留为不可用选项并
   提示重新选择，不得在目录刷新时静默清空节点配置。
 
 ## 工作流编辑器

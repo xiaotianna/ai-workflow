@@ -4,10 +4,9 @@ import { ragNodeSchema } from './schema'
 
 export const ragNodeForm = {
   knowledgeBaseId: {
-    ui: FIELD_UI_TYPES.SELECT,
+    ui: FIELD_UI_TYPES.KNOWLEDGE_BASE,
     label: '知识库',
     description: '选择需要检索的知识库',
     required: true,
-    options: [],
   },
 } satisfies NodeFormSchema<typeof ragNodeSchema>
