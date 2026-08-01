@@ -167,6 +167,11 @@
 - 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
   `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
   `NODE_THEMES` 或固定使用主色。
+- 工作流“检查清单”使用画布内浮动辅助面板，不使用 Sheet/Drawer 或全屏遮罩；打开和关闭时
+  通过 Motion 做轻量的位移、缩放与透明度过渡，不播放从页面边缘滑入的抽屉动画。清单按节点
+  分组展示 Core 校验、必填配置和运行前连线问题，节点图标和颜色继续复用 Nodes UI。问题项
+  Hover 或键盘 Focus visible 时显示“前往修改”，点击后通过现有 `openNodeConfig` 打开对应节点
+  配置面板，清单与配置面板允许同时显示。
 - 右侧节点配置面板放在 `features/workflow/components`，由工作流业务功能管理节点选择、
   面板开关和配置校验；配置字段列表使用
   `@ai-workflow/form/components/node-config-fields` 的 `NodeConfigFields` 渲染，不在 Web

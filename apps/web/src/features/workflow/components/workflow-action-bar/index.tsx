@@ -9,6 +9,7 @@ import type { WorkflowAuxiliaryPanelType } from '../workflow-auxiliary-panel'
 
 interface WorkflowActionBarProps {
   activePanel?: WorkflowAuxiliaryPanelType
+  checkListIssueCount: number
   disabled?: boolean
   onPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onTestRun: () => void
@@ -16,6 +17,7 @@ interface WorkflowActionBarProps {
 
 export const WorkflowActionBar = ({
   activePanel,
+  checkListIssueCount,
   disabled = false,
   onPanelToggle,
   onTestRun,
@@ -36,6 +38,7 @@ export const WorkflowActionBar = ({
       {/* 检查清单 */}
       <CheckList
         active={activePanel === 'check-list'}
+        issueCount={checkListIssueCount}
         onClick={() => onPanelToggle('check-list')}
       />
       {/* 环境变量 */}

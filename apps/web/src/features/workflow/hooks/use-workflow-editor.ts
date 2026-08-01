@@ -3,6 +3,7 @@ import {
   getNodePorts,
   nodeRegistry,
   type NodeType,
+  type Workflow,
   type WorkflowEdge,
   type WorkflowEnvironmentVariable,
   type WorkflowNode,
@@ -21,7 +22,7 @@ import {
   type Viewport,
   type XYPosition,
 } from '@xyflow/react'
-import { useRef, useState, type RefObject } from 'react'
+import { useMemo, useRef, useState, type RefObject } from 'react'
 
 import { canConnect } from '@/utils/workflow/can-connect'
 import { hasEdgeMutation, hasNodeMutation } from '@/utils/workflow/editor-change'
@@ -64,6 +65,11 @@ import { isEnvironmentVariableReferenced } from '../utils/environment-variable-r
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
   initialSnapshot: WorkflowEditorSnapshot // 初始化快照数据（包含工作流数据+布局数据）
+}
+
+interface NodeDraftValidationIssues {
+  nodeId: string
+  messages: readonly string[]
 }
 
 const DEFAULT_NODE_PLACEMENT_SIZE = {
@@ -244,6 +250,8 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(new Set())
   // 当前打开配置面板的节点 ID，和画布多选状态分开维护。
   const [selectedNodeId, setSelectedNodeId] = useState<string>()
+  const [nodeDraftValidationIssues, setNodeDraftValidationIssuesState] =
+    useState<NodeDraftValidationIssues>()
   // 是否有未保存的修改
   const [dirty, setDirty] = useState(false)
   const clipboardRef = useRef<WorkflowClipboardPayload | undefined>(undefined)
@@ -284,12 +292,21 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
           ? currentSelectedNodeId
           : undefined,
       )
+      setNodeDraftValidationIssuesState(undefined)
       setDirty(!matchesSavedState)
       requestAnimationFrame(() => {
         snapshot.nodes.forEach((node) => updateNodeInternals(node.id))
       })
     },
   })
+
+  const workflow = useMemo<Workflow>(
+    () => ({
+      ...toWorkflow(initialSnapshot.workflow, nodes, edges),
+      environmentVariables,
+    }),
+    [edges, environmentVariables, initialSnapshot.workflow, nodes],
+  )
 
   // 画布选中节点
   const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
@@ -699,6 +716,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
     if (selectedNodeId && deletedNodeIds.has(selectedNodeId)) {
       setSelectedNodeId(undefined)
+      setNodeDraftValidationIssuesState(undefined)
     }
 
     setDirty(true)
@@ -737,6 +755,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
     if (selectedNodeId && deletedNodeIds.has(selectedNodeId)) {
       setSelectedNodeId(undefined)
+      setNodeDraftValidationIssuesState(undefined)
     }
 
     setDirty(true)
@@ -756,6 +775,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     setSelectedNodeIds(new Set())
     setSelectedEdgeIds(new Set())
     setSelectedNodeId(undefined)
+    setNodeDraftValidationIssuesState(undefined)
     return true
   }
 
@@ -903,8 +923,24 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   function openNodeConfig(nodeId: string) {
     if (!nodes.some((node) => node.id === nodeId)) return false
 
+    if (selectedNodeId !== nodeId) {
+      setNodeDraftValidationIssuesState(undefined)
+    }
     setSelectedNodeId(nodeId)
     return true
+  }
+
+  function setNodeDraftValidationIssues(nodeId: string, messages: readonly string[]) {
+    setNodeDraftValidationIssuesState((currentIssues) => {
+      if (messages.length === 0) return undefined
+
+      const unchanged =
+        currentIssues?.nodeId === nodeId &&
+        currentIssues.messages.length === messages.length &&
+        currentIssues.messages.every((message, index) => message === messages[index])
+
+      return unchanged ? currentIssues : { nodeId, messages }
+    })
   }
 
   function openSelectedNodeConfig() {
@@ -1144,10 +1180,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
   function createSnapshot(): WorkflowEditorSnapshot {
     return {
-      workflow: {
-        ...toWorkflow(initialSnapshot.workflow, nodes, edges),
-        environmentVariables,
-      },
+      workflow,
       layout: toWorkflowEditorLayout(nodes, viewport),
     }
   }
@@ -1363,6 +1396,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     loopEditor,
     markSaved,
     nodes: renderedNodes,
+    nodeDraftValidationIssues,
     nudgeSelectedNodes,
     openNodeConfig,
     openSelectedNodeConfig,
@@ -1378,7 +1412,9 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     selectedNodeAvailableVariables,
     selectedNodeDefaultLabel,
     selectedNodeId,
+    setNodeDraftValidationIssues,
     undo: history.undo,
     updateEnvironmentVariable,
+    workflow,
   }
 }

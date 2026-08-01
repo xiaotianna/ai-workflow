@@ -12,6 +12,7 @@ import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 import type { RefObject } from 'react'
 import type { WorkflowSaveStatus } from '../hooks/use-workflow-save'
 import { WorkflowAuxiliaryPanel, type WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
+import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
 
 interface WorkflowPanelProps {
   addNodeButtonRef: RefObject<HTMLButtonElement | null>
@@ -21,6 +22,7 @@ interface WorkflowPanelProps {
   shortcutHelpOpen: boolean
   canRedo: boolean
   canUndo: boolean
+  checkListIssues: readonly WorkflowCheckListIssue[]
   configRenderers?: NodeConfigRendererMap
   environmentVariables: readonly WorkflowEnvironmentVariable[]
   nextStepSourceNodeId?: string
@@ -38,6 +40,8 @@ interface WorkflowPanelProps {
   canChangeNextStepNode: (nodeId: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
   onCloseNodeConfig: () => void
+  onCheckListIssueSelect: (nodeId: string) => void
+  onNodeDraftValidationIssuesChange: (nodeId: string, messages: readonly string[]) => void
   onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
   onDeleteNextStepNode: (nodeId: string) => void
   onDeleteEnvironmentVariable: (variableId: string) => boolean
@@ -59,6 +63,7 @@ export const WorkflowPanel = ({
   shortcutHelpOpen,
   canRedo,
   canUndo,
+  checkListIssues,
   configRenderers,
   environmentVariables,
   nextStepSourceNodeId,
@@ -76,6 +81,8 @@ export const WorkflowPanel = ({
   canChangeNextStepNode,
   canDeleteNextStepNode,
   onCloseNodeConfig,
+  onCheckListIssueSelect,
+  onNodeDraftValidationIssuesChange,
   onChangeNextStepNode,
   onDeleteNextStepNode,
   onDeleteEnvironmentVariable,
@@ -98,6 +105,7 @@ export const WorkflowPanel = ({
       <Panel position="top-right" className="z-20!">
         <WorkflowActionBar
           activePanel={activeAuxiliaryPanel}
+          checkListIssueCount={checkListIssues.length}
           disabled={disabled}
           onPanelToggle={onAuxiliaryPanelToggle}
           onTestRun={onTestRun}
@@ -182,6 +190,7 @@ export const WorkflowPanel = ({
                     nextStepOpen={nextStepSourceNodeId === selectedNode.id}
                     onApply={onApplyNode}
                     onClose={onCloseNodeConfig}
+                    onDraftValidationIssuesChange={onNodeDraftValidationIssuesChange}
                     canChangeNextStepNode={canChangeNextStepNode}
                     canDeleteNextStepNode={canDeleteNextStepNode}
                     onChangeNextStepNode={onChangeNextStepNode}
@@ -202,10 +211,22 @@ export const WorkflowPanel = ({
               <motion.div
                 key="workflow-auxiliary-panel"
                 layout="position"
-                className="pointer-events-auto z-10 w-100 min-w-0 shrink-0"
-                initial={{ x: '100%', opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: '100%', opacity: 0 }}
+                className="pointer-events-auto z-10 w-100 min-w-0 shrink-0 origin-top-right"
+                initial={
+                  activeAuxiliaryPanel === 'check-list'
+                    ? { y: -8, scale: 0.98, opacity: 0 }
+                    : { x: '100%', opacity: 0 }
+                }
+                animate={
+                  activeAuxiliaryPanel === 'check-list'
+                    ? { y: 0, scale: 1, opacity: 1 }
+                    : { x: 0, opacity: 1 }
+                }
+                exit={
+                  activeAuxiliaryPanel === 'check-list'
+                    ? { y: -8, scale: 0.98, opacity: 0 }
+                    : { x: '100%', opacity: 0 }
+                }
                 transition={{
                   duration: 0.24,
                   ease: [0.22, 1, 0.36, 1],
@@ -214,8 +235,10 @@ export const WorkflowPanel = ({
               >
                 <WorkflowAuxiliaryPanel
                   type={activeAuxiliaryPanel}
+                  checkListIssues={checkListIssues}
                   environmentVariables={environmentVariables}
                   onClose={onAuxiliaryPanelClose}
+                  onCheckListIssueSelect={onCheckListIssueSelect}
                   onAddEnvironmentVariable={onAddEnvironmentVariable}
                   onDeleteEnvironmentVariable={onDeleteEnvironmentVariable}
                   onUpdateEnvironmentVariable={onUpdateEnvironmentVariable}

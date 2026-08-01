@@ -5,7 +5,13 @@ import { cn } from '@ai-workflow/ui/lib/utils'
 import { ListTodo } from 'lucide-react'
 import type { WorkflowAuxiliaryPanelTriggerProps } from './types'
 
-export const CheckList = ({ active = false, onClick }: WorkflowAuxiliaryPanelTriggerProps) => {
+interface CheckListProps extends WorkflowAuxiliaryPanelTriggerProps {
+  issueCount: number
+}
+
+export const CheckList = ({ active = false, issueCount, onClick }: CheckListProps) => {
+  const visibleIssueCount = issueCount > 99 ? '99+' : issueCount
+
   return (
     <Tooltip content="检查清单" side="bottom">
       <Button
@@ -19,9 +25,11 @@ export const CheckList = ({ active = false, onClick }: WorkflowAuxiliaryPanelTri
         onClick={onClick}
       >
         <ListTodo className="size-4" aria-hidden />
-        <span className="absolute -top-1 -right-1 flex size-4 items-center justify-center rounded-full bg-orange-400 text-[10px] leading-none font-medium text-white">
-          6
-        </span>
+        {issueCount > 0 ? (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#f79009] px-1 text-[10px] leading-none font-medium text-white">
+            {visibleIssueCount}
+          </span>
+        ) : null}
       </Button>
     </Tooltip>
   )

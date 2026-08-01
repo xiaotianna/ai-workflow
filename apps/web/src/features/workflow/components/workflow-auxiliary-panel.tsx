@@ -1,13 +1,16 @@
 import {
+  nodeRegistry,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
   type WorkflowEnvironmentVariable,
 } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
-import { X } from 'lucide-react'
+import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { ArrowRight, CircleCheck, X } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
 import { getWorkflowVariableDataTypeLabel } from '../utils/workflow-variable-presentation'
+import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
 import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variables-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
 
@@ -20,8 +23,10 @@ export type WorkflowAuxiliaryPanelType =
 
 interface WorkflowAuxiliaryPanelProps {
   type: WorkflowAuxiliaryPanelType
+  checkListIssues: readonly WorkflowCheckListIssue[]
   environmentVariables: readonly WorkflowEnvironmentVariable[]
   onClose: () => void
+  onCheckListIssueSelect: (nodeId: string) => void
   onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
   onDeleteEnvironmentVariable: (variableId: string) => boolean
   onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
@@ -49,8 +54,81 @@ function RunHistoryPanelContent() {
   return <EmptyPanelContent>暂无运行记录</EmptyPanelContent>
 }
 
-function CheckListPanelContent() {
-  return <EmptyPanelContent>检查结果将在完成工作流校验后显示</EmptyPanelContent>
+interface CheckListPanelContentProps {
+  issues: readonly WorkflowCheckListIssue[]
+  onIssueSelect: (nodeId: string) => void
+}
+
+function CheckListPanelContent({ issues, onIssueSelect }: CheckListPanelContentProps) {
+  if (issues.length === 0) {
+    return (
+      <div className="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center">
+        <CircleCheck className="text-success size-8" aria-hidden />
+        <p className="text-foreground mt-3 text-sm font-medium">当前工作流已通过检查</p>
+        <p className="text-muted-foreground mt-1 text-xs">暂无需要处理的节点问题</p>
+      </div>
+    )
+  }
+
+  const issuesByNode = new Map<string, WorkflowCheckListIssue[]>()
+  for (const issue of issues) {
+    const nodeIssues = issuesByNode.get(issue.nodeId) ?? []
+    nodeIssues.push(issue)
+    issuesByNode.set(issue.nodeId, nodeIssues)
+  }
+
+  return (
+    <ul className="space-y-2 px-4 py-4">
+      {[...issuesByNode.values()].map((nodeIssues) => {
+        const node = nodeIssues[0]!
+        const definition = nodeRegistry.get(node.nodeType)?.definition
+
+        return (
+          <li
+            key={node.nodeId}
+            className="border-border/60 bg-background rounded-xl border-[0.5px] px-2 py-2 shadow-xs transition-shadow duration-200 ease-out focus-within:shadow-md hover:shadow-md motion-reduce:transition-none"
+          >
+            <div className="flex min-w-0 items-center px-1">
+              <span
+                className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-lg shadow-sm"
+                style={{ backgroundColor: getNodeThemeColor(node.nodeType) }}
+              >
+                <NodeIcon icon={definition?.icon} className="size-4" aria-hidden />
+              </span>
+              <span className="text-foreground ml-2 truncate text-sm font-semibold">
+                {node.nodeLabel}
+              </span>
+            </div>
+
+            <ul className="border-border/70 relative mt-1 ml-4 border-l">
+              {nodeIssues.map((issue) => (
+                <li key={issue.id} className="relative pl-3">
+                  <span
+                    className="absolute top-1/2 -left-[3px] size-1.5 -translate-y-1/2 rounded-full bg-[#f79009]"
+                    aria-hidden
+                  />
+                  <button
+                    type="button"
+                    className="group/check-item hover:bg-muted/70 focus-visible:bg-muted/70 flex min-h-8 w-full cursor-pointer items-center gap-3 rounded-lg px-2 text-left transition-colors outline-none"
+                    aria-label={`${issue.message}，前往修改${node.nodeLabel}`}
+                    onClick={() => onIssueSelect(issue.nodeId)}
+                  >
+                    <span className="min-w-0 flex-1 truncate text-xs leading-5 text-[#dc6803]">
+                      {issue.message}
+                    </span>
+                    <span className="text-primary flex shrink-0 translate-x-1 items-center gap-1 text-xs font-medium opacity-0 transition-[opacity,transform] group-hover/check-item:translate-x-0 group-hover/check-item:opacity-100 group-focus-visible/check-item:translate-x-0 group-focus-visible/check-item:opacity-100">
+                      前往修改
+                      <ArrowRight className="size-4" aria-hidden />
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 function SystemVariablesPanelContent() {
@@ -86,8 +164,7 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   },
   'check-list': {
     title: '检查清单',
-    description: '在发布前检查节点配置和工作流连线。',
-    Content: CheckListPanelContent,
+    description: '发布前请解决以下问题',
   },
   'environment-variables': {
     title: '环境变量',
@@ -108,27 +185,31 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
 
 export function WorkflowAuxiliaryPanel({
   type,
+  checkListIssues,
   environmentVariables,
   onClose,
+  onCheckListIssueSelect,
   onAddEnvironmentVariable,
   onDeleteEnvironmentVariable,
   onUpdateEnvironmentVariable,
 }: WorkflowAuxiliaryPanelProps) {
   const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type]
   const Content = definition.Content
+  const title =
+    type === 'check-list' ? `${definition.title}(${checkListIssues.length})` : definition.title
   const titleId = `workflow-auxiliary-panel-${type}-title`
 
   return (
     <aside
       id="workflow-auxiliary-panel"
       aria-labelledby={titleId}
-      className="nodrag nowheel bg-background border-border/50 flex h-full w-100 flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg"
+      className="nodrag nowheel border-border/50 bg-background flex h-full w-100 flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg"
     >
       <header className="bg-background px-4 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 id={titleId} className="text-foreground text-base leading-6 font-semibold">
-              {definition.title}
+              {title}
             </h2>
             <p className="text-muted-foreground mt-1 text-sm leading-5">{definition.description}</p>
           </div>
@@ -146,7 +227,9 @@ export function WorkflowAuxiliaryPanel({
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {type === 'environment-variables' ? (
+        {type === 'check-list' ? (
+          <CheckListPanelContent issues={checkListIssues} onIssueSelect={onCheckListIssueSelect} />
+        ) : type === 'environment-variables' ? (
           <WorkflowEnvironmentVariablesPanel
             variables={environmentVariables}
             onAdd={onAddEnvironmentVariable}

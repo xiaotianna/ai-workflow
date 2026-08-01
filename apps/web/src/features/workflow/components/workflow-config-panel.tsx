@@ -41,6 +41,7 @@ interface WorkflowConfigPanelProps {
   nextStepOpen?: boolean
   onApply: (node: WorkflowNode) => void
   onClose: () => void
+  onDraftValidationIssuesChange: (nodeId: string, messages: readonly string[]) => void
   canChangeNextStepNode: (nodeId: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
   onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
@@ -88,6 +89,7 @@ export const WorkflowConfigPanel = ({
   nextStepOpen = false,
   onApply,
   onClose,
+  onDraftValidationIssuesChange,
   canChangeNextStepNode,
   canDeleteNextStepNode,
   onChangeNextStepNode,
@@ -136,8 +138,26 @@ export const WorkflowConfigPanel = ({
     ? {}
     : outputValidation.errors
 
+  function reportDraftValidationIssues(changes: Partial<WorkflowConfigPanelFormInput>) {
+    const draftForm = {
+      ...form,
+      inputs,
+      outputs,
+      ...changes,
+    }
+    const draftFormValidation = validateFormByZod(workflowConfigPanelFormSchema, draftForm)
+    const draftConfigValidation = validateFormByZod(nodeType!.schema, draftForm.config)
+    const messages = [
+      ...(draftFormValidation.success ? [] : Object.values(draftFormValidation.errors)),
+      ...(draftConfigValidation.success ? [] : Object.values(draftConfigValidation.errors)),
+    ].filter((message): message is string => typeof message === 'string' && message.length > 0)
+
+    onDraftValidationIssuesChange(node.id, [...new Set(messages)])
+  }
+
   function handleLabelChange(value: string) {
     updateFormField('label', value)
+    reportDraftValidationIssues({ label: value })
     const parsedLabel = validateFormByZod(workflowConfigPanelFormSchema.shape.label, value)
 
     if (parsedLabel.success) {
@@ -156,6 +176,7 @@ export const WorkflowConfigPanel = ({
         resolvedDefaultLabel === nodeType!.definition.label ? undefined : resolvedDefaultLabel
 
       updateFormField('label', resolvedDefaultLabel)
+      reportDraftValidationIssues({ label: resolvedDefaultLabel })
 
       if (node.label !== resetLabel) {
         onApply({
@@ -168,6 +189,7 @@ export const WorkflowConfigPanel = ({
 
     const nextLabel = parsedLabel.data
     updateFormField('label', nextLabel)
+    reportDraftValidationIssues({ label: nextLabel })
 
     if (nextLabel !== (node.label ?? resolvedDefaultLabel)) {
       onApply({
@@ -179,6 +201,7 @@ export const WorkflowConfigPanel = ({
 
   function handleDescriptionChange(value: string) {
     updateFormField('description', value)
+    reportDraftValidationIssues({ description: value })
     const parsedDescription = validateFormByZod(
       workflowConfigPanelFormSchema.shape.description,
       value,
@@ -202,6 +225,7 @@ export const WorkflowConfigPanel = ({
 
     const nextDescription = parsedDescription.data
     updateFormField('description', nextDescription)
+    reportDraftValidationIssues({ description: nextDescription })
 
     if (nextDescription !== (node.description ?? nodeType!.definition.description ?? '')) {
       onApply({
@@ -215,6 +239,7 @@ export const WorkflowConfigPanel = ({
     const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
 
     updateFormField('config', nextConfig)
+    reportDraftValidationIssues({ config: nextConfig })
 
     if (!parsedConfig.success) return
 
@@ -233,6 +258,7 @@ export const WorkflowConfigPanel = ({
 
   function handleInputsChange(nextInputs: NodeInputBindingsFormValue) {
     updateFormField('inputs', nextInputs)
+    reportDraftValidationIssues({ inputs: nextInputs })
     const parsedInputs = validateFormByZod(nodeInputBindingsSchema, nextInputs)
 
     if (!parsedInputs.success) return
@@ -245,6 +271,7 @@ export const WorkflowConfigPanel = ({
 
   function handleOutputsChange(nextOutputs: WorkflowNode['outputs']) {
     updateFormField('outputs', nextOutputs)
+    reportDraftValidationIssues({ outputs: nextOutputs })
     const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     if (!parsedOutputs.success) return

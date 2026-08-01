@@ -4,7 +4,7 @@ import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import type { WorkflowEdge, WorkflowNode } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
 import { WorkflowLoopEditorProvider } from '@/components/workflow/workflow-loop-editor-context'
 import { useWorkflowShortcuts } from '../hooks/use-workflow-shortcuts'
@@ -25,6 +25,10 @@ import { WorkflowKnowledgeBaseCatalogProvider } from '@/components/workflow/work
 import { WorkflowEnvironmentVariablesProvider } from '@/components/workflow/workflow-environment-variables-context'
 import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import type { WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
+import {
+  appendWorkflowNodeDraftValidationIssues,
+  createWorkflowCheckListIssues,
+} from '../utils/workflow-check-list'
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
@@ -53,6 +57,17 @@ export function WorkflowEditor({
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>()
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
+  const persistedCheckListIssues = useMemo(
+    () => createWorkflowCheckListIssues(editor.workflow),
+    [editor.workflow],
+  )
+  const checkListIssues = appendWorkflowNodeDraftValidationIssues(
+    persistedCheckListIssues,
+    editor.nodeDraftValidationIssues?.nodeId === editor.selectedNode?.id
+      ? editor.selectedNode
+      : undefined,
+    editor.nodeDraftValidationIssues?.messages ?? [],
+  )
   const save = useWorkflowSave({
     dirty: editor.dirty,
     initialSavedAt,
@@ -240,6 +255,7 @@ export function WorkflowEditor({
                         saveStatus={save.status}
                         canRedo={editor.canRedo}
                         canUndo={editor.canUndo}
+                        checkListIssues={checkListIssues}
                         configRenderers={configRenderers}
                         environmentVariables={editor.environmentVariables}
                         addNodeOpen={disabled ? false : nodePicker.open}
@@ -258,6 +274,8 @@ export function WorkflowEditor({
                         }
                         canDeleteNextStepNode={editor.canDeleteNode}
                         onCloseNodeConfig={() => editor.clearSelection()}
+                        onCheckListIssueSelect={editor.openNodeConfig}
+                        onNodeDraftValidationIssuesChange={editor.setNodeDraftValidationIssues}
                         onChangeNextStepNode={(nodeId, anchorPosition) =>
                           editor.selectedNode
                             ? nodePicker.openReplaceConnectedNode(
