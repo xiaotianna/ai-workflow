@@ -9,8 +9,6 @@ import {
   type WorkflowValidationIssue,
 } from '@ai-workflow/core'
 
-const EMPTY_HTTP_URL = 'https://example.invalid'
-
 export interface WorkflowCheckListIssue {
   id: string
   message: string
@@ -60,7 +58,7 @@ function isNonEmptyString(value: unknown): value is string {
 function isRequiredFieldEmpty(field: FieldSchema, value: unknown) {
   if (value === undefined || value === null) return true
   if (typeof value === 'string') {
-    return value.trim().length === 0 || value === EMPTY_HTTP_URL
+    return value.trim().length === 0
   }
   if (Array.isArray(value)) return value.length === 0
 

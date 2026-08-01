@@ -107,6 +107,8 @@ Nodes UI 保持 schema 和组件类型关联。
   契约，不保存模型组凭证、参数界面策略或 Web 请求数据。
 - HTTP 通过 `httpNodeForm` 按顺序声明 URL、Method、Headers、Params、Body 和连接超时；基础
   字段与复杂字段都由 `NodeConfigFields` 按 `field.ui` 分发，不再声明整节点 renderer。
+  新建 HTTP 节点的 URL 初始值为空字符串，作为可保存、可连线的编辑草稿；非空 URL 仍必须
+  满足完整 URL 格式并使用 HTTP 或 HTTPS 协议，必填空值由工作流检查清单提示。
   `connectionTimeout` 使用秒为单位的正数并默认设为 30，旧配置缺省时由 schema 自动补齐。
   Headers、Params
   以带稳定 `id` 的键值条目数组保存，Key 与 Value 都使用 `VariableValue`，空 Key 和空 Value

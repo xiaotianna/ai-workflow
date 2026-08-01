@@ -248,7 +248,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   )
   const [selectedNodeIds, setSelectedNodeIds] = useState<ReadonlySet<string>>(new Set())
   const [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(new Set())
-  // 当前打开配置面板的节点 ID，和画布多选状态分开维护。
+  // 当前打开配置面板的节点 ID；打开面板时同步收敛为画布唯一选中节点。
   const [selectedNodeId, setSelectedNodeId] = useState<string>()
   const [nodeDraftValidationIssues, setNodeDraftValidationIssuesState] =
     useState<NodeDraftValidationIssues>()
@@ -926,6 +926,8 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     if (selectedNodeId !== nodeId) {
       setNodeDraftValidationIssuesState(undefined)
     }
+    setSelectedNodeIds(new Set([nodeId]))
+    setSelectedEdgeIds(new Set())
     setSelectedNodeId(nodeId)
     return true
   }

@@ -76,13 +76,21 @@ export function createHttpFormDataEntry(): HttpFormDataEntry {
   }
 }
 
+const httpUrlFormatSchema = z.string().url()
+
 export const httpNodeSchema = z.object({
   url: z
     .string()
     .trim()
-    .url('URL 格式不正确')
-    .refine((value) => /^https?:\/\//i.test(value), '请求地址只支持 HTTP 或 HTTPS')
-    .default('https://example.invalid'),
+    .refine(
+      (value) => value.length === 0 || httpUrlFormatSchema.safeParse(value).success,
+      'URL 格式不正确',
+    )
+    .refine(
+      (value) => value.length === 0 || /^https?:\/\//i.test(value),
+      '请求地址只支持 HTTP 或 HTTPS',
+    )
+    .default(''),
   method: z.enum(HTTP_METHODS).default('GET'),
   connectionTimeout: z.number().positive('连接超时必须大于 0').default(30),
   headers: z.array(httpKeyValueEntrySchema).default(() => [createHttpKeyValueEntry()]),

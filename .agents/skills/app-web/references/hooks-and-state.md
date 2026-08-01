@@ -197,7 +197,10 @@ function ExampleForm() {
 - 画布交互选择与配置面板目标分开维护：`selectedNodeIds`、`selectedEdgeIds` 承载
   React Flow 的单选、多选和快捷键选择，只影响展示与编辑操作，不进入保存或撤销历史；
   `selectedNodeId` 只表示当前配置面板目标。普通点击节点打开或切换配置面板，修饰键多选
-  不强制切换配置目标；关闭配置、点击空白处或按 Esc 清除选择时同步关闭配置面板。
+  不强制切换配置目标。所有主动打开或切换配置面板的入口必须复用 `openNodeConfig`；该入口
+  同时将画布选择收敛为当前配置节点并清除边选择，确保检查清单“前往修改”、下一步节点跳转
+  和画布普通点击得到一致的一一对应状态。关闭配置、点击空白处或按 Esc 清除选择时同步关闭
+  配置面板。
 - 工作流快捷键集中在 `features/workflow/hooks/use-workflow-shortcuts.ts` 注册，帮助文案由
   `workflow-shortcut-definitions.ts` 统一维护；焦点位于输入、选择器、代码编辑器或可编辑文本
   时不拦截文字编辑快捷键。连续方向键移动合并为一次历史操作，并在按键释放或窗口失焦时
