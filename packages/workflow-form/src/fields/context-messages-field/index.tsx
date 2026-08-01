@@ -1,5 +1,6 @@
 import {
   LLM_CONTEXT_MESSAGE_ROLE_VALUES,
+  SYSTEM_VARIABLE_NAMESPACE,
   llmNodeSchema,
   type ContextMessagesFieldSchema,
   type LlmContextMessageInput,
@@ -71,7 +72,7 @@ function serializeVariableReference(reference: VariableReference): string {
   }
 
   if (reference.scope === 'system') {
-    return `{{#sys.${reference.key}${path}#}}`
+    return `{{#${SYSTEM_VARIABLE_NAMESPACE}.${reference.key}${path}#}}`
   }
 
   return `{{#env.${reference.variableId}${path}#}}`

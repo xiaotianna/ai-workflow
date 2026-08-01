@@ -26,6 +26,10 @@ import {
   FIELD_UI_TYPES,
   NODE_CONFIG_RENDERER_TYPES,
   NODE_VARIABLE_RENDERER_TYPES,
+  SYSTEM_VARIABLE_DEFINITIONS,
+  SYSTEM_VARIABLE_KEYS,
+  SYSTEM_VARIABLE_NAMESPACE,
+  systemVariableKeySchema,
   getNodePorts,
   resolveNodeVariableForm,
   validateWorkflow,
@@ -34,6 +38,8 @@ import {
   type ConditionRules,
   type NodeFormSchema,
   type NodeVariableForm,
+  type SystemVariableDefinition,
+  type SystemVariableKey,
 } from '@ai-workflow/core'
 ```
 
@@ -118,6 +124,11 @@ Nodes UI 保持 schema 和组件类型关联。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过
   `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
+- 内置系统变量由 `SYSTEM_VARIABLE_DEFINITIONS` 统一声明稳定 Key、`DataType` 和说明，文本
+  命名空间统一使用 `SYSTEM_VARIABLE_NAMESPACE`（当前为 `sys`）。系统引用持久化为
+  `scope: 'system' + key`，`key` 只保存 `user_id` 等裸 Key，不重复保存 `sys.`；
+  `systemVariableKeySchema` 将引用限制在已声明的系统变量集合内。节点自定义的同名输出仍使用
+  `scope: 'node' + nodeId + outputKey`，不会与系统变量冲突。
 - Condition 的 `config.conditions` 保存按顺序匹配的 IF / ELIF 分支和最后一个唯一 ELSE；
   普通分支通过公共 `ConditionLogicalOperator` 使用统一 AND 或 OR 组合 `rules`，旧配置缺少
   该字段时默认按 AND 解析；每条规则以两个 `VariableValue` 和公共 `ConditionOperator`

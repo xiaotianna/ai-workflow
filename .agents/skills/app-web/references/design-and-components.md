@@ -195,14 +195,15 @@
   HTTP 已按字段级 form 组合 URL、Method、Headers、Params、Body 和连接超时，不再使用整节点
   renderer。Condition 也通过 `conditionNodeForm` 和 Form 内置的 `ConditionBranchesField` 编辑
   IF / ELIF / ELSE 分支，不再使用整节点 renderer；条件两侧复用 Form 的
-  `VariableValueEditor`，支持直接值和完整上游变量引用，比较运算符和同一分支统一使用的
+  `VariableValueEditor`，支持直接值、完整上游变量引用和系统变量引用，比较运算符和同一分支统一使用的
   AND/OR 逻辑关系都来自 Core 公共契约。合法字段值写回节点后，Web 通用 `applyNode` 链路
   负责清理失效端口 Edge 并刷新动态 Handle。
-  当前节点可
-  引用变量由 Web 根据执行 Edge 收集所有可达
-  上游节点的动态输出和静态输出端口，并将来源节点、变量名称和数据类型作为结构化候选传入
+  当前节点可引用变量由 Web 合并 Core `SYSTEM_VARIABLE_DEFINITIONS` 与根据执行 Edge 收集的所有可达
+  上游节点动态输出、静态输出端口，并将来源、变量名称和数据类型作为结构化候选传入
   Form；Form 的变量选择器按节点分组，支持搜索并显示变量类型，普通节点输入区与 End 输出区
-  共用该交互。首期只支持直接值和完整上游变量引用，不包含系统变量、环境变量和嵌套 Path。
+  共用该交互。系统变量以 `sys / <key>` 独立分组，持久化为 `scope: 'system' + key`；节点中
+  自定义的同名输出仍以“节点名称 / 输出 Key”展示并保存 `scope: 'node'` 引用。当前不包含
+  环境变量和嵌套 Path 选择。
   Condition 画布摘要通过 Nodes UI 的 `resolveVariableReferenceDisplay` 消费 Web 根据当前
   React Flow 节点生成的来源名称与变量名，显示文案必须与 Config Form 的“来源名称 / 变量名”
   一致，不得直接展示持久化 `nodeId`；源节点实例名称变化时摘要同步更新。

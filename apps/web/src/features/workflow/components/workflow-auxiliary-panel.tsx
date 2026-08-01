@@ -1,3 +1,9 @@
+import {
+  SYSTEM_VARIABLE_DEFINITIONS,
+  SYSTEM_VARIABLE_NAMESPACE,
+  type DataType,
+} from '@ai-workflow/core'
+import { getDataTypeTag } from '@ai-workflow/form/components/data-type-select'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { X } from 'lucide-react'
@@ -26,45 +32,11 @@ interface EmptyPanelContentProps {
   children: ReactNode
 }
 
-interface SystemVariableDefinition {
-  name: string
-  prefix: string
-  type: 'String' | 'Number'
-  description: string
-}
+function getDataTypeLabel(dataType: DataType) {
+  const tag = getDataTypeTag(dataType)
 
-const SYSTEM_VARIABLES: readonly SystemVariableDefinition[] = [
-  {
-    prefix: 'sys.',
-    name: 'user_id',
-    type: 'String',
-    description: '用户 ID',
-  },
-  {
-    prefix: 'sys.',
-    name: 'app_id',
-    type: 'String',
-    description: '应用 ID',
-  },
-  {
-    prefix: 'sys.',
-    name: 'workflow_id',
-    type: 'String',
-    description: '工作流 ID',
-  },
-  {
-    prefix: 'sys.',
-    name: 'workflow_run_id',
-    type: 'String',
-    description: '工作流运行 ID',
-  },
-  {
-    prefix: 'sys.',
-    name: 'timestamp',
-    type: 'Number',
-    description: '应用开始运行的时间戳',
-  },
-]
+  return `${tag.charAt(0).toUpperCase()}${tag.slice(1)}`
+}
 
 function EmptyPanelContent({ children }: EmptyPanelContentProps) {
   return (
@@ -89,12 +61,12 @@ function EnvironmentVariablesPanelContent() {
 function SystemVariablesPanelContent() {
   return (
     <ul className="space-y-1 px-4 py-4">
-      {SYSTEM_VARIABLES.map((variable) => (
-        <li key={`${variable.prefix}${variable.name}`}>
+      {SYSTEM_VARIABLE_DEFINITIONS.map((variable) => (
+        <li key={variable.key}>
           <WorkflowVariableItem
-            prefix={variable.prefix}
-            name={variable.name}
-            dataType={variable.type}
+            prefix={`${SYSTEM_VARIABLE_NAMESPACE}.`}
+            name={variable.key}
+            dataType={getDataTypeLabel(variable.dataType)}
             description={variable.description}
             icon={<VariableIcon className="text-orange-600" />}
           />
@@ -156,7 +128,7 @@ export function WorkflowAuxiliaryPanel({ type, onClose }: WorkflowAuxiliaryPanel
             <h2 id={titleId} className="text-foreground text-base leading-6 font-semibold">
               {definition.title}
             </h2>
-            <p className="text-muted-foreground mt-1 text-xs leading-5">{definition.description}</p>
+            <p className="text-muted-foreground mt-1 text-sm leading-5">{definition.description}</p>
           </div>
           <Button
             type="button"

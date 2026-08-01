@@ -163,6 +163,9 @@ function ExampleForm() {
 - 普通节点的 `config`、`inputs`、`outputs` 统一由节点类型的 `createInitialConfig`、
   `createInitialInputs`、`createInitialOutputs` 工厂初始化；配置工厂接收同一批初始变量，
   Web 不按节点类型复制默认变量或配置模板。
+- 当前节点的变量候选由 `features/workflow/utils/get-available-variables.ts` 统一合并 Core 系统
+  变量定义和执行 Edge 可达的上游节点输出；系统变量使用 `scope: 'system'`，节点输出使用
+  `scope: 'node'`，允许二者拥有相同裸 Key 而不冲突。Web 不维护另一份系统变量清单。
 - 新增节点按整个工作流内的节点类型生成实例名称：首个实例沿用类型默认 label，后续实例写入
   `默认 label 2`、`默认 label 3`。编号同时参考同类型实例数量和已存在的最大标准编号，
   避免节点删除或改成自定义名称后生成重复名称；根画布与 Loop 内新增必须共用该规则。

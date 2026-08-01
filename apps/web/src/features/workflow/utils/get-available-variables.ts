@@ -1,7 +1,32 @@
-import { getNodePorts, nodeRegistry, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
+import {
+  getNodePorts,
+  nodeRegistry,
+  SYSTEM_VARIABLE_DEFINITIONS,
+  SYSTEM_VARIABLE_NAMESPACE,
+  type WorkflowEdge,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 
 import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
+
+const SYSTEM_VARIABLE_SOURCE_ID = JSON.stringify(['system'])
+
+const SYSTEM_VARIABLE_OPTIONS: readonly AvailableVariableOption[] = SYSTEM_VARIABLE_DEFINITIONS.map(
+  (variable) => ({
+    id: JSON.stringify(['system', variable.key]),
+    label: `${SYSTEM_VARIABLE_NAMESPACE} / ${variable.key}`,
+    sourceId: SYSTEM_VARIABLE_SOURCE_ID,
+    sourceLabel: SYSTEM_VARIABLE_NAMESPACE,
+    variableName: variable.key,
+    dataType: variable.dataType,
+    reference: {
+      scope: 'system',
+      key: variable.key,
+      path: [],
+    },
+  }),
+)
 
 function collectUpstreamNodeIds(nodeId: string, edges: readonly WorkflowEdge[]) {
   const incomingNodeIds = new Map<string, string[]>()
@@ -26,7 +51,7 @@ function collectUpstreamNodeIds(nodeId: string, edges: readonly WorkflowEdge[]) 
   return upstreamNodeIds
 }
 
-export function getAvailableNodeVariables({
+export function getAvailableVariables({
   nodeId,
   nodes,
   edges,
@@ -36,8 +61,8 @@ export function getAvailableNodeVariables({
   edges: readonly WorkflowEdge[]
 }): AvailableVariableOption[] {
   const upstreamNodeIds = collectUpstreamNodeIds(nodeId, edges)
-  const options: AvailableVariableOption[] = []
-  const optionIds = new Set<string>()
+  const options: AvailableVariableOption[] = [...SYSTEM_VARIABLE_OPTIONS]
+  const optionIds = new Set(options.map((option) => option.id))
 
   for (const node of nodes) {
     if (!upstreamNodeIds.has(node.id)) continue
@@ -69,14 +94,14 @@ export function getAvailableNodeVariables({
     }
 
     for (const [outputKey, output] of outputs) {
-      const optionId = JSON.stringify([node.id, outputKey])
+      const optionId = JSON.stringify(['node', node.id, outputKey])
       if (optionIds.has(optionId)) continue
 
       optionIds.add(optionId)
       options.push({
         id: optionId,
         label: `${nodeLabel} / ${outputKey}`,
-        sourceId: node.id,
+        sourceId: JSON.stringify(['node', node.id]),
         sourceLabel: nodeLabel,
         variableName: outputKey,
         dataType: output.dataType,

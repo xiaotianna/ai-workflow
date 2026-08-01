@@ -1,6 +1,7 @@
 import {
   getConditionLogicalOperatorLabel,
   getConditionOperatorLabel,
+  SYSTEM_VARIABLE_NAMESPACE,
   type ConditionNodeConfig,
   type ConditionRule,
   type VariableValue,
@@ -47,7 +48,7 @@ function formatVariableValue(
   }
 
   if (reference.scope === 'system') {
-    return `sys.${reference.key}${path}`
+    return `${SYSTEM_VARIABLE_NAMESPACE}.${reference.key}${path}`
   }
 
   return `env.${reference.variableId}${path}`

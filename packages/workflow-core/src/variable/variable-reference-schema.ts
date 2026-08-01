@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { systemVariableKeySchema } from './system-variable'
 
 // 变量路径，例如res.data.count，path为：['res', 'data', 'count']
 const variablePathSchema = z.array(z.string().trim().min(1)).default([])
@@ -14,7 +15,7 @@ const nodeVariableReferenceSchema = z.object({
 // 系统变量的引用
 const systemVariableReferenceSchema = z.object({
   scope: z.literal('system'),
-  key: z.string().trim().min(1),
+  key: systemVariableKeySchema,
   path: variablePathSchema,
 })
 

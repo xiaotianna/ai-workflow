@@ -132,7 +132,7 @@ renderer；带字段语义的组合组件也不移动到 `@ai-workflow/ui`。
 ## 字段组合
 
 `NodeConfigFields` 遍历 Core form 字段映射，根据 `field.ui` 从调用方 `renderers` 或
-`builtinFields` 选择 renderer，并把字段当前值、字段错误、完整错误映射、上游变量候选、
+`builtinFields` 选择 renderer，并把字段当前值、字段错误、完整错误映射、可用变量候选、
 禁用态和变更回调传给对应组件。它不读取节点注册表，
 不管理配置校验、提交或工作流状态；这些内容由使用方按统一表单规范负责。
 传入的 `fields` 必须已经是调用方解析后的完整字段配置；动态选项或其他业务数据由应用层
@@ -140,7 +140,7 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 持有业务数据。
 
 `NodeConfigSection` 读取 Core `NodeType.configRenderer` 声明的名称，从整节点配置 renderer
-注册表选择受控组件，并统一透传当前 `config`、Zod 错误、上游变量候选和完整配置变更回调。
+注册表选择受控组件，并统一透传当前 `config`、Zod 错误、可用变量候选和完整配置变更回调。
 当前内置节点均已使用字段级 form；该能力继续为无法按顶层字段拆分的完整表单和第三方插件
 保留。HTTP、Condition 与 LLM 不再通过整节点 renderer 重复组合配置字段。
 内置映射集中维护在 `src/config/node-config-renderer-registry.ts`；
@@ -148,7 +148,7 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 业务数据的 renderer 必须使用该注入入口留在应用层，Form 不请求数据或反向依赖应用。
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
-中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值和上游变量引用；
+中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值、上游节点变量和系统变量引用；
 内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key 和 dataType，并让 label 与 key
 同步；description 通过数据类型组合控件左侧的说明入口打开 Dialog 编辑；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
@@ -237,8 +237,8 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   Popover 选择器，选中态按 `Box 节点图标 + 来源 / VariableIcon 变量名` 展示，两个图标
   统一为 14px，图标与对应文字间距统一为 4px，不在末尾显示数据类型；文字统一使用 12px。
   浮层继续提供搜索、来源分组、类型展示与选中高亮。普通节点的输入区和 End 的输出区共用该
-  renderer，交互必须保持一致。首期只消费调用方提供的候选，不自行生成系统变量、环境变量
-  或嵌套 Path。
+  renderer，交互必须保持一致。Form 只消费调用方提供的候选，不自行生成变量；调用方可以同时
+  传入系统变量和执行连线可达的上游节点变量，当前不提供环境变量或嵌套 Path 选择。
 - `VariableValueEditor` 是直接值/变量引用的公共受控组合控件，普通输入变量和 Condition
   规则必须复用它；组件只消费调用方提供的 `AvailableVariableOption`，不遍历工作流。变量
   选择浮层默认与组合控件等宽；组件右侧存在额外固定区域时，通过可选
@@ -250,7 +250,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   不切换背景，只有当前 Hover 或 Focus 的 Input、Select 等具体单元格控件切换为背景色。
 - `KeyValueTableField` 复用 `EditableTableField` 统一承载 Headers、Params 等键值集合；Key 和
   Value 都使用 `VariableValueEditor` 的 `table-cell` 模式，普通输入保存直接值，输入 `/` 打开
-  上游变量选择器，行 Hover 或内部聚焦时显示删除入口。作为字段 renderer 使用时从完整错误
+  变量选择器，行 Hover 或内部聚焦时显示删除入口。作为字段 renderer 使用时从完整错误
   映射派生行级错误，并消费统一透传的变量候选；只需要表格内容、不需要 `Form.Field` 标题时使用同一
   入口导出的 `KeyValueTable`，不要重复键值列和删除交互。表格单元格错误态使用轻量状态背景与
   字段错误文案，不在单元格内部绘制会贴住表格圆角的完整红色输入边框。HTTP 配置通过 Core
@@ -276,7 +276,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   每条规则使用一个圆角背景容器组合左值、运算符和可选右值，第一行内部与上下两行之间使用
   细分割线，不把同一规则拆成多个独立圆角输入块；Hover 与 Focus 只改变当前具体控件的背景，
   不改变整个规则背景，也不在分割线外叠加控件边框。`为空`和`不为空`切换时删除右值，其余
-  运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。节点配置
+  运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值、上游节点引用和系统变量引用。节点配置
   写回、动态端口解析、失效 Edge 清理与 Handle 刷新仍由 Web 和 Core 的通用链路负责。
 - `ConditionRulesField` 是 `FIELD_UI_TYPES.CONDITION_RULES` 对应的单组判断规则 renderer，
   直接编辑 Core `ConditionRules` 的 `logicalOperator` 与 `rules`，允许规则数组为空。Loop 的
@@ -289,7 +289,8 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   回写 `messages` 数组。组件通过 `Form.Field.actions` 新增带稳定 ID 的消息，继续复用
   `NodeVariablePicker` 与 UI `TiptapEditor` 插入序列化变量 token，并按字段名从完整错误映射派生
   每条消息的内容错误；角色、删除、禁用态、至少保留一条消息以及 Motion 过渡行为保持在同一
-  受控字段内。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
+  受控字段内。系统变量 token 使用 Core `SYSTEM_VARIABLE_NAMESPACE` 生成 `sys.<key>`，不在
+  Form 中维护另一份系统变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
