@@ -8,6 +8,7 @@ export const FIELD_UI_TYPES = {
   CODE_EDITOR: 'code_editor',
   KEY_VALUE_TABLE: 'key_value_table',
   REQUEST_BODY: 'request_body',
+  CONDITION_RULES: 'condition_rules',
   CONDITION_BRANCHES: 'condition_branches',
   LLM_MODEL: 'llm_model',
   KNOWLEDGE_BASE: 'knowledge_base',

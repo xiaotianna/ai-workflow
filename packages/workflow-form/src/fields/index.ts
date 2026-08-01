@@ -1,6 +1,7 @@
 export * from './builtin-fields'
 export * from './code-field'
 export * from './condition-branches-field'
+export * from './condition-rules-field'
 export * from './context-messages-field'
 export * from './editable-table-field'
 export * from './key-value-table-field'

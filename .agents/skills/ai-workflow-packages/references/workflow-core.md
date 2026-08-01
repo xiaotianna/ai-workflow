@@ -21,6 +21,7 @@ import {
   CONDITION_LOGICAL_OPERATOR_OPTIONS,
   CONDITION_OPERATOR_KINDS,
   CONDITION_OPERATOR_OPTIONS,
+  conditionRulesSchema,
   DEFAULT_NODE_VARIABLE_FORM,
   FIELD_UI_TYPES,
   NODE_CONFIG_RENDERER_TYPES,
@@ -30,6 +31,7 @@ import {
   validateWorkflow,
   validateExecutorWorkflow,
   type FieldSchema,
+  type ConditionRules,
   type NodeFormSchema,
   type NodeVariableForm,
 } from '@ai-workflow/core'
@@ -53,16 +55,16 @@ Nodes UI 保持 schema 和组件类型关联。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
-  `code_editor`、`key_value_table`、`request_body`、`condition_branches`、`llm_model`、
-  `knowledge_base` 和 `context_messages` 作为字段 schema 的唯一判别值，不再同时声明数据
-  `type` 和 `ui`。
+  `code_editor`、`key_value_table`、`request_body`、`condition_rules`、`condition_branches`、
+  `llm_model`、`knowledge_base` 和 `context_messages` 作为字段 schema 的唯一判别值，不再同时
+  声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
-  `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionBranchesFieldSchema`、
-  `LlmModelFieldSchema`、`KnowledgeBaseFieldSchema` 和 `ContextMessagesFieldSchema` 都继承
-  `BaseFieldSchema`。
+  `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionRulesFieldSchema`、
+  `ConditionBranchesFieldSchema`、`LlmModelFieldSchema`、`KnowledgeBaseFieldSchema` 和
+  `ContextMessagesFieldSchema` 都继承 `BaseFieldSchema`。
   `NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
@@ -124,6 +126,10 @@ Nodes UI 保持 schema 和组件类型关联。
   当前 schema。旧版空字符串默认配置会安全转换为 `rules: []`，非空旧表达式拒绝有损转换。
   Condition 通过 `conditionNodeForm` 将 `conditions` 声明为 `CONDITION_BRANCHES` 字段，不再
   使用整节点 `configRenderer`；画布摘要和动态输出端口继续从写回后的同一份配置派生。
+- `conditionRulesSchema` 是 Condition 与其他节点共用的单组判断规则契约，包含统一的 AND / OR
+  `logicalOperator` 和带稳定 ID 的 `rules`。Loop 的 `config.terminationCondition` 使用该契约，
+  通过 `CONDITION_RULES` 字段编辑；空 `rules` 表示不设置循环终止条件，历史 Loop 配置缺少该
+  字段时自动补为空条件，此时循环仅受 `maxIterations` 限制。
 - Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
 - 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；

@@ -18,6 +18,8 @@ import {
   builtinFields,
   CodeField,
   ConditionBranchesField,
+  ConditionRulesEditor,
+  ConditionRulesField,
   ContextMessagesField,
   NumberField,
   SelectField,
@@ -31,6 +33,7 @@ import {
   RequestBodyField,
   type AnyFieldRenderer,
   type ConditionBranchesFieldValue,
+  type ConditionRulesFieldValue,
   type ContextMessagesFieldValue,
   type EditableTableColumn,
   type FieldRenderer,
@@ -99,6 +102,7 @@ src/config/
 src/fields/
 ├── code-field/
 ├── condition-branches-field/
+├── condition-rules-field/
 ├── context-messages-field/
 ├── editable-table-field/
 ├── key-value-table-field/
@@ -201,6 +205,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   [FIELD_UI_TYPES.CODE_EDITOR]: CodeField,
   [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableField,
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyField,
+  [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
 }
@@ -273,6 +278,13 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   不改变整个规则背景，也不在分割线外叠加控件边框。`为空`和`不为空`切换时删除右值，其余
   运算符确保右值存在；所有值都通过 `VariableValueEditor` 支持直接值和上游引用。节点配置
   写回、动态端口解析、失效 Edge 清理与 Handle 刷新仍由 Web 和 Core 的通用链路负责。
+- `ConditionRulesField` 是 `FIELD_UI_TYPES.CONDITION_RULES` 对应的单组判断规则 renderer，
+  直接编辑 Core `ConditionRules` 的 `logicalOperator` 与 `rules`，允许规则数组为空。Loop 的
+  循环终止条件使用该字段；`ConditionBranchesField` 复用同目录公开的 `ConditionRulesEditor`
+  组合每个 IF / ELIF 分支，判断值、运算符、AND / OR 切换及增删交互不得再复制实现。单组规则
+  字段的新增操作使用 `Form.Field.actions` 中的 Ghost 图标按钮；规则为空时标题下只显示字段
+  说明，存在规则时直接展示规则列表，不在内容区渲染独立的次级新增按钮；空状态、规则列表及
+  规则增删使用 Motion 做轻量透明度与位移过渡。
 - `ContextMessagesField` 是 `FIELD_UI_TYPES.CONTEXT_MESSAGES` 对应的字段 renderer，只接收和
   回写 `messages` 数组。组件通过 `Form.Field.actions` 新增带稳定 ID 的消息，继续复用
   `NodeVariablePicker` 与 UI `TiptapEditor` 插入序列化变量 token，并按字段名从完整错误映射派生

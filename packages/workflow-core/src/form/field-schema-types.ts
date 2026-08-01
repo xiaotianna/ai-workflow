@@ -53,6 +53,10 @@ export interface RequestBodyFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.REQUEST_BODY
 }
 
+export interface ConditionRulesFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.CONDITION_RULES
+}
+
 export interface ConditionBranchesFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CONDITION_BRANCHES
 }
@@ -79,6 +83,7 @@ export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.CODE_EDITOR]: CodeEditorFieldSchema
   [FIELD_UI_TYPES.KEY_VALUE_TABLE]: KeyValueTableFieldSchema
   [FIELD_UI_TYPES.REQUEST_BODY]: RequestBodyFieldSchema
+  [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesFieldSchema
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesFieldSchema
   [FIELD_UI_TYPES.LLM_MODEL]: LlmModelFieldSchema
   [FIELD_UI_TYPES.KNOWLEDGE_BASE]: KnowledgeBaseFieldSchema

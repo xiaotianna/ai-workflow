@@ -35,27 +35,46 @@ export const conditionRuleSchema = z
     }
   })
 
+const conditionRulesFields = {
+  logicalOperator: z
+    .enum(CONDITION_LOGICAL_OPERATOR_VALUES)
+    .default(CONDITION_LOGICAL_OPERATOR_KINDS.AND),
+  rules: z.array(conditionRuleSchema),
+} as const
+
+export const conditionRulesSchema = z.object(conditionRulesFields).superRefine((value, context) => {
+  const ruleIds = new Set<string>()
+
+  value.rules.forEach((rule, ruleIndex) => {
+    if (ruleIds.has(rule.id)) {
+      context.addIssue({
+        code: 'custom',
+        path: ['rules', ruleIndex, 'id'],
+        message: '条件 ID 不能重复',
+      })
+    }
+    ruleIds.add(rule.id)
+  })
+})
+
 const conditionItemFields = {
   // 作为端口id
   portId: z.string().min(1),
   // 条件名称
   conditionLabel: z.string().trim().min(1, '条件名称不能为空'),
-  // 同一分支内多条规则的组合关系，ELSE分支忽略该字段
-  logicalOperator: z
-    .enum(CONDITION_LOGICAL_OPERATOR_VALUES)
-    .default(CONDITION_LOGICAL_OPERATOR_KINDS.AND),
   // 兜底分支标记（else），为true表示走else
   isFallback: z.boolean().default(false),
 } as const
 
 const structuredConditionItemSchema = z.object({
   ...conditionItemFields,
-  rules: z.array(conditionRuleSchema),
+  ...conditionRulesFields,
 })
 
 const emptyLegacyConditionItemSchema = z
   .object({
     ...conditionItemFields,
+    logicalOperator: conditionRulesFields.logicalOperator,
     condition: z
       .string()
       .trim()
@@ -136,6 +155,8 @@ export const conditionNodeSchema = z
 
 export type ConditionNodeConfig = z.output<typeof conditionNodeSchema>
 export type ConditionNodeConfigInput = z.input<typeof conditionNodeSchema>
+export type ConditionRules = z.output<typeof conditionRulesSchema>
+export type ConditionRulesInput = z.input<typeof conditionRulesSchema>
 export type ConditionItem = z.output<typeof conditionItemSchema>
 export type ConditionItemInput = z.input<typeof conditionItemSchema>
 export type ConditionRule = z.output<typeof conditionRuleSchema>

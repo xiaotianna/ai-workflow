@@ -73,6 +73,7 @@ export const conditionNode = {
 } satisfies NodeType<typeof conditionNodeSchema>
 
 export * from './constant'
+export { conditionRulesSchema } from './schema'
 export type {
   ConditionItem,
   ConditionItemInput,
@@ -80,4 +81,6 @@ export type {
   ConditionNodeConfigInput,
   ConditionRule,
   ConditionRuleInput,
+  ConditionRules,
+  ConditionRulesInput,
 } from './schema'
