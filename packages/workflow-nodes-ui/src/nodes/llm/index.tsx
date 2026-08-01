@@ -15,10 +15,8 @@ export function LlmNodeContent({
 
   let content = <p className="text-xs leading-4">未选择模型</p>
 
-  if (hasModelReference && !resolveModelReferenceDisplay) {
-    content = <p className="text-xs leading-4">正在加载模型信息...</p>
-  } else if (hasModelReference && !modelDisplay) {
-    content = <p className="text-xs leading-4">已配置模型不可用</p>
+  if (hasModelReference && !modelDisplay) {
+    content = <p className="text-xs leading-4">已配置模型（待刷新展示信息）</p>
   } else if (modelDisplay) {
     content = (
       <div className="flex min-w-0 items-center gap-1.5">

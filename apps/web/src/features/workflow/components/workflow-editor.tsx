@@ -153,8 +153,8 @@ export function WorkflowEditor({
         onOpenChange={operations.setImportDialogOpen}
       />
 
-      <WorkflowModelCatalogProvider>
-        <WorkflowKnowledgeBaseCatalogProvider>
+      <WorkflowModelCatalogProvider enabled={!disabled}>
+        <WorkflowKnowledgeBaseCatalogProvider enabled={!disabled}>
           <WorkflowEnvironmentVariablesProvider variables={editor.environmentVariables}>
             <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
               <WorkflowContextMenu

@@ -136,13 +136,14 @@ function ExampleForm() {
   不在前端模拟分页或截断。
 - 知识库列表编辑或删除成功后刷新当前搜索与排序；详情页编辑成功后直接使用接口响应更新父级
   资源状态，删除成功后返回知识库列表。删除失败保留确认弹窗，错误继续由统一 API 客户端提示。
-- 工作流编辑器通过 `WorkflowKnowledgeBaseCatalogProvider` 独立加载当前用户的知识库目录，
-  `KnowledgeBaseField` 消费目录生成多选项，RAG 画布摘要通过同一上下文的
-  `resolveKnowledgeBaseReferenceDisplay` 获取人类可读名称和图标，不再请求第二份目录。
-  多选 Dialog 的临时选择使用 `useFormData`
-  管理，并只通过 Core `ragKnowledgeBaseIdsSchema` 校验其负责的知识库 ID 数组，不读取或复制
-  同节点的 `topK` 等其他配置；点击“添加”后才整体写回 `knowledgeBaseIds`。已保存但目录中不存在的
-  知识库 ID 必须保留为不可用选项并提示重新选择，不得在目录刷新时静默清空节点配置。
+- 工作流编辑器通过 `WorkflowKnowledgeBaseCatalogProvider` 缓存当前用户的知识库目录，但目录
+  只在 RAG 配置面板中的 `KnowledgeBaseField` 挂载后加载；Provider 挂载、草稿加载和纯画布
+  渲染不得请求目录。多选 Dialog 的临时选择使用 `useFormData` 管理，并通过 Core schema 校验；
+  点击“添加”后整体写回带 `id`、可选 `title` / `icon` 的 `knowledgeBases` 引用快照，不读取或复制
+  同节点的 `topK`。已保存但目录中不存在的引用必须保留为不可用选项并提示重新选择。
+- `WorkflowModelCatalogProvider` 使用同一懒加载规则，只在 LLM 配置字段挂载后加载 Chat 模型
+  分组；选择模型时把模型组名称、模型标识、显示名称和供应商类型随稳定 ID 一起写入节点配置。
+  RAG 与 LLM 画布摘要只消费已保存快照，禁止为摘要或节点挂载请求完整候选目录。
 
 ## 工作流编辑器
 

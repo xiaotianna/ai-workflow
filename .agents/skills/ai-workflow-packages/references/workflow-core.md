@@ -82,11 +82,12 @@ Nodes UI 保持 schema 和组件类型关联。
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
 - 当前 `loop`、`code`、`rag`、`http`、`condition` 和 `llm` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
-  语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明知识库字段，
-  `config.knowledgeBaseIds` 按顺序保存不允许重复的知识库 ID 数组，创建节点时可为空；正整数
-  `config.topK` 范围为 1 到 20、默认 `5`，通过紧随其后的 SLIDER 字段显示“召回设置”。旧
-  `config.knowledgeBaseId` 由 schema 自动迁移为单元素数组，历史配置缺少 `topK` 时由 schema
-  补齐默认值。Web 通过字段 registry 注入依赖知识库目录的 renderer；Core 不依赖外部知识库数据。
+  语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明 `config.knowledgeBases`，
+  按顺序保存不允许重复的知识库引用；每项包含稳定 `id` 和可选 `title` / `icon` 展示快照，创建
+  节点时可为空。正整数 `config.topK` 范围为 1 到 20、默认 `5`，通过紧随其后的 SLIDER 字段
+  显示“召回设置”。旧 `config.knowledgeBaseId` 与 `config.knowledgeBaseIds` 由 schema 自动迁移
+  为缺少展示快照的引用对象，历史配置缺少 `topK` 时补齐默认值。Web 只在配置字段挂载时加载
+  外部目录并补全快照；Core 不依赖外部知识库数据。
 - `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于
@@ -97,11 +98,13 @@ Nodes UI 保持 schema 和组件类型关联。
   renderer，上下文字段由 Form 内置 renderer 提供；`config.messages` 按顺序保存带稳定 `id` 的
   `system`、`assistant`、`user` 消息及纯字符串内容，至少保留一条且消息内容不能为空。旧版
   `config.prompt` 在 schema 解析时自动迁移为 SYSTEM 消息，不在解析结果中继续保留 Prompt 字段。
-  `config.model` 保存稳定的 `groupId`、`configuredModelId` 和可选 `parameters`。参数 schema
+  `config.model` 保存稳定的 `groupId`、`configuredModelId`、可选 `parameters`，以及可选的
+  `groupName`、`modelId`、`modelName`、`providerType` 展示快照。旧配置缺少展示快照时仍可解析；
+  展示快照只服务编辑器与画布，不替代运行时用稳定 ID 解析真实模型。参数 schema
   统一覆盖温度、Top P、最大输出 Token、
   停止序列、响应格式、推理强度、思考模式以及 Ollama 的 Top K、重复惩罚和 Seed；所有字段
   缺失时表示沿用供应商默认值，旧节点由 schema 补为空引用与空参数。Core 只定义可序列化领域
-  契约，不保存供应商展示信息、模型组凭证、参数界面策略或 Web 请求数据。
+  契约，不保存模型组凭证、参数界面策略或 Web 请求数据。
 - HTTP 通过 `httpNodeForm` 按顺序声明 URL、Method、Headers、Params、Body 和连接超时；基础
   字段与复杂字段都由 `NodeConfigFields` 按 `field.ui` 分发，不再声明整节点 renderer。
   `connectionTimeout` 使用秒为单位的正数并默认设为 30，旧配置缺省时由 schema 自动补齐。

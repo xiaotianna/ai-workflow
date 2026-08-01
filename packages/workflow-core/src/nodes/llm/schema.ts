@@ -37,6 +37,10 @@ export const llmModelParametersSchema = z.object({
 export const llmModelSchema = z.object({
   groupId: z.string().trim().default(''),
   configuredModelId: z.string().trim().default(''),
+  groupName: z.string().trim().min(1, '模型组名称不能为空').optional(),
+  modelId: z.string().trim().min(1, '模型标识不能为空').optional(),
+  modelName: z.string().trim().min(1, '模型名称不能为空').optional(),
+  providerType: z.string().trim().min(1, '模型供应商类型不能为空').optional(),
   parameters: llmModelParametersSchema.default({}),
 })
 

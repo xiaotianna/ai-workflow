@@ -1,69 +1,57 @@
-import type { KnowledgeBaseReferenceDisplayResolver } from '@ai-workflow/nodes-ui'
 import { listKnowledgeBases, type KnowledgeBaseDto } from '@/api/knowledge-bases'
-import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react'
+import { createContext, use, type PropsWithChildren } from 'react'
+
+import { useLazyWorkflowCatalog } from './use-lazy-workflow-catalog'
 
 interface WorkflowKnowledgeBaseCatalogContextValue {
   knowledgeBases: readonly KnowledgeBaseDto[]
+  loaded: boolean
   loading: boolean
   loadError: boolean
+  load: () => void
   reload: () => void
-  resolveKnowledgeBaseReferenceDisplay?: KnowledgeBaseReferenceDisplayResolver
 }
 
 const WorkflowKnowledgeBaseCatalogContext =
   createContext<WorkflowKnowledgeBaseCatalogContextValue | null>(null)
 
-export function WorkflowKnowledgeBaseCatalogProvider({ children }: PropsWithChildren) {
-  const [knowledgeBases, setKnowledgeBases] = useState<readonly KnowledgeBaseDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [reloadRevision, setReloadRevision] = useState(0)
+interface WorkflowKnowledgeBaseCatalogProviderProps extends PropsWithChildren {
+  enabled?: boolean
+}
 
-  useEffect(() => {
-    const controller = new AbortController()
-
-    setLoading(true)
-    setLoadError(false)
-
-    void listKnowledgeBases({ sort: 'updated_desc' }, controller.signal)
-      .then(({ items }) => setKnowledgeBases(items))
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadError(true)
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-
-    return () => controller.abort()
-  }, [reloadRevision])
-
-  const resolveKnowledgeBaseReferenceDisplay: KnowledgeBaseReferenceDisplayResolver | undefined =
-    loading && knowledgeBases.length === 0
-      ? undefined
-      : (knowledgeBaseId) => {
-          const knowledgeBase = knowledgeBases.find((item) => item.id === knowledgeBaseId)
-
-          if (!knowledgeBase) return undefined
-
-          return {
-            title: knowledgeBase.title,
-            icon: knowledgeBase.icon,
-          }
-        }
+export function WorkflowKnowledgeBaseCatalogProvider({
+  children,
+  enabled = true,
+}: WorkflowKnowledgeBaseCatalogProviderProps) {
+  const {
+    items: knowledgeBases,
+    load,
+    loadError,
+    loaded,
+    loading,
+    reload,
+  } = useLazyWorkflowCatalog(loadKnowledgeBases, enabled)
 
   return (
     <WorkflowKnowledgeBaseCatalogContext
       value={{
         knowledgeBases,
+        load,
+        loaded,
         loading,
         loadError,
-        reload: () => setReloadRevision((revision) => revision + 1),
-        resolveKnowledgeBaseReferenceDisplay,
+        reload,
       }}
     >
       {children}
     </WorkflowKnowledgeBaseCatalogContext>
   )
+}
+
+async function loadKnowledgeBases(signal: AbortSignal): Promise<readonly KnowledgeBaseDto[]> {
+  const { items } = await listKnowledgeBases({ sort: 'updated_desc' }, signal)
+
+  return items
 }
 
 export function useWorkflowKnowledgeBaseCatalog(): WorkflowKnowledgeBaseCatalogContextValue {

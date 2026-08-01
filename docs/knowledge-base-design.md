@@ -34,9 +34,10 @@
   和空态，不再生成客户端临时知识库。
 - 文档页目前只展示空白能力提示；现有文档表格和上传组件不接入页面，也不模拟上传、字符数、
   索引状态或召回次数。召回测试页面仍是占位页面。
-- RAG 节点已有查询输入端口和 JSON 检索结果输出端口，配置通过 `knowledgeBaseIds`
-  按顺序引用一个或多个知识库，并通过正整数 `topK` 控制最大召回数量；编辑器通过真实知识库
-  目录生成多选 Dialog，并保留已保存但当前不可用的引用供用户重新选择。
+- RAG 节点已有查询输入端口和 JSON 检索结果输出端口，配置通过 `knowledgeBases`
+  按顺序保存一个或多个知识库的稳定 ID 与名称/图标快照，并通过正整数 `topK` 控制最大召回
+  数量；编辑器只在 RAG 配置面板打开后加载真实知识库目录生成多选 Dialog，并保留已保存但
+  当前不可用的引用供用户重新选择。画布直接读取持久化快照，不加载完整目录。
 - 服务端已经提供用户级的对话模型与嵌入模型配置，但供应商适配器尚未提供真实 Embedding
   调用。
 - PostgreSQL 和 Redis 已接入开发基础设施；当前 PostgreSQL 镜像未包含 pgvector。
@@ -649,7 +650,11 @@ pgvector 允许无固定维度的 `vector` 列保存不同维度数据，但近�
 
 ```ts
 interface RagNodeConfig {
-  knowledgeBaseIds: string[]
+  knowledgeBases: Array<{
+    id: string
+    title?: string
+    icon?: string
+  }>
   retrievalMode: 'vector' | 'hybrid'
   topK: number
   scoreThreshold?: number
@@ -657,13 +662,14 @@ interface RagNodeConfig {
 }
 ```
 
-当前节点已先落地 `knowledgeBaseIds` 和范围 1 到 20 的整数 `topK`（默认 `5`）；`topK` 在
+当前节点已先落地 `knowledgeBases` 引用快照和范围 1 到 20 的整数 `topK`（默认 `5`）；`topK` 在
 知识库字段下方作为独立的“召回设置”表单项，通过滑条和数字输入框共同编辑。第一阶段可以只
 允许 `retrievalMode: 'vector'`，但字段使用稳定枚举为后续演进留出空间。
 
 - 查询文本继续来自 RAG 节点的 `query` 输入端口，不重复保存到 config。
 - 输出端口继续返回 JSON 数组，元素使用统一的 `RetrievedChunk` 契约。
-- Web `KnowledgeBaseField` 从真实知识库 API 目录加载多选项，不再依赖模拟数据。
+- Web `KnowledgeBaseField` 随 RAG 配置面板挂载后从真实知识库 API 目录加载多选项，不再依赖
+  模拟数据；Provider 挂载和画布渲染不得请求目录。
 - 空白知识库允许被选择；测试、运行和发布时必须提示其尚未配置索引或没有可用文档。
 - 已保存但被删除或失效的知识库引用不能被静默清空，编辑器应保留引用并提示重新选择。
 - Core 负责结构校验；知识库存在性、归属和可执行状态由服务端在测试运行和发布前完成。

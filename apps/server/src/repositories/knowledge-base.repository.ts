@@ -152,6 +152,17 @@ export class KnowledgeBaseRepository {
           {
             type: 'rag',
             config: {
+              knowledgeBases: [{ id: knowledgeBaseId }],
+            },
+          },
+        ],
+      },
+      {
+        path: ['nodes'],
+        array_contains: [
+          {
+            type: 'rag',
+            config: {
               knowledgeBaseIds: [knowledgeBaseId],
             },
           },

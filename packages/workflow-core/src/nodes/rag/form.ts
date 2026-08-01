@@ -3,7 +3,7 @@ import type { NodeFormSchema } from '../../form/field-schema-types'
 import { ragNodeSchema } from './schema'
 
 export const ragNodeForm = {
-  knowledgeBaseIds: {
+  knowledgeBases: {
     ui: FIELD_UI_TYPES.KNOWLEDGE_BASE,
     label: '知识库',
     description: '选择需要检索的一个或多个知识库',

@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { RefreshCw, SlidersHorizontal } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { type ModelGroupDto, type ModelProviderType } from '@/api/models'
 import { useWorkflowModelCatalog } from '@/components/workflow/workflow-model-catalog-context'
@@ -85,7 +85,7 @@ function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableMod
 
 export function LlmModelField({ field, value, error, disabled, onChange }: LlmModelFieldProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const { loadError, loading, modelGroups, reload } = useWorkflowModelCatalog()
+  const { load, loaded, loadError, loading, modelGroups, reload } = useWorkflowModelCatalog()
   const modelReference = getModelReference(value)
   const availableModelGroups = getAvailableModelGroups(modelGroups)
   const availableModels = availableModelGroups.flatMap((group) => group.models)
@@ -96,6 +96,10 @@ export function LlmModelField({ field, value, error, disabled, onChange }: LlmMo
   )
   const hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
 
+  useEffect(() => {
+    load()
+  }, [load])
+
   function handleModelChange(configuredModelId: string) {
     const nextModel = availableModels.find((model) => model.configuredModelId === configuredModelId)
     if (!nextModel) return
@@ -103,6 +107,10 @@ export function LlmModelField({ field, value, error, disabled, onChange }: LlmMo
     onChange({
       groupId: nextModel.groupId,
       configuredModelId: nextModel.configuredModelId,
+      groupName: nextModel.groupName,
+      modelId: nextModel.modelId,
+      modelName: nextModel.displayName,
+      providerType: nextModel.providerType,
       parameters: {},
     })
   }
@@ -110,6 +118,14 @@ export function LlmModelField({ field, value, error, disabled, onChange }: LlmMo
   function handleSaveModelParameters(parameters: LlmModelParametersInput) {
     onChange({
       ...modelReference,
+      ...(selectedModel
+        ? {
+            groupName: selectedModel.groupName,
+            modelId: selectedModel.modelId,
+            modelName: selectedModel.displayName,
+            providerType: selectedModel.providerType,
+          }
+        : {}),
       parameters,
     })
   }
@@ -139,7 +155,7 @@ export function LlmModelField({ field, value, error, disabled, onChange }: LlmMo
         <div className="bg-input flex min-w-0 items-center rounded-md">
           <Select
             value={selectedModel?.configuredModelId}
-            disabled={disabled || loading || loadError || availableModels.length === 0}
+            disabled={disabled || !loaded || loading || loadError || availableModels.length === 0}
             onValueChange={handleModelChange}
           >
             <SelectTrigger
@@ -149,10 +165,10 @@ export function LlmModelField({ field, value, error, disabled, onChange }: LlmMo
             >
               <SelectValue
                 placeholder={
-                  loading
-                    ? '正在加载模型...'
-                    : loadError
-                      ? '模型加载失败'
+                  loadError
+                    ? '模型加载失败'
+                    : !loaded || loading
+                      ? '正在加载模型...'
                       : availableModels.length === 0
                         ? '暂无可用模型'
                         : hasStoredModel

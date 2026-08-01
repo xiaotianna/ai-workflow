@@ -72,9 +72,9 @@
   `(ownerId, updatedAt)` 列表索引；空白知识库创建、列表、详情、编辑和删除接口已经实现，其余
   知识库表与文档、索引、检索能力尚未实现。
 - 当前删除使用硬删除，并通过 PostgreSQL JSONB `array_contains` 同时检查当前用户的工作流草稿
-  和版本中的 RAG 引用；同时匹配当前 `knowledgeBaseIds` 数组与历史
-  `knowledgeBaseId` 单值，存在任一引用时拒绝删除。引用投影表落地后必须改用强外键投影做事务内
-  删除保护，文档和外部资源落地后再升级为异步清理流程。
+  和版本中的 RAG 引用；匹配当前 `knowledgeBases: [{ id }]` 引用快照，以及历史
+  `knowledgeBaseIds` 数组和 `knowledgeBaseId` 单值，存在任一引用时拒绝删除。引用投影表落地后
+  必须改用强外键投影做事务内删除保护，文档和外部资源落地后再升级为异步清理流程。
 - 空白 `KnowledgeBase` 是合法资源，允许 `activeIndexId` 为空并被 RAG 节点选择；上传、召回、
   测试运行和发布前再校验 active Index 与 READY 文档。
 - `KnowledgeBase.activeIndexId` 是当前检索索引的唯一事实来源。嵌入模型、维度、距离算法或知识库级

@@ -1,4 +1,8 @@
-import { ragKnowledgeBaseIdsSchema, type RagNodeConfig } from '@ai-workflow/core'
+import {
+  ragKnowledgeBaseIdsSchema,
+  ragKnowledgeBaseReferencesSchema,
+  type RagKnowledgeBaseReference,
+} from '@ai-workflow/core'
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
@@ -13,6 +17,7 @@ import {
 import { Form } from '@ai-workflow/ui/components/form'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import type { FormEvent } from 'react'
+import { z } from 'zod'
 
 import type { KnowledgeBaseDto } from '@/api/knowledge-bases'
 
@@ -23,9 +28,9 @@ interface KnowledgeBaseSelectorDialogProps {
   loadError: boolean
   loading: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (knowledgeBaseIds: string[]) => void
+  onSave: (knowledgeBases: RagKnowledgeBaseReference[]) => void
   open: boolean
-  value: readonly string[]
+  value: readonly RagKnowledgeBaseReference[]
 }
 
 interface KnowledgeBaseOption {
@@ -34,7 +39,11 @@ interface KnowledgeBaseOption {
   title: string
 }
 
-type KnowledgeBaseSelectionForm = Pick<RagNodeConfig, 'knowledgeBaseIds'>
+const knowledgeBaseSelectionSchema = z.object({
+  knowledgeBaseIds: ragKnowledgeBaseIdsSchema,
+})
+
+type KnowledgeBaseSelectionForm = z.input<typeof knowledgeBaseSelectionSchema>
 
 export function KnowledgeBaseSelectorDialog({
   knowledgeBases,
@@ -46,24 +55,25 @@ export function KnowledgeBaseSelectorDialog({
   value,
 }: KnowledgeBaseSelectorDialogProps) {
   const { form, updateFormField } = useFormData<KnowledgeBaseSelectionForm>({
-    knowledgeBaseIds: [...value],
+    knowledgeBaseIds: value.map((knowledgeBase) => knowledgeBase.id),
   })
-  const validationResult = validateFormByZod(ragKnowledgeBaseIdsSchema, form.knowledgeBaseIds)
-  const knowledgeBaseIds = form.knowledgeBaseIds
-  const unavailableOptions = value.flatMap((knowledgeBaseId) =>
-    knowledgeBases.some((knowledgeBase) => knowledgeBase.id === knowledgeBaseId)
+  const validationResult = validateFormByZod(knowledgeBaseSelectionSchema, form)
+  const knowledgeBaseIds = form.knowledgeBaseIds ?? []
+  const unavailableOptions = value.flatMap((reference) =>
+    knowledgeBases.some((knowledgeBase) => knowledgeBase.id === reference.id)
       ? []
       : [
           {
-            id: knowledgeBaseId,
-            title: `不可用的知识库（${knowledgeBaseId}）`,
+            id: reference.id,
+            title: reference.title ?? `不可用的知识库（${reference.id}）`,
+            ...(reference.icon ? { icon: reference.icon } : {}),
           },
         ],
   )
   const options: KnowledgeBaseOption[] = [...unavailableOptions, ...knowledgeBases]
 
   function toggleKnowledgeBase(knowledgeBaseId: string) {
-    updateFormField('knowledgeBaseIds', (currentKnowledgeBaseIds) =>
+    updateFormField('knowledgeBaseIds', (currentKnowledgeBaseIds = []) =>
       currentKnowledgeBaseIds.includes(knowledgeBaseId)
         ? currentKnowledgeBaseIds.filter((currentId) => currentId !== knowledgeBaseId)
         : [...currentKnowledgeBaseIds, knowledgeBaseId],
@@ -73,10 +83,23 @@ export function KnowledgeBaseSelectorDialog({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
 
-    const result = validateFormByZod(ragKnowledgeBaseIdsSchema, form.knowledgeBaseIds)
+    const result = validateFormByZod(knowledgeBaseSelectionSchema, form)
     if (!result.success) return
 
-    onSave(result.data)
+    const optionById = new Map(options.map((knowledgeBase) => [knowledgeBase.id, knowledgeBase]))
+    const references = result.data.knowledgeBaseIds.map((knowledgeBaseId) => {
+      const knowledgeBase = optionById.get(knowledgeBaseId)
+
+      return {
+        id: knowledgeBaseId,
+        ...(knowledgeBase?.title ? { title: knowledgeBase.title } : {}),
+        ...(knowledgeBase?.icon ? { icon: knowledgeBase.icon } : {}),
+      }
+    })
+    const parsedReferences = validateFormByZod(ragKnowledgeBaseReferencesSchema, references)
+    if (!parsedReferences.success) return
+
+    onSave(parsedReferences.data)
     onOpenChange(false)
   }
 

@@ -1,26 +1,29 @@
-import type { KnowledgeBaseFieldSchema } from '@ai-workflow/core'
+import {
+  ragKnowledgeBaseReferencesSchema,
+  type KnowledgeBaseFieldSchema,
+  type RagKnowledgeBaseReference,
+} from '@ai-workflow/core'
 import type { FieldRendererProps } from '@ai-workflow/form'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
-import { PencilLine, Plus, Trash2 } from 'lucide-react'
+import { PencilLine, Plus, RefreshCw, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useWorkflowKnowledgeBaseCatalog } from '@/components/workflow/workflow-knowledge-base-catalog-context'
 
 import { KnowledgeBaseReferenceIcon, KnowledgeBaseRetrievalBadge } from './knowledge-base-reference'
 import { KnowledgeBaseSelectorDialog } from './knowledge-base-selector-dialog'
 
-type KnowledgeBaseFieldProps = FieldRendererProps<KnowledgeBaseFieldSchema, string[]>
+type KnowledgeBaseFieldProps = FieldRendererProps<
+  KnowledgeBaseFieldSchema,
+  RagKnowledgeBaseReference[]
+>
 
-function normalizeKnowledgeBaseIds(value: unknown): string[] {
-  if (Array.isArray(value)) {
-    return value.flatMap((knowledgeBaseId) =>
-      typeof knowledgeBaseId === 'string' && knowledgeBaseId.trim() ? [knowledgeBaseId.trim()] : [],
-    )
-  }
+function normalizeKnowledgeBaseReferences(value: unknown): RagKnowledgeBaseReference[] {
+  const result = ragKnowledgeBaseReferencesSchema.safeParse(value)
 
-  return typeof value === 'string' && value.trim() ? [value.trim()] : []
+  return result.success ? result.data : []
 }
 
 export function KnowledgeBaseField({
@@ -32,32 +35,42 @@ export function KnowledgeBaseField({
   onChange,
 }: KnowledgeBaseFieldProps) {
   const [selectorOpen, setSelectorOpen] = useState(false)
-  const { knowledgeBases, loading, loadError } = useWorkflowKnowledgeBaseCatalog()
-  const knowledgeBaseIds = normalizeKnowledgeBaseIds(value)
-  const selectedKnowledgeBases = knowledgeBaseIds.map((knowledgeBaseId) => {
-    const knowledgeBase = knowledgeBases.find((item) => item.id === knowledgeBaseId)
+  const { knowledgeBases, load, loaded, loading, loadError, reload } =
+    useWorkflowKnowledgeBaseCatalog()
+  const knowledgeBaseReferences = normalizeKnowledgeBaseReferences(value)
+  const selectedKnowledgeBases = knowledgeBaseReferences.map((reference) => {
+    const knowledgeBase = knowledgeBases.find((item) => item.id === reference.id)
 
     return (
       knowledgeBase ?? {
-        id: knowledgeBaseId,
-        icon: undefined,
-        title: `不可用的知识库（${knowledgeBaseId}）`,
+        id: reference.id,
+        icon: reference.icon,
+        title: reference.title ?? `旧配置知识库（${reference.id}）`,
       }
     )
   })
-  const unavailableKnowledgeBaseCount = selectedKnowledgeBases.filter(
-    (knowledgeBase) => !knowledgeBases.some((item) => item.id === knowledgeBase.id),
-  ).length
-  const canOpenSelector = !disabled && knowledgeBases.length > 0
+  const unavailableKnowledgeBaseCount = loaded
+    ? selectedKnowledgeBases.filter(
+        (knowledgeBase) => !knowledgeBases.some((item) => item.id === knowledgeBase.id),
+      ).length
+    : 0
+  const canOpenSelector = !disabled && loaded
   const description = getKnowledgeBaseFieldDescription({
     hasKnowledgeBases: knowledgeBases.length > 0,
+    loaded,
     loadError,
     loading,
     unavailableKnowledgeBaseCount,
   })
 
+  useEffect(() => {
+    load()
+  }, [load])
+
   function removeKnowledgeBase(knowledgeBaseId: string) {
-    onChange(knowledgeBaseIds.filter((currentId) => currentId !== knowledgeBaseId))
+    onChange(
+      knowledgeBaseReferences.filter((knowledgeBase) => knowledgeBase.id !== knowledgeBaseId),
+    )
   }
 
   return (
@@ -69,17 +82,30 @@ export function KnowledgeBaseField({
         error={error}
         required={field.required}
         actions={
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            disabled={!canOpenSelector}
-            aria-label="添加引用知识库"
-            className="text-muted-foreground hover:text-foreground focus-visible:text-foreground"
-            onClick={() => setSelectorOpen(true)}
-          >
-            <Plus className="size-4" aria-hidden />
-          </Button>
+          loadError ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              disabled={disabled || loading}
+              onClick={reload}
+            >
+              <RefreshCw aria-hidden />
+              重试
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-xs"
+              disabled={!canOpenSelector}
+              aria-label="添加引用知识库"
+              className="text-muted-foreground hover:text-foreground focus-visible:text-foreground"
+              onClick={() => setSelectorOpen(true)}
+            >
+              <Plus className="size-4" aria-hidden />
+            </Button>
+          )
         }
       >
         <MotionConfig reducedMotion="user">
@@ -114,7 +140,7 @@ export function KnowledgeBaseField({
                           type="button"
                           variant="ghost"
                           size="icon-xs"
-                          disabled={disabled}
+                          disabled={!canOpenSelector}
                           aria-label={`编辑${knowledgeBase.title}引用`}
                           className="text-muted-foreground"
                           onClick={() => setSelectorOpen(true)}
@@ -142,6 +168,7 @@ export function KnowledgeBaseField({
             <div className="text-muted-foreground bg-muted/40 flex min-h-16 items-center justify-center rounded-xl px-4 text-center text-sm font-medium">
               {getKnowledgeBaseEmptyState({
                 hasKnowledgeBases: knowledgeBases.length > 0,
+                loaded,
                 loadError,
                 loading,
               })}
@@ -153,7 +180,7 @@ export function KnowledgeBaseField({
       {selectorOpen ? (
         <KnowledgeBaseSelectorDialog
           open
-          value={knowledgeBaseIds}
+          value={knowledgeBaseReferences}
           knowledgeBases={knowledgeBases}
           loading={loading}
           loadError={loadError}
@@ -167,6 +194,7 @@ export function KnowledgeBaseField({
 
 interface KnowledgeBaseCatalogState {
   hasKnowledgeBases: boolean
+  loaded: boolean
   loadError: boolean
   loading: boolean
 }
@@ -177,11 +205,12 @@ interface KnowledgeBaseFieldDescriptionOptions extends KnowledgeBaseCatalogState
 
 function getKnowledgeBaseFieldDescription({
   hasKnowledgeBases,
+  loaded,
   loadError,
   loading,
   unavailableKnowledgeBaseCount,
 }: KnowledgeBaseFieldDescriptionOptions): string | undefined {
-  if (loading && !hasKnowledgeBases) return undefined
+  if ((!loaded || loading) && !hasKnowledgeBases) return undefined
   if (loadError && !hasKnowledgeBases) return undefined
 
   if (unavailableKnowledgeBaseCount > 0) {
@@ -193,11 +222,12 @@ function getKnowledgeBaseFieldDescription({
 
 function getKnowledgeBaseEmptyState({
   hasKnowledgeBases,
+  loaded,
   loadError,
   loading,
 }: KnowledgeBaseCatalogState): string {
-  if (loading && !hasKnowledgeBases) return '正在加载知识库列表'
   if (loadError && !hasKnowledgeBases) return '知识库列表加载失败'
+  if ((!loaded || loading) && !hasKnowledgeBases) return '正在加载知识库列表'
   if (!hasKnowledgeBases) return '暂无知识库，请先创建空白知识库'
 
   return '点击“+”按钮添加知识库'

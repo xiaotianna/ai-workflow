@@ -1,74 +1,57 @@
-import type { ModelReferenceDisplayResolver } from '@ai-workflow/nodes-ui'
-import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react'
+import { createContext, use, type PropsWithChildren } from 'react'
 
 import { listModelGroups, type ModelGroupDto } from '@/api/models'
-import { getModelProviderStrategy } from '@/features/models'
+
+import { useLazyWorkflowCatalog } from './use-lazy-workflow-catalog'
 
 interface WorkflowModelCatalogContextValue {
   modelGroups: readonly ModelGroupDto[]
+  loaded: boolean
   loading: boolean
   loadError: boolean
+  load: () => void
   reload: () => void
-  resolveModelReferenceDisplay?: ModelReferenceDisplayResolver
 }
 
 const WorkflowModelCatalogContext = createContext<WorkflowModelCatalogContextValue | null>(null)
 
-export function WorkflowModelCatalogProvider({ children }: PropsWithChildren) {
-  const [modelGroups, setModelGroups] = useState<readonly ModelGroupDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [reloadRevision, setReloadRevision] = useState(0)
+interface WorkflowModelCatalogProviderProps extends PropsWithChildren {
+  enabled?: boolean
+}
 
-  useEffect(() => {
-    const controller = new AbortController()
-
-    setLoading(true)
-    setLoadError(false)
-
-    void listModelGroups('chat', controller.signal)
-      .then(({ items }) => setModelGroups(items))
-      .catch(() => {
-        if (!controller.signal.aborted) setLoadError(true)
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-
-    return () => controller.abort()
-  }, [reloadRevision])
-
-  const resolveModelReferenceDisplay: ModelReferenceDisplayResolver | undefined =
-    loading && modelGroups.length === 0
-      ? undefined
-      : (reference) => {
-          const group = modelGroups.find((item) => item.id === reference.groupId)
-          const model = group?.models.find((item) => item.id === reference.configuredModelId)
-
-          if (!group || !model) return undefined
-
-          const ProviderIcon = getModelProviderStrategy(group.providerType).icon
-
-          return {
-            groupName: group.name,
-            modelName: model.displayName || model.modelId,
-            providerIcon: <ProviderIcon aria-hidden />,
-          }
-        }
+export function WorkflowModelCatalogProvider({
+  children,
+  enabled = true,
+}: WorkflowModelCatalogProviderProps) {
+  const {
+    items: modelGroups,
+    load,
+    loadError,
+    loaded,
+    loading,
+    reload,
+  } = useLazyWorkflowCatalog(loadChatModelGroups, enabled)
 
   return (
     <WorkflowModelCatalogContext
       value={{
         modelGroups,
+        load,
+        loaded,
         loading,
         loadError,
-        reload: () => setReloadRevision((revision) => revision + 1),
-        resolveModelReferenceDisplay,
+        reload,
       }}
     >
       {children}
     </WorkflowModelCatalogContext>
   )
+}
+
+async function loadChatModelGroups(signal: AbortSignal): Promise<readonly ModelGroupDto[]> {
+  const { items } = await listModelGroups('chat', signal)
+
+  return items
 }
 
 export function useWorkflowModelCatalog(): WorkflowModelCatalogContextValue {

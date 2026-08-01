@@ -1,6 +1,10 @@
 import { useStore, type NodeProps, type NodeTypes, type ReactFlowState } from '@xyflow/react'
 import type { WorkflowCanvasNode } from './types'
-import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
+import {
+  createBuiltinNodeUIRegistry,
+  RenderNode,
+  type ModelReferenceDisplayResolver,
+} from '@ai-workflow/nodes-ui'
 import {
   BuiltinNodeType,
   ENVIRONMENT_VARIABLE_NAMESPACE,
@@ -16,12 +20,27 @@ import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
 import { WorkflowNodeHandle } from './workflow-node-handle'
 import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 import { LoopNodeResizeControl } from './loop-node-resize-control'
-import { useWorkflowModelCatalog } from './workflow-model-catalog-context'
-import { useWorkflowKnowledgeBaseCatalog } from './workflow-knowledge-base-catalog-context'
 import { useWorkflowEnvironmentVariables } from './workflow-environment-variables-context'
+import { modelProviderStrategies } from '@/features/models'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
+
+const resolvePersistedModelReferenceDisplay: ModelReferenceDisplayResolver = (reference) => {
+  const modelName = reference.modelName?.trim() || reference.modelId?.trim()
+  if (!modelName) return undefined
+
+  const providerStrategy = modelProviderStrategies.find(
+    (strategy) => strategy.type === reference.providerType,
+  )
+  const ProviderIcon = providerStrategy?.icon
+
+  return {
+    groupName: reference.groupName?.trim() ?? '',
+    modelName,
+    providerIcon: ProviderIcon ? <ProviderIcon aria-hidden /> : null,
+  }
+}
 
 function selectNodeDisplayLabels(state: ReactFlowState): ReadonlyMap<string, string> {
   return new Map(
@@ -129,8 +148,6 @@ function WorkflowNodeActionTrigger({ selected }: WorkflowNodeActionTriggerProps)
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
   const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
-  const { resolveModelReferenceDisplay } = useWorkflowModelCatalog()
-  const { resolveKnowledgeBaseReferenceDisplay } = useWorkflowKnowledgeBaseCatalog()
   const environmentVariables = useWorkflowEnvironmentVariables()
   const nodeDisplayLabels = useStore(
     (state) =>
@@ -167,10 +184,7 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
             : undefined
         }
         resolveModelReferenceDisplay={
-          type === BuiltinNodeType.LLM ? resolveModelReferenceDisplay : undefined
-        }
-        resolveKnowledgeBaseReferenceDisplay={
-          type === BuiltinNodeType.RAG ? resolveKnowledgeBaseReferenceDisplay : undefined
+          type === BuiltinNodeType.LLM ? resolvePersistedModelReferenceDisplay : undefined
         }
         dragHandleClassName="drag-handle"
         editorCapabilities={

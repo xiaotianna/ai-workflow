@@ -4,7 +4,13 @@ import { ragNodeDefinition } from './definition'
 import { ragNodeForm } from './form'
 import { ragNodeSchema } from './schema'
 
-export { ragKnowledgeBaseIdsSchema, ragNodeSchema, ragTopKSchema } from './schema'
+export {
+  ragKnowledgeBaseIdsSchema,
+  ragKnowledgeBaseReferenceSchema,
+  ragKnowledgeBaseReferencesSchema,
+  ragNodeSchema,
+  ragTopKSchema,
+} from './schema'
 
 export const ragNode = {
   schema: ragNodeSchema,
@@ -13,4 +19,4 @@ export const ragNode = {
   createInitialConfig: () => createInitialConfig(ragNodeSchema),
 } satisfies NodeType<typeof ragNodeSchema>
 
-export type { RagNodeConfig } from './schema'
+export type { RagKnowledgeBaseReference, RagNodeConfig } from './schema'

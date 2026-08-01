@@ -1,7 +1,6 @@
 import { getNodePorts } from '@ai-workflow/core'
 import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
 import type {
-  KnowledgeBaseReferenceDisplayResolver,
   ModelReferenceDisplayResolver,
   NodeEditorCapabilities,
   NodePortRender,
@@ -22,7 +21,6 @@ export interface RenderNodeProps {
   renderPort?: NodePortRender
   resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
   resolveModelReferenceDisplay?: ModelReferenceDisplayResolver
-  resolveKnowledgeBaseReferenceDisplay?: KnowledgeBaseReferenceDisplayResolver
   // 提供给节点的操作能力（给完整自定义节点使用，非base-node基础组件）
   editorCapabilities?: NodeEditorCapabilities
   // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
@@ -45,7 +43,6 @@ export const RenderNode = ({
   renderPort,
   resolveVariableReferenceDisplay,
   resolveModelReferenceDisplay,
-  resolveKnowledgeBaseReferenceDisplay,
   editorCapabilities,
   dragHandleClassName,
 }: RenderNodeProps) => {
@@ -111,7 +108,6 @@ export const RenderNode = ({
         renderPort={renderPort}
         resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
         resolveModelReferenceDisplay={resolveModelReferenceDisplay}
-        resolveKnowledgeBaseReferenceDisplay={resolveKnowledgeBaseReferenceDisplay}
         editorCapabilities={editorCapabilities}
         dragHandleClassName={dragHandleClassName}
       />
@@ -126,7 +122,6 @@ export const RenderNode = ({
       ports={ports}
       resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
       resolveModelReferenceDisplay={resolveModelReferenceDisplay}
-      resolveKnowledgeBaseReferenceDisplay={resolveKnowledgeBaseReferenceDisplay}
     />
   ) : hasDefaultNodeContent(resolvedDefinition) ? (
     <DefaultNodeContent
@@ -135,7 +130,6 @@ export const RenderNode = ({
       ports={ports}
       resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
       resolveModelReferenceDisplay={resolveModelReferenceDisplay}
-      resolveKnowledgeBaseReferenceDisplay={resolveKnowledgeBaseReferenceDisplay}
     />
   ) : null
 

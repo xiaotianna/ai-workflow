@@ -18,6 +18,30 @@ export const ragKnowledgeBaseIdsSchema = z
     })
   })
 
+export const ragKnowledgeBaseReferenceSchema = z.object({
+  id: z.string().trim().min(1, '知识库 ID 不能为空'),
+  title: z.string().trim().min(1, '知识库名称不能为空').optional(),
+  icon: z.string().trim().min(1, '知识库图标不能为空').optional(),
+})
+
+export const ragKnowledgeBaseReferencesSchema = z
+  .array(ragKnowledgeBaseReferenceSchema)
+  .default([])
+  .superRefine((knowledgeBases, context) => {
+    const uniqueKnowledgeBaseIds = new Set<string>()
+
+    knowledgeBases.forEach((knowledgeBase, index) => {
+      if (uniqueKnowledgeBaseIds.has(knowledgeBase.id)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'id'],
+          message: '不能重复引用同一个知识库',
+        })
+      }
+      uniqueKnowledgeBaseIds.add(knowledgeBase.id)
+    })
+  })
+
 export const ragTopKSchema = z
   .number()
   .int('Top K 必须是整数')
@@ -25,37 +49,46 @@ export const ragTopKSchema = z
   .max(20, 'Top K 不能超过 20')
   .default(5)
 
-function migrateLegacyKnowledgeBaseId(value: unknown): unknown {
+function migrateLegacyKnowledgeBaseReferences(value: unknown): unknown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return value
 
   const config = value as Record<string, unknown>
-  if (Object.hasOwn(config, 'knowledgeBaseIds')) return value
-  if (!Object.hasOwn(config, 'knowledgeBaseId')) return value
+  if (Object.hasOwn(config, 'knowledgeBases')) return value
+  if (!Object.hasOwn(config, 'knowledgeBaseIds') && !Object.hasOwn(config, 'knowledgeBaseId')) {
+    return value
+  }
 
-  const { knowledgeBaseId, ...nextConfig } = config
+  const { knowledgeBaseId, knowledgeBaseIds, ...nextConfig } = config
+  const legacyKnowledgeBaseIds = Object.hasOwn(config, 'knowledgeBaseIds')
+    ? knowledgeBaseIds
+    : typeof knowledgeBaseId === 'string'
+      ? knowledgeBaseId.trim()
+        ? [knowledgeBaseId.trim()]
+        : []
+      : knowledgeBaseId
+  const parsedKnowledgeBaseIds = ragKnowledgeBaseIdsSchema.safeParse(legacyKnowledgeBaseIds)
 
-  if (typeof knowledgeBaseId !== 'string') {
+  if (!parsedKnowledgeBaseIds.success) {
     return {
       ...nextConfig,
-      knowledgeBaseIds: knowledgeBaseId,
+      knowledgeBases: legacyKnowledgeBaseIds,
     }
   }
 
-  const normalizedKnowledgeBaseId = knowledgeBaseId.trim()
-
   return {
     ...nextConfig,
-    knowledgeBaseIds: normalizedKnowledgeBaseId ? [normalizedKnowledgeBaseId] : [],
+    knowledgeBases: parsedKnowledgeBaseIds.data.map((id) => ({ id })),
   }
 }
 
 export const ragNodeSchema = z.preprocess(
-  migrateLegacyKnowledgeBaseId,
+  migrateLegacyKnowledgeBaseReferences,
   z.object({
     // 创建节点时允许为空，后续由用户选择一个或多个知识库
-    knowledgeBaseIds: ragKnowledgeBaseIdsSchema,
+    knowledgeBases: ragKnowledgeBaseReferencesSchema,
     topK: ragTopKSchema,
   }),
 )
 
+export type RagKnowledgeBaseReference = z.output<typeof ragKnowledgeBaseReferenceSchema>
 export type RagNodeConfig = z.output<typeof ragNodeSchema>
