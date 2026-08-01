@@ -1,9 +1,27 @@
 import { BuiltinNodeType } from '@ai-workflow/core'
-import { initialKnowledgeBases } from '@/features/knowledge-base'
+import type { KnowledgeBaseDto } from '@/api/knowledge-bases'
 
 import { createRagNodeFormFieldsResolver } from './rag'
 import type { NodeFormFieldsResolverRegistry } from './registry'
 
-export const builtinNodeFormFieldsResolvers = {
-  [BuiltinNodeType.RAG]: createRagNodeFormFieldsResolver(initialKnowledgeBases),
-} satisfies NodeFormFieldsResolverRegistry
+interface CreateBuiltinNodeFormFieldsResolversOptions {
+  knowledgeBases: readonly Pick<KnowledgeBaseDto, 'id' | 'title'>[]
+  knowledgeBasesLoading: boolean
+  knowledgeBasesLoadError: boolean
+  selectedKnowledgeBaseId?: string
+}
+
+export function createBuiltinNodeFormFieldsResolvers({
+  knowledgeBases,
+  knowledgeBasesLoading,
+  knowledgeBasesLoadError,
+  selectedKnowledgeBaseId,
+}: CreateBuiltinNodeFormFieldsResolversOptions): NodeFormFieldsResolverRegistry {
+  return {
+    [BuiltinNodeType.RAG]: createRagNodeFormFieldsResolver(knowledgeBases, {
+      loading: knowledgeBasesLoading,
+      loadError: knowledgeBasesLoadError,
+      selectedKnowledgeBaseId,
+    }),
+  }
+}

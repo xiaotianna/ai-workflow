@@ -28,7 +28,9 @@ import { Separator } from '@ai-workflow/ui/components/separator'
 import { X } from 'lucide-react'
 import { z } from 'zod'
 
-import { builtinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
+import { useWorkflowKnowledgeBaseCatalog } from '@/components/workflow/workflow-knowledge-base-catalog-context'
+
+import { createBuiltinNodeFormFieldsResolvers } from '../node-form-resolvers/builtin'
 import { resolveNodeFormFields } from '../node-form-resolvers/registry'
 import { builtinWorkflowNodeConfigFieldRenderers } from '../node-config-renderers/builtin'
 import { WorkflowNextStep } from './workflow-next-step'
@@ -81,6 +83,7 @@ export const WorkflowConfigPanel = ({
   onNextStepOpenChange,
   onNextStepNodeSelect,
 }: WorkflowConfigPanelProps) => {
+  const knowledgeBaseCatalog = useWorkflowKnowledgeBaseCatalog()
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
   const { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
@@ -240,7 +243,16 @@ export const WorkflowConfigPanel = ({
     })
   }
 
-  const formFields = resolveNodeFormFields(nodeType, builtinNodeFormFieldsResolvers)
+  const formFields = resolveNodeFormFields(
+    nodeType,
+    createBuiltinNodeFormFieldsResolvers({
+      knowledgeBases: knowledgeBaseCatalog.knowledgeBases,
+      knowledgeBasesLoading: knowledgeBaseCatalog.loading,
+      knowledgeBasesLoadError: knowledgeBaseCatalog.loadError,
+      selectedKnowledgeBaseId:
+        typeof form.config.knowledgeBaseId === 'string' ? form.config.knowledgeBaseId : undefined,
+    }),
+  )
   const hasFields = formFields && Object.keys(formFields).length > 0
   const configRenderer = nodeType.configRenderer
   const hasConfigSection = Boolean(configRenderer || hasFields)

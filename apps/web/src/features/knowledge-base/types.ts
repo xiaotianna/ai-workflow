@@ -1,14 +1,18 @@
+import type { KnowledgeBaseSort as ApiKnowledgeBaseSort } from '@/api/knowledge-bases'
+
 export interface KnowledgeBaseListItem {
   id: string
   title: string
-  kindLabel: string
   author: string
-  editedAtLabel: string
+  createdAt: string
+  updatedAt: string
   description?: string
   icon?: string
 }
 
-export type KnowledgeBaseAction = 'edit' | 'duplicate' | 'delete'
+export type KnowledgeBaseSort = ApiKnowledgeBaseSort
+
+export type KnowledgeBaseAction = 'edit' | 'delete'
 
 export type KnowledgeBaseActionHandler = (
   action: KnowledgeBaseAction,

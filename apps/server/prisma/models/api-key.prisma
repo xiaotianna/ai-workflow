@@ -2,7 +2,7 @@ model ApiKey {
   id          String    @id @default(uuid()) @db.Uuid
   appId       String    @db.Uuid // 关联app
   name        String
-  prefix      String  // 密钥前缀，例如：sk_abc[密钥]，那么给前端展示sk_abc••••••••
+  prefix      String // 密钥前缀，例如：sk_abc[密钥]，那么给前端展示sk_abc••••••••
   keyHash     String    @unique // 不保存明文key，并且需要保证key不重复
   createdById String?   @db.Uuid
   lastUsedAt  DateTime? // 最近使用时间

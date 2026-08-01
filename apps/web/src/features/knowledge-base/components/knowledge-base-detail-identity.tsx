@@ -7,7 +7,7 @@ import { KnowledgeBaseActionMenu } from './knowledge-base-action-menu'
 
 interface KnowledgeBaseDetailIdentityProps {
   knowledgeBase?: KnowledgeBaseListItem
-  onKnowledgeBaseAction?: KnowledgeBaseActionHandler
+  onKnowledgeBaseAction: KnowledgeBaseActionHandler
 }
 
 export function KnowledgeBaseDetailIdentity({
@@ -15,7 +15,7 @@ export function KnowledgeBaseDetailIdentity({
   onKnowledgeBaseAction,
 }: KnowledgeBaseDetailIdentityProps) {
   const title = knowledgeBase?.title ?? '未命名知识库'
-  const kindLabel = knowledgeBase?.kindLabel ?? '知识库'
+  const kindLabel = knowledgeBase ? '空白知识库' : '知识库'
   const actions = knowledgeBase ? getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction) : []
 
   return (

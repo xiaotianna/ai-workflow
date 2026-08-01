@@ -21,8 +21,14 @@
 - Studio 与应用详情页删除工作流时统一先打开 `DeleteStudioAppDialog`；弹窗明确列出草稿、版本、
   部署、运行内容、API Key 和调用日志均会永久删除，请求期间禁止关闭和重复提交。列表删除
   成功后刷新当前查询，详情页删除成功后返回 Studio。
-- 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示知识库条目，角标使用 `BookOpen` 与 Studio 的工作流图标区分，角标内图标统一为 `size-2.5`；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内。
-- 知识库文档页（`/knowledge-base/:id/documents`）使用 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；工具栏、表格与分页分别由 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 承担，添加文件弹窗使用 `useFormData` 管理 `FileDropzone` 字段，通过 `validateFormByZod` 与对应 Zod schema 完成校验和提交。表格与分页的详细约定见下方「知识库文档表格」。
+- 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示真实接口条目，角标使用 `BookOpen` 与 Studio 的工作流图标区分，角标内图标统一为 `size-2.5`；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内，只提供“编辑信息”和危险态“删除”，两项之间使用分隔线，禁止提供复制。
+- 知识库创建和编辑复用 `KnowledgeBaseFormDialog`；编辑时回填名称、图标和描述，请求期间禁止
+  关闭或重复提交。删除统一使用 `DeleteKnowledgeBaseDialog` 二次确认；请求期间禁止关闭，失败
+  时保留弹窗，列表成功后刷新当前查询，详情成功后返回知识库列表。
+- 空白知识库阶段的文档页（`/knowledge-base/:id/documents`）只展示“暂无文档”和后续能力说明，
+  不挂载上传、启停、重命名、重新索引或删除交互，也不在浏览器模拟文档记录。后续接入真实文档
+  接口时再启用 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 与添加文件弹窗，并遵守
+  下方「知识库文档表格」约定。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。下拉操作项默认只显示文字，不提供通用 `icon` 配置；只有用户或业务规范明确要求时才单独实现图标。
@@ -200,8 +206,9 @@
   名称、描述、`config`、`inputs`、
   `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
   校验后即时写回节点。动态业务数据通过 `features/workflow/node-form-resolvers` 中按节点类型注册的
-  Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从知识库业务
-  公开数据生成选项，Core 与 Form 不依赖 Web 数据；新增其他动态控件时增加对应 Resolver，
+  Resolver 合并为完整字段配置后再交给 `NodeConfigFields`。RAG Resolver 当前从
+  `WorkflowKnowledgeBaseCatalogProvider` 加载的真实知识库目录生成选项，并保留当前不可用引用；
+  Core 与 Form 不依赖 Web 数据；新增其他动态控件时增加对应 Resolver，
   不扩展 `NodeConfigFields` 的控件专属参数。
 - 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
   `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；

@@ -35,7 +35,9 @@
 - 只有无业务语义且可跨应用复用时，才把能力下沉到 package。
 - 工作流节点表单依赖的知识库、工作流列表等动态业务数据，在
   `features/workflow/node-form-resolvers` 中按节点类型转换为完整字段配置；通用
-  `NodeConfigFields` 只透传字段通用上下文，不请求业务数据。
+  `NodeConfigFields` 只透传字段通用上下文，不请求业务数据。知识库目录由
+  `WorkflowKnowledgeBaseCatalogProvider` 从 `src/api/knowledge-bases` 加载，RAG Resolver 只负责
+  把目录状态转换为 Select 选项与提示。
 - 平台可复用的复杂配置优先建模为字段 UI 类型，并由 `NodeConfigFields` 与字段 renderer
   registry 分发；依赖 Web API 的字段 renderer 留在
   `features/workflow/node-config-renderers`，通过 `NodeConfigFields.renderers` 注入。LLM 模型字段

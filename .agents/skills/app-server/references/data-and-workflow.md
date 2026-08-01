@@ -61,6 +61,33 @@
   阻止私有、回环和保留地址；通过 `MODEL_CONNECTION_PRIVATE_HOSTS` 显式放行需要访问的 Ollama
   或可信内网端点，探测请求禁止自动跟随重定向并限制超时与响应体大小。
 
+## 知识库持久化
+
+- 完整表设计和状态流程以根目录 `docs/knowledge-base-design.md` 为准。当前已建立最小
+  `KnowledgeBase` Prisma 模型和迁移，包含 UUID、`ownerId`、名称、描述、图标、时间字段以及
+  `(ownerId, updatedAt)` 列表索引；空白知识库创建、列表、详情、编辑和删除接口已经实现，其余
+  知识库表与文档、索引、检索能力尚未实现。
+- 当前删除使用硬删除，并通过 PostgreSQL JSONB `array_contains` 同时检查当前用户的工作流草稿
+  和版本中的 RAG 引用；存在引用时拒绝删除。引用投影表落地后必须改用强外键投影做事务内删除
+  保护，文档和外部资源落地后再升级为异步清理流程。
+- 空白 `KnowledgeBase` 是合法资源，允许 `activeIndexId` 为空并被 RAG 节点选择；上传、召回、
+  测试运行和发布前再校验 active Index 与 READY 文档。
+- `KnowledgeBase.activeIndexId` 是当前检索索引的唯一事实来源。嵌入模型、维度、距离算法或知识库级
+  切分配置变化时创建新的 `KnowledgeBaseIndex` 代际，全部非删除文档构建成功后在事务中原子切换，
+  不按文档逐个切换知识库正在服务的模型。
+- 原始文件、文档索引结果和 Worker 尝试分别使用 `KnowledgeDocumentSource`、
+  `KnowledgeDocumentVersion` 和 `KnowledgeIngestionAttempt` 建模；文档在每个 Index 下的当前成功
+  版本由 `KnowledgeDocumentIndexHead` 维护。
+- 文档入库、重建和清理任务通过同事务 `OutboxEvent` 可靠发布；Redis 不作为任务事实来源。
+  `KnowledgeCleanupJob` 保留外部资源清理进度，清理成功前业务行保持删除中状态。
+- 工作流草稿和版本分别使用具有真实知识库外键的引用投影表；工作流 JSON 仍是事实来源，保存
+  JSON 与重建投影必须在同一事务完成。
+- 检索次数从 `KnowledgeRetrievalLog` 与 `KnowledgeRetrievalHit` 聚合，召回测试不计入生产召回；
+  不在知识库或文档行维护高频递增计数。
+- pgvector 列、维度 CHECK、部分向量索引和 Prisma 无法表达的复合约束使用自定义 migration；
+  Prisma 模型中的向量列使用 `Unsupported("vector")`，向量查询封装在 `VectorStore`/Repository
+  边界内。
+
 ## Redis
 
 - 只在缓存、幂等、限流、短期锁或事件协调需求明确时使用。

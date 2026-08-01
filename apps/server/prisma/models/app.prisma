@@ -9,14 +9,14 @@ model App {
   updatedAt   DateTime  @updatedAt
 
   /**
-  @relation表示两个model之间的数据库关联
-  owner User @relation(
-    fields: [ownerId],
-    references: [id],
-    onDelete: Restrict // 用户还有 App 时，禁止删除该用户
-  )
-  表示App.ownerId → User.id
-  */
+   * @relation表示两个model之间的数据库关联
+   * owner User @relation(
+   * fields: [ownerId],
+   * references: [id],
+   * onDelete: Restrict // 用户还有 App 时，禁止删除该用户
+   * )
+   * 表示App.ownerId → User.id
+   */
   owner       User         @relation(fields: [ownerId], references: [id], onDelete: Restrict) // 用户实体
   workflow    Workflow? // 工作流实体，一对一关系
   apiKeys     ApiKey[] // 该应用创建的所有apikey

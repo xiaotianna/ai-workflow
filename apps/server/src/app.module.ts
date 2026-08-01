@@ -7,6 +7,7 @@ import { PrismaModule } from './infra/prisma/prisma.module'
 import { AuthenticationModule } from './modules/authentication.module'
 import { StudioModule } from './modules/studio.module'
 import { ModelsModule } from './modules/models.module'
+import { KnowledgeBaseModule } from './modules/knowledge-base.module'
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { ModelsModule } from './modules/models.module'
     AuthModule,
     StudioModule,
     ModelsModule,
+    KnowledgeBaseModule,
   ],
   controllers: [],
 })

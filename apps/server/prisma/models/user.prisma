@@ -13,6 +13,7 @@ model User {
   createdApiKeys          ApiKey[]             @relation("ApiKeyCreatedBy")
   triggeredWorkflowRuns   WorkflowRun[]        @relation("WorkflowRunTriggeredBy")
   modelGroups             ModelGroup[]
+  knowledgeBases          KnowledgeBase[]
 
   @@map("users")
 }

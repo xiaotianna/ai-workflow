@@ -61,6 +61,27 @@
 Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修改都同时检查资源归属，不允许
 仅凭应用 ID 跨用户访问。
 
+## 当前知识库接口
+
+以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离知识库：
+
+- `GET /knowledge-bases`：获取当前用户的全部空白知识库；支持最长 40 字符的 `search` 与
+  `updated_desc`、`created_desc`、`created_asc` 排序，返回 `{ items }`。当前阶段不分页，不得
+  在前端模拟截断；需要分页时在保持 `items` 的基础上增加 opaque cursor。
+- `GET /knowledge-bases/:knowledgeBaseId`：获取知识库详情；路径参数不是 UUID v4 时返回 `400`，
+  资源不存在或不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“知识库不存在”。
+- `POST /knowledge-bases`：创建空白知识库；`title` 和 `icon` 必填，`description` 可选，不要求
+  嵌入模型、文档或索引配置。
+- `PATCH /knowledge-bases/:knowledgeBaseId`：修改名称、图标或描述，至少提供一个字段；空描述
+  清理数据库中的可选描述。
+- `DELETE /knowledge-bases/:knowledgeBaseId`：永久删除当前空白知识库；删除前检查当前用户工作流
+  草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
+  当前没有文档或外部对象，因此不创建异步清理任务；后续接入这些资源时保持路由不变并升级为
+  删除生命周期。
+
+知识库响应使用显式 VO，包含 `id`、`title`、`author`、`description?`、`icon?`、`createdAt` 和
+`updatedAt`，不得暴露 Prisma model 或返回尚未实现的文档数量、索引状态。
+
 ## 当前模型配置接口
 
 以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离模型组：
