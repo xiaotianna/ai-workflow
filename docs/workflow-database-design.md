@@ -425,7 +425,7 @@ API 请求可能在鉴权或参数校验阶段失败，因此 ApiCallLog 的 `ru
 ## 后续扩展
 
 - Core 已支持 `env.variableId`，环境变量应单独建表，敏感值加密后保存，系统变量不落库。
-- `sub_workflow.workflowId` 和 RAG 的 `knowledgeBaseId` 位于 JSON 中，数据库无法直接建立
+- `sub_workflow.workflowId` 和 RAG 的 `knowledgeBaseIds` 位于 JSON 中，数据库无法直接建立
   外键。发布时必须校验引用；需要删除保护和依赖分析时，可生成独立依赖投影表。
 - 如果未来一个 App 包含多个 Workflow，移除 `workflows.appId` 的唯一约束，并在 App 中增加
   明确的入口 Workflow。

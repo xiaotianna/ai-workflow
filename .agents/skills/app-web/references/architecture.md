@@ -37,8 +37,9 @@
   `features/workflow/node-config-renderers` 中对应的字段 renderer 消费；字段名、`ui`、标签、
   默认说明和必填约束统一由 Core `NodeType.form` 声明，不在 Web 按节点类型重组字段。
   通用 `NodeConfigFields` 只按 `field.ui` 分发并透传字段上下文，不请求业务数据。
-  知识库目录由 `WorkflowKnowledgeBaseCatalogProvider` 从 `src/api/knowledge-bases` 加载，
-  `KnowledgeBaseField` 只负责将目录状态呈现为 Select 选项和动态提示。
+  知识库目录由 `WorkflowKnowledgeBaseCatalogProvider` 从 `src/api/knowledge-bases` 加载；
+  `KnowledgeBaseField` 将目录状态呈现为多选 Dialog、已选卡片和动态提示，画布通过同一上下文
+  的 `resolveKnowledgeBaseReferenceDisplay` 向 Nodes UI 注入知识库名称与图标，避免重复请求。
 - 平台可复用的复杂配置优先建模为字段 UI 类型，并由 `NodeConfigFields` 与字段 renderer
   registry 分发；依赖 Web API 的字段 renderer 留在
   `features/workflow/node-config-renderers`，通过 `NodeConfigFields.renderers` 注入。LLM 模型字段

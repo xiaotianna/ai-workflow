@@ -4,6 +4,8 @@ import { ragNodeDefinition } from './definition'
 import { ragNodeForm } from './form'
 import { ragNodeSchema } from './schema'
 
+export { ragKnowledgeBaseIdsSchema, ragNodeSchema, ragTopKSchema } from './schema'
+
 export const ragNode = {
   schema: ragNodeSchema,
   definition: ragNodeDefinition,

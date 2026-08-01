@@ -1,26 +1,56 @@
 import { ragNode, type RagNodeConfig } from '@ai-workflow/core'
 
 import { NodeContentList } from '../../components/base-node'
+import { KnowledgeBaseReferenceIcon } from '../../components/knowledge-base-reference-icon'
 import { NodeContentItem } from '../../components/node-content-item'
 import type { NodeContentProps } from '../../contracts/node-content'
 
-export function RagNodeContent({ node }: NodeContentProps<RagNodeConfig>) {
-  const knowledgeBaseId = node.config.knowledgeBaseId
-  const knowledgeBaseField = ragNode.form.knowledgeBaseId
-  const knowledgeBaseContent = knowledgeBaseId || knowledgeBaseField.description
+export function RagNodeContent({
+  node,
+  resolveKnowledgeBaseReferenceDisplay,
+}: NodeContentProps<RagNodeConfig>) {
+  const knowledgeBaseIds = node.config.knowledgeBaseIds
+  const knowledgeBaseField = ragNode.form.knowledgeBaseIds
+
+  if (knowledgeBaseIds.length === 0) {
+    return (
+      <NodeContentList>
+        <NodeContentItem
+          content={<p className="text-xs leading-4">{knowledgeBaseField.description}</p>}
+        />
+      </NodeContentList>
+    )
+  }
 
   return (
     <NodeContentList>
-      <NodeContentItem
-        content={
-          <div className="flex min-w-0 items-center justify-between gap-2 text-xs leading-4">
-            <span className="shrink-0">{knowledgeBaseField.label}</span>
-            <span title={knowledgeBaseContent} className="min-w-0 truncate font-medium">
-              {knowledgeBaseContent}
-            </span>
-          </div>
+      {knowledgeBaseIds.map((knowledgeBaseId) => {
+        const knowledgeBaseDisplay = resolveKnowledgeBaseReferenceDisplay?.(knowledgeBaseId)
+
+        let content = <p className="text-xs leading-4">正在加载知识库信息...</p>
+
+        if (resolveKnowledgeBaseReferenceDisplay && !knowledgeBaseDisplay) {
+          content = <p className="text-xs leading-4">已配置知识库不可用</p>
+        } else if (knowledgeBaseDisplay) {
+          content = (
+            <div className="flex min-w-0 items-center gap-1.5">
+              <KnowledgeBaseReferenceIcon
+                icon={knowledgeBaseDisplay.icon}
+                title={knowledgeBaseDisplay.title}
+                size="compact"
+              />
+              <span
+                title={knowledgeBaseDisplay.title}
+                className="text-foreground/80 min-w-0 flex-1 truncate text-xs leading-4 font-medium"
+              >
+                {knowledgeBaseDisplay.title}
+              </span>
+            </div>
+          )
         }
-      />
+
+        return <NodeContentItem key={knowledgeBaseId} content={content} />
+      })}
     </NodeContentList>
   )
 }

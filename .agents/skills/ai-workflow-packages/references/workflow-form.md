@@ -220,7 +220,9 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   string、number 或 boolean option value；菜单使用 Popper 从 Trigger 下方左对齐展开，
   保持 4px 间距并匹配 Trigger 宽度。
 - `SwitchField` 使用 boolean 受控值。
-- `SliderField` 使用 schema 的 `min`、`max`、`step`，并展示当前值。
+- `SliderField` 使用 schema 的 `min`、`max`、`step`，以同一受控值组合 Slider 与右侧数字
+  Input；拖动与输入均通过字段回调即时写回，Input 支持临时清空并承接 required、disabled 和
+  `aria-invalid` 状态，Slider 值在展示时限制到声明范围，越界输入仍保留给 Zod 展示错误。
 - `CodeField` 按需加载代码字段内容，只在代码字段实际挂载时下载 UI 包的 Monaco
   `CodeEditor` 分块；空值回退到 schema 的 `content`，默认语言为 JavaScript，也可通过
   可选 `language` props 复用其他 Monaco 语言。字段目录自行组合语言顶栏、边框、尺寸与

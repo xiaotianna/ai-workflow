@@ -103,7 +103,10 @@ export class KnowledgeBaseRepository {
   }
 
   async hasOwnedWorkflowReference(ownerId: string, knowledgeBaseId: string): Promise<boolean> {
-    const definitionFilter = this.createKnowledgeBaseReferenceFilter(knowledgeBaseId)
+    const definitionFilters = this.createKnowledgeBaseReferenceFilters(knowledgeBaseId)
+    const definitionWhere = {
+      OR: definitionFilters.map((definition) => ({ definition })),
+    }
     const workflowFilter = {
       app: {
         ownerId,
@@ -113,14 +116,14 @@ export class KnowledgeBaseRepository {
     const [draftReference, versionReference] = await Promise.all([
       this.prisma.workflowDraft.findFirst({
         where: {
-          definition: definitionFilter,
+          ...definitionWhere,
           workflow: workflowFilter,
         },
         select: { id: true },
       }),
       this.prisma.workflowVersion.findFirst({
         where: {
-          definition: definitionFilter,
+          ...definitionWhere,
           workflow: workflowFilter,
         },
         select: { id: true },
@@ -141,17 +144,30 @@ export class KnowledgeBaseRepository {
     return result.count === 1
   }
 
-  private createKnowledgeBaseReferenceFilter(knowledgeBaseId: string): Prisma.JsonFilter {
-    return {
-      path: ['nodes'],
-      array_contains: [
-        {
-          type: 'rag',
-          config: {
-            knowledgeBaseId,
+  private createKnowledgeBaseReferenceFilters(knowledgeBaseId: string): Prisma.JsonFilter[] {
+    return [
+      {
+        path: ['nodes'],
+        array_contains: [
+          {
+            type: 'rag',
+            config: {
+              knowledgeBaseIds: [knowledgeBaseId],
+            },
           },
-        },
-      ],
-    }
+        ],
+      },
+      {
+        path: ['nodes'],
+        array_contains: [
+          {
+            type: 'rag',
+            config: {
+              knowledgeBaseId,
+            },
+          },
+        ],
+      },
+    ]
   }
 }

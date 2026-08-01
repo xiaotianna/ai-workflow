@@ -43,7 +43,8 @@ import {
    选择、删除和端口区域。
 6. 画布通过 `renderPort` 注入具体 Handle，不让本包依赖某个画布库；节点摘要需要展示引用
    变量的人类可读名称时，通过 `resolveVariableReferenceDisplay` 注入来源名称与变量名；LLM
-   模型摘要通过 `resolveModelReferenceDisplay` 注入模型组名称、模型名称与供应商图标。
+   模型摘要通过 `resolveModelReferenceDisplay` 注入模型组名称、模型名称与供应商图标；RAG
+   摘要通过 `resolveKnowledgeBaseReferenceDisplay` 注入知识库名称与图标。
    Nodes UI 不遍历工作流、不请求 Web API，也不依赖 Form 的候选项。
 
 循环容器通过 `defineNodeRendererUI(loopNode, LoopNode)` 加入
@@ -108,9 +109,11 @@ LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，�
 紧凑摘要，不渲染模型组名称；模型名超长时省略。未选择、展示数据加载中或引用失效时显示对应
 空状态；Nodes UI 不请求 Web 的模型接口，也不复制供应商策略。
 RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，读取经过 RAG schema
-解析后的 `node.config.knowledgeBaseId`，以紧凑条目展示当前知识库标识；未选择时显示明确
-空状态。字段标签和空状态提示复用 Core 的 RAG form 定义；Nodes UI 不读取 Web 的知识库
-列表，也不复制动态 Select 选项或已有 Core 业务文案。
+解析后的 `node.config.knowledgeBaseIds`；每个已选知识库分别使用 `NodeContentItem` 展示由画布
+注入的人类可读名称与 `KnowledgeBaseReferenceIcon`，不再把多个引用折叠为数量摘要，也不在
+正常状态暴露持久化 ID。未选择、目录加载中或引用失效时显示明确状态；字段空状态提示复用
+Core 的 RAG form 定义。`KnowledgeBaseReferenceIcon` 提供配置表单与画布共用的默认和紧凑尺寸，
+API 图标缺失时使用 `BookOpen` 回退。Nodes UI 不读取 Web 的知识库列表，也不复制动态多选项。
 
 ## 新增节点界面
 

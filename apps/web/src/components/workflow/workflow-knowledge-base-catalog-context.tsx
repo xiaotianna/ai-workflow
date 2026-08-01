@@ -1,3 +1,4 @@
+import type { KnowledgeBaseReferenceDisplayResolver } from '@ai-workflow/nodes-ui'
 import { listKnowledgeBases, type KnowledgeBaseDto } from '@/api/knowledge-bases'
 import { createContext, use, useEffect, useState, type PropsWithChildren } from 'react'
 
@@ -6,6 +7,7 @@ interface WorkflowKnowledgeBaseCatalogContextValue {
   loading: boolean
   loadError: boolean
   reload: () => void
+  resolveKnowledgeBaseReferenceDisplay?: KnowledgeBaseReferenceDisplayResolver
 }
 
 const WorkflowKnowledgeBaseCatalogContext =
@@ -35,6 +37,20 @@ export function WorkflowKnowledgeBaseCatalogProvider({ children }: PropsWithChil
     return () => controller.abort()
   }, [reloadRevision])
 
+  const resolveKnowledgeBaseReferenceDisplay: KnowledgeBaseReferenceDisplayResolver | undefined =
+    loading && knowledgeBases.length === 0
+      ? undefined
+      : (knowledgeBaseId) => {
+          const knowledgeBase = knowledgeBases.find((item) => item.id === knowledgeBaseId)
+
+          if (!knowledgeBase) return undefined
+
+          return {
+            title: knowledgeBase.title,
+            icon: knowledgeBase.icon,
+          }
+        }
+
   return (
     <WorkflowKnowledgeBaseCatalogContext
       value={{
@@ -42,6 +58,7 @@ export function WorkflowKnowledgeBaseCatalogProvider({ children }: PropsWithChil
         loading,
         loadError,
         reload: () => setReloadRevision((revision) => revision + 1),
+        resolveKnowledgeBaseReferenceDisplay,
       }}
     >
       {children}

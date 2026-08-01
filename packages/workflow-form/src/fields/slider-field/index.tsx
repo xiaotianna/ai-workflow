@@ -1,7 +1,12 @@
 import type { SliderFieldSchema } from '@ai-workflow/core'
 import { Form } from '@ai-workflow/ui/components/form'
+import { Input } from '@ai-workflow/ui/components/input'
 import { Slider } from '@ai-workflow/ui/components/slider'
 import type { FieldRendererProps } from '../../contracts/field-renderer'
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
 
 export function SliderField({
   name,
@@ -11,7 +16,10 @@ export function SliderField({
   disabled,
   onChange,
 }: FieldRendererProps<SliderFieldSchema, number>) {
-  const sliderValue = typeof value === 'number' && Number.isFinite(value) ? value : (field.min ?? 0)
+  const min = field.min ?? 0
+  const max = field.max ?? 100
+  const numericValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
+  const sliderValue = clamp(numericValue ?? min, min, max)
 
   return (
     <Form.Field
@@ -22,17 +30,35 @@ export function SliderField({
     >
       <div className="flex items-center gap-3">
         <Slider
-          name={name}
           value={[sliderValue]}
-          min={field.min}
-          max={field.max}
+          min={min}
+          max={max}
           step={field.step}
           disabled={disabled}
           aria-label={field.label}
           aria-invalid={Boolean(error)}
-          onValueChange={(nextValue) => onChange(nextValue[0])}
+          className="min-w-0 flex-1"
+          onValueChange={(nextValue) => onChange(nextValue[0] ?? sliderValue)}
         />
-        <output className="text-muted-foreground min-w-10 text-right text-sm">{sliderValue}</output>
+        <Input
+          name={name}
+          type="number"
+          value={numericValue ?? ''}
+          min={min}
+          max={max}
+          step={field.step}
+          required={field.required}
+          disabled={disabled}
+          aria-label={`${field.label}数值`}
+          aria-invalid={Boolean(error)}
+          className="w-20 shrink-0"
+          onChange={(event) => {
+            const rawValue = event.currentTarget.value
+            const numberValue = event.currentTarget.valueAsNumber
+
+            onChange(rawValue === '' || Number.isNaN(numberValue) ? undefined : numberValue)
+          }}
+        />
       </div>
     </Form.Field>
   )

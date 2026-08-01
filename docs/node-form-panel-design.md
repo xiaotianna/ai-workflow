@@ -296,19 +296,19 @@ export * from './constant'
 
 以下内容只补充当前内置节点的 `config` 数据和表单映射状态，不增加新的字段类型、组件或特殊处理。
 
-| 节点           | `config` 数据     | 当前建议   | 说明                                                                                                                |
-| -------------- | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
-| `start`        | `variables`       | 暂不处理   | `variables` 是数组，当前没有数组字段 renderer；同时还需要先解决 `config.variables` 与 `node.outputs` 的重复数据来源 |
-| `end`          | 空对象            | `form: {}` | 没有节点专属配置                                                                                                    |
-| `llm`          | `prompt`          | 已映射     | 使用 `TEXTAREA`，当前已有对应基础组件                                                                               |
-| `rag`          | `knowledgeBaseId` | 暂不处理   | 字段需要从外部知识库数据生成动态选项，当前静态 `options` 无法完整表达                                               |
-| `code`         | `code`            | 暂不处理   | Core 已有 `CODE_EDITOR` 字段类型，但 `@ai-workflow/form` 中的 Code Editor renderer 和组件尚未实现                   |
-| `http`         | `url`、`method`   | 可直接映射 | `url` 使用 `INPUT`，`method` 使用静态 `SELECT`                                                                      |
-| `loop`         | `maxIterations`   | 可直接映射 | 使用数字 `INPUT`，现有字段类型和组件可以覆盖                                                                        |
-| `loop_start`   | 空对象            | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
-| `loop_exit`    | 空对象            | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
-| `condition`    | `conditions`      | 专属映射   | 使用 `NodeType.configRenderer` 与 Condition 专属 renderer，保留动态端口规则                                         |
-| `sub_workflow` | `workflowId`      | 暂不处理   | 需要从外部工作流列表生成动态选项，当前静态 `options` 无法完整表达                                                   |
+| 节点           | `config` 数据              | 当前建议   | 说明                                                                                                                |
+| -------------- | -------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `start`        | `variables`                | 暂不处理   | `variables` 是数组，当前没有数组字段 renderer；同时还需要先解决 `config.variables` 与 `node.outputs` 的重复数据来源 |
+| `end`          | 空对象                     | `form: {}` | 没有节点专属配置                                                                                                    |
+| `llm`          | `prompt`                   | 已映射     | 使用 `TEXTAREA`，当前已有对应基础组件                                                                               |
+| `rag`          | `knowledgeBaseIds`、`topK` | 已映射     | 知识库使用 `KNOWLEDGE_BASE` renderer 提供多选 Dialog，`topK` 使用 SLIDER 渲染滑条和数字输入                         |
+| `code`         | `code`                     | 暂不处理   | Core 已有 `CODE_EDITOR` 字段类型，但 `@ai-workflow/form` 中的 Code Editor renderer 和组件尚未实现                   |
+| `http`         | `url`、`method`            | 可直接映射 | `url` 使用 `INPUT`，`method` 使用静态 `SELECT`                                                                      |
+| `loop`         | `maxIterations`            | 可直接映射 | 使用数字 `INPUT`，现有字段类型和组件可以覆盖                                                                        |
+| `loop_start`   | 空对象                     | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
+| `loop_exit`    | 空对象                     | `form: {}` | Loop 自动维护的系统节点，没有节点专属配置                                                                           |
+| `condition`    | `conditions`               | 专属映射   | 使用 `NodeType.configRenderer` 与 Condition 专属 renderer，保留动态端口规则                                         |
+| `sub_workflow` | `workflowId`               | 暂不处理   | 需要从外部工作流列表生成动态选项，当前静态 `options` 无法完整表达                                                   |
 
 ### Loop 节点
 
@@ -421,15 +421,14 @@ interface StartNodeConfig {
 
 ```ts
 interface RagNodeConfig {
-  knowledgeBaseId: string
+  knowledgeBaseIds: string[]
+  topK: number
 }
 ```
 
-暂不处理原因：
-
-- `knowledgeBaseId` 应从外部知识库列表选择。
-- 当前 `SelectFieldSchema.options` 只支持定义时写入静态选项。
-- 尚未定义动态选项的数据注入方式。
+当前通过 Core `KNOWLEDGE_BASE` 字段类型和 Web `KnowledgeBaseField` 注入真实目录；
+已选 ID 数组按顺序保存，历史 `knowledgeBaseId` 由 Core schema 自动迁移；`topK` 范围为 1 到
+20、默认 `5`，使用通用 SLIDER renderer 在知识库下方显示独立的“召回设置”滑条和数字输入框。
 
 #### Code
 

@@ -71,6 +71,8 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 - Ghost、侧栏菜单等无边框控件以背景色变化呈现聚焦：`focus-visible:bg-accent` 或对应区域的 accent token。
 - Destructive 控件使用 destructive 边框表达校验，聚焦时只调整内部背景，不叠加外圈光晕。
 - Slider Thumb 使用 `shadow-md` 表达 Hover，Focus 只调整已有边框，不增加阴影。
+- 表单 Slider 字段统一组合占满剩余宽度的滑条与右侧 `w-20` 数字 Input；两者共享同一受控值、
+  最小值、最大值、步进、禁用态和错误态，既支持拖动也支持精确输入。
 - 登录、创建、保存、确认等提交型按钮统一使用 `Button` 的 `confirm` variant；普通主操作使用视觉相同的 `default` variant。表单未达到可提交状态时必须设置 `disabled`，不得仅依赖点击后提示。
 - 取消、返回等次级操作使用 `secondary` variant，采用 0.5px 语义边框、半透明背景、`shadow-xs` 与 `backdrop-blur-[5px]`，不得由页面使用 `outline` 临时拼接。
 - 紧凑型表单按钮使用 `size="sm"`，统一为 `h-8 rounded-lg px-3.5 text-[13px] leading-4 font-medium`。

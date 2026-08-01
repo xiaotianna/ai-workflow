@@ -34,8 +34,9 @@
   和空态，不再生成客户端临时知识库。
 - 文档页目前只展示空白能力提示；现有文档表格和上传组件不接入页面，也不模拟上传、字符数、
   索引状态或召回次数。召回测试页面仍是占位页面。
-- RAG 节点已有查询输入端口和 JSON 检索结果输出端口，配置暂时只有 `knowledgeBaseId`；编辑器
-  通过真实知识库目录生成下拉选项，并保留已保存但当前不可用的引用供用户重新选择。
+- RAG 节点已有查询输入端口和 JSON 检索结果输出端口，配置通过 `knowledgeBaseIds`
+  按顺序引用一个或多个知识库，并通过正整数 `topK` 控制最大召回数量；编辑器通过真实知识库
+  目录生成多选 Dialog，并保留已保存但当前不可用的引用供用户重新选择。
 - 服务端已经提供用户级的对话模型与嵌入模型配置，但供应商适配器尚未提供真实 Embedding
   调用。
 - PostgreSQL 和 Redis 已接入开发基础设施；当前 PostgreSQL 镜像未包含 pgvector。
@@ -424,8 +425,8 @@ OutboxEventStatus = PENDING | PUBLISHED | FAILED
 ### 5.12 工作流知识库引用投影
 
 工作流 JSON 仍是节点配置的事实来源。保存草稿和创建版本时，在同一事务中重建强类型引用投影，
-用于删除保护、依赖分析和失效提示。当前 RAG 节点只支持一个知识库，因此使用两个具有真实外键
-的表，不使用无法建立资源外键的泛型 `resourceType + resourceId` 表。
+用于删除保护、依赖分析和失效提示。RAG 节点支持引用多个知识库，因此使用两个具有真实外键
+的明细表，不使用无法建立资源外键的泛型 `resourceType + resourceId` 表。
 
 `WorkflowDraftKnowledgeBaseReference`：
 
@@ -433,7 +434,7 @@ OutboxEventStatus = PENDING | PUBLISHED | FAILED
 - `nodeId`：引用知识库的 RAG 节点 ID。
 - `knowledgeBaseId`：外键到 `KnowledgeBase.id`，删除时 `Restrict`。
 - `createdAt`。
-- `UNIQUE(draftId, nodeId)`。
+- `UNIQUE(draftId, nodeId, knowledgeBaseId)`。
 - `INDEX(knowledgeBaseId)`。
 
 `WorkflowVersionKnowledgeBaseReference`：
@@ -442,11 +443,11 @@ OutboxEventStatus = PENDING | PUBLISHED | FAILED
 - `nodeId`：引用知识库的 RAG 节点 ID。
 - `knowledgeBaseId`：外键到 `KnowledgeBase.id`，删除时 `Restrict`。
 - `createdAt`。
-- `UNIQUE(versionId, nodeId)`。
+- `UNIQUE(versionId, nodeId, knowledgeBaseId)`。
 - `INDEX(knowledgeBaseId)`。
 
-部署记录已经指向 `WorkflowVersion`，不再创建重复的部署资源引用表。未来 RAG 支持多知识库时，
-再把唯一约束扩展为包含 `knowledgeBaseId` 或稳定的引用序号。
+部署记录已经指向 `WorkflowVersion`，不再创建重复的部署资源引用表；同一节点的多个知识库引用
+通过包含 `knowledgeBaseId` 的唯一约束分别保存。
 
 ### 5.13 检索日志
 
@@ -648,7 +649,7 @@ pgvector 允许无固定维度的 `vector` 列保存不同维度数据，但近�
 
 ```ts
 interface RagNodeConfig {
-  knowledgeBaseId: string
+  knowledgeBaseIds: string[]
   retrievalMode: 'vector' | 'hybrid'
   topK: number
   scoreThreshold?: number
@@ -656,11 +657,13 @@ interface RagNodeConfig {
 }
 ```
 
-第一阶段可以只允许 `retrievalMode: 'vector'`，但字段使用稳定枚举为后续演进留出空间。
+当前节点已先落地 `knowledgeBaseIds` 和范围 1 到 20 的整数 `topK`（默认 `5`）；`topK` 在
+知识库字段下方作为独立的“召回设置”表单项，通过滑条和数字输入框共同编辑。第一阶段可以只
+允许 `retrievalMode: 'vector'`，但字段使用稳定枚举为后续演进留出空间。
 
 - 查询文本继续来自 RAG 节点的 `query` 输入端口，不重复保存到 config。
 - 输出端口继续返回 JSON 数组，元素使用统一的 `RetrievedChunk` 契约。
-- Web Resolver 从真实知识库 API 加载选项，不再依赖模拟数据。
+- Web `KnowledgeBaseField` 从真实知识库 API 目录加载多选项，不再依赖模拟数据。
 - 空白知识库允许被选择；测试、运行和发布时必须提示其尚未配置索引或没有可用文档。
 - 已保存但被删除或失效的知识库引用不能被静默清空，编辑器应保留引用并提示重新选择。
 - Core 负责结构校验；知识库存在性、归属和可执行状态由服务端在测试运行和发布前完成。

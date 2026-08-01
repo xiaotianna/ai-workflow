@@ -3,6 +3,7 @@ import {
   nodeOutputDefinitionsSchema,
   nodeRegistry,
   resolveNodeVariableForm,
+  type NodeType,
   type WorkflowNode,
 } from '@ai-workflow/core'
 import {
@@ -62,6 +63,22 @@ const workflowConfigPanelFormSchema = z.object({
 
 type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema>
 
+function resolveInitialNodeConfig(
+  nodeType: NodeType | undefined,
+  config: WorkflowNode['config'],
+): Record<string, unknown> {
+  if (!nodeType) return { ...config }
+
+  const parsedConfig = nodeType.schema.safeParse(config)
+  const normalizedConfig = parsedConfig.success ? parsedConfig.data : undefined
+
+  return normalizedConfig &&
+    typeof normalizedConfig === 'object' &&
+    !Array.isArray(normalizedConfig)
+    ? { ...normalizedConfig }
+    : { ...config }
+}
+
 export const WorkflowConfigPanel = ({
   node,
   configRenderers,
@@ -86,7 +103,7 @@ export const WorkflowConfigPanel = ({
     description: node.description ?? nodeType?.definition.description ?? '',
     inputs: { ...node.inputs },
     outputs: [...node.outputs],
-    config: { ...node.config },
+    config: resolveInitialNodeConfig(nodeType, node.config),
   })
 
   if (!nodeType) {

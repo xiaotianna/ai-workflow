@@ -69,7 +69,10 @@ Nodes UI 保持 schema 和组件类型关联。
 - 当前 `loop`、`code`、`rag`、`http`、`condition` 和 `llm` 已声明通用节点配置 form；Code 使用
   `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
   语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明知识库字段，
-  Web 通过字段 registry 注入依赖知识库目录的 renderer；Core 不依赖外部知识库数据。
+  `config.knowledgeBaseIds` 按顺序保存不允许重复的知识库 ID 数组，创建节点时可为空；正整数
+  `config.topK` 范围为 1 到 20、默认 `5`，通过紧随其后的 SLIDER 字段显示“召回设置”。旧
+  `config.knowledgeBaseId` 由 schema 自动迁移为单元素数组，历史配置缺少 `topK` 时由 schema
+  补齐默认值。Web 通过字段 registry 注入依赖知识库目录的 renderer；Core 不依赖外部知识库数据。
 - `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于

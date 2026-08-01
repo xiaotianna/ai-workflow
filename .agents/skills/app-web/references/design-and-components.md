@@ -53,6 +53,9 @@
   工作流编辑器通过共享模型目录上下文加载一次完整对话模型组列表，模型选择器与画布摘要共用
   同一份数据和重试入口；画布将模型组名称、模型名称及供应商图标解析后注入 Nodes UI，不让
   Nodes UI 请求 Web API。LLM 画布摘要不展示 Prompt，并为加载中、未选择和失效引用保留明确状态。
+  工作流知识库目录同样由配置表单与 RAG 画布摘要共用；画布把知识库名称和 API 图标解析后
+  注入 Nodes UI，每个引用分别使用统一节点内容条目展示。配置表单与画布的知识库图标共同复用
+  Nodes UI 的 `KnowledgeBaseReferenceIcon`，按场景使用默认或紧凑尺寸。
   LLM 配置的 Prompt 已替换为“上下文”消息编辑器；旧 Prompt 由 Core schema 自动迁移为 SYSTEM
   消息。消息支持 SYSTEM、ASSISTANT、USER 角色，卡片工具区只保留插入变量与删除，字段标题区
   提供新增消息；变量选择复用 Form 的 `NodeVariablePicker`，编辑核心复用 UI 的 `TiptapEditor`。
@@ -205,11 +208,23 @@
   一致，不得直接展示持久化 `nodeId`；源节点实例名称变化时摘要同步更新。
   名称、描述、`config`、`inputs`、
   `outputs` 统一由 `useFormData` 管理，并通过对应 Zod schema 与 `validateFormByZod`
-  校验后即时写回节点。动态业务数据不得在 Web 重组节点字段配置；对应字段的
+  校验后即时写回节点。配置面板初始化 `form.config` 时先使用当前节点 Core schema
+  解析原配置，让 schema 默认值和历史数据迁移在字段 UI 中立即生效；解析失败时保留原始编辑值供
+  用户修正。动态业务数据不得在 Web 重组节点字段配置；对应字段的
   `ui`、标签、默认说明与必填约束由 Core `NodeType.form` 声明，Web 通过
   `features/workflow/node-config-renderers` 中的字段 renderer 消费 Context 或 API 数据。
   RAG 通过 Core `KNOWLEDGE_BASE` 字段契约进入通用分发，Web `KnowledgeBaseField` 从
-  `WorkflowKnowledgeBaseCatalogProvider` 获取真实知识库目录，并保留当前不可用引用。
+  `WorkflowKnowledgeBaseCatalogProvider` 获取真实知识库目录，以“+”打开多选 Dialog；
+  Dialog 点击整行切换选中态，底部显示选中数量，确认后整体写回。已选知识库按配置顺序
+  显示紧凑卡片，卡片容器与 Start 输入变量条目统一使用 0.5px 低对比边框、`shadow-xs` 默认
+  阴影和 `hover:shadow-md` 反馈；默认显示召回策略标签，Hover 或内部聚焦时使用
+  `bg-background` 操作区覆盖标签位置，并切换为弱化色编辑和危险色删除操作，不给按钮增加常驻
+  底板。阴影使用明确的 ease-out 过渡并遵循 reduced motion；卡片增删使用 Motion 的位置与
+  透明度动画，Motion 外层不得使用 `overflow-hidden` 裁切卡片阴影。字段标题必须交给
+  `Form.Field` 的 `label` 与 `required` 渲染，不手写必填星号；当前不可用引用继续保留。
+  知识库标题操作区只保留新增按钮；Core `ragNodeForm.topK` 紧随知识库字段，以通用 SLIDER
+  renderer 渲染独立的“召回设置”字段，界面组合进度滑条和右侧数字输入框，Web 不在知识库
+  renderer 内维护 `topK` 输入。
   Core 与 Form 不依赖 Web 数据，`NodeConfigFields` 不增加控件专属参数。
 - 节点配置面板头部直接复用 `@ai-workflow/nodes-ui` 公开导出的 `NodeHeader`，通过
   `className` 适配面板间距，通过 `actions` 组合语义色短竖线与 `icon-xs` 关闭按钮；

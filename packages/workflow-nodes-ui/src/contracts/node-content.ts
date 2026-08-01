@@ -40,6 +40,15 @@ export type ModelReferenceDisplayResolver = (
   reference: ModelReference,
 ) => ModelReferenceDisplay | undefined
 
+export interface KnowledgeBaseReferenceDisplay {
+  readonly title: string
+  readonly icon?: string
+}
+
+export type KnowledgeBaseReferenceDisplayResolver = (
+  knowledgeBaseId: string,
+) => KnowledgeBaseReferenceDisplay | undefined
+
 // 统一节点内容组件的入参
 export interface NodeContentProps<TConfig = unknown> {
   readonly node: ResolvedWorkflowNode<TConfig>
@@ -47,6 +56,7 @@ export interface NodeContentProps<TConfig = unknown> {
   readonly ports: NodeDefinition['ports']
   readonly resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
   readonly resolveModelReferenceDisplay?: ModelReferenceDisplayResolver
+  readonly resolveKnowledgeBaseReferenceDisplay?: KnowledgeBaseReferenceDisplayResolver
 }
 
 // 组件children类型

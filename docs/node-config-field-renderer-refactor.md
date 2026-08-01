@@ -110,20 +110,23 @@ LLM 现在通过 `llmNodeForm` 按顺序声明 `model` 和 `messages`。两个�
 - `apps/web/src/features/workflow/node-config-renderers/knowledge-base-field.tsx`
 - `packages/workflow-core/src/nodes/rag/index.ts`
 
-RAG 的 `knowledgeBaseId` 通过 Core `ragNodeForm` 和稳定字段类型
-`FIELD_UI_TYPES.KNOWLEDGE_BASE` 进入通用字段分发。字段名、标签、默认说明和必填约束
-不再由 Web 节点 Resolver 重组。
+RAG 的 `knowledgeBaseIds` 通过 Core `ragNodeForm` 和稳定字段类型
+`FIELD_UI_TYPES.KNOWLEDGE_BASE` 进入通用字段分发；`topK` 作为紧随其后的独立 SLIDER 字段
+渲染“召回设置”。字段名、标签、默认说明和必填约束不再由 Web 节点 Resolver 重组。
 
 已完成：
 
 1. 增加稳定字段类型 `KNOWLEDGE_BASE` 和 `KnowledgeBaseFieldSchema`。
-2. `ragNodeForm.knowledgeBaseId` 改为使用知识库字段类型，不再以空 `SELECT.options`
-   占位。
-3. Web `KnowledgeBaseField` 通过字段 registry 注入，只消费
-   `WorkflowKnowledgeBaseCatalogProvider` 的目录、加载和错误状态。
+2. `ragNodeForm.knowledgeBaseIds` 使用知识库字段类型，不再以空 `SELECT.options`
+   占位；数组按选择顺序保存且禁止重复，历史 `knowledgeBaseId` 自动迁移。
+3. Web `KnowledgeBaseField` 通过字段 registry 注入，消费
+   `WorkflowKnowledgeBaseCatalogProvider` 的目录、加载和错误状态，并提供多选 Dialog、
+   已选卡片和 Hover 操作。
 4. 已保存但当前目录不存在的知识库 ID 继续保留为不可用选项，不会被目录刷新
    静默清空。
-5. 已删除 `apps/web/src/features/workflow/node-form-resolvers` 的 RAG resolver、内置注册表和
+5. `ragNodeSchema.topK` 是范围 1 到 20、默认值为 `5` 的整数，通过通用 Slider + 数字 Input
+   编辑，知识库 renderer 标题区不承载召回配置。
+6. 已删除 `apps/web/src/features/workflow/node-form-resolvers` 的 RAG resolver、内置注册表和
    通用解析层，配置面板直接消费 Core `NodeType.form`。
 
 ## 4. 不属于本问题的组件
