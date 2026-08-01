@@ -31,12 +31,14 @@ import '@ai-workflow/ui/globals.css'
 - `TiptapEditor` 是基于 Tiptap 的无业务外壳受控文本编辑核心，使用纯字符串 `value` / `onChange`
   契约并支持换行、占位、禁用、错误语义和键盘编辑。调用方可以通过 `tokens` 声明可序列化的
   内联 token，并使用公开 ref 的 `insertToken` 在当前光标插入；编辑器将 token 显示为紧凑标签，
-  回写时仍输出 token 的原始字符串值，不把 HTML 或 Tiptap JSON 泄漏到业务配置。角色、工具栏、
-  变量选择器、外层边框和业务校验由使用方组合。
+  可选 `iconVariant` 复用 `VariableIcon` 的 default、system、environment 图形与颜色；回写时
+  仍只输出 token 的原始字符串值，不把图标、HTML 或 Tiptap JSON 泄漏到业务配置。角色、
+  工具栏、变量选择器、外层边框和业务校验由使用方组合。
 - 数据展示：`Table`、`Badge`、`Pagination`。
-- 图标：`VariableIcon` 使用内置 `system-icon.svg` 作为 CSS Mask，通过 `currentColor`
-  继承调用处的语义文字色；需要主题主色时传入 `text-primary`，不要用 `<img>` 固定 SVG
-  原始颜色。
+- 图标：`VariableIcon` 使用内置 SVG 作为 CSS Mask。默认 variant 继续通过 `currentColor`
+  继承调用处文字色；展示具体变量引用时，系统变量使用 `variant="system"` 的橙色 `{x}`，
+  环境变量使用 `variant="environment"` 的紫色 `ENV`。该 variant 只表达变量引用来源，不用于
+  工作流操作栏或变量管理面板等入口图标。
 - `Table` 采用无边框容器，仅保留行间细分隔线；表头与行高均为 `h-9`（36px），表头使用 `text-xs/8 font-normal`、`text-muted-foreground` 与 `whitespace-nowrap`，单元格使用 `text-[13px] leading-4` 与 `px-3` 间距；行 Hover 与选中态默认在 `TableRow` 上使用 `bg-input`。容器默认 `overflow-x-auto`；需要 sticky 列或由外层统一滚动时，传 `containerClassName="overflow-visible"`，滚动交给外层单一容器，表格本体加 `border-separate border-spacing-0`。
 - 含 sticky 列的表格：sticky 单元格需默认实底（通常 `bg-background`）以遮挡横向滚动内容；行 hover、选中、行内 Dropdown 打开等态应在**单元格**上用命名 group（如 `group/row`）与其他列同步，不要仅依赖 `<tr>` 背景，也不要让 sticky 列单独维护一套 hover 规则。
 - 表单布局：`Form`、`Form.Field`。

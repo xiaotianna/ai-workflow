@@ -5,9 +5,10 @@ import {
   SYSTEM_VARIABLE_NAMESPACE,
   type ConditionNodeConfig,
   type ConditionRule,
+  type VariableReference,
   type VariableValue,
 } from '@ai-workflow/core'
-import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
+import { VariableIcon, type VariableIconVariant } from '@ai-workflow/ui/components/variable-icon'
 import {
   NodeContentList,
   NodeHeader,
@@ -71,6 +72,12 @@ function formatConditionLabel(label: string) {
   return label.replace(/^CASE\s*(\d+)$/i, 'CASE $1')
 }
 
+function getVariableIconVariant(reference: VariableReference): VariableIconVariant {
+  if (reference.scope === 'system') return 'system'
+  if (reference.scope === ENVIRONMENT_VARIABLE_NAMESPACE) return 'environment'
+  return 'default'
+}
+
 function ConditionValueSummary({
   value,
   resolveVariableReferenceDisplay,
@@ -88,7 +95,10 @@ function ConditionValueSummary({
 
   return (
     <span className="inline-flex max-w-full min-w-0 items-center gap-1 align-bottom">
-      <VariableIcon className="text-primary size-3.5" />
+      <VariableIcon
+        variant={getVariableIconVariant(value.reference)}
+        className={value.reference.scope === 'node' ? 'text-primary size-3.5' : 'size-3.5'}
+      />
       {display ? (
         <>
           <span className="text-foreground/80 max-w-20 shrink-0 truncate">

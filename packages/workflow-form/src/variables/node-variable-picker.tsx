@@ -1,7 +1,12 @@
+import { ENVIRONMENT_VARIABLE_NAMESPACE, type VariableReference } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { Popover, PopoverContent, PopoverTrigger } from '@ai-workflow/ui/components/popover'
-import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
+import {
+  getVariableIconColorClass,
+  VariableIcon,
+  type VariableIconVariant,
+} from '@ai-workflow/ui/components/variable-icon'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Box, Search } from 'lucide-react'
 import { useState, type ReactElement } from 'react'
@@ -12,7 +17,43 @@ import type { AvailableVariableOption } from '../components/node-variable-sectio
 interface VariableOptionGroup {
   id: string
   label: string
+  order: number
   options: AvailableVariableOption[]
+}
+
+const VARIABLE_GROUP_ORDER: Record<VariableReference['scope'], number> = {
+  node: 0,
+  system: 1,
+  [ENVIRONMENT_VARIABLE_NAMESPACE]: 2,
+}
+
+export function VariableReferenceIcon({
+  reference,
+  className,
+}: {
+  reference: VariableReference
+  className?: string
+}) {
+  const variant = getVariableReferenceIconVariant(reference)
+
+  return (
+    <VariableIcon
+      variant={variant}
+      className={cn(variant === 'default' && 'text-primary', className)}
+      aria-hidden
+    />
+  )
+}
+
+export function getVariableReferenceColorClass(reference: VariableReference) {
+  const variant = getVariableReferenceIconVariant(reference)
+  return variant === 'default' ? 'text-primary' : getVariableIconColorClass(variant)
+}
+
+export function getVariableReferenceIconVariant(reference: VariableReference): VariableIconVariant {
+  if (reference.scope === 'system') return 'system'
+  if (reference.scope === ENVIRONMENT_VARIABLE_NAMESPACE) return 'environment'
+  return 'default'
 }
 
 export interface NodeVariablePickerProps {
@@ -47,6 +88,7 @@ function groupVariableOptions(
     const group = groups.get(option.sourceId) ?? {
       id: option.sourceId,
       label: option.sourceLabel,
+      order: VARIABLE_GROUP_ORDER[option.reference.scope],
       options: [],
     }
 
@@ -54,7 +96,7 @@ function groupVariableOptions(
     groups.set(option.sourceId, group)
   }
 
-  return [...groups.values()]
+  return [...groups.values()].sort((left, right) => left.order - right.order)
 }
 
 function NodeVariablePicker({
@@ -104,8 +146,16 @@ function NodeVariablePicker({
                     {selectedOption.sourceLabel}
                   </span>
                   <span className="text-muted-foreground shrink-0">/</span>
-                  <span className="text-primary flex min-w-0 flex-1 items-center gap-1 font-medium">
-                    <VariableIcon className="size-3.5 shrink-0" aria-hidden />
+                  <span
+                    className={cn(
+                      'flex min-w-0 flex-1 items-center gap-1 font-medium',
+                      getVariableReferenceColorClass(selectedOption.reference),
+                    )}
+                  >
+                    <VariableReferenceIcon
+                      reference={selectedOption.reference}
+                      className="size-3.5 shrink-0"
+                    />
                     <span className="truncate">{selectedOption.variableName}</span>
                   </span>
                 </span>
@@ -181,8 +231,17 @@ function NodeVariablePicker({
                             handleOpenChange(false)
                           }}
                         >
-                          <VariableIcon className="text-primary size-3.5 shrink-0" aria-hidden />
-                          <span className="min-w-0 flex-1 truncate" title={option.variableName}>
+                          <VariableReferenceIcon
+                            reference={option.reference}
+                            className="size-3.5 shrink-0"
+                          />
+                          <span
+                            className={cn(
+                              'min-w-0 flex-1 truncate',
+                              getVariableReferenceColorClass(option.reference),
+                            )}
+                            title={option.variableName}
+                          >
                             {option.variableName}
                           </span>
                           <span className="text-muted-foreground shrink-0 capitalize">

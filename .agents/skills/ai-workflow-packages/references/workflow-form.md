@@ -236,6 +236,9 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
 - `NodeInputBindingsEditor` 以紧凑列表编辑变量 Key、直接值或上游引用；变量引用使用内置
   Popover 选择器，选中态按 `Box 节点图标 + 来源 / VariableIcon 变量名` 展示，两个图标
   统一为 14px，图标与对应文字间距统一为 4px，不在末尾显示数据类型；文字统一使用 12px。
+  变量选择范围内的系统变量使用橙色 `{x}`，环境变量使用紫色 `ENV`，节点变量继续使用
+  主题主色 `{x}`，变量名文字必须与对应图标同色；分组固定按节点来源、系统变量、环境变量
+  排序，同类节点来源保持调用方原始顺序。该来源图标规范不扩展到工作流操作栏或变量管理面板。
   浮层继续提供搜索、来源分组、类型展示与选中高亮。普通节点的输入区和 End 的输出区共用该
   renderer，交互必须保持一致。Form 只消费调用方提供的候选，不自行生成变量；调用方可以同时
   传入系统变量、工作流环境变量和执行连线可达的上游节点变量，当前不提供嵌套 Path 选择。
@@ -288,8 +291,10 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
 - `ContextMessagesField` 是 `FIELD_UI_TYPES.CONTEXT_MESSAGES` 对应的字段 renderer，只接收和
   回写 `messages` 数组。组件通过 `Form.Field.actions` 新增带稳定 ID 的消息，继续复用
   `NodeVariablePicker` 与 UI `TiptapEditor` 插入序列化变量 token，并按字段名从完整错误映射派生
-  每条消息的内容错误；角色、删除、禁用态、至少保留一条消息以及 Motion 过渡行为保持在同一
-  受控字段内。系统变量 token 使用 Core `SYSTEM_VARIABLE_NAMESPACE` 生成 `sys.<key>`，环境变量
+  每条消息的内容错误；token 根据变量引用来源传入与选择器一致的图标 variant，节点变量为蓝色
+  `{x}`、系统变量为橙色 `{x}`、环境变量为紫色 `ENV`。角色、删除、禁用态、至少保留一条消息
+  以及 Motion 过渡行为保持在同一受控字段内。系统变量 token 使用 Core
+  `SYSTEM_VARIABLE_NAMESPACE` 生成 `sys.<key>`，环境变量
   token 使用 `ENVIRONMENT_VARIABLE_NAMESPACE` 与稳定 `variableId` 生成；Form 不维护另一份命名空间
   常量或变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。

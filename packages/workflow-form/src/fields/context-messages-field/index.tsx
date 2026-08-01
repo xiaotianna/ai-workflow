@@ -29,7 +29,10 @@ import { Plus, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useRef } from 'react'
 
-import { NodeVariablePicker } from '../../variables/node-variable-picker'
+import {
+  getVariableReferenceIconVariant,
+  NodeVariablePicker,
+} from '../../variables/node-variable-picker'
 import type { FieldRendererProps } from '../../contracts/field-renderer'
 import { getFieldError } from '../../utils/get-field-error'
 
@@ -86,6 +89,7 @@ function createEditorTokens(
     id: option.id,
     label: `${option.sourceLabel}.${option.variableName}`,
     value: serializeVariableReference(option.reference),
+    iconVariant: getVariableReferenceIconVariant(option.reference),
   }))
 }
 
@@ -130,6 +134,7 @@ export function ContextMessagesField({
       id: option.id,
       label: `${option.sourceLabel}.${option.variableName}`,
       value: serializeVariableReference(option.reference),
+      iconVariant: getVariableReferenceIconVariant(option.reference),
     })
   }
 

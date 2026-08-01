@@ -5,11 +5,17 @@ import { StarterKit } from '@tiptap/starter-kit'
 import { forwardRef, useEffect, useImperativeHandle, useRef, type ComponentProps } from 'react'
 
 import { cn } from '../lib/utils'
+import {
+  getVariableIconColorClass,
+  getVariableIconMaskImage,
+  type VariableIconVariant,
+} from './variable-icon'
 
 export interface TiptapEditorToken {
   id: string
   label: string
   value: string
+  iconVariant?: VariableIconVariant
 }
 
 export interface TiptapEditorHandle {
@@ -26,6 +32,27 @@ export interface TiptapEditorProps extends Omit<ComponentProps<'div'>, 'children
   ariaLabel: string
   ariaInvalid?: boolean
   onChange: (value: string) => void
+}
+
+function getInlineTokenIconVariant(value: unknown): VariableIconVariant {
+  if (value === 'system' || value === 'environment') return value
+  return 'default'
+}
+
+function getInlineTokenIconStyle(variant: VariableIconVariant) {
+  const maskImage = getVariableIconMaskImage(variant)
+
+  return [
+    'background-color: currentColor',
+    `-webkit-mask-image: ${maskImage}`,
+    '-webkit-mask-position: center',
+    '-webkit-mask-repeat: no-repeat',
+    '-webkit-mask-size: contain',
+    `mask-image: ${maskImage}`,
+    'mask-position: center',
+    'mask-repeat: no-repeat',
+    'mask-size: contain',
+  ].join(';')
 }
 
 const InlineToken = TiptapNode.create({
@@ -52,6 +79,11 @@ const InlineToken = TiptapNode.create({
         rendered: false,
         parseHTML: (element) => element.getAttribute('data-token-value'),
       },
+      iconVariant: {
+        default: 'default',
+        rendered: false,
+        parseHTML: (element) => element.getAttribute('data-token-icon-variant'),
+      },
     }
   },
 
@@ -60,17 +92,31 @@ const InlineToken = TiptapNode.create({
   },
 
   renderHTML({ HTMLAttributes, node }) {
+    const iconVariant = getInlineTokenIconVariant(node.attrs.iconVariant)
+
     return [
       'span',
       mergeAttributes(HTMLAttributes, {
         'data-inline-token': '',
         'data-token-id': node.attrs.id,
         'data-token-value': node.attrs.value,
+        'data-token-icon-variant': iconVariant,
         contenteditable: 'false',
         title: node.attrs.label,
-        class:
-          "border-border bg-background text-primary inline-flex items-center rounded-md border-[0.5px] px-1.5 py-0.5 align-baseline text-xs font-medium whitespace-nowrap shadow-xs before:mr-1 before:font-mono before:content-['{x}']",
+        class: cn(
+          'border-border bg-background inline-flex items-center rounded-md border-[0.5px] px-1.5 py-0.5 align-baseline text-xs font-medium whitespace-nowrap shadow-xs',
+          iconVariant === 'default' ? 'text-primary' : getVariableIconColorClass(iconVariant),
+        ),
       }),
+      [
+        'span',
+        {
+          'data-token-icon': '',
+          'aria-hidden': 'true',
+          class: 'mr-1 inline-block size-3 shrink-0',
+          style: getInlineTokenIconStyle(iconVariant),
+        },
+      ],
       node.attrs.label,
     ]
   },

@@ -104,7 +104,7 @@ export function Tooltip({ children, content, side = 'top' }: TooltipProps) {
                     : 'translateX(-50%)',
               }}
               className={cn(
-                'border-border bg-background text-foreground pointer-events-none fixed z-[60] flex h-7 max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-lg border-[0.5px] px-2 text-xs leading-none font-medium text-ellipsis whitespace-nowrap opacity-0 shadow-md transition-opacity duration-100',
+                'border-border bg-background text-foreground pointer-events-none fixed z-60 flex h-7 max-w-[calc(100vw-1rem)] items-center overflow-hidden rounded-lg border-[0.5px] px-2 text-xs leading-none font-medium text-ellipsis whitespace-nowrap opacity-0 shadow-md transition-opacity duration-100',
                 position && 'opacity-100',
               )}
             >

@@ -8,7 +8,11 @@ import { TextCursorInput, X } from 'lucide-react'
 import { useRef } from 'react'
 
 import type { AvailableVariableOption } from './node-variable-section'
-import { NodeVariablePicker } from '../variables/node-variable-picker'
+import {
+  getVariableReferenceColorClass,
+  NodeVariablePicker,
+  VariableReferenceIcon,
+} from '../variables/node-variable-picker'
 
 function stringifyDirectValue(value: unknown) {
   if (typeof value === 'string') return value
@@ -133,12 +137,23 @@ export function VariableValueEditor({
               aria-invalid={Boolean(error)}
               className="hover:bg-background focus-visible:bg-background aria-invalid:bg-destructive/5 h-9 min-w-0 flex-1 justify-start gap-1 rounded-none px-2.5 text-[13px] font-normal shadow-none aria-invalid:border-transparent dark:aria-invalid:border-transparent"
             >
-              <VariableIcon className="text-primary size-3.5" aria-hidden />
-              <span className="min-w-0 truncate">
-                {selectedVariable
-                  ? `${selectedVariable.sourceLabel} / ${selectedVariable.variableName}`
-                  : '引用变量不可用'}
-              </span>
+              <VariableReferenceIcon reference={value.reference} className="size-3.5" />
+              {selectedVariable ? (
+                <>
+                  <span className="max-w-[40%] truncate">{selectedVariable.sourceLabel}</span>
+                  <span className="text-muted-foreground shrink-0">/</span>
+                  <span
+                    className={cn(
+                      'min-w-0 truncate font-medium',
+                      getVariableReferenceColorClass(value.reference),
+                    )}
+                  >
+                    {selectedVariable.variableName}
+                  </span>
+                </>
+              ) : (
+                <span className="min-w-0 truncate">引用变量不可用</span>
+              )}
             </Button>
           }
           onValueChange={(option) =>
