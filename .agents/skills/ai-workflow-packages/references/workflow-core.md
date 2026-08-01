@@ -26,6 +26,10 @@ import {
   FIELD_UI_TYPES,
   NODE_CONFIG_RENDERER_TYPES,
   NODE_VARIABLE_RENDERER_TYPES,
+  ENVIRONMENT_VARIABLE_NAMESPACE,
+  ENVIRONMENT_VARIABLE_TYPES,
+  workflowEnvironmentVariableSchema,
+  workflowEnvironmentVariablesSchema,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_KEYS,
   SYSTEM_VARIABLE_NAMESPACE,
@@ -38,6 +42,7 @@ import {
   type ConditionRules,
   type NodeFormSchema,
   type NodeVariableForm,
+  type WorkflowEnvironmentVariable,
   type SystemVariableDefinition,
   type SystemVariableKey,
 } from '@ai-workflow/core'
@@ -50,7 +55,8 @@ Nodes UI 保持 schema 和组件类型关联。
 
 ## 核心模型
 
-- `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes 和 edges。
+- `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes、edges、outputs 和
+  `environmentVariables`；旧工作流缺少环境变量字段时默认解析为空数组。
 - `workflowNodeSchema` 校验通用节点字段、可选的实例 `label` / `description`、
   `inputs` 变量绑定和实例动态 `outputs`；实例名称和描述覆盖 `NodeDefinition` 的默认展示
   文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
@@ -129,6 +135,11 @@ Nodes UI 保持 schema 和组件类型关联。
   `scope: 'system' + key`，`key` 只保存 `user_id` 等裸 Key，不重复保存 `sys.`；
   `systemVariableKeySchema` 将引用限制在已声明的系统变量集合内。节点自定义的同名输出仍使用
   `scope: 'node' + nodeId + outputKey`，不会与系统变量冲突。
+- 工作流环境变量由 `workflowEnvironmentVariableSchema` 统一声明稳定 ID、名称、描述、类型和值，
+  类型只允许 `string`、`number`、`secret`；集合 schema 保证 ID 和名称唯一。文本命名空间使用
+  `ENVIRONMENT_VARIABLE_NAMESPACE`（当前为 `env`），引用持久化为
+  `scope: 'env' + variableId`，展示名称不进入引用，因此重命名不会破坏节点配置。自定义
+  `user_id` 显示为 `env.user_id`，系统变量仍是 `sys.user_id`。
 - Condition 的 `config.conditions` 保存按顺序匹配的 IF / ELIF 分支和最后一个唯一 ELSE；
   普通分支通过公共 `ConditionLogicalOperator` 使用统一 AND 或 OR 组合 `rules`，旧配置缺少
   该字段时默认按 AND 解析；每条规则以两个 `VariableValue` 和公共 `ConditionOperator`
@@ -188,7 +199,7 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 ## 注意事项
 
 - Core 不依赖 React、NestJS、Prisma、Redis 或具体运行时。
-- 节点 `inputs`/`outputs` 已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
+- 节点 `inputs`/`outputs` 与环境变量已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
 - `package.json` 直接声明 Core 源码使用的 Zod 依赖，不依靠根目录提升。

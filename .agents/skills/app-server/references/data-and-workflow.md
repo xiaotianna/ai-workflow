@@ -29,6 +29,10 @@
   `ownerId`、应用、Workflow ID 与修订号，并用带修订号条件的更新原子递增 `revision`；
   冲突返回 `409`。保存成功时同步更新 `App.updatedAt`，让 Studio 的最近编辑排序反映画布
   修改。
+- 工作流定义顶层包含 `environmentVariables`，服务端草稿解析负责保留并校验其稳定 ID、唯一名称、
+  `string` / `number` / `secret` 类型和值；旧草稿缺少该字段时归一为空数组。DSL 导出必须将
+  `secret` 类型的值清空；草稿读取与保存响应把 Secret 值固定脱敏为 `********`。保存已有 Secret 时，
+  请求中的 `********` 只表示沿用数据库原值，不得把占位符覆盖进持久化定义；提交其他值才更新密钥。
 - Studio DSL 使用 JSON 附件导出，固定携带 `dslVersion`、应用元数据、草稿
   `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿在导出前至少校验工作流
   顶层结构；在 Core 提供可被 NodeNext 服务端直接加载的构建入口后，改为复用

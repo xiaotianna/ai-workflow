@@ -23,6 +23,7 @@ export function createEmptyWorkflowDocument(
       nodes: [],
       edges: [],
       outputs: [],
+      environmentVariables: [],
     },
     layout: {
       positions: {},

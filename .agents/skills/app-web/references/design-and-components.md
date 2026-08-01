@@ -195,15 +195,26 @@
   HTTP 已按字段级 form 组合 URL、Method、Headers、Params、Body 和连接超时，不再使用整节点
   renderer。Condition 也通过 `conditionNodeForm` 和 Form 内置的 `ConditionBranchesField` 编辑
   IF / ELIF / ELSE 分支，不再使用整节点 renderer；条件两侧复用 Form 的
-  `VariableValueEditor`，支持直接值、完整上游变量引用和系统变量引用，比较运算符和同一分支统一使用的
+  `VariableValueEditor`，支持直接值、完整上游变量引用、系统变量和环境变量引用，比较运算符和同一分支统一使用的
   AND/OR 逻辑关系都来自 Core 公共契约。合法字段值写回节点后，Web 通用 `applyNode` 链路
   负责清理失效端口 Edge 并刷新动态 Handle。
-  当前节点可引用变量由 Web 合并 Core `SYSTEM_VARIABLE_DEFINITIONS` 与根据执行 Edge 收集的所有可达
+  当前节点可引用变量由 Web 合并 Core `SYSTEM_VARIABLE_DEFINITIONS`、工作流环境变量与根据执行 Edge 收集的所有可达
   上游节点动态输出、静态输出端口，并将来源、变量名称和数据类型作为结构化候选传入
   Form；Form 的变量选择器按节点分组，支持搜索并显示变量类型，普通节点输入区与 End 输出区
   共用该交互。系统变量以 `sys / <key>` 独立分组，持久化为 `scope: 'system' + key`；节点中
-  自定义的同名输出仍以“节点名称 / 输出 Key”展示并保存 `scope: 'node'` 引用。当前不包含
-  环境变量和嵌套 Path 选择。
+  自定义的同名输出仍以“节点名称 / 输出 Key”展示并保存 `scope: 'node'` 引用；环境变量以
+  `env / <name>` 独立分组并保存稳定 `variableId`，当前不包含嵌套 Path 选择。环境变量辅助面板的
+  新增按钮是受控 Popover 的稳定 Trigger，新增和编辑表单均从该按钮左侧展开；浮层顶部通过运行时
+  计算的对齐偏移与辅助面板顶部保持一致，不写固定位置值；不得使用带全屏遮罩的 Dialog 代替，也不得
+  让编辑入口生成另一套浮层表单。环境变量列表使用独立于系统变量的卡片组件：顶部展示紫色 ENV
+  图标、变量名、类型与 Secret 锁标识，第二行展示值；仅在存在描述时增加分隔线与浅色描述区。
+  Hover 时整张卡片统一切换浅色背景，描述区切换为透明以继承卡片背景，不得保留默认底色。
+  编辑和删除使用 `icon-xs` Ghost 按钮与 14px（`size-3.5`）图标；编辑 Hover / Focus visible 使用
+  `bg-button-secondary-bg-active`，删除 Hover / Focus visible 使用 destructive 背景与文字色。
+  环境变量表单的 Number 值使用单行数字 Input，String 与 Secret 值使用 Textarea；Secret 在列表中
+  固定显示为 `********`，从服务端读取的 `********` 是保留原值的占位符，编辑时只有输入其他值才会替换密钥。Secret 说明复用
+  Web 自有的紧凑 Tooltip；该 Tooltip 通过 Portal 渲染，避免被表单 Popover 的滚动边界裁剪，
+  并保持白底、细边框、无箭头的样式。
   Condition 画布摘要通过 Nodes UI 的 `resolveVariableReferenceDisplay` 消费 Web 根据当前
   React Flow 节点生成的来源名称与变量名，显示文案必须与 Config Form 的“来源名称 / 变量名”
   一致，不得直接展示持久化 `nodeId`；源节点实例名称变化时摘要同步更新。

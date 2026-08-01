@@ -1,7 +1,12 @@
 import { SaveWorkflowDraftDto } from '@/dto/workflow-draft.dto'
 import { Prisma } from '@/generated/prisma/client'
 import { WorkflowDraftRepository } from '@/repositories/workflow-draft.repository'
-import { parseWorkflowDefinition, parseWorkflowLayout } from '@/utils/workflow-draft'
+import {
+  maskWorkflowDefinitionSecrets,
+  parseWorkflowDefinition,
+  parseWorkflowLayout,
+  restoreMaskedWorkflowDefinitionSecrets,
+} from '@/utils/workflow-draft'
 import type { WorkflowDraftVo } from '@/vo/workflow-draft.vo'
 import {
   BadRequestException,
@@ -27,8 +32,8 @@ export class WorkflowDraftService {
   }
 
   async save(ownerId: string, appId: string, dto: SaveWorkflowDraftDto): Promise<WorkflowDraftVo> {
-    const definition = parseWorkflowDefinition(dto.definition)
-    if (!definition) {
+    const submittedDefinition = parseWorkflowDefinition(dto.definition)
+    if (!submittedDefinition) {
       throw new BadRequestException('工作流定义格式无效')
     }
 
@@ -36,6 +41,23 @@ export class WorkflowDraftService {
     if (!layout) {
       throw new BadRequestException('工作流布局格式无效')
     }
+
+    const currentApp = await this.workflowDraftRepository.findOwned(ownerId, appId)
+    const currentDraft = currentApp?.workflow?.draft
+
+    if (!currentDraft) {
+      throw new NotFoundException('工作流草稿不存在')
+    }
+
+    const persistedDefinition = parseWorkflowDefinition(currentDraft.definition)
+    if (!persistedDefinition) {
+      throw new InternalServerErrorException('工作流草稿结构无效')
+    }
+
+    const definition = restoreMaskedWorkflowDefinitionSecrets(
+      submittedDefinition,
+      persistedDefinition,
+    )
 
     const result = await this.workflowDraftRepository.saveOwned({
       ownerId,
@@ -85,7 +107,7 @@ export class WorkflowDraftService {
     return {
       schemaVersion: draft.schemaVersion,
       revision: draft.revision,
-      definition,
+      definition: maskWorkflowDefinitionSecrets(definition),
       layout,
       updatedAt: draft.updatedAt,
     }

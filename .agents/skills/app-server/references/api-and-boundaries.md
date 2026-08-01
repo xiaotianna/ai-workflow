@@ -46,7 +46,8 @@
   `definition`、`layout` 和 `updatedAt`。
 - `PUT /studio/apps/:appId/workflow-draft`：保存当前应用草稿；请求携带当前 `revision`、
   `definition` 和 `layout`，成功后返回递增后的修订号。修订号落后时返回 `409`，不得静默
-  覆盖其他编辑会话的更新。
+  覆盖其他编辑会话的更新。读取与保存响应中的 `secret` 环境变量值固定为 `********`；保存请求对已有
+  Secret 原样提交该占位符时，服务端保留数据库中的原值，只有提交其他值时才替换密钥。
 - `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
 - `POST /studio/apps/import`：导入 `dslVersion: 1` 的 JSON DSL，校验应用元数据、工作流定义
   与布局后创建新的应用、Workflow 和草稿；导入时重新生成应用与工作流 ID。
@@ -56,7 +57,8 @@
 - `DELETE /studio/apps/:appId`：永久删除当前用户的应用，以及关联工作流、草稿、版本、部署、
   运行、节点运行、API Key 与 API 调用日志；删除操作不可恢复。
 - `GET /studio/apps/:appId/dsl`：以 `application/json` 附件直接下载 DSL，不套统一成功响应；
-  DSL 使用 `dslVersion: 1`，包含应用元数据、草稿结构版本、修订号、工作流定义与布局。
+  DSL 使用 `dslVersion: 1`，包含应用元数据、草稿结构版本、修订号、工作流定义与布局；工作流
+  环境变量随定义导出，但 `secret` 值必须清空。
 
 Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修改都同时检查资源归属，不允许
 仅凭应用 ID 跨用户访问。

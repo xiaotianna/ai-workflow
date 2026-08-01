@@ -1,9 +1,12 @@
 import {
+  ENVIRONMENT_VARIABLE_NAMESPACE,
+  getEnvironmentVariableDataType,
   getNodePorts,
   nodeRegistry,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
   type WorkflowEdge,
+  type WorkflowEnvironmentVariable,
   type WorkflowNode,
 } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
@@ -11,6 +14,7 @@ import type { AvailableVariableOption } from '@ai-workflow/form/components/node-
 import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
 
 const SYSTEM_VARIABLE_SOURCE_ID = JSON.stringify(['system'])
+const ENVIRONMENT_VARIABLE_SOURCE_ID = JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE])
 
 const SYSTEM_VARIABLE_OPTIONS: readonly AvailableVariableOption[] = SYSTEM_VARIABLE_DEFINITIONS.map(
   (variable) => ({
@@ -55,13 +59,33 @@ export function getAvailableVariables({
   nodeId,
   nodes,
   edges,
+  environmentVariables,
 }: {
   nodeId: string
   nodes: readonly WorkflowNode[]
   edges: readonly WorkflowEdge[]
+  environmentVariables: readonly WorkflowEnvironmentVariable[]
 }): AvailableVariableOption[] {
   const upstreamNodeIds = collectUpstreamNodeIds(nodeId, edges)
-  const options: AvailableVariableOption[] = [...SYSTEM_VARIABLE_OPTIONS]
+  const environmentVariableOptions: AvailableVariableOption[] = environmentVariables.map(
+    (variable) => ({
+      id: JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE, variable.id]),
+      label: `${ENVIRONMENT_VARIABLE_NAMESPACE} / ${variable.name}`,
+      sourceId: ENVIRONMENT_VARIABLE_SOURCE_ID,
+      sourceLabel: ENVIRONMENT_VARIABLE_NAMESPACE,
+      variableName: variable.name,
+      dataType: getEnvironmentVariableDataType(variable.type),
+      reference: {
+        scope: ENVIRONMENT_VARIABLE_NAMESPACE,
+        variableId: variable.id,
+        path: [],
+      },
+    }),
+  )
+  const options: AvailableVariableOption[] = [
+    ...SYSTEM_VARIABLE_OPTIONS,
+    ...environmentVariableOptions,
+  ]
   const optionIds = new Set(options.map((option) => option.id))
 
   for (const node of nodes) {

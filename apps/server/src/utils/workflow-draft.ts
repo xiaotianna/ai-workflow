@@ -5,7 +5,26 @@ export interface WorkflowDefinition {
   nodes: unknown[]
   edges: unknown[]
   outputs: unknown[]
+  environmentVariables: WorkflowEnvironmentVariableDefinition[]
 }
+
+type WorkflowEnvironmentVariableDefinition =
+  | {
+      id: string
+      name: string
+      description: string
+      type: 'string' | 'secret'
+      value: string
+    }
+  | {
+      id: string
+      name: string
+      description: string
+      type: 'number'
+      value: number
+    }
+
+export const WORKFLOW_SECRET_MASK = '********'
 
 export interface WorkflowLayout {
   positions: Record<string, { x: number; y: number }>
@@ -18,6 +37,10 @@ export interface WorkflowLayout {
 }
 
 export function parseWorkflowDefinition(rawDefinition: unknown): WorkflowDefinition | undefined {
+  const environmentVariables = isRecord(rawDefinition)
+    ? parseWorkflowEnvironmentVariables(rawDefinition.environmentVariables)
+    : undefined
+
   if (
     !isRecord(rawDefinition) ||
     typeof rawDefinition.id !== 'string' ||
@@ -28,6 +51,7 @@ export function parseWorkflowDefinition(rawDefinition: unknown): WorkflowDefinit
     !isWorkflowNodes(rawDefinition.nodes) ||
     !isWorkflowEdges(rawDefinition.edges) ||
     (rawDefinition.outputs !== undefined && !Array.isArray(rawDefinition.outputs)) ||
+    !environmentVariables ||
     !hasUniqueStringIds(rawDefinition.nodes) ||
     !hasUniqueStringIds(rawDefinition.edges)
   ) {
@@ -48,7 +72,110 @@ export function parseWorkflowDefinition(rawDefinition: unknown): WorkflowDefinit
     nodes: rawDefinition.nodes,
     edges: rawDefinition.edges,
     outputs: rawDefinition.outputs ?? [],
+    environmentVariables,
   }
+}
+
+export function redactWorkflowDefinitionSecrets(
+  definition: WorkflowDefinition,
+): WorkflowDefinition {
+  return replaceWorkflowDefinitionSecrets(definition, '')
+}
+
+export function maskWorkflowDefinitionSecrets(definition: WorkflowDefinition): WorkflowDefinition {
+  return replaceWorkflowDefinitionSecrets(definition, WORKFLOW_SECRET_MASK)
+}
+
+export function restoreMaskedWorkflowDefinitionSecrets(
+  definition: WorkflowDefinition,
+  persistedDefinition: WorkflowDefinition,
+): WorkflowDefinition {
+  const persistedSecrets = new Map<string, string>()
+
+  for (const variable of persistedDefinition.environmentVariables) {
+    if (variable.type === 'secret') {
+      persistedSecrets.set(variable.id, variable.value)
+    }
+  }
+
+  return {
+    ...definition,
+    environmentVariables: definition.environmentVariables.map((variable) =>
+      variable.type === 'secret' && variable.value === WORKFLOW_SECRET_MASK
+        ? { ...variable, value: persistedSecrets.get(variable.id) ?? variable.value }
+        : variable,
+    ),
+  }
+}
+
+function replaceWorkflowDefinitionSecrets(
+  definition: WorkflowDefinition,
+  replacement: string,
+): WorkflowDefinition {
+  return {
+    ...definition,
+    environmentVariables: definition.environmentVariables.map((variable) =>
+      variable.type === 'secret' ? { ...variable, value: replacement } : variable,
+    ),
+  }
+}
+
+function parseWorkflowEnvironmentVariables(
+  value: unknown,
+): WorkflowEnvironmentVariableDefinition[] | undefined {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return undefined
+
+  const variables: WorkflowEnvironmentVariableDefinition[] = []
+
+  for (const variable of value) {
+    if (
+      !isRecord(variable) ||
+      typeof variable.id !== 'string' ||
+      !variable.id ||
+      typeof variable.name !== 'string' ||
+      !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(variable.name) ||
+      variable.name.length > 64 ||
+      (variable.description !== undefined &&
+        (typeof variable.description !== 'string' || variable.description.length > 200))
+    ) {
+      return undefined
+    }
+
+    const description = variable.description ?? ''
+
+    if (
+      (variable.type === 'string' || variable.type === 'secret') &&
+      typeof variable.value === 'string'
+    ) {
+      variables.push({
+        id: variable.id,
+        name: variable.name,
+        description,
+        type: variable.type,
+        value: variable.value,
+      })
+      continue
+    }
+
+    if (variable.type === 'number' && isFiniteNumber(variable.value)) {
+      variables.push({
+        id: variable.id,
+        name: variable.name,
+        description,
+        type: variable.type,
+        value: variable.value,
+      })
+      continue
+    }
+
+    return undefined
+  }
+
+  if (new Set(variables.map(({ id }) => id)).size !== variables.length) return undefined
+  if (new Set(variables.map(({ name }) => name)).size !== variables.length) return undefined
+
+  return variables
 }
 
 export function parseWorkflowLayout(rawLayout: unknown): WorkflowLayout | undefined {

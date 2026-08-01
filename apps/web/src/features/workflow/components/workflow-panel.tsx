@@ -4,7 +4,7 @@ import { WorkflowCanvasToolbar } from './workflow-canvas-toolbar'
 import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
-import type { WorkflowNode } from '@ai-workflow/core'
+import type { WorkflowEnvironmentVariable, WorkflowNode } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
@@ -22,6 +22,7 @@ interface WorkflowPanelProps {
   canRedo: boolean
   canUndo: boolean
   configRenderers?: NodeConfigRendererMap
+  environmentVariables: readonly WorkflowEnvironmentVariable[]
   nextStepSourceNodeId?: string
   selectedNode?: WorkflowNode
   selectedNodeCanAddNextNode?: boolean
@@ -33,11 +34,13 @@ interface WorkflowPanelProps {
   onAuxiliaryPanelClose: () => void
   onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onApplyNode: (node: WorkflowNode) => void
+  onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
   canChangeNextStepNode: (nodeId: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
   onCloseNodeConfig: () => void
   onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
   onDeleteNextStepNode: (nodeId: string) => void
+  onDeleteEnvironmentVariable: (variableId: string) => boolean
   onDisconnectNextStepNode: (sourceNodeId: string, targetNodeId: string) => void
   onNextStepOpenChange: (sourceNodeId: string, open: boolean, trigger: HTMLButtonElement) => void
   onNextStepNodeSelect: (nodeId: string) => void
@@ -45,6 +48,7 @@ interface WorkflowPanelProps {
   onShortcutHelpOpenChange: (open: boolean) => void
   onTestRun: () => void
   onUndo: () => void
+  onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
 }
 
 export const WorkflowPanel = ({
@@ -56,6 +60,7 @@ export const WorkflowPanel = ({
   canRedo,
   canUndo,
   configRenderers,
+  environmentVariables,
   nextStepSourceNodeId,
   selectedNode,
   selectedNodeCanAddNextNode = false,
@@ -67,11 +72,13 @@ export const WorkflowPanel = ({
   onAuxiliaryPanelClose,
   onAuxiliaryPanelToggle,
   onApplyNode,
+  onAddEnvironmentVariable,
   canChangeNextStepNode,
   canDeleteNextStepNode,
   onCloseNodeConfig,
   onChangeNextStepNode,
   onDeleteNextStepNode,
+  onDeleteEnvironmentVariable,
   onDisconnectNextStepNode,
   onNextStepOpenChange,
   onNextStepNodeSelect,
@@ -79,6 +86,7 @@ export const WorkflowPanel = ({
   onShortcutHelpOpenChange,
   onTestRun,
   onUndo,
+  onUpdateEnvironmentVariable,
 }: WorkflowPanelProps) => {
   return (
     <>
@@ -206,7 +214,11 @@ export const WorkflowPanel = ({
               >
                 <WorkflowAuxiliaryPanel
                   type={activeAuxiliaryPanel}
+                  environmentVariables={environmentVariables}
                   onClose={onAuxiliaryPanelClose}
+                  onAddEnvironmentVariable={onAddEnvironmentVariable}
+                  onDeleteEnvironmentVariable={onDeleteEnvironmentVariable}
+                  onUpdateEnvironmentVariable={onUpdateEnvironmentVariable}
                 />
               </motion.div>
             ) : null}

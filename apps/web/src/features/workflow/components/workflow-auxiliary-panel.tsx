@@ -1,13 +1,14 @@
 import {
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
-  type DataType,
+  type WorkflowEnvironmentVariable,
 } from '@ai-workflow/core'
-import { getDataTypeTag } from '@ai-workflow/form/components/data-type-select'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
 import { X } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
+import { getWorkflowVariableDataTypeLabel } from '../utils/workflow-variable-presentation'
+import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variables-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
 
 export type WorkflowAuxiliaryPanelType =
@@ -19,23 +20,21 @@ export type WorkflowAuxiliaryPanelType =
 
 interface WorkflowAuxiliaryPanelProps {
   type: WorkflowAuxiliaryPanelType
+  environmentVariables: readonly WorkflowEnvironmentVariable[]
   onClose: () => void
+  onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
+  onDeleteEnvironmentVariable: (variableId: string) => boolean
+  onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
 }
 
 interface WorkflowAuxiliaryPanelDefinition {
   title: string
   description: string
-  Content: ComponentType
+  Content?: ComponentType
 }
 
 interface EmptyPanelContentProps {
   children: ReactNode
-}
-
-function getDataTypeLabel(dataType: DataType) {
-  const tag = getDataTypeTag(dataType)
-
-  return `${tag.charAt(0).toUpperCase()}${tag.slice(1)}`
 }
 
 function EmptyPanelContent({ children }: EmptyPanelContentProps) {
@@ -54,10 +53,6 @@ function CheckListPanelContent() {
   return <EmptyPanelContent>检查结果将在完成工作流校验后显示</EmptyPanelContent>
 }
 
-function EnvironmentVariablesPanelContent() {
-  return <EmptyPanelContent>当前工作流尚未配置环境变量</EmptyPanelContent>
-}
-
 function SystemVariablesPanelContent() {
   return (
     <ul className="space-y-1 px-4 py-4">
@@ -66,7 +61,7 @@ function SystemVariablesPanelContent() {
           <WorkflowVariableItem
             prefix={`${SYSTEM_VARIABLE_NAMESPACE}.`}
             name={variable.key}
-            dataType={getDataTypeLabel(variable.dataType)}
+            dataType={getWorkflowVariableDataTypeLabel(variable.dataType)}
             description={variable.description}
             icon={<VariableIcon className="text-orange-600" />}
           />
@@ -96,8 +91,8 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   },
   'environment-variables': {
     title: '环境变量',
-    description: '环境变量用于保存工作流中可复用的配置值。',
-    Content: EnvironmentVariablesPanelContent,
+    description:
+      '环境变量是一种存储敏感信息的方法，如 API 密钥、数据库密码等。它们被存储在工作流中，而不是代码中，以便在不同环境中共享。',
   },
   'system-variables': {
     title: '系统变量',
@@ -111,7 +106,14 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   },
 }
 
-export function WorkflowAuxiliaryPanel({ type, onClose }: WorkflowAuxiliaryPanelProps) {
+export function WorkflowAuxiliaryPanel({
+  type,
+  environmentVariables,
+  onClose,
+  onAddEnvironmentVariable,
+  onDeleteEnvironmentVariable,
+  onUpdateEnvironmentVariable,
+}: WorkflowAuxiliaryPanelProps) {
   const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type]
   const Content = definition.Content
   const titleId = `workflow-auxiliary-panel-${type}-title`
@@ -144,7 +146,16 @@ export function WorkflowAuxiliaryPanel({ type, onClose }: WorkflowAuxiliaryPanel
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <Content />
+        {type === 'environment-variables' ? (
+          <WorkflowEnvironmentVariablesPanel
+            variables={environmentVariables}
+            onAdd={onAddEnvironmentVariable}
+            onDelete={onDeleteEnvironmentVariable}
+            onUpdate={onUpdateEnvironmentVariable}
+          />
+        ) : Content ? (
+          <Content />
+        ) : null}
       </div>
     </aside>
   )

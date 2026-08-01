@@ -1,4 +1,8 @@
-import { BuiltinNodeType, type WorkflowEdge } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  type WorkflowEdge,
+  type WorkflowEnvironmentVariable,
+} from '@ai-workflow/core'
 import type { Dispatch, SetStateAction } from 'react'
 import { useRef, useState } from 'react'
 
@@ -9,6 +13,7 @@ const MAX_HISTORY_LENGTH = 100
 interface WorkflowHistorySnapshot {
   nodes: WorkflowCanvasNode[]
   edges: WorkflowEdge[]
+  environmentVariables: WorkflowEnvironmentVariable[]
 }
 
 interface HistoryStatus {
@@ -24,8 +29,10 @@ interface CheckpointOptions {
 interface UseWorkflowHistoryOptions {
   nodes: readonly WorkflowCanvasNode[]
   edges: readonly WorkflowEdge[]
+  environmentVariables: readonly WorkflowEnvironmentVariable[]
   setNodes: Dispatch<SetStateAction<WorkflowCanvasNode[]>>
   setEdges: Dispatch<SetStateAction<WorkflowEdge[]>>
+  setEnvironmentVariables: Dispatch<SetStateAction<WorkflowEnvironmentVariable[]>>
   onRestore?: (snapshot: WorkflowHistorySnapshot, matchesSavedState: boolean) => void
 }
 
@@ -57,6 +64,7 @@ function getPersistentSignature(snapshot: WorkflowHistorySnapshot) {
       target,
       targetHandle,
     })),
+    environmentVariables: snapshot.environmentVariables,
   })
 }
 
@@ -72,13 +80,16 @@ function limitStack(stack: WorkflowHistorySnapshot[]) {
  */
 export function useWorkflowHistory({
   edges,
+  environmentVariables,
   nodes,
   onRestore,
   setEdges,
+  setEnvironmentVariables,
   setNodes,
 }: UseWorkflowHistoryOptions) {
   const nodesRef = useRef(nodes)
   const edgesRef = useRef(edges)
+  const environmentVariablesRef = useRef(environmentVariables)
   const pastRef = useRef<WorkflowHistorySnapshot[]>([])
   const futureRef = useRef<WorkflowHistorySnapshot[]>([])
   const transactionActiveRef = useRef(false)
@@ -90,11 +101,13 @@ export function useWorkflowHistory({
 
   nodesRef.current = nodes
   edgesRef.current = edges
+  environmentVariablesRef.current = environmentVariables
 
   function createSnapshot(): WorkflowHistorySnapshot {
     return {
       nodes: [...nodesRef.current],
       edges: [...edgesRef.current],
+      environmentVariables: [...environmentVariablesRef.current],
     }
   }
 
@@ -141,12 +154,15 @@ export function useWorkflowHistory({
     const restoredSnapshot = {
       nodes: [...snapshot.nodes],
       edges: [...snapshot.edges],
+      environmentVariables: [...snapshot.environmentVariables],
     }
 
     nodesRef.current = restoredSnapshot.nodes
     edgesRef.current = restoredSnapshot.edges
+    environmentVariablesRef.current = restoredSnapshot.environmentVariables
     setNodes(restoredSnapshot.nodes)
     setEdges(restoredSnapshot.edges)
+    setEnvironmentVariables(restoredSnapshot.environmentVariables)
     onRestore?.(
       restoredSnapshot,
       getPersistentSignature(restoredSnapshot) === savedSignatureRef.current,

@@ -148,7 +148,7 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 业务数据的 renderer 必须使用该注入入口留在应用层，Form 不请求数据或反向依赖应用。
 
 `NodeVariableSection` 读取 Core `NodeVariableFormSection.renderer`，从变量 renderer map
-中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值、上游节点变量和系统变量引用；
+中选择受控组件。内置 `INPUT_BINDINGS` 编辑 `node.inputs`，支持直接值、上游节点变量、系统变量和环境变量引用；
 内置 `OUTPUT_DEFINITIONS` 编辑 `node.outputs` 的 key 和 dataType，并让 label 与 key
 同步；description 通过数据类型组合控件左侧的说明入口打开 Dialog 编辑；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
@@ -238,7 +238,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   统一为 14px，图标与对应文字间距统一为 4px，不在末尾显示数据类型；文字统一使用 12px。
   浮层继续提供搜索、来源分组、类型展示与选中高亮。普通节点的输入区和 End 的输出区共用该
   renderer，交互必须保持一致。Form 只消费调用方提供的候选，不自行生成变量；调用方可以同时
-  传入系统变量和执行连线可达的上游节点变量，当前不提供环境变量或嵌套 Path 选择。
+  传入系统变量、工作流环境变量和执行连线可达的上游节点变量，当前不提供嵌套 Path 选择。
 - `VariableValueEditor` 是直接值/变量引用的公共受控组合控件，普通输入变量和 Condition
   规则必须复用它；组件只消费调用方提供的 `AvailableVariableOption`，不遍历工作流。变量
   选择浮层默认与组合控件等宽；组件右侧存在额外固定区域时，通过可选
@@ -289,8 +289,9 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   回写 `messages` 数组。组件通过 `Form.Field.actions` 新增带稳定 ID 的消息，继续复用
   `NodeVariablePicker` 与 UI `TiptapEditor` 插入序列化变量 token，并按字段名从完整错误映射派生
   每条消息的内容错误；角色、删除、禁用态、至少保留一条消息以及 Motion 过渡行为保持在同一
-  受控字段内。系统变量 token 使用 Core `SYSTEM_VARIABLE_NAMESPACE` 生成 `sys.<key>`，不在
-  Form 中维护另一份系统变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
+  受控字段内。系统变量 token 使用 Core `SYSTEM_VARIABLE_NAMESPACE` 生成 `sys.<key>`，环境变量
+  token 使用 `ENVIRONMENT_VARIABLE_NAMESPACE` 与稳定 `variableId` 生成；Form 不维护另一份命名空间
+  常量或变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的

@@ -1,4 +1,4 @@
-import { workflowSchema } from '@ai-workflow/core'
+import { ENVIRONMENT_VARIABLE_TYPES, workflowSchema } from '@ai-workflow/core'
 import { z } from 'zod'
 
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
@@ -79,6 +79,9 @@ export function downloadWorkflowApplicationDsl(
     ...snapshot.workflow,
     name: application.title,
     description: application.description,
+    environmentVariables: snapshot.workflow.environmentVariables.map((variable) =>
+      variable.type === ENVIRONMENT_VARIABLE_TYPES.SECRET ? { ...variable, value: '' } : variable,
+    ),
   }
   const content = JSON.stringify(
     {

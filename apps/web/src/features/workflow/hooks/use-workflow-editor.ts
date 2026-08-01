@@ -4,6 +4,7 @@ import {
   nodeRegistry,
   type NodeType,
   type WorkflowEdge,
+  type WorkflowEnvironmentVariable,
   type WorkflowNode,
 } from '@ai-workflow/core'
 import { showToast } from '@ai-workflow/ui/lib/toast'
@@ -58,6 +59,7 @@ import {
 } from '../utils/editor-clipboard'
 import { autoLayoutRootNodes, layoutInsertedNodeOnEdge } from '../utils/auto-layout'
 import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
+import { isEnvironmentVariableReferenced } from '../utils/environment-variable-reference'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
@@ -232,6 +234,9 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
     ...initialSnapshot.workflow.edges,
   ])
+  const [environmentVariables, setEnvironmentVariables] = useState<WorkflowEnvironmentVariable[]>([
+    ...initialSnapshot.workflow.environmentVariables,
+  ])
   const [viewport, setWorkflowViewport] = useState<Viewport | undefined>(
     initialSnapshot.layout.viewport,
   )
@@ -258,8 +263,10 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   const history = useWorkflowHistory({
     nodes,
     edges,
+    environmentVariables,
     setNodes,
     setEdges,
+    setEnvironmentVariables,
     onRestore: (snapshot, matchesSavedState) => {
       const restoredNodeIds = new Set(snapshot.nodes.map((node) => node.id))
       const restoredEdgeIds = new Set(snapshot.edges.map((edge) => edge.id))
@@ -308,6 +315,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
         nodeId: selectedNode.id,
         nodes: nodes.map(toWorkflowNode),
         edges,
+        environmentVariables,
       })
     : []
   const disabledNodeTypes = getDisabledNodeTypes(nodes)
@@ -1136,7 +1144,10 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
   function createSnapshot(): WorkflowEditorSnapshot {
     return {
-      workflow: toWorkflow(initialSnapshot.workflow, nodes, edges),
+      workflow: {
+        ...toWorkflow(initialSnapshot.workflow, nodes, edges),
+        environmentVariables,
+      },
       layout: toWorkflowEditorLayout(nodes, viewport),
     }
   }
@@ -1151,6 +1162,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       ...initialSnapshot.workflow,
       nodes: snapshot.workflow.nodes,
       edges: snapshot.workflow.edges,
+      environmentVariables: snapshot.workflow.environmentVariables,
     }
     const nextSnapshot = {
       workflow: importedWorkflow,
@@ -1161,6 +1173,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     history.checkpoint()
     setNodes(nextNodes)
     setEdges([...importedWorkflow.edges])
+    setEnvironmentVariables([...importedWorkflow.environmentVariables])
     setSelectedNodeIds(new Set())
     setSelectedEdgeIds(new Set())
     setSelectedNodeId(undefined)
@@ -1219,6 +1232,39 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     return true
   }
 
+  function addEnvironmentVariable(variable: WorkflowEnvironmentVariable) {
+    history.checkpoint()
+    setEnvironmentVariables((currentVariables) => [...currentVariables, variable])
+    setDirty(true)
+  }
+
+  function updateEnvironmentVariable(variable: WorkflowEnvironmentVariable) {
+    if (!environmentVariables.some((candidate) => candidate.id === variable.id)) return
+
+    history.checkpoint()
+    setEnvironmentVariables((currentVariables) =>
+      currentVariables.map((candidate) => (candidate.id === variable.id ? variable : candidate)),
+    )
+    setDirty(true)
+  }
+
+  function deleteEnvironmentVariable(variableId: string) {
+    if (!environmentVariables.some((variable) => variable.id === variableId)) return false
+
+    const workflowNodes = nodes.map(toWorkflowNode)
+    if (isEnvironmentVariableReferenced(variableId, workflowNodes)) {
+      showToast('warning', '该环境变量正在被节点引用，请先移除相关引用')
+      return false
+    }
+
+    history.checkpoint()
+    setEnvironmentVariables((currentVariables) =>
+      currentVariables.filter((variable) => variable.id !== variableId),
+    )
+    setDirty(true)
+    return true
+  }
+
   function finishNodeNudge() {
     if (!nudgeActiveRef.current) return
 
@@ -1261,6 +1307,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
   return {
     addConnectedNode,
+    addEnvironmentVariable,
     addNode,
     applyNode,
     autoLayout,
@@ -1289,6 +1336,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     createSnapshot,
     cutSelection,
     deleteNode,
+    deleteEnvironmentVariable,
     deleteSelection,
     disconnectNodes,
     disabledNodeTypes,
@@ -1297,6 +1345,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     duplicateSelection,
     edgeInsertionDisabledNodeTypes,
     edges: renderedEdges,
+    environmentVariables,
     finishNodeNudge,
     getNextDisabledNodeTypes,
     getNextNodeTypes,
@@ -1330,5 +1379,6 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     selectedNodeDefaultLabel,
     selectedNodeId,
     undo: history.undo,
+    updateEnvironmentVariable,
   }
 }

@@ -9,6 +9,7 @@ import { StudioAppRepository } from '@/repositories/studio-app.repository'
 import {
   parseWorkflowDefinition,
   parseWorkflowLayout,
+  redactWorkflowDefinitionSecrets,
   type WorkflowDefinition,
   type WorkflowLayout,
 } from '@/utils/workflow-draft'
@@ -79,6 +80,7 @@ export class StudioAppService {
       nodes: [],
       edges: [],
       outputs: [],
+      environmentVariables: [],
     }
     const definition = this.parseWorkflowDefinition(rawDefinition, '初始化工作流草稿结构无效', true)
     const app = await this.studioAppRepository.create({
@@ -227,7 +229,7 @@ export class StudioAppService {
         workflow: {
           schemaVersion: draft.schemaVersion,
           revision: draft.revision,
-          definition,
+          definition: redactWorkflowDefinitionSecrets(definition),
           layout: draft.layout,
         },
       },

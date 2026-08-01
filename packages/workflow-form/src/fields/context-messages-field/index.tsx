@@ -1,4 +1,5 @@
 import {
+  ENVIRONMENT_VARIABLE_NAMESPACE,
   LLM_CONTEXT_MESSAGE_ROLE_VALUES,
   SYSTEM_VARIABLE_NAMESPACE,
   llmNodeSchema,
@@ -75,7 +76,7 @@ function serializeVariableReference(reference: VariableReference): string {
     return `{{#${SYSTEM_VARIABLE_NAMESPACE}.${reference.key}${path}#}}`
   }
 
-  return `{{#env.${reference.variableId}${path}#}}`
+  return `{{#${ENVIRONMENT_VARIABLE_NAMESPACE}.${reference.variableId}${path}#}}`
 }
 
 function createEditorTokens(

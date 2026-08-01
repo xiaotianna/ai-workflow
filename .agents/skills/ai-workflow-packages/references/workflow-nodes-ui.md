@@ -101,6 +101,8 @@ Handle 始终与标题对齐。分支摘要直接从结构化 `rules` 逐条展�
 结果时才回退到作用域稳定标识。
 系统变量缺少应用层展示解析结果时，Condition 摘要使用 Core
 `SYSTEM_VARIABLE_NAMESPACE` 组合 `sys.<key>`，不在 Nodes UI 复制系统命名空间常量。
+环境变量同样优先消费应用层按稳定 ID 解析出的名称；缺少解析结果时使用 Core
+`ENVIRONMENT_VARIABLE_NAMESPACE` 回退为 `env.<variableId>`。
 HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
 请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和

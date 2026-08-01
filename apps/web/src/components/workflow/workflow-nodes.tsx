@@ -1,7 +1,13 @@
 import { useStore, type NodeProps, type NodeTypes, type ReactFlowState } from '@xyflow/react'
 import type { WorkflowCanvasNode } from './types'
 import { createBuiltinNodeUIRegistry, RenderNode } from '@ai-workflow/nodes-ui'
-import { BuiltinNodeType, nodeRegistry, type VariableReference } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  ENVIRONMENT_VARIABLE_NAMESPACE,
+  nodeRegistry,
+  type VariableReference,
+  type WorkflowEnvironmentVariable,
+} from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Ellipsis } from 'lucide-react'
@@ -12,6 +18,7 @@ import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 import { LoopNodeResizeControl } from './loop-node-resize-control'
 import { useWorkflowModelCatalog } from './workflow-model-catalog-context'
 import { useWorkflowKnowledgeBaseCatalog } from './workflow-knowledge-base-catalog-context'
+import { useWorkflowEnvironmentVariables } from './workflow-environment-variables-context'
 
 const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
@@ -44,13 +51,24 @@ function nodeDisplayLabelsEqual(
 function resolveVariableReferenceDisplay(
   reference: VariableReference,
   nodeDisplayLabels: ReadonlyMap<string, string>,
+  environmentVariables: readonly WorkflowEnvironmentVariable[],
 ) {
+  const path = reference.path.length > 0 ? `.${reference.path.join('.')}` : ''
+
+  if (reference.scope === ENVIRONMENT_VARIABLE_NAMESPACE) {
+    const variable = environmentVariables.find((candidate) => candidate.id === reference.variableId)
+    if (!variable) return undefined
+
+    return {
+      sourceLabel: ENVIRONMENT_VARIABLE_NAMESPACE,
+      variableName: `${variable.name}${path}`,
+    }
+  }
+
   if (reference.scope !== 'node') return undefined
 
   const sourceLabel = nodeDisplayLabels.get(reference.nodeId)
   if (!sourceLabel) return undefined
-
-  const path = reference.path.length > 0 ? `.${reference.path.join('.')}` : ''
 
   return {
     sourceLabel,
@@ -113,6 +131,7 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
   const { resolveModelReferenceDisplay } = useWorkflowModelCatalog()
   const { resolveKnowledgeBaseReferenceDisplay } = useWorkflowKnowledgeBaseCatalog()
+  const environmentVariables = useWorkflowEnvironmentVariables()
   const nodeDisplayLabels = useStore(
     (state) =>
       type === BuiltinNodeType.CONDITION
@@ -143,7 +162,8 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
         renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
         resolveVariableReferenceDisplay={
           type === BuiltinNodeType.CONDITION
-            ? (reference) => resolveVariableReferenceDisplay(reference, nodeDisplayLabels)
+            ? (reference) =>
+                resolveVariableReferenceDisplay(reference, nodeDisplayLabels, environmentVariables)
             : undefined
         }
         resolveModelReferenceDisplay={

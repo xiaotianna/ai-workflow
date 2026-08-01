@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ENVIRONMENT_VARIABLE_NAMESPACE } from './environment-variable'
 import { systemVariableKeySchema } from './system-variable'
 
 // 变量路径，例如res.data.count，path为：['res', 'data', 'count']
@@ -21,7 +22,7 @@ const systemVariableReferenceSchema = z.object({
 
 // 环境变量的引用
 const envVariableReferenceSchema = z.object({
-  scope: z.literal('env'),
+  scope: z.literal(ENVIRONMENT_VARIABLE_NAMESPACE),
   variableId: z.string().trim().min(1),
   path: variablePathSchema,
 })

@@ -51,8 +51,8 @@
   renderer 和参数 Dialog 只消费策略输出，不复制供应商条件分支。
 - 节点变量区先通过 Core `resolveNodeVariableForm` 解析 `NodeType.variableForm`；整个配置
   未声明时默认拥有输入、输出区，配置对象存在时只渲染其中实际声明的方向，不使用 `null`
-  占位。通用编辑组件由 `@ai-workflow/form` 提供；Web 根据 Core 系统变量定义和执行 Edge
-  统一计算系统变量、上游节点变量候选，管理表单状态并
+  占位。通用编辑组件由 `@ai-workflow/form` 提供；Web 根据 Core 系统变量定义、工作流环境变量
+  和执行 Edge 统一计算系统变量、环境变量与上游节点变量候选，管理表单状态并
   写回节点，不按节点类型维护变量区配置表或重复默认规则。
 
 ## 新增业务功能
