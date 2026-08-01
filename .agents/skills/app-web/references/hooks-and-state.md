@@ -196,8 +196,10 @@ function ExampleForm() {
 - 工作流快捷键集中在 `features/workflow/hooks/use-workflow-shortcuts.ts` 注册，帮助文案由
   `workflow-shortcut-definitions.ts` 统一维护；焦点位于输入、选择器、代码编辑器或可编辑文本
   时不拦截文字编辑快捷键。连续方向键移动合并为一次历史操作，并在按键释放或窗口失焦时
-  结束该次操作。Esc 按当前最上层状态依次关闭快捷键帮助、添加节点面板、取消正在进行的
-  连线，再清除画布选择和配置面板。
+  结束该次操作。顶部操作栏通过 `WorkflowEditor` 持有的辅助面板类型与右侧面板通信；辅助面板
+  与节点配置面板使用独立状态并允许同时显示，同一入口再次点击关闭，其他入口点击后原位切换。
+  Esc 按当前最上层状态依次关闭快捷键帮助、添加节点面板、右侧辅助面板、取消正在进行的连线，
+  再清除画布选择和配置面板。
 - 画布/节点右键操作分别封装为独立策略，通过
   `WorkflowContextMenuActionRegistry.register()` 动态注册；注册表支持订阅，新增操作只增加
   策略，不修改菜单渲染分支。`useWorkflowContextMenu` 管理右键目标和策略解析，

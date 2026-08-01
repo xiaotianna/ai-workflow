@@ -23,6 +23,7 @@ import { workflowEdgeTypes } from '@/components/workflow/workflow-edge'
 import { WorkflowModelCatalogProvider } from '@/components/workflow/workflow-model-catalog-context'
 import { WorkflowKnowledgeBaseCatalogProvider } from '@/components/workflow/workflow-knowledge-base-catalog-context'
 import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
+import type { WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
@@ -49,6 +50,7 @@ export function WorkflowEditor({
   const addNodeButtonRef = useRef<HTMLButtonElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
+  const [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>()
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
   const save = useWorkflowSave({
     dirty: editor.dirty,
@@ -95,6 +97,10 @@ export function WorkflowEditor({
     handleNodePickerOpenChange(false)
   }
 
+  function handleAuxiliaryPanelToggle(panel: WorkflowAuxiliaryPanelType) {
+    setActiveAuxiliaryPanel((currentPanel) => (currentPanel === panel ? undefined : panel))
+  }
+
   useEffect(() => {
     if (!disabled) return
 
@@ -102,15 +108,20 @@ export function WorkflowEditor({
     contextMenu.close()
     operations.setImportDialogOpen(false)
     setShortcutHelpOpen(false)
+    setActiveAuxiliaryPanel(undefined)
     editor.clearSelection()
   }, [disabled])
 
   useWorkflowShortcuts({
     editor,
     addNodeOpen: nodePicker.open,
+    auxiliaryPanelOpen: Boolean(activeAuxiliaryPanel),
     interactionBlocked: contextMenu.open || operations.importDialogOpen,
     shortcutHelpOpen,
     onAddNodeOpenChange: handleNodePickerOpenChange,
+    onAuxiliaryPanelOpenChange: (open) => {
+      if (!open) setActiveAuxiliaryPanel(undefined)
+    },
     onSave: save.saveNow,
     onShortcutHelpOpenChange: setShortcutHelpOpen,
     onTestRun: () => void operations.testRun(),
@@ -214,6 +225,7 @@ export function WorkflowEditor({
                     {/* 总面板组件 */}
                     <WorkflowPanel
                       addNodeButtonRef={addNodeButtonRef}
+                      activeAuxiliaryPanel={activeAuxiliaryPanel}
                       selectedNode={editor.selectedNode}
                       selectedNodeCanAddNextNode={
                         editor.selectedNode ? editor.canAddNextNode(editor.selectedNode.id) : false
@@ -230,6 +242,8 @@ export function WorkflowEditor({
                       shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
                       disabled={disabled}
                       onAddNodeOpenChange={handleNodePickerOpenChange}
+                      onAuxiliaryPanelClose={() => setActiveAuxiliaryPanel(undefined)}
+                      onAuxiliaryPanelToggle={handleAuxiliaryPanelToggle}
                       onApplyNode={editor.applyNode}
                       canChangeNextStepNode={(nodeId) =>
                         editor.selectedNode

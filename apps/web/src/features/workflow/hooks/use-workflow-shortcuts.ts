@@ -5,10 +5,12 @@ import type { useWorkflowEditor } from './use-workflow-editor'
 interface UseWorkflowShortcutsOptions {
   editor: ReturnType<typeof useWorkflowEditor>
   addNodeOpen: boolean
+  auxiliaryPanelOpen: boolean
   shortcutHelpOpen: boolean
   disabled?: boolean
   interactionBlocked?: boolean
   onAddNodeOpenChange: (open: boolean) => void
+  onAuxiliaryPanelOpenChange: (open: boolean) => void
   onSave: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onTestRun: () => void
@@ -47,10 +49,12 @@ function getArrowOffset(key: string) {
 export function useWorkflowShortcuts({
   editor,
   addNodeOpen,
+  auxiliaryPanelOpen,
   shortcutHelpOpen,
   disabled = false,
   interactionBlocked = false,
   onAddNodeOpenChange,
+  onAuxiliaryPanelOpenChange,
   onSave,
   onShortcutHelpOpenChange,
   onTestRun,
@@ -78,6 +82,9 @@ export function useWorkflowShortcuts({
         } else if (addNodeOpen) {
           event.preventDefault()
           onAddNodeOpenChange(false)
+        } else if (auxiliaryPanelOpen) {
+          event.preventDefault()
+          onAuxiliaryPanelOpenChange(false)
         } else if (editor.cancelConnection()) {
           event.preventDefault()
         } else if (editor.clearSelection()) {
@@ -170,10 +177,12 @@ export function useWorkflowShortcuts({
     }
   }, [
     addNodeOpen,
+    auxiliaryPanelOpen,
     disabled,
     editor,
     interactionBlocked,
     onAddNodeOpenChange,
+    onAuxiliaryPanelOpenChange,
     onSave,
     onShortcutHelpOpenChange,
     onTestRun,

@@ -11,13 +11,13 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 import type { RefObject } from 'react'
 import type { WorkflowSaveStatus } from '../hooks/use-workflow-save'
-
-const MotionPanel = motion.create(Panel)
+import { WorkflowAuxiliaryPanel, type WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
 
 interface WorkflowPanelProps {
   addNodeButtonRef: RefObject<HTMLButtonElement | null>
   disabled?: boolean
   addNodeOpen: boolean
+  activeAuxiliaryPanel?: WorkflowAuxiliaryPanelType
   shortcutHelpOpen: boolean
   canRedo: boolean
   canUndo: boolean
@@ -30,6 +30,8 @@ interface WorkflowPanelProps {
   lastSavedAt?: Date
   saveStatus: WorkflowSaveStatus
   onAddNodeOpenChange: (open: boolean) => void
+  onAuxiliaryPanelClose: () => void
+  onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onApplyNode: (node: WorkflowNode) => void
   canChangeNextStepNode: (nodeId: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
@@ -49,6 +51,7 @@ export const WorkflowPanel = ({
   addNodeButtonRef,
   disabled = false,
   addNodeOpen,
+  activeAuxiliaryPanel,
   shortcutHelpOpen,
   canRedo,
   canUndo,
@@ -61,6 +64,8 @@ export const WorkflowPanel = ({
   lastSavedAt,
   saveStatus,
   onAddNodeOpenChange,
+  onAuxiliaryPanelClose,
+  onAuxiliaryPanelToggle,
   onApplyNode,
   canChangeNextStepNode,
   canDeleteNextStepNode,
@@ -82,8 +87,13 @@ export const WorkflowPanel = ({
         <WorkflowStatusPanel lastSavedAt={lastSavedAt} saveStatus={saveStatus} />
       </Panel>
       {/* 右上角操作栏 */}
-      <Panel position="top-right">
-        <WorkflowActionBar disabled={disabled} onTestRun={onTestRun} />
+      <Panel position="top-right" className="z-20!">
+        <WorkflowActionBar
+          activePanel={activeAuxiliaryPanel}
+          disabled={disabled}
+          onPanelToggle={onAuxiliaryPanelToggle}
+          onTestRun={onTestRun}
+        />
       </Panel>
       {/* 底部工具栏 */}
       <Panel position="bottom-center">
@@ -110,44 +120,98 @@ export const WorkflowPanel = ({
           onOpenChange={onShortcutHelpOpenChange}
         />
       </Panel>
-      {/* 右侧配置面板 */}
+      {/* 右侧节点配置与辅助面板 */}
       <MotionConfig reducedMotion="user">
-        <AnimatePresence>
-          {!disabled && selectedNode ? (
-            <MotionPanel
-              key="workflow-config-panel"
-              position="top-right"
-              className="top-10! bottom-0! w-100!"
-              initial={{ x: '100%', opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0 }}
-              transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            >
-              <WorkflowConfigPanel
-                key={selectedNode.id}
-                node={selectedNode}
-                configRenderers={configRenderers}
-                defaultLabel={selectedNodeDefaultLabel}
-                availableVariables={selectedNodeAvailableVariables}
-                nextStepDisabled={!selectedNodeCanAddNextNode}
-                nextStepOpen={nextStepSourceNodeId === selectedNode.id}
-                onApply={onApplyNode}
-                onClose={onCloseNodeConfig}
-                canChangeNextStepNode={canChangeNextStepNode}
-                canDeleteNextStepNode={canDeleteNextStepNode}
-                onChangeNextStepNode={onChangeNextStepNode}
-                onDeleteNextStepNode={onDeleteNextStepNode}
-                onDisconnectNextStepNode={(targetNodeId) =>
-                  onDisconnectNextStepNode(selectedNode.id, targetNodeId)
+        <Panel
+          position="top-right"
+          className="pointer-events-none top-14! right-4! bottom-4! isolate m-0! flex max-w-[calc(100%-2rem)] items-stretch justify-end gap-2"
+        >
+          <AnimatePresence initial={false} mode="popLayout">
+            {!disabled && selectedNode ? (
+              <motion.div
+                key="workflow-config-panel"
+                layout="position"
+                className="pointer-events-auto z-0 w-100 min-w-0 shrink"
+                style={
+                  activeAuxiliaryPanel
+                    ? { clipPath: 'inset(-1.5rem 0 -1.5rem -1.5rem)' }
+                    : undefined
                 }
-                onNextStepOpenChange={(open, trigger) =>
-                  onNextStepOpenChange(selectedNode.id, open, trigger)
-                }
-                onNextStepNodeSelect={onNextStepNodeSelect}
-              />
-            </MotionPanel>
-          ) : null}
-        </AnimatePresence>
+                variants={{
+                  enter: {},
+                  open: {},
+                  exit: { transition: { when: 'afterChildren' } },
+                }}
+                initial="enter"
+                animate="open"
+                exit="exit"
+                transition={{
+                  layout: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+                }}
+              >
+                <motion.div
+                  className="h-full w-full"
+                  variants={{
+                    enter: { x: '100%', opacity: 0 },
+                    open: {
+                      x: 0,
+                      opacity: 1,
+                      transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+                    },
+                    exit: {
+                      x: '100%',
+                      transition: { duration: 0.24, ease: [0.4, 0, 0.2, 1] },
+                    },
+                  }}
+                >
+                  <WorkflowConfigPanel
+                    key={selectedNode.id}
+                    node={selectedNode}
+                    configRenderers={configRenderers}
+                    defaultLabel={selectedNodeDefaultLabel}
+                    availableVariables={selectedNodeAvailableVariables}
+                    nextStepDisabled={!selectedNodeCanAddNextNode}
+                    nextStepOpen={nextStepSourceNodeId === selectedNode.id}
+                    onApply={onApplyNode}
+                    onClose={onCloseNodeConfig}
+                    canChangeNextStepNode={canChangeNextStepNode}
+                    canDeleteNextStepNode={canDeleteNextStepNode}
+                    onChangeNextStepNode={onChangeNextStepNode}
+                    onDeleteNextStepNode={onDeleteNextStepNode}
+                    onDisconnectNextStepNode={(targetNodeId) =>
+                      onDisconnectNextStepNode(selectedNode.id, targetNodeId)
+                    }
+                    onNextStepOpenChange={(open, trigger) =>
+                      onNextStepOpenChange(selectedNode.id, open, trigger)
+                    }
+                    onNextStepNodeSelect={onNextStepNodeSelect}
+                  />
+                </motion.div>
+              </motion.div>
+            ) : null}
+
+            {!disabled && activeAuxiliaryPanel ? (
+              <motion.div
+                key="workflow-auxiliary-panel"
+                layout="position"
+                className="pointer-events-auto z-10 w-100 min-w-0 shrink-0"
+                initial={{ x: '100%', opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: '100%', opacity: 0 }}
+                transition={{
+                  duration: 0.24,
+                  ease: [0.22, 1, 0.36, 1],
+                  layout: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+                }}
+              >
+                <WorkflowAuxiliaryPanel
+                  type={activeAuxiliaryPanel}
+                  onClose={onAuxiliaryPanelClose}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </Panel>
       </MotionConfig>
     </>
   )

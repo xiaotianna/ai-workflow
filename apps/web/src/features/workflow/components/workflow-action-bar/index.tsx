@@ -5,13 +5,21 @@ import { EnvVariables } from './env-variables'
 import { SystemVariables } from './system-variables'
 import { Publish } from './publish'
 import { VersionHistory } from './version-history'
+import type { WorkflowAuxiliaryPanelType } from '../workflow-auxiliary-panel'
 
 interface WorkflowActionBarProps {
+  activePanel?: WorkflowAuxiliaryPanelType
   disabled?: boolean
+  onPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onTestRun: () => void
 }
 
-export const WorkflowActionBar = ({ disabled = false, onTestRun }: WorkflowActionBarProps) => {
+export const WorkflowActionBar = ({
+  activePanel,
+  disabled = false,
+  onPanelToggle,
+  onTestRun,
+}: WorkflowActionBarProps) => {
   return (
     <fieldset
       disabled={disabled}
@@ -21,17 +29,32 @@ export const WorkflowActionBar = ({ disabled = false, onTestRun }: WorkflowActio
       {/* 测试运行 */}
       <TestRun onClick={onTestRun} />
       {/* 运行历史 */}
-      <RunHistory />
+      <RunHistory
+        active={activePanel === 'run-history'}
+        onClick={() => onPanelToggle('run-history')}
+      />
       {/* 检查清单 */}
-      <CheckList />
+      <CheckList
+        active={activePanel === 'check-list'}
+        onClick={() => onPanelToggle('check-list')}
+      />
       {/* 环境变量 */}
-      <EnvVariables />
+      <EnvVariables
+        active={activePanel === 'environment-variables'}
+        onClick={() => onPanelToggle('environment-variables')}
+      />
       {/* 系统变量 */}
-      <SystemVariables />
+      <SystemVariables
+        active={activePanel === 'system-variables'}
+        onClick={() => onPanelToggle('system-variables')}
+      />
       {/* 发布 */}
       <Publish />
       {/* 版本历史 */}
-      <VersionHistory />
+      <VersionHistory
+        active={activePanel === 'version-history'}
+        onClick={() => onPanelToggle('version-history')}
+      />
     </fieldset>
   )
 }
