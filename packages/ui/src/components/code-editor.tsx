@@ -190,6 +190,7 @@ const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
             renderLineHighlight: 'none',
             scrollBeyondLastLine: false,
             scrollbar: {
+              alwaysConsumeMouseWheel: false,
               horizontalScrollbarSize: 6,
               useShadows: false,
               verticalScrollbarSize: 6,

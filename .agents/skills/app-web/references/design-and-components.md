@@ -255,7 +255,9 @@
 - 节点配置面板通过 Motion 的 `AnimatePresence` 管理开关动画：打开时从右侧滑入并淡入，
   关闭时向右滑出并淡出；面板使用稳定 key，切换节点只更新配置内容，不重复播放开场动画，
   退出动画结束后必须卸载配置面板及其中的编辑器；并通过
-  `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。
+  `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。面板根容器必须同时使用
+  React Flow 的 `nodrag`、`nowheel` 和 `nokey` 隔离标记，避免画布拖拽、滚轮和空格平移快捷键
+  干扰面板内的表单与代码编辑器。
 - 节点配置面板底部统一使用 Feature 内的 `WorkflowNextStep` 展示“下一步”入口，并复用根画布
   已有的 `NodeSelectorPopover` 与 `useWorkflowNodePicker`，不得另建节点选择面板或另一套开关状态。
   `WorkflowNextStep` 使用 `Form.Field required` 统一渲染标题，说明文字和节点连接选择区域放在

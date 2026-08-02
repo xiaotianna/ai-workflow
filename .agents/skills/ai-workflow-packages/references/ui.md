@@ -27,8 +27,9 @@ import '@ai-workflow/ui/globals.css'
   Monaco 语言，内置 JavaScript/TypeScript、CSS、HTML、JSON 与通用 Editor Worker；
   JSON 使用独立 JSON Worker 提供语法诊断与语言服务；
   提供 12px 代码字号、随行号位数自适应并额外预留一个字符左侧留白的行号区、透明主题、
-  明暗主题自动适配、加载态和禁用态。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等
-  场景 UI 由使用方组合，不下沉到 UI 包。
+  明暗主题自动适配、加载态和禁用态；编辑器内部滚动到边界后不再继续消费滚轮事件，允许外层
+  滚动容器接管。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等场景 UI 由使用方组合，
+  不下沉到 UI 包。
 - `TiptapEditor` 是基于 Tiptap 的无业务外壳受控文本编辑核心，使用纯字符串 `value` / `onChange`
   契约并支持换行、占位、禁用、错误语义和键盘编辑。调用方可以通过 `tokens` 声明可序列化的
   内联 token，并使用公开 ref 的 `insertToken` 在当前光标插入；编辑器将 token 显示为紧凑标签，

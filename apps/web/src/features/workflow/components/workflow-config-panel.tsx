@@ -302,7 +302,7 @@ export const WorkflowConfigPanel = ({
   )
 
   return (
-    <aside className="nodrag nowheel bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
+    <aside className="nodrag nowheel nokey bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
       <NodeHeader
         definition={nodeType.definition}
         className="px-4 pt-4 pb-1"
