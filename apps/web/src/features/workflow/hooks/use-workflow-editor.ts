@@ -1,5 +1,6 @@
 import {
   BuiltinNodeType,
+  ERROR_HANDLING_PORT_ID,
   getNodePorts,
   nodeRegistry,
   type NodeType,
@@ -148,6 +149,7 @@ function getCanvasNodeSize(node: WorkflowCanvasNode) {
 function getAvailableOutputPortIds(
   node: WorkflowCanvasNode,
   edges: readonly WorkflowEdge[],
+  sourceHandle?: string,
 ): string[] {
   try {
     const nodeType = nodeRegistry.get(node.type)
@@ -159,11 +161,17 @@ function getAvailableOutputPortIds(
     const outputPorts = getNodePorts(nodeType, parsedConfig.data).outputs
 
     return Object.entries(outputPorts)
-      .filter(
-        ([portId, port]) =>
-          port.multiple === true ||
-          !edges.some((edge) => edge.source === node.id && edge.sourceHandle === portId),
-      )
+      .filter(([portId, port]) => {
+        const matchesRequestedHandle = sourceHandle
+          ? portId === sourceHandle
+          : portId !== ERROR_HANDLING_PORT_ID
+
+        return (
+          matchesRequestedHandle &&
+          (port.multiple === true ||
+            !edges.some((edge) => edge.source === node.id && edge.sourceHandle === portId))
+        )
+      })
       .map(([portId]) => portId)
   } catch {
     return []
@@ -458,23 +466,28 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     return sourceNode?.parentId ? loopEditor.availableNodeTypes : availableNodeTypes
   }
 
-  function canAddNextNode(sourceNodeId: string) {
+  function canAddNextNode(sourceNodeId: string, sourceHandle?: string) {
     const sourceNode = nodes.find((node) => node.id === sourceNodeId)
 
-    return Boolean(sourceNode && getAvailableOutputPortIds(sourceNode, edges).length > 0)
+    return Boolean(
+      sourceNode && getAvailableOutputPortIds(sourceNode, edges, sourceHandle).length > 0,
+    )
   }
 
-  function getNextDisabledNodeTypes(sourceNodeId: string): ReadonlySet<string> {
+  function getNextDisabledNodeTypes(
+    sourceNodeId: string,
+    sourceHandle?: string,
+  ): ReadonlySet<string> {
     const nodeTypes = getNextNodeTypes(sourceNodeId)
 
-    if (!canAddNextNode(sourceNodeId)) {
+    if (!canAddNextNode(sourceNodeId, sourceHandle)) {
       return new Set(nodeTypes.map((nodeType) => nodeType.definition.type))
     }
 
     return new Set([...disabledNodeTypes, ...NEXT_NODE_UNAVAILABLE_NODE_TYPES])
   }
 
-  function addConnectedNode(type: string, sourceNodeId: string) {
+  function addConnectedNode(type: string, sourceNodeId: string, sourceHandle?: string) {
     const sourceNode = nodes.find((node) => node.id === sourceNodeId)
     if (!sourceNode) {
       throw new Error('当前节点已不存在')
@@ -484,7 +497,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       throw new Error('当前作用域不支持添加该节点')
     }
 
-    if (getNextDisabledNodeTypes(sourceNodeId).has(type)) {
+    if (getNextDisabledNodeTypes(sourceNodeId, sourceHandle).has(type)) {
       throw new Error('所选节点无法连接到当前节点')
     }
 
@@ -543,15 +556,15 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     }
 
     const inputPortIds = Object.keys(getNodePorts(addedNodeType, parsedAddedConfig.data).inputs)
-    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges)
+    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges, sourceHandle)
     const nextNodes = [...nodes, ...createdNodes]
     let connection: Connection | undefined = undefined
 
-    for (const sourceHandle of outputPortIds) {
+    for (const outputPortId of outputPortIds) {
       for (const targetHandle of inputPortIds) {
         const candidate: Connection = {
           source: sourceNode.id,
-          sourceHandle,
+          sourceHandle: outputPortId,
           target: addedNode.id,
           targetHandle,
         }
@@ -902,10 +915,15 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     return deleteElements(new Set([nodeId]))
   }
 
-  function disconnectNodes(sourceNodeId: string, targetNodeId: string) {
+  function disconnectNodes(sourceNodeId: string, targetNodeId: string, sourceHandle?: string) {
     const connectedEdgeIds = new Set(
       edges
-        .filter((edge) => edge.source === sourceNodeId && edge.target === targetNodeId)
+        .filter(
+          (edge) =>
+            edge.source === sourceNodeId &&
+            edge.target === targetNodeId &&
+            (sourceHandle === undefined || edge.sourceHandle === sourceHandle),
+        )
         .map((edge) => edge.id),
     )
 
@@ -1024,8 +1042,17 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     )
   }
 
-  function canReplaceConnectedNode(sourceNodeId: string, nodeId: string) {
-    if (!edges.some((edge) => edge.source === sourceNodeId && edge.target === nodeId)) return false
+  function canReplaceConnectedNode(sourceNodeId: string, nodeId: string, sourceHandle?: string) {
+    if (
+      !edges.some(
+        (edge) =>
+          edge.source === sourceNodeId &&
+          edge.target === nodeId &&
+          (sourceHandle === undefined || edge.sourceHandle === sourceHandle),
+      )
+    ) {
+      return false
+    }
 
     const disabledTypes = getConnectedReplacementDisabledNodeTypes(nodeId)
 
@@ -1038,7 +1065,12 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
    * 原位更换节点。根节点 ID 和位置保持不变，以便端口仍兼容时复用既有连线；
    * 配置、变量和容器子节点全部按新类型重新初始化。
    */
-  function replaceNodeByType(nodeId: string, type: string, connectionSourceNodeId?: string) {
+  function replaceNodeByType(
+    nodeId: string,
+    type: string,
+    connectionSourceNodeId?: string,
+    connectionSourceHandle?: string,
+  ) {
     const currentNode = nodes.find((node) => node.id === nodeId)
     const availableTypes = getReplacementNodeTypes(nodeId)
     const disabledTypes = connectionSourceNodeId
@@ -1100,7 +1132,10 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
     if (connectionSourceNodeId) {
       const connectedEdges = remainingEdges.filter(
-        (edge) => edge.source === connectionSourceNodeId && edge.target === nodeId,
+        (edge) =>
+          edge.source === connectionSourceNodeId &&
+          edge.target === nodeId &&
+          (connectionSourceHandle === undefined || edge.sourceHandle === connectionSourceHandle),
       )
       const connectedEdge = connectedEdges[0]
 
@@ -1176,8 +1211,13 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     return replaceNodeByType(nodeId, type)
   }
 
-  function replaceConnectedNode(sourceNodeId: string, nodeId: string, type: string) {
-    return replaceNodeByType(nodeId, type, sourceNodeId)
+  function replaceConnectedNode(
+    sourceNodeId: string,
+    nodeId: string,
+    type: string,
+    sourceHandle?: string,
+  ) {
+    return replaceNodeByType(nodeId, type, sourceNodeId, sourceHandle)
   }
 
   function createSnapshot(): WorkflowEditorSnapshot {

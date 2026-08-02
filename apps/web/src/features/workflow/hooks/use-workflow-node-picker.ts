@@ -17,6 +17,7 @@ type NodePickerState =
   | {
       kind: 'connect-next'
       sourceNodeId: string
+      sourceHandle?: string
       anchor: HTMLButtonElement
       anchorPosition?: undefined
     }
@@ -24,6 +25,7 @@ type NodePickerState =
       kind: 'replace'
       nodeId: string
       sourceNodeId?: string
+      sourceHandle?: string
       anchorPosition?: XYPosition
     }
 
@@ -36,6 +38,7 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
   const [state, setState] = useState<NodePickerState>({ kind: 'closed' })
   const open = state.kind !== 'closed'
   const connectionSourceNodeId = state.kind === 'connect-next' ? state.sourceNodeId : undefined
+  const connectionSourceHandle = state.kind === 'connect-next' ? state.sourceHandle : undefined
   const anchor = state.kind === 'connect-next' ? state.anchor : defaultAnchorRef.current
   const anchorPosition = state.anchorPosition
   const popoverAlign: 'start' | 'end' =
@@ -55,7 +58,7 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     : state.kind === 'insert-edge'
       ? editor.edgeInsertionDisabledNodeTypes
       : connectionSourceNodeId
-        ? editor.getNextDisabledNodeTypes(connectionSourceNodeId)
+        ? editor.getNextDisabledNodeTypes(connectionSourceNodeId, connectionSourceHandle)
         : editor.disabledNodeTypes
 
   function openAddNode(center?: XYPosition, nextAnchorPosition?: XYPosition) {
@@ -75,10 +78,15 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     })
   }
 
-  function openConnectNextNode(sourceNodeId: string, nextAnchor: HTMLButtonElement) {
+  function openConnectNextNode(
+    sourceNodeId: string,
+    nextAnchor: HTMLButtonElement,
+    sourceHandle?: string,
+  ) {
     setState({
       kind: 'connect-next',
       sourceNodeId,
+      ...(sourceHandle ? { sourceHandle } : {}),
       anchor: nextAnchor,
     })
   }
@@ -98,12 +106,14 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     sourceNodeId: string,
     nodeId: string,
     nextAnchorPosition?: XYPosition,
+    sourceHandle?: string,
   ) {
-    if (!editor.canReplaceConnectedNode(sourceNodeId, nodeId)) return false
+    if (!editor.canReplaceConnectedNode(sourceNodeId, nodeId, sourceHandle)) return false
 
     setState({
       kind: 'replace',
       sourceNodeId,
+      ...(sourceHandle ? { sourceHandle } : {}),
       nodeId,
       ...(nextAnchorPosition ? { anchorPosition: nextAnchorPosition } : {}),
     })
@@ -134,13 +144,13 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
 
   function handleSelectNode(type: string) {
     if (state.kind === 'connect-next') {
-      editor.addConnectedNode(type, state.sourceNodeId)
+      editor.addConnectedNode(type, state.sourceNodeId, state.sourceHandle)
       return
     }
 
     if (state.kind === 'replace') {
       const replaced = state.sourceNodeId
-        ? editor.replaceConnectedNode(state.sourceNodeId, state.nodeId, type)
+        ? editor.replaceConnectedNode(state.sourceNodeId, state.nodeId, type, state.sourceHandle)
         : editor.replaceNode(state.nodeId, type)
 
       if (!replaced) throw new Error(state.sourceNodeId ? '已连接节点更改失败' : '节点更换失败')
@@ -160,6 +170,7 @@ export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowN
     anchorPosition,
     close,
     connectionSourceNodeId,
+    connectionSourceHandle,
     disabledNodeTypes,
     handleOpenChange,
     handleSelectNode,

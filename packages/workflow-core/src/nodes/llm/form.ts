@@ -13,4 +13,9 @@ export const llmNodeForm = {
     label: '上下文',
     required: true,
   },
+  errorHandling: {
+    ui: FIELD_UI_TYPES.ERROR_HANDLING,
+    label: '异常处理',
+    required: true,
+  },
 } satisfies NodeFormSchema<typeof llmNodeSchema>

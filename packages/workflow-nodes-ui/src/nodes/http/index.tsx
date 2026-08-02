@@ -1,12 +1,14 @@
 import type { HttpNodeConfig } from '@ai-workflow/core'
 
-import { NodeContentList } from '../../components/base-node'
 import { NodeContentItem } from '../../components/node-content-item'
-import type { NodeContentProps } from '../../contracts/node-content'
+import type { NodeRendererProps } from '../../contracts/node-content'
+import { ErrorHandlingNode } from '../error-handling/error-handling-node'
 
-export function HttpNodeContent({ node }: NodeContentProps<HttpNodeConfig>) {
+export function HttpNodeContent(props: NodeRendererProps<HttpNodeConfig>) {
+  const { node } = props
+
   return (
-    <NodeContentList>
+    <ErrorHandlingNode {...props}>
       <NodeContentItem
         content={
           <div className="flex min-w-0 items-center gap-1">
@@ -19,6 +21,6 @@ export function HttpNodeContent({ node }: NodeContentProps<HttpNodeConfig>) {
           </div>
         }
       />
-    </NodeContentList>
+    </ErrorHandlingNode>
   )
 }

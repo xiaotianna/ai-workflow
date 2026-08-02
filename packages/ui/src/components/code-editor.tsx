@@ -5,6 +5,7 @@ import { Editor, loader, type EditorProps } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor'
 /* eslint-disable import/default -- Vite 将 ?worker 模块转换为默认导出的 Worker 构造器。 */
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
+import JsonWorker from 'monaco-editor/language/json/json.worker?worker'
 import TsWorker from 'monaco-editor/language/typescript/ts.worker?worker'
 /* eslint-enable import/default */
 import * as React from 'react'
@@ -23,6 +24,10 @@ workerScope.MonacoEnvironment ??= {
   getWorker(_workerId, label) {
     if (label === 'typescript' || label === 'javascript') {
       return new TsWorker()
+    }
+
+    if (label === 'json') {
+      return new JsonWorker()
     }
 
     return new EditorWorker()

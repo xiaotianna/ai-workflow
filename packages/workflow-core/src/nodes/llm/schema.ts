@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { errorHandlingSchema } from '../../node/node-error-handling'
 
 export const LLM_RESPONSE_FORMAT_VALUES = ['text', 'json'] as const
 export const LLM_REASONING_EFFORT_VALUES = [
@@ -106,6 +107,7 @@ export const llmNodeSchema = z.preprocess(
         content: DEFAULT_LLM_CONTEXT,
       },
     ]),
+    errorHandling: errorHandlingSchema,
   }),
 )
 

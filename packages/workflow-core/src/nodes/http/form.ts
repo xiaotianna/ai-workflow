@@ -38,4 +38,9 @@ export const httpNodeForm = {
     description: '输入连接超时（以秒为单位）',
     required: true,
   },
+  errorHandling: {
+    ui: FIELD_UI_TYPES.ERROR_HANDLING,
+    label: '异常处理',
+    required: true,
+  },
 } satisfies NodeFormSchema<typeof httpNodeSchema>

@@ -21,6 +21,7 @@ import {
   ConditionRulesEditor,
   ConditionRulesField,
   ContextMessagesField,
+  ErrorHandlingField,
   NumberField,
   SelectField,
   SliderField,
@@ -105,6 +106,7 @@ src/fields/
 ├── condition-rules-field/
 ├── context-messages-field/
 ├── editable-table-field/
+├── error-handling-field/
 ├── key-value-table-field/
 ├── number-field/
 ├── request-body-field/
@@ -208,6 +210,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+  [FIELD_UI_TYPES.ERROR_HANDLING]: ErrorHandlingField,
 }
 ```
 
@@ -225,6 +228,15 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   string、number 或 boolean option value；菜单使用 Popper 从 Trigger 下方左对齐展开，
   保持 4px 间距并匹配 Trigger 宽度。
 - `SwitchField` 使用 boolean 受控值。
+- `ErrorHandlingField` 是 `FIELD_UI_TYPES.ERROR_HANDLING` 对应的共享字段 renderer，由 HTTP、
+  LLM 与 Code 复用。标题操作区使用 Select 切换无、默认值和异常分支，Trigger 使用 28px
+  高度和 80px 最小宽度，只展示 13px 选项标题，菜单再展示标题与说明；默认值模式通过
+  内部 `JsonValueInput` 懒加载 UI `CodeEditor` 编辑真正的可序列化 JSON，并由 `Suspense`
+  提供等尺寸加载态；编辑器使用 JSON language 提供语法能力，但关闭输入和粘贴时的自动格式化，
+  合法值写回后也保留用户原始草稿。草稿使用 `useFormData` 并由 Zod 校验，只有合法 JSON 才写回 Core 配置；
+  异常分支模式显示 10px 圆角、16px 内边距的画布连接说明卡片，图标容器为 32px、图标为
+  20px，标题与说明分别使用 13px 和 12px。模式内容的出现和切换使用 Motion，并遵循
+  reduced motion。
 - `SliderField` 使用 schema 的 `min`、`max`、`step`，以同一受控值组合 Slider 与右侧数字
   Input；拖动与输入均通过字段回调即时写回，Input 支持临时清空并承接 required、disabled 和
   `aria-invalid` 状态，Slider 值在展示时限制到声明范围，越界输入仍保留给 Zod 展示错误。

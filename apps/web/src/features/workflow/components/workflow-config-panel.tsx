@@ -38,16 +38,22 @@ interface WorkflowConfigPanelProps {
   defaultLabel?: string
   availableVariables?: readonly AvailableVariableOption[]
   nextStepDisabled?: boolean
+  errorBranchNextStepDisabled?: boolean
+  errorBranchNextStepOpen?: boolean
   nextStepOpen?: boolean
   onApply: (node: WorkflowNode) => void
   onClose: () => void
   onDraftValidationIssuesChange: (nodeId: string, messages: readonly string[]) => void
-  canChangeNextStepNode: (nodeId: string) => boolean
+  canChangeNextStepNode: (nodeId: string, sourceHandle?: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
-  onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
+  onChangeNextStepNode: (
+    nodeId: string,
+    anchorPosition?: { x: number; y: number },
+    sourceHandle?: string,
+  ) => void
   onDeleteNextStepNode: (nodeId: string) => void
-  onDisconnectNextStepNode: (nodeId: string) => void
-  onNextStepOpenChange: (open: boolean, trigger: HTMLButtonElement) => void
+  onDisconnectNextStepNode: (nodeId: string, sourceHandle?: string) => void
+  onNextStepOpenChange: (open: boolean, trigger: HTMLButtonElement, sourceHandle?: string) => void
   onNextStepNodeSelect: (nodeId: string) => void
 }
 
@@ -86,6 +92,8 @@ export const WorkflowConfigPanel = ({
   defaultLabel,
   availableVariables = [],
   nextStepDisabled = false,
+  errorBranchNextStepDisabled = false,
+  errorBranchNextStepOpen = false,
   nextStepOpen = false,
   onApply,
   onClose,
@@ -429,6 +437,8 @@ export const WorkflowConfigPanel = ({
           nodeId={node.id}
           nodeType={nodeType}
           disabled={nextStepDisabled}
+          errorBranchDisabled={errorBranchNextStepDisabled}
+          errorBranchOpen={errorBranchNextStepOpen}
           open={nextStepOpen}
           className="px-5 pt-3 pb-5"
           canChangeNode={canChangeNextStepNode}

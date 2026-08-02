@@ -1,5 +1,6 @@
 import { createInitialConfig } from '../../node/create-initial-config'
 import type { NodeType } from '../../node/node-definition'
+import { resolveErrorHandlingPorts } from '../../node/node-error-handling'
 import { llmNodeDefinition } from './definition'
 import { llmNodeForm } from './form'
 import { llmNodeSchema } from './schema'
@@ -21,6 +22,8 @@ export const llmNode = {
   definition: llmNodeDefinition,
   form: llmNodeForm,
   createInitialConfig: () => createInitialConfig(llmNodeSchema),
+  resolvePorts: (config) =>
+    resolveErrorHandlingPorts(llmNodeDefinition.ports, config.errorHandling),
 } satisfies NodeType<typeof llmNodeSchema>
 
 export type {

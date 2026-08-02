@@ -73,6 +73,10 @@ export interface ContextMessagesFieldSchema extends BaseFieldSchema {
   ui: typeof FIELD_UI_TYPES.CONTEXT_MESSAGES
 }
 
+export interface ErrorHandlingFieldSchema extends BaseFieldSchema {
+  ui: typeof FIELD_UI_TYPES.ERROR_HANDLING
+}
+
 export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.TEXT]: TextFieldSchema
   [FIELD_UI_TYPES.NUMBER]: NumberFieldSchema
@@ -88,6 +92,7 @@ export interface FieldSchemaByUI {
   [FIELD_UI_TYPES.LLM_MODEL]: LlmModelFieldSchema
   [FIELD_UI_TYPES.KNOWLEDGE_BASE]: KnowledgeBaseFieldSchema
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesFieldSchema
+  [FIELD_UI_TYPES.ERROR_HANDLING]: ErrorHandlingFieldSchema
 }
 
 export type FieldSchema<TUI extends FieldUIType = FieldUIType> = FieldSchemaByUI[TUI]

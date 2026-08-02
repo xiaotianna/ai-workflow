@@ -4,6 +4,7 @@ import { CodeField } from './code-field'
 import { ConditionBranchesField } from './condition-branches-field'
 import { ConditionRulesField } from './condition-rules-field'
 import { ContextMessagesField } from './context-messages-field'
+import { ErrorHandlingField } from './error-handling-field'
 import { KeyValueTableField } from './key-value-table-field'
 import { NumberField } from './number-field'
 import { RequestBodyField } from './request-body-field'
@@ -28,4 +29,5 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+  [FIELD_UI_TYPES.ERROR_HANDLING]: ErrorHandlingField,
 }

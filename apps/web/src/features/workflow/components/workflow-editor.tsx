@@ -1,7 +1,7 @@
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { Background, ConnectionLineType, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import { useWorkflowEditor } from '../hooks/use-workflow-editor'
-import type { WorkflowEdge, WorkflowNode } from '@ai-workflow/core'
+import { ERROR_HANDLING_PORT_ID, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -104,9 +104,10 @@ export function WorkflowEditor({
     sourceNodeId: string,
     nextOpen: boolean,
     trigger: HTMLButtonElement,
+    sourceHandle?: string,
   ) {
     if (nextOpen) {
-      nodePicker.openConnectNextNode(sourceNodeId, trigger)
+      nodePicker.openConnectNextNode(sourceNodeId, trigger, sourceHandle)
       return
     }
 
@@ -127,6 +128,20 @@ export function WorkflowEditor({
     setActiveAuxiliaryPanel(undefined)
     editor.clearSelection()
   }, [disabled])
+
+  useEffect(() => {
+    const sourceNodeId = nodePicker.connectionSourceNodeId
+    if (!sourceNodeId) return
+
+    if (!editor.canAddNextNode(sourceNodeId, nodePicker.connectionSourceHandle)) {
+      nodePicker.close()
+    }
+  }, [
+    editor.edges,
+    editor.nodes,
+    nodePicker.connectionSourceHandle,
+    nodePicker.connectionSourceNodeId,
+  ])
 
   useWorkflowShortcuts({
     editor,
@@ -249,6 +264,11 @@ export function WorkflowEditor({
                             ? editor.canAddNextNode(editor.selectedNode.id)
                             : false
                         }
+                        selectedNodeCanAddErrorBranch={
+                          editor.selectedNode
+                            ? editor.canAddNextNode(editor.selectedNode.id, ERROR_HANDLING_PORT_ID)
+                            : false
+                        }
                         selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
                         selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
                         lastSavedAt={save.lastSavedAt}
@@ -260,6 +280,7 @@ export function WorkflowEditor({
                         environmentVariables={editor.environmentVariables}
                         addNodeOpen={disabled ? false : nodePicker.open}
                         nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
+                        nextStepSourceHandle={nodePicker.connectionSourceHandle}
                         shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
                         disabled={disabled}
                         onAddNodeOpenChange={handleNodePickerOpenChange}
@@ -267,21 +288,26 @@ export function WorkflowEditor({
                         onAuxiliaryPanelToggle={handleAuxiliaryPanelToggle}
                         onApplyNode={editor.applyNode}
                         onAddEnvironmentVariable={editor.addEnvironmentVariable}
-                        canChangeNextStepNode={(nodeId) =>
+                        canChangeNextStepNode={(nodeId, sourceHandle) =>
                           editor.selectedNode
-                            ? editor.canReplaceConnectedNode(editor.selectedNode.id, nodeId)
+                            ? editor.canReplaceConnectedNode(
+                                editor.selectedNode.id,
+                                nodeId,
+                                sourceHandle,
+                              )
                             : false
                         }
                         canDeleteNextStepNode={editor.canDeleteNode}
                         onCloseNodeConfig={() => editor.clearSelection()}
                         onCheckListIssueSelect={editor.openNodeConfig}
                         onNodeDraftValidationIssuesChange={editor.setNodeDraftValidationIssues}
-                        onChangeNextStepNode={(nodeId, anchorPosition) =>
+                        onChangeNextStepNode={(nodeId, anchorPosition, sourceHandle) =>
                           editor.selectedNode
                             ? nodePicker.openReplaceConnectedNode(
                                 editor.selectedNode.id,
                                 nodeId,
                                 anchorPosition,
+                                sourceHandle,
                               )
                             : false
                         }

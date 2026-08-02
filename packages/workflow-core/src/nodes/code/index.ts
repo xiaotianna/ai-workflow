@@ -1,5 +1,6 @@
 import { createInitialConfig } from '../../node/create-initial-config'
 import type { NodeType } from '../../node/node-definition'
+import { resolveErrorHandlingPorts } from '../../node/node-error-handling'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import type { NodeInputBindings, NodeOutputDefinition } from '../../node/workflow-node-schema'
 import { codeNodeDefinition } from './definition'
@@ -50,6 +51,8 @@ export const codeNode = {
       ),
     })
   },
+  resolvePorts: (config) =>
+    resolveErrorHandlingPorts(codeNodeDefinition.ports, config.errorHandling),
 } satisfies NodeType<typeof codeNodeSchema>
 
 export type { CodeNodeConfig } from './schema'

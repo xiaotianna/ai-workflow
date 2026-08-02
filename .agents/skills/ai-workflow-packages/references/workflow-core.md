@@ -68,15 +68,15 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
   `code_editor`、`key_value_table`、`request_body`、`condition_rules`、`condition_branches`、
-  `llm_model`、`knowledge_base` 和 `context_messages` 作为字段 schema 的唯一判别值，不再同时
-  声明数据 `type` 和 `ui`。
+  `llm_model`、`knowledge_base`、`context_messages` 和 `error_handling` 作为字段 schema 的唯一
+  判别值，不再同时声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
   `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionRulesFieldSchema`、
-  `ConditionBranchesFieldSchema`、`LlmModelFieldSchema`、`KnowledgeBaseFieldSchema` 和
-  `ContextMessagesFieldSchema` 都继承 `BaseFieldSchema`。
+  `ConditionBranchesFieldSchema`、`LlmModelFieldSchema`、`KnowledgeBaseFieldSchema`、
+  `ContextMessagesFieldSchema` 和 `ErrorHandlingFieldSchema` 都继承 `BaseFieldSchema`。
   `NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
@@ -88,13 +88,17 @@ Nodes UI 保持 schema 和组件类型关联。
   显示“召回设置”。旧 `config.knowledgeBaseId` 与 `config.knowledgeBaseIds` 由 schema 自动迁移
   为缺少展示快照的引用对象，历史配置缺少 `topK` 时补齐默认值。Web 只在配置字段挂载时加载
   外部目录并补全快照；Core 不依赖外部知识库数据。
+- HTTP、LLM 与 Code 共用 `config.errorHandling` 异常处理契约，使用 `mode` 区分 `none`、
+  `default_value` 和 `error_branch`；字段缺省时由 schema 补为 `none`。默认值模式保存经过
+  `jsonValueSchema` 校验的可序列化 JSON；异常分支模式通过统一 `resolveErrorHandlingPorts`
+  在原输出端口之外增加稳定且允许多条连线的 `error` 输出端口，切换到其他模式后该端口不再存在。
 - `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于
   `@ai-workflow/form`，需要应用业务数据的 renderer 由应用通过 `NodeConfigSection.renderers`
   注入。声明专属 renderer 的节点不再把复杂配置伪装成普通 `FieldSchema`。当前内置节点均已
   使用字段级 form，`NODE_CONFIG_RENDERER_TYPES` 保留为空注册表，扩展机制本身继续保留。
-- LLM 通过 `llmNodeForm` 按顺序声明 `LLM_MODEL` 与 `CONTEXT_MESSAGES`。模型字段由 Web 注入
+- LLM 通过 `llmNodeForm` 按顺序声明 `LLM_MODEL`、`CONTEXT_MESSAGES` 与 `ERROR_HANDLING`。模型字段由 Web 注入
   renderer，上下文字段由 Form 内置 renderer 提供；`config.messages` 按顺序保存带稳定 `id` 的
   `system`、`assistant`、`user` 消息及纯字符串内容，至少保留一条且消息内容不能为空。旧版
   `config.prompt` 在 schema 解析时自动迁移为 SYSTEM 消息，不在解析结果中继续保留 Prompt 字段。
@@ -105,7 +109,7 @@ Nodes UI 保持 schema 和组件类型关联。
   停止序列、响应格式、推理强度、思考模式以及 Ollama 的 Top K、重复惩罚和 Seed；所有字段
   缺失时表示沿用供应商默认值，旧节点由 schema 补为空引用与空参数。Core 只定义可序列化领域
   契约，不保存模型组凭证、参数界面策略或 Web 请求数据。
-- HTTP 通过 `httpNodeForm` 按顺序声明 URL、Method、Headers、Params、Body 和连接超时；基础
+- HTTP 通过 `httpNodeForm` 按顺序声明 URL、Method、Headers、Params、Body、连接超时和异常处理；基础
   字段与复杂字段都由 `NodeConfigFields` 按 `field.ui` 分发，不再声明整节点 renderer。
   新建 HTTP 节点的 URL 初始值为空字符串，作为可保存、可连线的编辑草稿；非空 URL 仍必须
   满足完整 URL 格式并使用 HTTP 或 HTTPS 协议，必填空值由工作流检查清单提示。

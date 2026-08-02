@@ -4,7 +4,11 @@ import { WorkflowCanvasToolbar } from './workflow-canvas-toolbar'
 import { WorkflowCanvasViewer } from './workflow-canvas-viewer'
 import { Panel } from '@xyflow/react'
 import { WorkflowStatusPanel } from './workflow-status'
-import type { WorkflowEnvironmentVariable, WorkflowNode } from '@ai-workflow/core'
+import {
+  ERROR_HANDLING_PORT_ID,
+  type WorkflowEnvironmentVariable,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
 import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
@@ -26,7 +30,9 @@ interface WorkflowPanelProps {
   configRenderers?: NodeConfigRendererMap
   environmentVariables: readonly WorkflowEnvironmentVariable[]
   nextStepSourceNodeId?: string
+  nextStepSourceHandle?: string
   selectedNode?: WorkflowNode
+  selectedNodeCanAddErrorBranch?: boolean
   selectedNodeCanAddNextNode?: boolean
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
@@ -37,16 +43,29 @@ interface WorkflowPanelProps {
   onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onApplyNode: (node: WorkflowNode) => void
   onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
-  canChangeNextStepNode: (nodeId: string) => boolean
+  canChangeNextStepNode: (nodeId: string, sourceHandle?: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
   onCloseNodeConfig: () => void
   onCheckListIssueSelect: (nodeId: string) => void
   onNodeDraftValidationIssuesChange: (nodeId: string, messages: readonly string[]) => void
-  onChangeNextStepNode: (nodeId: string, anchorPosition?: { x: number; y: number }) => void
+  onChangeNextStepNode: (
+    nodeId: string,
+    anchorPosition?: { x: number; y: number },
+    sourceHandle?: string,
+  ) => void
   onDeleteNextStepNode: (nodeId: string) => void
   onDeleteEnvironmentVariable: (variableId: string) => boolean
-  onDisconnectNextStepNode: (sourceNodeId: string, targetNodeId: string) => void
-  onNextStepOpenChange: (sourceNodeId: string, open: boolean, trigger: HTMLButtonElement) => void
+  onDisconnectNextStepNode: (
+    sourceNodeId: string,
+    targetNodeId: string,
+    sourceHandle?: string,
+  ) => void
+  onNextStepOpenChange: (
+    sourceNodeId: string,
+    open: boolean,
+    trigger: HTMLButtonElement,
+    sourceHandle?: string,
+  ) => void
   onNextStepNodeSelect: (nodeId: string) => void
   onRedo: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
@@ -67,7 +86,9 @@ export const WorkflowPanel = ({
   configRenderers,
   environmentVariables,
   nextStepSourceNodeId,
+  nextStepSourceHandle,
   selectedNode,
+  selectedNodeCanAddErrorBranch = false,
   selectedNodeCanAddNextNode = false,
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
@@ -187,7 +208,14 @@ export const WorkflowPanel = ({
                     defaultLabel={selectedNodeDefaultLabel}
                     availableVariables={selectedNodeAvailableVariables}
                     nextStepDisabled={!selectedNodeCanAddNextNode}
-                    nextStepOpen={nextStepSourceNodeId === selectedNode.id}
+                    errorBranchNextStepDisabled={!selectedNodeCanAddErrorBranch}
+                    nextStepOpen={
+                      nextStepSourceNodeId === selectedNode.id && nextStepSourceHandle === undefined
+                    }
+                    errorBranchNextStepOpen={
+                      nextStepSourceNodeId === selectedNode.id &&
+                      nextStepSourceHandle === ERROR_HANDLING_PORT_ID
+                    }
                     onApply={onApplyNode}
                     onClose={onCloseNodeConfig}
                     onDraftValidationIssuesChange={onNodeDraftValidationIssuesChange}
@@ -195,11 +223,11 @@ export const WorkflowPanel = ({
                     canDeleteNextStepNode={canDeleteNextStepNode}
                     onChangeNextStepNode={onChangeNextStepNode}
                     onDeleteNextStepNode={onDeleteNextStepNode}
-                    onDisconnectNextStepNode={(targetNodeId) =>
-                      onDisconnectNextStepNode(selectedNode.id, targetNodeId)
+                    onDisconnectNextStepNode={(targetNodeId, sourceHandle) =>
+                      onDisconnectNextStepNode(selectedNode.id, targetNodeId, sourceHandle)
                     }
-                    onNextStepOpenChange={(open, trigger) =>
-                      onNextStepOpenChange(selectedNode.id, open, trigger)
+                    onNextStepOpenChange={(open, trigger, sourceHandle) =>
+                      onNextStepOpenChange(selectedNode.id, open, trigger, sourceHandle)
                     }
                     onNextStepNodeSelect={onNextStepNodeSelect}
                   />

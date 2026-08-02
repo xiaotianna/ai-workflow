@@ -13,6 +13,7 @@ export const FIELD_UI_TYPES = {
   LLM_MODEL: 'llm_model',
   KNOWLEDGE_BASE: 'knowledge_base',
   CONTEXT_MESSAGES: 'context_messages',
+  ERROR_HANDLING: 'error_handling',
 } as const
 
 export type FieldUIType = (typeof FIELD_UI_TYPES)[keyof typeof FIELD_UI_TYPES]

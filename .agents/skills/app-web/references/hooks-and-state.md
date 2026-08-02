@@ -178,15 +178,17 @@ function ExampleForm() {
   自动打开，正在配置其他节点时也不得自动切换；只有用户点击节点时才切换面板目标。
 - 配置面板“下一步”入口由 `useWorkflowNodePicker` 的 `connect-next` 模式管理，继续复用同一个
   节点选择浮层；`useWorkflowEditor.addConnectedNode` 必须在一次历史检查点中同时写入新增节点
-  和当前节点到新增节点的连线，不修改 `selectedNodeId`。根节点添加在当前节点右侧，Loop 子节点
+  和当前节点到新增节点的连线，不修改 `selectedNodeId`。普通入口忽略异常处理专属 `error`
+  端口，异常分支入口则把允许多条连线的 `error` 作为明确 `sourceHandle` 传给 Picker 与 Editor；根节点添加在当前节点右侧，Loop 子节点
   继承当前节点的 `parentId` 并使用 Loop 子节点定位规则，禁止产生跨 Loop 作用域连线。配置面板
   的 `WorkflowNextStep` 直接订阅 React Flow 当前 nodes 与 edges，并按目标节点去重派生下一步
   节点，不经过面板 props 复制连接状态；点击已连接节点继续复用 `openNodeConfig` 切换配置目标。
   已连接节点菜单的更改操作复用 `useWorkflowNodePicker` 的 `replace` 模式，并通过可选的来源
   节点 ID 区分普通更换。`replaceConnectedNode` 更换目标节点类型时保留原 Edge 与
   `sourceHandle`，只为新节点映射兼容的 `targetHandle`；无法重连时整次操作不得写入状态。删除
-  复用 `deleteNode`；断开连接由 `disconnectNodes` 删除当前源节点到目标节点的全部直连 Edge，
-  并与其他图编辑操作一样建立历史检查点、同步选择态和脏状态。
+  复用 `deleteNode`；断开连接由 `disconnectNodes` 按可选 `sourceHandle` 删除当前分组对应的直连
+  Edge，未指定 Handle 的既有调用继续删除当前源节点到目标节点的全部直连 Edge，并与其他图
+  编辑操作一样建立历史检查点、同步选择态和脏状态。
 - 从连线 Hover 添加节点属于原子插入操作：新节点必须同时具有输入和输出端口，原边替换为
   “原上游 → 新节点 → 原下游”两条边，节点与边共用一次历史检查点。插入完成后使用更新后的
   节点和边执行局部排列：保持当前视口不变，新节点纵向沿用原贝塞尔连线中点，横向与上游

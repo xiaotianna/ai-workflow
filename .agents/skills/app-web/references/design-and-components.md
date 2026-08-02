@@ -254,7 +254,8 @@
   紧凑面板头部形成大块空白。
 - 节点配置面板通过 Motion 的 `AnimatePresence` 管理开关动画：打开时从右侧滑入并淡入，
   关闭时向右滑出并淡出；面板使用稳定 key，切换节点只更新配置内容，不重复播放开场动画，
-  并通过 `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。
+  退出动画结束后必须卸载配置面板及其中的编辑器；并通过
+  `MotionConfig reducedMotion="user"` 遵循系统的减少动态效果设置。
 - 节点配置面板底部统一使用 Feature 内的 `WorkflowNextStep` 展示“下一步”入口，并复用根画布
   已有的 `NodeSelectorPopover` 与 `useWorkflowNodePicker`，不得另建节点选择面板或另一套开关状态。
   `WorkflowNextStep` 使用 `Form.Field required` 统一渲染标题，说明文字和节点连接选择区域放在
@@ -265,11 +266,17 @@
   连接区域按 Edge 顺序展示当前节点去重后的直接下游节点；节点项显示实例名称并可切换到对应
   配置面板，末尾入口在已有下游时使用“添加并行节点”。每个已连接节点项右侧使用工作流
   节点同规格的 `Button variant="secondary" size="icon-sm"` dot 按钮，内部保留
-  `size-6` 图标区；菜单复用 `ActionMenuContent`，提供更改节点、断开当前直连边和删除节点，
+  `size-6` 图标区；dot 只在节点项 Hover 或菜单已打开时显示，隐藏时保留布局宽度。节点项整行
+  只在 Hover 时切换背景，聚焦仅保留边框反馈。菜单复用 `ActionMenuContent`，提供更改节点、断开当前直连边和删除节点，
   不在整行按钮内嵌套另一个按钮。源节点外壳、连接项和添加入口统一为
   `36px` 高，节点主题图标容器与 `NodeHeader` 一致为 `24px`、内部 `NodeIcon` 为 `16px`；
   已连接节点名称使用 `text-sm`，添加入口文案使用低一级的 `text-xs`；颜色和图标仍从
   `@ai-workflow/nodes-ui` 获取，不在 Feature 中复制映射或放大画布节点规格。
+  当 Core 解析出稳定 `error` 输出端口时，在普通下一步连接区下方增加语义 warning 的“异常时”
+  分组，展示该端口已连接的多个下游节点；节点项和新增入口与普通下一步复用同一组件和样式，
+  只有分组外层使用 warning 背景、边框与标题。已有异常下游时入口显示“添加并行节点”并继续
+  允许新增；该分组只在异常分支模式存在，不为无或默认值模式保留占位。正常与异常入口继续复用同一个节点选择器，但必须把准确的
+  `sourceHandle` 传入新增、更改和断开操作，不能回退为首个可用输出端口。
   选择节点后由 `useWorkflowEditor.addConnectedNode` 在同一个历史检查点中原子创建节点和连线：
   根节点放在当前节点右侧并纵向避开已有直接下游，Loop 子节点继续放在同一 Loop 作用域；
   连线使用当前节点首个仍可连接的输出端口和新增节点首个可用输入端口。当前节点没有可用输出

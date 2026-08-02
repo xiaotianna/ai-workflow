@@ -1,18 +1,19 @@
 import type { CodeNodeConfig } from '@ai-workflow/core'
 
-import { NodeContentList } from '../../components/base-node'
-import type { NodeContentProps } from '../../contracts/node-content'
+import type { NodeRendererProps } from '../../contracts/node-content'
+import { ErrorHandlingNode } from '../error-handling/error-handling-node'
 import { JavaScriptSyntaxLine } from './javascript-syntax-line'
 
 const CODE_PREVIEW_LINE_COUNT = 3
 
-export function CodeNodeContent({ node }: NodeContentProps<CodeNodeConfig>) {
+export function CodeNodeContent(props: NodeRendererProps<CodeNodeConfig>) {
+  const { node } = props
   const codeLines = node.config.code.split(/\r?\n/)
   const previewLines = codeLines.slice(0, CODE_PREVIEW_LINE_COUNT)
   const remainingLineCount = codeLines.length - previewLines.length
 
   return (
-    <NodeContentList>
+    <ErrorHandlingNode {...props}>
       <div className="border-border/60 bg-muted/60 overflow-hidden rounded-lg border-[0.5px]">
         <div className="border-border/60 text-muted-foreground flex items-center justify-between border-b-[0.5px] px-2.5 py-1.5 text-[10px] leading-3 font-medium">
           <span>JavaScript</span>
@@ -41,6 +42,6 @@ export function CodeNodeContent({ node }: NodeContentProps<CodeNodeConfig>) {
           ) : null}
         </div>
       </div>
-    </NodeContentList>
+    </ErrorHandlingNode>
   )
 }

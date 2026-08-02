@@ -1,14 +1,15 @@
 import type { LlmNodeConfig } from '@ai-workflow/core'
 import { Badge } from '@ai-workflow/ui/components/badge'
 
-import { NodeContentList } from '../../components/base-node'
 import { NodeContentItem } from '../../components/node-content-item'
-import type { NodeContentProps } from '../../contracts/node-content'
+import type { NodeRendererProps } from '../../contracts/node-content'
+import { ErrorHandlingNode } from '../error-handling/error-handling-node'
 
 export function LlmNodeContent({
   node,
   resolveModelReferenceDisplay,
-}: NodeContentProps<LlmNodeConfig>) {
+  ...props
+}: NodeRendererProps<LlmNodeConfig>) {
   const modelReference = node.config.model
   const hasModelReference = Boolean(modelReference.groupId || modelReference.configuredModelId)
   const modelDisplay = resolveModelReferenceDisplay?.(modelReference)
@@ -40,8 +41,12 @@ export function LlmNodeContent({
   }
 
   return (
-    <NodeContentList>
+    <ErrorHandlingNode
+      {...props}
+      node={node}
+      resolveModelReferenceDisplay={resolveModelReferenceDisplay}
+    >
       <NodeContentItem content={content} />
-    </NodeContentList>
+    </ErrorHandlingNode>
   )
 }

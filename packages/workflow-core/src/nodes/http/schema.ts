@@ -1,6 +1,7 @@
 import { generateUuid } from '@ai-workflow/shared/utils/uuid'
 import { z } from 'zod'
 import { variableValueSchema } from '../../variable/variable-value-schema'
+import { errorHandlingSchema } from '../../node/node-error-handling'
 import { HTTP_FORM_DATA_VALUE_TYPES, HTTP_METHODS, type HttpBodyType } from './constant'
 
 const httpKeyValueEntryShape = {
@@ -96,6 +97,7 @@ export const httpNodeSchema = z.object({
   headers: z.array(httpKeyValueEntrySchema).default(() => [createHttpKeyValueEntry()]),
   params: z.array(httpKeyValueEntrySchema).default(() => [createHttpKeyValueEntry()]),
   body: httpRequestBodySchema.default({ type: 'none' }),
+  errorHandling: errorHandlingSchema,
 })
 
 export type HttpNodeConfig = z.output<typeof httpNodeSchema>

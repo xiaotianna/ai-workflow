@@ -25,6 +25,7 @@ import '@ai-workflow/ui/globals.css'
 - 基础输入：`Input`、`Textarea`、`CodeEditor`、`Select`、`Slider`、`Checkbox`、`Switch`。
 - `CodeEditor` 是基于 Monaco Editor 的无外壳编辑器核心，通过必填 `language` props 支持
   Monaco 语言，内置 JavaScript/TypeScript、CSS、HTML、JSON 与通用 Editor Worker；
+  JSON 使用独立 JSON Worker 提供语法诊断与语言服务；
   提供 12px 代码字号、随行号位数自适应并额外预留一个字符左侧留白的行号区、透明主题、
   明暗主题自动适配、加载态和禁用态。语言顶栏、边框、尺寸、放大入口、Dialog 与草稿提交等
   场景 UI 由使用方组合，不下沉到 UI 包。

@@ -24,9 +24,9 @@ import { StartNodeContent } from './start'
 export const builtinNodeUIRegistrations = [
   defineNodeUI(startNode, StartNodeContent),
   defineNodeUI(endNode, EndNodeContent),
-  defineNodeUI(codeNode, CodeNodeContent),
-  defineNodeUI(httpNode, HttpNodeContent),
-  defineNodeUI(llmNode, LlmNodeContent),
+  defineNodeRendererUI(codeNode, CodeNodeContent),
+  defineNodeRendererUI(httpNode, HttpNodeContent),
+  defineNodeRendererUI(llmNode, LlmNodeContent),
   defineNodeUI(ragNode, RagNodeContent),
   defineNodeRendererUI(conditionNode, ConditionNode),
   defineNodeRendererUI(loopNode, LoopNode),

@@ -10,4 +10,9 @@ export const codeNodeForm = {
     required: true,
     content: '',
   },
+  errorHandling: {
+    ui: FIELD_UI_TYPES.ERROR_HANDLING,
+    label: '异常处理',
+    required: true,
+  },
 } satisfies NodeFormSchema<typeof codeNodeSchema>

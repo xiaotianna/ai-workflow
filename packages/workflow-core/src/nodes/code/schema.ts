@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { errorHandlingSchema } from '../../node/node-error-handling'
 
 export const CODE_NODE_DEFAULT_INPUT_KEYS = ['arg1', 'arg2'] as const
 export const CODE_NODE_DEFAULT_OUTPUT_KEY = 'result'
@@ -19,6 +20,7 @@ export const codeNodeSchema = z.object({
     .trim()
     .min(1, '代码不能为空')
     .default(createCodeNodeInitialCode(CODE_NODE_DEFAULT_INPUT_KEYS, CODE_NODE_DEFAULT_OUTPUT_KEY)),
+  errorHandling: errorHandlingSchema,
 })
 
 export type CodeNodeConfig = z.output<typeof codeNodeSchema>

@@ -76,11 +76,16 @@ import {
 Start 摘要展示输入变量的 Key、显示名称、必填状态和数据类型；End 的最终输出绑定保存为
 `node.inputs`，摘要只展示输出 Key，不泄露直接值或引用详情。两者的条目前导变量标识复用
 UI 包基于 `system-icon.svg` 的 `VariableIcon`，并通过 `text-primary` 跟随主题色。
-Code 节点通过 `defineNodeUI(codeNode, CodeNodeContent)` 注册专属内容，读取经过 Code schema
+Code 节点通过 `defineNodeRendererUI(codeNode, CodeNodeContent)` 注册完整节点 renderer，读取经过 Code schema
 解析后的 `node.config.code`，在保留实例描述的同时展示 JavaScript 标识、总行数和前三行
 代码预览；预览保留空格与 Tab 缩进，并通过轻量 JavaScript token 着色区分关键字、字符串、
 数字、字面量、内置对象、函数与方法、括号、运算符和注释。预览只负责画布摘要，不加载或
 复制 Form 包的 Monaco 编辑能力。
+HTTP、LLM 与 Code 的完整 renderer 共用 `ErrorHandlingNode` 外壳：`none` 不增加摘要内容，
+`default_value` 增加“异常时 / 输出默认值”条目，`error_branch` 增加“异常时 / 异常分支”条目。
+条目左右文案统一使用弱化前景色，避免状态值呈现为正文黑色。
+异常分支的稳定 `error` 输出端口放在该条目的垂直中点，与 Condition 分支标题的端口锚定方式
+一致；普通输出端口仍使用原有 stacked 布局，不按固定的第二端口索引摆放异常端口。
 `NodeContentItem` 从 Condition 节点的条目样式抽离，通过 `content` props 接收内容，使用
 `rounded-md bg-muted/60 px-2 py-1.5 text-muted-foreground` 并由内容自然撑开高度。Condition 和
 其他节点只负责组合条目内部信息，不重复维护背景、圆角、间距和默认文字颜色；Condition
@@ -104,11 +109,11 @@ Handle 始终与标题对齐。分支摘要直接从结构化 `rules` 逐条展�
 `SYSTEM_VARIABLE_NAMESPACE` 组合 `sys.<key>`，不在 Nodes UI 复制系统命名空间常量。
 环境变量同样优先消费应用层按稳定 ID 解析出的名称；缺少解析结果时使用 Core
 `ENVIRONMENT_VARIABLE_NAMESPACE` 回退为 `env.<variableId>`。
-HTTP 节点通过 `defineNodeUI(httpNode, HttpNodeContent)` 注册专属内容，不显示节点描述或
+HTTP 节点通过 `defineNodeRendererUI(httpNode, HttpNodeContent)` 注册完整节点 renderer，不显示节点描述或
 表单字段标题；它在 `NodeContentItem` 中展示经过 HTTP schema 解析后的请求方法徽标和
 请求地址，不复制 Core 的请求方法配置。方法徽标只使用 `bg-background` 区分层级，方法和
 请求地址都继承 `NodeContentItem` 的默认文字颜色。
-LLM 节点通过 `defineNodeUI(llmNode, LlmNodeContent)` 注册专属内容，不再展示 Prompt；它读取
+LLM 节点通过 `defineNodeRendererUI(llmNode, LlmNodeContent)` 注册完整节点 renderer，不再展示 Prompt；它读取
 经过 LLM schema 解析后的持久化模型引用，通过画布注入的 `resolveModelReferenceDisplay` 只把
 已保存 `providerType` 映射为供应商图标，在 `NodeContentItem` 中单行展示供应商图标、模型名与
 CHAT 标签的紧凑摘要，不渲染模型组名称；模型名超长时省略。未选择时显示空状态；旧配置

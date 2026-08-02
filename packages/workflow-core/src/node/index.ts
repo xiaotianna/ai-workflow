@@ -1,5 +1,6 @@
 export * from './create-initial-config'
 export * from './node-definition'
+export * from './node-error-handling'
 export * from './node-registry'
 export * from './get-node-ports'
 export * from './workflow-node-schema'
