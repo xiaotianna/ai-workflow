@@ -204,6 +204,16 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 ## 注意事项
 
 - Core 不依赖 React、NestJS、Prisma、Redis 或具体运行时。
+- Go Executor 目标架构直接复用 Core 已有的 `Workflow`、节点、边、`NodeOutputDefinition`、
+  `VariableValue`、环境变量、`SystemVariableKey`、`SYSTEM_VARIABLE_KEYS`、
+  `SYSTEM_VARIABLE_DEFINITIONS` 和执行前校验，不要求 Core 先增加 Runtime 专属值类型。
+- `VariableValue` 的 Direct Value 使用 `unknown` 是进入变量解析前的开放值边界；
+  `WorkflowNode.config` 使用 `Record<string, unknown>` 是通用节点外壳，具体配置继续由对应
+  `NodeType.schema` 校验。不得仅为了 Runtime 或 MQ 边界全局收窄这两个领域字段。
+- `NodeOutputDefinition.defaultValue` 已在 `workflow-node-schema.ts` 中通过现有递归 `JsonValue` 和
+  `jsonValueSchema` 限制为 JSON 值。实现 Runtime 时直接给这两个现有定义增加 `export`，由现有
+  Node 入口和 Core 根入口公开；不要创建结构相同的 Runtime 值类型，也不要借此改写 Core 字段。
+  `StartRuntimeInput`、RuntimeState、Runtime Effect 和跨语言协议仍不属于 Core。
 - 节点 `inputs`/`outputs` 与环境变量已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
   `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。

@@ -2,9 +2,15 @@ import { z } from 'zod'
 import { DATA_TYPE_VALUES } from '../port/data-types'
 import { variableValueSchema } from '../variable/variable-value-schema'
 
-type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
 
-const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z.lazy(() =>
+export const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z.lazy(() =>
   z.union([
     z.string(),
     z.number().finite(),

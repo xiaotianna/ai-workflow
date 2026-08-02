@@ -1,13 +1,10 @@
 {
-  "name": "@ai-workflow/runtime",
+  "name": "@ai-workflow/protocol",
   "version": "1.0.0",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {},
-  "dependencies": {
-    "@ai-workflow/core": "workspace:*"
-  }
+  "scripts": {}
 }

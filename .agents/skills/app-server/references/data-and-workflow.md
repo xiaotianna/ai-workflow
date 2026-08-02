@@ -117,6 +117,12 @@
 6. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
 7. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
+Go Executor 目标架构接入时，运行输入先通过 Core 公共 JSON 对象 Schema，再由 Runtime 根据
+Start 节点动态输出定义校验字段、类型、必填项和默认值。应用服务使用
+`SYSTEM_VARIABLE_KEYS` 和 Core `SystemVariableValues` 组装完整系统上下文，其中 `app_id` 来自
+Workflow 的数据库关联，`workflow_id` 来自已校验快照，`workflow_run_id` 来自新建 Run；不得
+使用 `ownerId`、`workflowId`、`startedAt` 等自定义键替代 Core 系统变量键。
+
 ## LangGraph
 
 - 把 LangGraph 视为可替换执行适配器，不让 Core 模型直接依赖它。

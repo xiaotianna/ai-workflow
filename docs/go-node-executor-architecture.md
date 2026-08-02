@@ -1,1228 +1,1794 @@
 # Go 节点执行器架构设计
 
-> 状态：目标架构设计，尚未实施。
+> 状态：目标架构，尚未实施。
 >
-> 更新日期：2026-08-01。
+> 本文按真实调用顺序组织代码：从 Runtime 入口开始，经过 NestJS 和 RabbitMQ，进入 Go
+> Executor，再从节点结果回到 Runtime。
 >
-> 本文约束工作流执行链路的目标边界。当前仓库中的 `@ai-workflow/runtime`、RabbitMQ、Go
-> Executor、运行接口和事件投影尚未完成；实施后需要按真实代码同步更新
-> `.agents/skills/app-server` 与 `.agents/skills/ai-workflow-packages`。
+> 示例用于说明文件职责和调用关系，省略了部分 DTO、日志和错误映射代码。
 
-## 1. 背景
+## 0. 先看这条执行链
 
-当前仓库已经具备以下基础：
-
-- `@ai-workflow/core` 定义工作流、节点、端口、变量、节点配置 Schema 和运行前校验。
-- PostgreSQL 和 Prisma 已定义 `WorkflowVersion`、`WorkflowRun` 与 `WorkflowNodeRun`。
-- NestJS 已接入 Prisma、Redis、认证、模型配置与知识库基础能力。
-- `@ai-workflow/runtime` 仍未形成可用的工作流执行 API。
-- Web 已具备测试运行和单节点运行的交互入口，但服务端执行链路尚未接入。
-
-本次升级要求：
-
-1. Node.js Runtime 继续负责工作流解析、依赖调度和运行状态推进。
-2. 所有核心内置节点的 Executor 全部由 Go 实现。
-3. Node.js 中不保留 Start、Condition、Loop 等节点的第二份执行逻辑。
-4. 所有节点通过同一套执行协议和同一条任务队列进入 Go，不按节点类型拆分执行链路。
-5. 工作流执行消息使用 RabbitMQ，不使用 Redis Streams。
-6. PostgreSQL 继续作为工作流定义和运行状态的唯一事实来源。
-
-## 2. 设计目标
-
-### 2.1 核心目标
-
-- 所有内置节点只有一份 Executor 行为实现，统一位于 Go 服务。
-- Runtime 调度循环不使用 `switch (node.type)` 硬编码节点行为。
-- Go 只执行单个节点，不加载、解析或调度完整 Workflow。
-- 节点执行支持可靠投递、幂等、租约、重试、取消、超时和崩溃恢复。
-- 工作流状态可以在 NestJS 或 Go 实例重启后继续恢复。
-- 前端可以通过 SSE 接收节点状态和流式输出，并在断线后恢复。
-- 节点类型和执行协议具备独立版本，已发布 Workflow 不被未来实现静默改变语义。
-
-### 2.2 非目标
-
-- 本阶段不把完整工作流调度器迁移到 Go。
-- Go Executor 不直接读写 Prisma 业务表。
-- RabbitMQ 不保存工作流最终状态，不替代 PostgreSQL。
-- 不使用 RabbitMQ Direct Reply-to 实现易失的同步 RPC。
-- 不承诺任意外部副作用的严格 Exactly Once；系统提供 At Least Once 与幂等能力。
-- 不在本阶段引入 LangGraph 作为核心状态机。
-
-## 3. 架构结论
-
-目标架构采用：
-
-> Node.js Runtime 负责“何时执行哪个节点”；Go Executor 负责“节点具体如何执行”；RabbitMQ
-> 负责可靠传输；PostgreSQL 负责持久化事实状态。
-
-```mermaid
-flowchart LR
-  Web["Web / React Flow"] -->|"HTTP / SSE"| Server["NestJS Server"]
-
-  Server --> Core["@ai-workflow/core<br/>结构与配置校验"]
-  Core --> Runtime["@ai-workflow/runtime<br/>解析、调度与状态推进"]
-
-  Runtime --> DB[("PostgreSQL<br/>WorkflowRun / NodeRun")]
-  Runtime --> Outbox["Execution Outbox"]
-  Outbox --> CommandExchange["RabbitMQ<br/>Command Exchange"]
-  CommandExchange --> ExecuteQueue["统一 Node Execute Queue"]
-
-  ExecuteQueue --> Go["Go Executor Service"]
-  Go --> Registry["Executor Registry"]
-  Registry --> Executors["全部内置节点 Executor"]
-
-  Go --> EventExchange["RabbitMQ<br/>Event Exchange"]
-  EventExchange --> Projector["Nest Event Projector"]
-  Projector --> DB
-  Projector --> Runtime
-
-  EventExchange --> SSEQueue["Nest 实例 SSE Queue"]
-  SSEQueue --> Web
+```text
+HTTP 请求
+  ↓
+WorkflowRunController
+  ↓
+WorkflowRunService
+  ↓
+WorkflowRuntime.start()
+  ├── 编译 Workflow
+  ├── 计算 Ready 节点
+  └── 解析节点变量
+  ↓
+RuntimeTransition { state, effects }
+  ↓
+RuntimeTransitionWriter
+  ├── 保存 RuntimeState
+  ├── 创建 NodeRun
+  └── 创建 ExecutionOutbox
+  ↓
+RabbitMQ
+  ↓
+Go Worker → Registry → Executor
+  ↓
+NodeEvent
+  ↓
+NestJS NodeEventConsumer
+  ↓
+WorkflowEventService
+  ↓
+WorkflowRuntime.applyNodeResult()
+  ↓
+继续调度下一批节点，或结束 WorkflowRun
 ```
 
-## 4. 模块职责
+三个边界先记住：
 
-### 4.1 `@ai-workflow/core`
+1. Runtime 决定节点何时执行，并在派发前解析变量。
+2. NestJS 负责事务、数据库、MQ、鉴权和 SSE。
+3. Go 只执行单个节点，不读取完整 Workflow，不计算 DAG。
 
-Core 继续提供与运行环境无关的领域契约：
+---
 
-- Workflow、WorkflowNode、WorkflowEdge 和 Workflow Output Schema。
-- 节点类型、节点配置 Zod Schema、静态或动态端口。
-- 节点输入、输出、系统变量和环境变量引用。
-- `validateWorkflow()` 与 `validateExecutorWorkflow()`。
-- 编辑期配置迁移与规范化。
-- 节点展示和配置表单所需的无 React 元数据。
+## 1. 先写 Runtime 入口
 
-Core 不包含 Go Client、RabbitMQ、Prisma、NestJS 或 Executor 实现。
+Runtime 是纯 TypeScript package，不依赖 NestJS、Prisma 或 RabbitMQ。它必须直接依赖
+`@ai-workflow/core`，复用 Core 已有的工作流领域模型和 JSON 值契约；Runtime 只定义运行状态与
+状态迁移，依赖方向固定为 Runtime → Core。
 
-### 4.2 `@ai-workflow/runtime`
+### 1.1 Runtime 的公开入口
 
-Runtime 是与 NestJS 和 RabbitMQ 实现解耦的确定性状态机，负责：
+文件：`packages/workflow-runtime/src/index.ts`
 
-1. 接收已经通过 Core 执行前校验的 Workflow。
-2. 编译节点、Edge、端口、依赖关系和嵌套作用域。
-3. 维护节点 Ready、Pending、Running 和 Terminal 状态。
-4. 解析直接值、节点输出引用、系统变量和环境变量。
-5. 为每次逻辑执行生成稳定 `executionKey`。
-6. 通过抽象 `NodeCommandPort` 提交节点命令。
-7. 消费统一的 Node Event，并根据通用 Result/Directive 推进状态。
-8. 处理业务重试、租约失效、取消、超时和恢复。
-9. 根据 `Workflow.outputs[].value` 解析最终输出。
-
-Runtime 不实现任何内置节点的业务行为。调度循环禁止出现：
+作用：只导出 Server 真正需要使用的类型和入口，不暴露内部物理路径。
 
 ```ts
-switch (node.type) {
-  case 'condition':
-  case 'loop':
-  case 'llm':
+// 导出创建工作流运行时的工厂函数，供服务端初始化 Runtime。
+export { createWorkflowRuntime } from './runtime/create-workflow-runtime'
+// 仅导出运行时公开类型，避免调用方依赖内部实现文件。
+export type {
+  // 描述 Runtime 持久化的 Edge 状态联合类型。
+  RuntimeEdgeStatus,
+  // 描述 Runtime 请求宿主执行的一项副作用。
+  RuntimeEffect,
+  // 描述 Runtime 持久化的节点状态联合类型。
+  RuntimeNodeStatus,
+  // 描述可持久化并可恢复的 Runtime 完整状态。
+  RuntimeState,
+  // 描述一次状态推进后产生的新状态与副作用集合。
+  RuntimeTransition,
+  // 描述启动一次工作流运行所需的输入。
+  StartRuntimeInput,
+  // 从 Runtime 类型模块集中导出以上公开类型。
+} from './runtime/runtime-types'
+```
+
+调用方只需要认识两个动作：
+
+```ts
+// 使用启动参数创建初始状态，并生成首批可执行节点任务。
+runtime.start(input)
+// 将节点执行结果应用到已有状态，并继续推进工作流。
+runtime.applyNodeResult(state, result)
+```
+
+### 1.2 复用 Core 现有领域契约
+
+Runtime 不需要先改写 Core。Core 已经提供 `Workflow`、`WorkflowNode`、`WorkflowEdge`、
+`NodeOutputDefinition`、`VariableValue`、`WorkflowEnvironmentVariable`、`SystemVariableKey`、
+`SYSTEM_VARIABLE_KEYS`、`SYSTEM_VARIABLE_DEFINITIONS` 和 `validateExecutorWorkflow()`，这些定义
+应直接从 `@ai-workflow/core` 根入口复用。
+
+Core 还已经在 `workflow-node-schema.ts` 中定义了递归 `JsonValue` 和 `jsonValueSchema`，只是当前
+没有导出。这里不创建新类型或新文件，只给现有定义增加 `export`：
+
+文件：`packages/workflow-core/src/node/workflow-node-schema.ts`
+
+```ts
+// 公开 Core 已有的递归 JSON 值类型，供 Runtime 直接复用。
+export type JsonValue =
+  // 允许字符串值。
+  | string
+  // 允许有限数字值。
+  | number
+  // 允许布尔值。
+  | boolean
+  // 允许 JSON null 值。
+  | null
+  // 允许递归 JSON 数组。
+  | JsonValue[]
+  // 允许递归 JSON 对象。
+  | { [key: string]: JsonValue }
+
+// 公开 Core 已有的递归 JSON Schema，供 Runtime 校验开放值边界。
+export const jsonValueSchema: z.ZodType<JsonValue, JsonValue> = z.lazy(() =>
+  // 保持现有字符串、有限数字、布尔、null、数组和对象校验不变。
+  z.union([
+    // 接受字符串值。
+    z.string(),
+    // 接受有限数字值。
+    z.number().finite(),
+    // 接受布尔值。
+    z.boolean(),
+    // 接受 null 值。
+    z.null(),
+    // 递归校验数组中的每一项。
+    z.array(jsonValueSchema),
+    // 递归校验对象中的每个属性值。
+    z.record(z.string(), jsonValueSchema),
+  ]),
+)
+```
+
+`workflow-node-schema.ts` 已经由 Core 的 Node 入口和根入口逐级 `export *`，因此增加以上两个
+`export` 后，Runtime 就能从 `@ai-workflow/core` 直接导入，不需要新增导出文件。
+
+```ts
+// 从 Core 根入口引入已有领域契约，Runtime 不复制这些定义。
+import {
+  // 提供系统变量的稳定键，Runtime 不手写 user_id 等字符串。
+  SYSTEM_VARIABLE_KEYS,
+  // 提供系统变量的键、数据类型和说明，供 Runtime 校验实际值。
+  SYSTEM_VARIABLE_DEFINITIONS,
+  // 校验直接值、解析结果和持久化值是否符合 Core 已有 JSON 约束。
+  jsonValueSchema,
+  // 描述 Core 已有的递归 JSON 值。
+  type JsonValue,
+  // 描述 Start 节点动态声明的输入字段。
+  type NodeOutputDefinition,
+  // 描述 Core 允许引用的系统变量键联合类型。
+  type SystemVariableKey,
+  // 描述直接值或节点、系统、环境变量引用。
+  type VariableValue,
+  // 描述经过 Core Schema 校验的完整工作流。
+  type Workflow,
+  // 描述经过 Core Schema 校验的工作流边。
+  type WorkflowEdge,
+  // 描述工作流中声明的环境变量。
+  type WorkflowEnvironmentVariable,
+  // 描述经过 Core Schema 校验的工作流节点。
+  type WorkflowNode,
+  // 从 Core 的唯一公开根入口导入以上领域契约。
+} from '@ai-workflow/core'
+```
+
+Core 中的两个 `unknown` 也不应为了 Runtime 被全局改写：`VariableValue` 的 Direct Value 是进入
+解析流程前的开放值边界，Runtime 在使用时负责验证；`WorkflowNode.config` 是通用节点外壳，
+具体结构继续由对应 `NodeType.schema` 校验。`NodeOutputDefinition.defaultValue` 已经限制为 JSON
+值，不需要再定义 `WorkflowInputValues` 或 `WorkflowOutputValues` 才能复用。
+
+Runtime 只复用 Core 已有的 `JsonValue/jsonValueSchema`，不再声明结构相同的
+`RuntimePrimitive`、`RuntimeValue` 或 `RuntimeObject`。这次导出不改变 `VariableValue`、
+`WorkflowNode.config` 或其他 Core 字段，也不能借此把 RuntimeState、启动上下文或 MQ 协议放进
+Core。
+
+`@ai-workflow/runtime` 只需在自己的 `package.json#dependencies` 中显式声明
+`"@ai-workflow/core": "workspace:*"`，并且只从包名导入，不能深层引用 Core 的 `src` 文件。
+
+### 1.3 定义 Runtime 的输入和输出
+
+文件：`packages/workflow-runtime/src/runtime/runtime-types.ts`
+
+```ts
+// 从 Core 根入口引入已有 JSON 值、系统变量键和状态索引领域类型。
+import type {
+  // 描述 Core 已有的递归 JSON 值。
+  JsonValue,
+  // 描述 Core 已声明的全部系统变量键。
+  SystemVariableKey,
+  // 描述 Core 校验后的工作流边。
+  WorkflowEdge,
+  // 描述 Core 校验后的工作流节点实例。
+  WorkflowNode,
+  // 从 Core 的唯一公开根入口导入以上契约。
+} from '@ai-workflow/core'
+// ScopeContext 属于 TypeScript 与 Go 共用的生成协议，Runtime 只消费，不重复声明。
+import type { ScopeContext } from '@ai-workflow/protocol'
+
+// 定义启动一次 Runtime 所需的上下文数据。
+export interface StartRuntimeInput {
+  // 当前工作流运行的唯一标识。
+  runId: string
+  // 接收调用方提交的动态字段；Runtime 随后按 Start 节点定义校验并归一化。
+  input: Record<string, unknown>
+  // 系统变量键和值直接复用 Core 契约，具体 dataType 由 Runtime 按 Core 定义校验。
+  system: Record<SystemVariableKey, JsonValue>
+}
+
+// 定义 Runtime 节点状态机允许持久化的节点状态。
+export type RuntimeNodeStatus =
+  // 节点尚未满足执行条件。
+  | 'PENDING'
+  // 节点任务已经派发且正在执行。
+  | 'RUNNING'
+  // 节点已经成功完成。
+  | 'SUCCEEDED'
+  // 节点已经失败。
+  | 'FAILED'
+  // 节点正在等待外部能力或子工作流。
+  | 'SUSPENDED'
+  // 节点所在分支未被激活。
+  | 'SKIPPED'
+
+// 定义 Runtime 允许持久化的 Core Edge 状态。
+export type RuntimeEdgeStatus =
+  // 上游节点尚未完成，当前边状态仍未确定。
+  | 'WAITING'
+  // 上游节点激活了当前边对应的 sourceHandle。
+  | 'ACTIVE'
+  // 上游节点未选择当前边或已经被跳过。
+  | 'INACTIVE'
+
+// 定义一次 Loop 迭代 Scope 允许持久化的状态。
+export type RuntimeScopeStatus =
+  // 当前迭代正在等待或执行内部节点。
+  | 'ACTIVE'
+  // 当前迭代的内部 DAG 已经正常结束。
+  | 'COMPLETED'
+  // 当前迭代存在失败节点，不能继续推进。
+  | 'FAILED'
+
+// 定义 Runtime 为一次具体 Loop 迭代保存的可恢复状态。
+export interface RuntimeScopeState {
+  // Scope 当前只表示 Loop 迭代；子工作流使用独立 WorkflowRun 和 RuntimeState。
+  kind: 'LOOP_ITERATION'
+  // 创建当前 Scope 的 Core Loop 节点标识。
+  ownerNodeId: WorkflowNode['id']
+  // 嵌套 Loop 时指向外层迭代 Scope；顶层 Loop 不设置。
+  parentScopeKey?: string
+  // 当前 Loop 的迭代序号，从 1 开始并且只递增。
+  iteration: number
+  // 当前迭代 Scope 的整体运行状态。
+  status: RuntimeScopeStatus
+  // 只保存当前 Loop 直接子节点在本次迭代中的状态。
+  nodes: Record<WorkflowNode['id'], RuntimeNodeStatus>
+  // 只保存当前 Loop 内部边在本次迭代中的激活状态。
+  edges: Record<WorkflowEdge['id'], RuntimeEdgeStatus>
+}
+
+// 定义 Runtime 可以完整持久化并恢复的状态。
+export interface RuntimeState {
+  // 当前工作流运行的唯一标识。
+  runId: string
+  // 保存经过 Start 动态定义校验和默认值归一化的输入。
+  input: Record<string, JsonValue>
+  // 保存已经按 Core 系统变量定义验证的完整运行值。
+  system: Record<SystemVariableKey, JsonValue>
+  // 使用 Core 节点标识记录每个节点的运行状态。
+  nodes: Record<WorkflowNode['id'], RuntimeNodeStatus>
+  // 使用 Core 边标识记录每条边的激活状态。
+  edges: Record<WorkflowEdge['id'], RuntimeEdgeStatus>
+  // 按 Runtime executionKey 保存每次节点执行产生的 JSON 输出对象。
+  outputs: Record<string, Record<string, JsonValue>>
+  // 按 Runtime executionKey 反查对应的 Core 节点标识。
+  nodeIdByExecutionKey: Record<string, WorkflowNode['id']>
+  // 按 scopeKey 保存每次 Loop 迭代的 Runtime 自有可恢复状态。
+  scopes: Record<string, RuntimeScopeState>
+}
+
+// 定义 Runtime 每次推进后返回的完整迁移结果。
+export interface RuntimeTransition {
+  // 每次状态迁移后都返回完整可持久化状态。
+  state: RuntimeState
+  // Runtime 不执行副作用，只告诉 NestJS 接下来要做什么。
+  effects: RuntimeEffect[]
+}
+
+// 定义 Runtime 可交给宿主执行的全部副作用联合类型。
+export type RuntimeEffect =
+  // 表示需要派发一个节点执行任务。
+  | {
+      // 副作用判别字段，固定表示派发节点。
+      type: 'DISPATCH_NODE'
+      // 当前需要执行的节点标识，跟随 Core WorkflowNode 的 id 类型。
+      nodeId: WorkflowNode['id']
+      // 当前节点在具体 Scope 与迭代中的唯一执行标识。
+      executionKey: string
+      // 节点类型跟随 Core WorkflowNode，并用于 Go Registry 选择 Executor。
+      nodeType: WorkflowNode['type']
+      // 已完成变量解析且可以安全写入 MQ 的节点输入。
+      inputs: Record<string, JsonValue>
+      // 已通过 NodeType Schema 校验、完成变量解析且可以安全写入 MQ 的节点配置。
+      config: Record<string, JsonValue>
+      // 可选的 Scope 上下文；节点位于某次 Loop 迭代内时提供。
+      scopeContext?: ScopeContext
+    }
+  // 表示工作流已成功完成，并携带最终输出。
+  | {
+      // 副作用判别字段，固定表示工作流成功完成。
+      type: 'COMPLETE_RUN'
+      // 根据 Core Workflow.outputs 解析得到的最终输出。
+      output: Record<string, JsonValue>
+    }
+  // 表示工作流执行失败，并携带标准化运行时错误。
+  | {
+      // 副作用判别字段，固定表示工作流执行失败。
+      type: 'FAIL_RUN'
+      // 导致工作流终止的标准化 Runtime 错误。
+      error: RuntimeError
+    }
+```
+
+`DISPATCH_NODE` 已经包含解析后的 Inputs 和 Config。NestJS 不再解析业务变量，只添加消息 ID、
+租约和截止时间等基础设施字段。
+
+`StartRuntimeInput.input` 保留 `Record<string, unknown>` 是有意的：输入字段名、`dataType`、
+`required` 和 `defaultValue` 是用户在 Start 节点 `outputs` 中动态定义的，普通 `Workflow` 类型
+无法在编译期保留这些字面量。Runtime 的 `start()` 必须根据 Core 已有的
+`NodeOutputDefinition[]` 校验字段、拒绝非 JSON 值并补齐默认值，之后才写入强约束的
+`RuntimeState.input`。这里不能把 `input` 写为 `NodeInputBindings`，后者表示节点内部的
+`VariableValue` 绑定，不表示调用方提交的实际值。
+
+`WorkflowNode["type"]` 也不能收窄为 Core 的 `BuiltinNodeType`。Core `NodeRegistry` 允许注册扩展
+节点，Runtime 只要求节点类型已经通过 `validateExecutorWorkflow()`，不会把内置节点联合类型
+硬编码进通用调度器。
+
+`RuntimeState.nodes` 和 `RuntimeState.edges` 保存根 Scope 的调度状态；每次 Loop 迭代拥有独立的
+`RuntimeScopeState.nodes` 和 `RuntimeScopeState.edges`。`scopeKey` 是 Runtime 生成的稳定字符串，
+对 Runtime 之外的消费者保持不透明，并包含从外层到当前层的 Loop 与迭代信息，例如：
+
+```text
+loop-1/iteration-1
+loop-1/iteration-2
+loop-1/iteration-2/loop-2/iteration-1
+```
+
+同一次迭代内的节点 `executionKey` 由当前 `scopeKey` 和 Core `nodeId` 组成，例如
+`loop-1/iteration-2/http-1`。每次 Repeat 创建新的 Scope 记录，上一轮 Scope 保留终态，因而节点
+状态和输出不会被下一轮覆盖。输出仍统一保存在 `RuntimeState.outputs`，不在 Scope 中复制。
+
+Sub Workflow 不写入 `RuntimeState.scopes`。NestJS 为它创建带独立 `runId` 和 `RuntimeState` 的
+子 `WorkflowRun`；父 Runtime 只把对应节点保持为 `SUSPENDED`，由 NodeRun/Capability 状态记录
+`childRunId` 并在子 Run 结束后恢复。Sub Workflow 节点如果本身位于 Loop 中，仍会携带所属 Loop
+的 `ScopeContext`。
+
+### 1.4 创建 Runtime
+
+文件：`packages/workflow-runtime/src/runtime/create-workflow-runtime.ts`
+
+```ts
+// 引入核心包中的工作流结构类型。
+import type { Workflow } from '@ai-workflow/core'
+// 引入把工作流编译为只读执行索引的函数。
+import { buildExecutionPlan } from '../compiler/build-execution-plan'
+// 引入封装状态机推进逻辑的 Runtime 类。
+import { WorkflowRuntime } from './workflow-runtime'
+
+// 根据工作流快照创建一个可执行的 Runtime 实例。
+export function createWorkflowRuntime(
+  // 本次运行使用且已经通过 Core Schema 校验的工作流快照。
+  workflow: Workflow,
+  // 返回绑定该工作流执行计划的 Runtime 实例。
+): WorkflowRuntime {
+  // ExecutionPlan 是只读索引，不修改数据库中的 Workflow 快照。
+  const plan = buildExecutionPlan(workflow)
+  // 使用编译后的执行计划构造 Runtime，避免运行期间重复扫描工作流。
+  return new WorkflowRuntime(plan)
 }
 ```
 
-Runtime 可以理解以下通用概念，但不能理解具体节点行为：
+文件：`packages/workflow-runtime/src/compiler/build-execution-plan.ts`
 
-- 依赖是否满足。
-- 哪些 Source Handle 被激活。
-- 进入、重复或退出哪个 Scope。
-- 是否需要调用平台能力并挂起当前节点。
-- 节点成功、失败、取消或超时。
+```ts
+// 从 Core 根入口引入工作流、节点和边的唯一领域类型。
+import type {
+  // 描述经过 Core Schema 校验的完整工作流。
+  Workflow,
+  // 描述经过 Core Schema 校验的工作流边。
+  WorkflowEdge,
+  // 描述经过 Core Schema 校验的工作流节点。
+  WorkflowNode,
+  // 从 Core 的唯一公开根入口导入以上类型。
+} from '@ai-workflow/core'
 
-### 4.3 NestJS Server
+// 定义 Runtime 使用的 Scope 标识；非根 Scope 必须来自 Core 节点标识。
+export type RuntimeScopeId = 'root' | WorkflowNode['id']
 
-NestJS 是工作流控制面和 Runtime 宿主，负责：
+// 定义 Runtime 调度所需的只读工作流索引。
+export interface ExecutionPlan {
+  // 本次运行使用的完整工作流快照。
+  workflow: Workflow
+  // 按节点标识快速查找节点定义的只读索引。
+  nodeById: ReadonlyMap<WorkflowNode['id'], WorkflowNode>
+  // 按目标节点标识查找全部入边的只读索引。
+  incomingEdges: ReadonlyMap<WorkflowNode['id'], readonly WorkflowEdge[]>
+  // 按源节点标识查找全部出边的只读索引。
+  outgoingEdges: ReadonlyMap<WorkflowNode['id'], readonly WorkflowEdge[]>
+  // 按 Scope 标识查找直属子节点标识的只读索引。
+  childrenByScope: ReadonlyMap<RuntimeScopeId, readonly WorkflowNode['id'][]>
+}
+```
 
-- HTTP API、鉴权、租户隔离和参数校验。
-- WorkflowDraft、WorkflowVersion、WorkflowDeployment 生命周期。
-- 创建和查询 WorkflowRun、WorkflowNodeRun。
-- 执行前再次使用 Core 做结构与业务校验。
-- 托管 `@ai-workflow/runtime`。
-- Prisma 事务、Execution Outbox 和 Execution Inbox。
-- RabbitMQ Command Publisher 与 Event Projector。
-- SSE Gateway、事件回放和运行快照。
-- 模型凭证、知识库和子工作流等平台能力网关。
-- 取消请求、运行级超时和配额控制。
+Compiler 在运行开始时建立 Node、Edge 和 Scope 索引，后续调度不反复扫描完整 Workflow。
 
-### 4.4 Go Executor Service
+### 1.5 实现 `start()` 和 `applyNodeResult()`
 
-Go 服务是唯一的节点执行面，负责：
+文件：`packages/workflow-runtime/src/runtime/workflow-runtime.ts`
 
-- 消费统一节点执行队列。
-- 按 `nodeType + nodeTypeVersion` 从 Go Executor Registry 查找实现。
-- 执行全部核心内置节点。
-- 节点级并发、超时、上游请求和资源限制。
-- 发布 Accepted、Started、Heartbeat、Progress、Delta 与 Terminal 事件。
-- 对 Code 节点调用独立 JavaScript 沙箱。
-- 对 LLM、RAG 和 SubWorkflow 使用受控的平台能力接口。
-- 执行期日志脱敏和 Trace 透传。
+```ts
+// 引入根据 Core Start 输出定义校验调用方输入的函数。
+import { parseStartInputValues } from '../input/parse-start-input-values'
+// 引入根据 Core 系统变量定义校验实际值的函数。
+import { parseRuntimeSystemVariables } from './parse-runtime-system-variables'
 
-Go 不读取 WorkflowDefinition，不调度 Edge，不直接读写 Prisma 业务表。
+// 封装工作流状态机推进、节点结果应用和副作用生成逻辑。
+export class WorkflowRuntime {
+  // 保存编译后的只读执行计划，供所有调度步骤复用。
+  constructor(private readonly plan: ExecutionPlan) {}
 
-### 4.5 RabbitMQ
+  // 启动工作流，并返回初始化后的状态与首批副作用。
+  start(
+    // 启动本次运行所需的运行标识、业务输入和系统变量。
+    input: StartRuntimeInput,
+    // 返回初始化后的完整状态及首批副作用。
+  ): RuntimeTransition {
+    // 复用 Core 系统变量定义校验键集合及每个值的 dataType。
+    const system = parseRuntimeSystemVariables(input.system)
+    // 校验 runId、Workflow.id 与系统变量中的运行身份是否完全一致。
+    assertRuntimeIdentity(this.plan, input.runId, system)
+    // 根据 Core 已有的 Start outputs 校验动态字段、应用默认值并拒绝未知字段。
+    const normalizedInput = parseStartInputValues(this.plan, input.input)
+    // 使用经过动态字段和可持久化值校验的数据创建初始状态。
+    const state = createInitialRuntimeState(this.plan, {
+      // 保留 Runtime 自有的运行标识。
+      runId: input.runId,
+      // 保存已经按 Start 输出定义归一化的实际输入。
+      input: normalizedInput,
+      // 保存根据 Core 系统变量定义校验后的完整值。
+      system,
+    })
 
-RabbitMQ 只承担跨进程消息传输：
+    // start 不执行节点，只推进状态机并生成第一批派发 Effect。
+    return this.advance(state)
+  }
 
-- Node Command 分发。
-- Node Event 传输。
-- Executor 取消控制消息。
-- 投递确认、背压和死信。
+  // 将一个节点的终态结果写入 RuntimeState，并继续推进状态机。
+  applyNodeResult(
+    // 当前工作流运行的完整持久化状态。
+    state: RuntimeState,
+    // Go Executor 返回的单节点执行结果。
+    result: ExecuteNodeResult,
+    // 返回应用结果后产生的新状态与下一批副作用。
+  ): RuntimeTransition {
+    // 通过执行标识定位本次结果对应的工作流节点。
+    const nodeId = state.nodeIdByExecutionKey[result.executionKey]
+    // 找不到映射表示结果不属于当前状态，立即抛出标准错误。
+    if (!nodeId) throw new RuntimeError('EXECUTION_KEY_NOT_FOUND')
 
-RabbitMQ 不是工作流状态事实源。Broker 中的消息丢失或重复不能导致 PostgreSQL 中出现不可恢复
-的未知状态。
+    // 成功结果会更新节点状态、输出、出边和可选 Scope 指令。
+    if (result.status === 'SUCCEEDED') {
+      // 将对应节点标记为执行成功。
+      state.nodes[nodeId] = 'SUCCEEDED'
+      // 按 executionKey 保存节点输出；缺省输出统一为空对象。
+      state.outputs[result.executionKey] = result.outputs ?? {}
 
-### 4.6 PostgreSQL
+      // 将 Executor 返回的激活 Handle 转为集合以便快速判断。
+      const activatedHandles = new Set(result.activatedHandles)
+      // 遍历当前节点的全部出边；没有出边时使用空数组。
+      for (const edge of this.plan.outgoingEdges.get(nodeId) ?? []) {
+        // Runtime 不判断 Condition、HTTP 或 LLM，只根据 Handle 推进 Edge。
+        state.edges[edge.id] = activatedHandles.has(edge.sourceHandle)
+          ? // Handle 被激活时，对应出边进入 ACTIVE 状态。
+            'ACTIVE'
+          : // Handle 未被激活时，对应出边进入 INACTIVE 状态。
+            'INACTIVE'
+      }
 
-PostgreSQL 是以下数据的唯一事实来源：
+      // Loop Executor 返回通用运行时指令时，再更新 Scope 状态。
+      if (result.directive) {
+        // 节点和 executionKey 用于定位父 Scope；Runtime 不在这里判断具体 node.type。
+        applyRuntimeDirective(this.plan, state, nodeId, result.executionKey, result.directive)
+      }
+      // 非成功结果交给统一失败处理逻辑更新节点与运行状态。
+    } else {
+      // 根据失败或挂起结果写入对应的 Runtime 状态。
+      applyNodeFailure(state, nodeId, result)
+    }
 
-- 不可变 WorkflowVersion。
-- WorkflowRun 和 WorkflowNodeRun 当前状态。
-- 节点输入、最终输出和错误。
-- Outbox、Inbox、租约和业务重试计划。
-- 可回放的关键 WorkflowRunEvent。
+    // 在应用节点结果后继续计算下一批节点或工作流终态。
+    return this.advance(state)
+  }
 
-Go Executor 不直接持有数据库写权限。
+  // 推进状态机，生成派发、完成或失败副作用。
+  private advance(
+    // 要继续推进的完整 RuntimeState；方法会原地更新该状态。
+    state: RuntimeState,
+    // 返回当前状态可产生的下一次迁移。
+  ): RuntimeTransition {
+    // 先传播无法再被激活的 Skipped 节点及其出边状态。
+    propagateSkippedNodes(this.plan, state)
+    // 计算当前 Scope 中已经满足执行条件的节点集合。
+    const { ready } = collectRunnableNodes(this.plan, state)
 
-## 5. 统一 Executor 契约
+    // 存在 Ready 节点时，为它们批量创建派发副作用。
+    if (ready.length > 0) {
+      // 返回已更新状态和本轮全部节点派发请求。
+      return {
+        // 暴露本轮推进后的完整状态供宿主持久化。
+        state,
+        // 一次可以生成多个 Effect，由 NestJS 和 Go 控制实际并发量。
+        effects: ready.map((nodeId) =>
+          // 为每一个 Ready 节点创建独立的派发 Effect。
+          this.createDispatchEffect(state, nodeId),
+        ),
+      }
+    }
 
-### 5.1 Go 接口
+    // 仍有运行中或挂起节点时保持等待，不生成新副作用。
+    if (hasRunningOrSuspendedNodes(state)) {
+      // 返回等待状态，不要求宿主执行任何新副作用。
+      return {
+        // 保留当前仍有节点运行或挂起的完整状态。
+        state,
+        // 空数组表示本轮无需执行任何副作用。
+        effects: [],
+      }
+    }
 
-所有节点实现同一个接口：
+    // 没有可运行节点且存在失败节点时结束整个工作流。
+    if (hasFailedNode(state)) {
+      // 返回失败副作用，由 NestJS 持久化工作流终态。
+      return {
+        // 保留失败发生后的完整状态。
+        state,
+        // 使用当前状态生成标准化工作流错误。
+        effects: [
+          // 描述由失败节点导致的工作流失败副作用。
+          {
+            // 使用判别字段表示工作流执行失败。
+            type: 'FAIL_RUN',
+            // 根据当前状态生成对外一致的运行错误。
+            error: createRunError(state),
+          },
+        ],
+      }
+    }
+
+    // 没有待运行、运行中或失败节点时，工作流成功完成。
+    return {
+      // 返回最终完整状态供宿主持久化。
+      state,
+      // 生成唯一的工作流完成副作用。
+      effects: [
+        // 描述成功完成及最终输出。
+        {
+          // 使用判别字段表示工作流成功完成。
+          type: 'COMPLETE_RUN',
+          // Workflow Output 也通过同一套变量解析器获取最终值。
+          output: resolveWorkflowOutputs(
+            // 从执行计划中读取本次运行的工作流快照。
+            this.plan.workflow,
+            // 根据最终 RuntimeState 构造输出变量上下文。
+            createVariableContext(state),
+          ),
+        },
+      ],
+    }
+  }
+
+  // 为一个 Ready 节点创建包含解析后输入的派发副作用。
+  private createDispatchEffect(
+    // 当前工作流运行状态；方法会把目标节点更新为 RUNNING。
+    state: RuntimeState,
+    // 本次需要派发的节点标识，类型跟随 Core WorkflowNode.id。
+    nodeId: WorkflowNode['id'],
+    // 返回包含完整节点命令业务数据的派发副作用。
+  ): RuntimeEffect {
+    // 从执行计划索引中读取完整节点定义。
+    const node = this.plan.nodeById.get(nodeId)
+    // 索引缺失表示执行计划损坏，立即抛出标准错误。
+    if (!node) throw new RuntimeError('NODE_NOT_FOUND')
+
+    // 根据节点与当前 Scope 状态生成本次执行的唯一标识。
+    const executionKey = createExecutionKey(nodeId, state)
+    // 基于当前状态构造 Inputs、Config 所需的变量上下文。
+    const variableContext = createVariableContext(state)
+
+    // 在生成派发副作用时同步把节点标记为运行中。
+    state.nodes[nodeId] = 'RUNNING'
+    // 保存 executionKey 到 nodeId 的映射，供结果返回时反查节点。
+    state.nodeIdByExecutionKey[executionKey] = nodeId
+
+    // 返回由 NestJS 转换为节点命令的派发副作用。
+    return {
+      // 使用判别字段表示需要派发节点任务。
+      type: 'DISPATCH_NODE',
+      // 携带工作流中的节点标识。
+      nodeId,
+      // 携带当前 Scope 下唯一的节点执行标识。
+      executionKey,
+      // 携带节点类型，供 Go Registry 选择 Executor。
+      nodeType: node.type,
+      // Inputs 和 Config 在离开 Runtime 前全部解析完成。
+      inputs: resolveNodeInputs(node.inputs, variableContext),
+      // 递归解析配置对象中的全部变量引用。
+      config: resolveObjectVariables(node.config, variableContext),
+      // 携带节点所属的可选 Loop Scope 上下文。
+      scopeContext: getCurrentScopeContext(state, nodeId),
+    }
+  }
+}
+```
+
+### 1.6 变量解析放在哪里
+
+文件：
+
+- `packages/workflow-runtime/src/variable/resolve-variable-value.ts`
+- `packages/workflow-runtime/src/variable/resolve-object-variables.ts`
+- `packages/workflow-runtime/src/variable/variable-context.ts`
+- `packages/workflow-runtime/src/variable/output-store.ts`
+
+```ts
+// 从 Core 根入口引入已有 JSON Schema 和变量领域类型。
+import {
+  // 校验 Direct Value 是否满足 Core 已有递归 JSON 值约束。
+  jsonValueSchema,
+  // 描述 Core 已有的递归 JSON 值。
+  type JsonValue,
+  // 描述 Core 已声明的全部系统变量键。
+  type SystemVariableKey,
+  // 描述直接值或节点、系统、环境变量引用。
+  type VariableValue,
+  // 描述工作流中声明的环境变量。
+  type WorkflowEnvironmentVariable,
+  // 从 Core 的唯一公开根入口导入以上类型。
+} from '@ai-workflow/core'
+// 定义一次变量解析可读取的全部强类型数据源。
+export interface VariableContext {
+  // 按 executionKey 和输出字段读取已完成节点的 JSON 输出。
+  outputs: OutputStore
+  // 使用 Core 系统变量键和 JSON 值契约保存已经校验的完整系统值。
+  system: Readonly<Record<SystemVariableKey, JsonValue>>
+  // 按 Core 环境变量稳定 ID 读取已验证的运行值或 Secret Pointer。
+  environment: ReadonlyMap<WorkflowEnvironmentVariable['id'], JsonValue>
+  // 描述当前 Loop 或嵌套工作流位置的 Runtime Scope 路径。
+  scopePath: readonly string[]
+}
+
+// 解析一个直接值或变量引用，并返回对应的运行时值。
+export function resolveVariableValue(
+  // 待解析的变量值，可能是字面量或引用。
+  value: VariableValue,
+  // 提供节点输出、系统变量、环境变量与 Scope 路径的解析上下文。
+  context: VariableContext,
+  // 返回经过 Runtime 动态值校验的结果。
+): JsonValue {
+  // 直接值无需查询任何变量来源。
+  if (value.type === 'value') {
+    // Direct Value 是开放边界，读取前必须拒绝函数、undefined、NaN 等非 JSON 值。
+    return jsonValueSchema.parse(value.value)
+  }
+
+  // 从引用类型的变量值中取出统一引用描述。
+  const reference = value.reference
+  // 根据引用 Scope 从相应数据源读取根值。
+  const source =
+    // node Scope 表示引用另一个节点在当前 Scope 路径下的输出。
+    reference.scope === 'node'
+      ? // 从 Output Store 中读取指定节点和输出字段的值。
+        context.outputs.get({
+          // 指定产生输出的节点标识。
+          nodeId: reference.nodeId,
+          // 指定要读取的节点输出字段。
+          outputKey: reference.outputKey,
+          // 限定当前 Loop 或嵌套工作流的 Scope 路径。
+          scopePath: context.scopePath,
+        })
+      : // system Scope 表示读取本次运行的系统变量。
+        reference.scope === 'system'
+        ? // 按系统变量键读取对应值。
+          context.system[reference.key]
+        : // 其余 Scope 统一按环境变量标识读取。
+          context.environment.get(reference.variableId)
+
+  // 在根值上继续读取可选的嵌套属性路径并返回最终结果。
+  return readPath(source, reference.path)
+}
+```
+
+变量解析失败要返回明确错误，例如：
+
+```text
+VARIABLE_SOURCE_NOT_FOUND
+VARIABLE_OUTPUT_NOT_FOUND
+VARIABLE_PATH_NOT_FOUND
+VARIABLE_SCOPE_NOT_ACCESSIBLE
+```
+
+Loop 中同一节点会执行多次，Output Store 必须使用带 Scope 的 `executionKey`：
+
+```text
+http-1
+loop-1/iteration-1/http-1
+loop-1/iteration-2/http-1
+```
+
+Secret 不能以明文进入 MQ。Runtime 只生成 Secret Pointer，Go 使用前通过 NestJS Credential
+Gateway 获取短期值。
+
+### 1.7 DAG 调度放在哪里
+
+文件：`packages/workflow-runtime/src/dag/dag-scheduler.ts`
+
+每条 Edge 有三种状态：
+
+```text
+WAITING   上游尚未完成
+ACTIVE    上游激活了该 Edge 对应的 sourceHandle
+INACTIVE  上游没有选择该 Handle，或者上游被跳过
+```
+
+```ts
+// 引入 Core 节点类型，使调度结果跟随领域节点标识类型。
+import type { WorkflowNode } from '@ai-workflow/core'
+// 引入 Runtime 编译计划和 Scope 标识类型。
+import type {
+  // 描述 Runtime 调度使用的只读工作流索引。
+  ExecutionPlan,
+  // 描述根 Scope 或由 Core 节点标识形成的嵌套 Scope。
+  RuntimeScopeId,
+  // 从编译器模块导入 Runtime 自有类型。
+} from '../compiler/build-execution-plan'
+
+// 计算指定 Scope 中当前可运行和应跳过的节点。
+export function collectRunnableNodes(
+  // Runtime 编译后的只读执行计划。
+  plan: ExecutionPlan,
+  // 当前工作流运行的完整状态。
+  state: RuntimeState,
+  // 要计算的 Runtime Scope 标识，默认从根 Scope 开始。
+  scopeId: RuntimeScopeId = 'root',
+  // 返回 Ready 与 Skipped 两类节点集合。
+): {
+  // 已满足全部入边条件、可以立即执行的 Core 节点标识集合。
+  ready: WorkflowNode['id'][]
+  // 全部入边均无法激活、需要传播跳过状态的 Core 节点标识集合。
+  skipped: WorkflowNode['id'][]
+} {
+  // 收集已满足执行条件的节点标识。
+  const ready: WorkflowNode['id'][] = []
+  // 收集所有入边均无法激活的节点标识。
+  const skipped: WorkflowNode['id'][] = []
+
+  // 遍历当前 Scope 的直属节点；没有子节点时遍历空数组。
+  for (const nodeId of plan.childrenByScope.get(scopeId) ?? []) {
+    // 只有 PENDING 节点需要参与本轮调度判断。
+    if (state.nodes[nodeId] !== 'PENDING') continue
+
+    // 获取当前节点的全部入边；没有入边时使用空数组。
+    const incoming = plan.incomingEdges.get(nodeId) ?? []
+    // 没有入边的节点是当前 Scope 的起始节点，可直接执行。
+    if (incoming.length === 0) {
+      // 将起始节点加入 Ready 集合。
+      ready.push(nodeId)
+      // 当前节点判断结束，继续处理下一个节点。
+      continue
+    }
+
+    // 将全部入边映射为当前的 WAITING、ACTIVE 或 INACTIVE 状态。
+    const edgeStates = incoming.map((edge) => state.edges[edge.id])
+
+    // 有任何 Waiting 入边时必须继续等待，避免并行汇聚节点提前执行。
+    if (edgeStates.includes('WAITING')) continue
+
+    // 至少一条入边为 ACTIVE 时，当前节点具备执行条件。
+    if (edgeStates.includes('ACTIVE')) ready.push(nodeId)
+    // 全部入边均为 INACTIVE 时，当前节点应标记为 Skipped。
+    else skipped.push(nodeId)
+  }
+
+  // 返回本轮计算得到的可执行节点与跳过节点集合。
+  return {
+    // 返回本轮收集的 Ready 节点。
+    ready,
+    // 返回本轮收集的 Skipped 节点。
+    skipped,
+  }
+}
+```
+
+Skipped 节点需要把全部出边标记为 Inactive，并继续向下传播。
+
+---
+
+## 2. 再写 NestJS 的运行入口
+
+NestJS 是 Runtime 的宿主。Controller 只接收请求，Service 编排用例和事务。
+
+### 2.1 Controller
+
+文件：`apps/server/src/controllers/workflow-run.controller.ts`
+
+```ts
+// 将类注册为处理工作流运行 HTTP 请求的 NestJS Controller。
+@Controller('workflows/:workflowId/runs')
+// 定义工作流运行接口的控制器。
+export class WorkflowRunController {
+  // 注入工作流运行业务服务，Controller 不直接访问基础设施。
+  constructor(private readonly workflowRunService: WorkflowRunService) {}
+
+  // 将 start 方法映射为当前路由下的 POST 请求。
+  @Post()
+  // 要求请求通过 JWT 鉴权并注入认证信息。
+  @JwtAuth()
+  // 接收并启动一次新的工作流运行。
+  async start(
+    // 从路由参数中读取目标工作流标识。
+    @Param('workflowId') workflowId: string,
+    // 从请求体中读取并校验启动 DTO。
+    @Body() dto: StartWorkflowRunDto,
+    // 读取包含认证上下文的请求对象。
+    @Req() request: AuthenticatedRequest,
+    // 返回新建工作流运行的对外视图对象。
+  ): Promise<WorkflowRunVo> {
+    // Controller 只传递认证身份和 DTO，不在这里解析 Workflow 或访问 Prisma。
+    return this.workflowRunService.start(request.auth.userId, workflowId, dto)
+  }
+}
+```
+
+### 2.2 Service 调用 Runtime
+
+文件：`apps/server/src/services/workflow-run.service.ts`
+
+```ts
+// 从 Core 根入口引入工作流校验和系统变量键契约。
+import {
+  // 提供系统变量唯一合法键，避免手写 ownerId 等错误字段。
+  SYSTEM_VARIABLE_KEYS,
+  // 提供内置节点定义和配置 Schema 的注册表。
+  nodeRegistry,
+  // 校验工作流是否满足实际执行要求。
+  validateExecutorWorkflow,
+  // 校验数据库中的完整工作流快照。
+  workflowSchema,
+  // 从 Core 的唯一公开根入口导入以上契约。
+} from '@ai-workflow/core'
+// 从 Runtime 根入口引入工厂函数和启动上下文类型。
+import {
+  // 根据已通过 Core 校验的工作流创建 Runtime。
+  createWorkflowRuntime,
+  // 描述 Runtime 启动方法接收的完整上下文。
+  type StartRuntimeInput,
+  // 从 Runtime 的唯一公开根入口导入以上契约。
+} from '@ai-workflow/runtime'
+
+// 将工作流运行服务注册为可由 NestJS 注入的 Provider。
+@Injectable()
+// 编排工作流读取、校验、Runtime 启动与事务持久化。
+export class WorkflowRunService {
+  // 注入启动工作流用例依赖的仓储、事务客户端与迁移写入器。
+  constructor(
+    // 负责读取工作流定义并创建、查询工作流运行记录。
+    private readonly workflowRepository: WorkflowRepository,
+    // 提供 Prisma 客户端及数据库事务能力。
+    private readonly prisma: PrismaService,
+    // 负责把 RuntimeTransition 原子写入状态、NodeRun 和 Outbox。
+    private readonly transitionWriter: RuntimeTransitionWriter,
+  ) {}
+
+  // 为指定用户和工作流创建一次新的运行。
+  async start(
+    // 当前认证用户标识，用于数据归属校验。
+    ownerId: string,
+    // 要执行的工作流标识。
+    workflowId: string,
+    // 已通过接口层校验的运行输入 DTO。
+    dto: StartWorkflowRunDto,
+    // 异步返回创建成功后的工作流运行视图。
+  ): Promise<WorkflowRunVo> {
+    // 按所有者与工作流标识读取可执行的持久化工作流。
+    const storedWorkflow = await this.workflowRepository.findExecutable(
+      // 限定工作流必须属于当前认证用户。
+      ownerId,
+      // 指定要读取的工作流。
+      workflowId,
+    )
+    // 找不到可执行工作流时返回 HTTP 404 错误。
+    if (!storedWorkflow) throw new NotFoundException('工作流不存在')
+
+    // 数据库 JSON 进入 Runtime 前仍要经过 Core Schema，不能直接类型断言。
+    const parsedWorkflow = workflowSchema.safeParse(storedWorkflow.definition)
+    // Schema 校验失败时拒绝启动结构无效的工作流。
+    if (!parsedWorkflow.success) {
+      // 将工作流结构问题映射为 HTTP 400 错误。
+      throw new BadRequestException('工作流结构无效')
+    }
+
+    // 取得经过 Core Schema 校验的强类型工作流定义。
+    const workflow = parsedWorkflow.data
+    // 数据库关联标识与 Core 快照标识不一致时拒绝运行错误版本。
+    if (workflow.id !== workflowId) {
+      // 将损坏或错误关联的工作流快照映射为 HTTP 400 错误。
+      throw new BadRequestException('工作流标识不一致')
+    }
+
+    // 校验工作流中的每个节点是否存在对应 Executor 及合法配置。
+    const validationIssues = validateExecutorWorkflow(workflow, nodeRegistry)
+    // 存在 Executor 兼容性问题时拒绝启动运行。
+    if (validationIssues.length > 0) {
+      // 把全部校验问题作为 HTTP 400 响应返回。
+      throw new BadRequestException(validationIssues)
+    }
+
+    // 为本次工作流运行生成全局唯一标识。
+    const runId = randomUUID()
+    // 使用 Core Key 组装系统变量，并用 Runtime 启动类型检查完整键集合。
+    const system = {
+      // 将认证用户标识写入 sys.user_id。
+      [SYSTEM_VARIABLE_KEYS.USER_ID]: ownerId,
+      // 将数据库关联的应用标识写入 sys.app_id。
+      [SYSTEM_VARIABLE_KEYS.APP_ID]: storedWorkflow.appId,
+      // 将 Core 工作流快照标识写入 sys.workflow_id。
+      [SYSTEM_VARIABLE_KEYS.WORKFLOW_ID]: workflow.id,
+      // 将当前运行标识写入 sys.workflow_run_id。
+      [SYSTEM_VARIABLE_KEYS.WORKFLOW_RUN_ID]: runId,
+      // 将本次运行启动时间写入 sys.timestamp。
+      [SYSTEM_VARIABLE_KEYS.TIMESTAMP]: Date.now(),
+    } satisfies StartRuntimeInput['system']
+    // 根据已经校验的工作流快照创建 Runtime 实例。
+    const runtime = createWorkflowRuntime(workflow)
+    // 初始化 Runtime，并获取首个状态迁移结果。
+    const transition = runtime.start({
+      // 把新生成的运行标识写入 Runtime 输入。
+      runId,
+      // 把动态业务字段交给 Runtime 按 Start 输出定义校验并归一化。
+      input: dto.input,
+      // 提供键和 dataType 都复用 Core 定义的完整系统变量。
+      system,
+    })
+
+    // 在单个数据库事务中创建运行记录并写入首个迁移结果。
+    await this.prisma.$transaction(async (transaction) => {
+      // 保存本次运行使用的 Workflow 快照，恢复时才能重建同一 ExecutionPlan。
+      const run = await this.workflowRepository.createRun(transaction, {
+        // 持久化本次运行的唯一标识。
+        runId,
+        // 持久化运行记录的所有者标识。
+        ownerId,
+        // 关联被执行的工作流标识。
+        workflowId,
+        // 保存不可变工作流快照供故障恢复时重新编译。
+        workflowSnapshot: workflow,
+        // 保存 Runtime 已经校验并应用默认值的业务输入。
+        input: transition.state.input,
+      })
+
+      // 在同一个事务中保存状态、NodeRun 和 Outbox。
+      await this.transitionWriter.write(transaction, run, transition)
+    })
+
+    // 事务成功后查询并返回对外展示的工作流运行视图。
+    return this.workflowRepository.getRunVo(ownerId, runId)
+  }
+}
+```
+
+`WorkflowRepository.findExecutable()` 必须同时返回工作流版本快照及其数据库关联的 `appId`，但
+不能把 Prisma Model 直接交给 Runtime。`StartWorkflowRunDto.input` 在 HTTP 边界只校验为
+`Record<string, unknown>`；字段是否合法、是否必填、值类型是否匹配以及默认值如何补齐，统一由
+Runtime 复用 Start 节点已有的 `NodeOutputDefinition[]` 完成。服务层不能再维护一套 Core 中并不
+存在的工作流输入 Schema。
+
+### 2.3 Nest Module
+
+文件：`apps/server/src/modules/workflow-runtime.module.ts`
+
+```ts
+// 声明工作流运行模块及其 NestJS 依赖关系。
+@Module({
+  // 引入 JWT 鉴权和 RabbitMQ 基础设施模块。
+  imports: [JwtModule, RabbitMqModule],
+  // 注册负责接收工作流启动请求的 Controller。
+  controllers: [WorkflowRunController],
+  // 注册运行、事件、持久化和消息收发所需的 Provider。
+  providers: [
+    // 编排工作流启动用例。
+    WorkflowRunService,
+    // 处理 Go 返回的节点事件并恢复 Runtime。
+    WorkflowEventService,
+    // 提供工作流与运行记录的数据访问能力。
+    WorkflowRepository,
+    // 提供单节点运行记录的数据访问能力。
+    WorkflowNodeRunRepository,
+    // 将 RuntimeTransition 持久化为状态和 Outbox 记录。
+    RuntimeTransitionWriter,
+    // 通过 RabbitMQ 发布节点执行命令。
+    NodeCommandPublisher,
+    // 消费 Go Worker 发布的节点事件。
+    NodeEventConsumer,
+  ],
+  // 对其他模块公开工作流启动服务。
+  exports: [WorkflowRunService],
+})
+// 作为工作流 Runtime 宿主的 NestJS 模块。
+export class WorkflowRuntimeModule {}
+```
+
+`WorkflowRuntimeModule` 只负责组装依赖，不把 Runtime 逻辑重新实现一遍。
+
+---
+
+## 3. NestJS 把 Effects 写入 Outbox
+
+文件：`apps/server/src/infra/runtime/runtime-transition.writer.ts`
+
+作用：把 Runtime 的纯计算结果转换成数据库状态和待发送消息。
+
+```ts
+// 将迁移写入器注册为可由 NestJS 注入的 Provider。
+@Injectable()
+// 负责把 Runtime 的纯迁移结果转换为数据库状态和 Outbox 消息。
+export class RuntimeTransitionWriter {
+  // 在同一事务中持久化 RuntimeState 并处理全部 RuntimeEffect。
+  async write(
+    // 调用方提供的 Prisma 事务客户端，保证全部写入原子提交。
+    transaction: PrismaTransaction,
+    // 当前工作流运行的数据库记录。
+    run: WorkflowRunRecord,
+    // Runtime 本轮计算得到的新状态与副作用。
+    transition: RuntimeTransition,
+    // 事务写入成功时完成，不返回业务数据。
+  ): Promise<void> {
+    // RuntimeState 必须持久化，否则无法恢复 Edge、Skip 和 Loop Scope。
+    await transaction.workflowRun.update({
+      // 限定更新当前工作流运行记录。
+      where: {
+        // 使用数据库主键精确定位运行记录。
+        id: run.id,
+      },
+      // 将完整 RuntimeState 写入运行记录。
+      data: {
+        // 保存 Runtime 本轮返回的可恢复完整状态。
+        runtimeState: transition.state,
+      },
+    })
+
+    // 逐个把 RuntimeEffect 转换为数据库写入。
+    for (const effect of transition.effects) {
+      // 派发节点副作用需要创建 NodeRun 和 Outbox。
+      if (effect.type === 'DISPATCH_NODE') {
+        // 写入单节点执行记录及其待发布命令。
+        await this.writeDispatch(transaction, run, effect)
+      }
+
+      // 完成副作用需要把工作流运行标记为成功。
+      if (effect.type === 'COMPLETE_RUN') {
+        // 持久化成功终态与最终工作流输出。
+        await transaction.workflowRun.update({
+          // 限定更新当前工作流运行记录。
+          where: {
+            // 使用数据库主键精确定位运行记录。
+            id: run.id,
+          },
+          // 同时写入成功状态和 Runtime 计算的最终输出。
+          data: {
+            // 将工作流运行状态更新为成功。
+            status: 'SUCCEEDED',
+            // 保存 Runtime 解析后的最终工作流输出。
+            output: effect.output,
+          },
+        })
+      }
+
+      // 失败副作用需要把工作流运行标记为失败。
+      if (effect.type === 'FAIL_RUN') {
+        // 持久化失败终态与标准化 Runtime 错误。
+        await transaction.workflowRun.update({
+          // 限定更新当前工作流运行记录。
+          where: {
+            // 使用数据库主键精确定位运行记录。
+            id: run.id,
+          },
+          // 同时写入失败状态和 Runtime 生成的错误详情。
+          data: {
+            // 将工作流运行状态更新为失败。
+            status: 'FAILED',
+            // 保存 Runtime 生成的标准化失败详情。
+            error: effect.error,
+          },
+        })
+      }
+    }
+  }
+
+  // 为一个派发副作用创建 NodeRun 和待发布的 Outbox 消息。
+  private async writeDispatch(
+    // 调用方提供的 Prisma 事务客户端。
+    transaction: PrismaTransaction,
+    // 当前工作流运行记录。
+    run: WorkflowRunRecord,
+    // Runtime 生成的单节点派发副作用。
+    effect: DispatchNodeEffect,
+    // NodeRun 与 Outbox 创建成功时完成，不返回业务数据。
+  ): Promise<void> {
+    // 为跨语言节点执行命令生成唯一标识。
+    const commandId = randomUUID()
+    // 为本次单节点运行记录生成唯一标识。
+    const nodeRunId = randomUUID()
+    // 为本次派发生成唯一租约，防止旧 Worker 回写迟到结果。
+    const leaseToken = randomUUID()
+
+    // 组装发给 Go Worker 的完整单节点执行命令。
+    const command: ExecuteNodeCommand = {
+      // 标识当前命令，便于事件关联和追踪。
+      commandId,
+      // 保证同一运行中的同一次逻辑节点执行可幂等识别。
+      idempotencyKey: `${run.id}:${effect.executionKey}`,
+      // 关联当前工作流运行。
+      runId: run.id,
+      // 关联本次单节点运行记录。
+      nodeRunId,
+      // 标识工作流中的节点定义。
+      nodeId: effect.nodeId,
+      // 指定 Go Registry 需要选择的 Executor 类型。
+      nodeType: effect.nodeType,
+      // 标识具体 Scope 和迭代中的节点执行实例。
+      executionKey: effect.executionKey,
+      // 首次派发的尝试次数固定为 1，重试时递增。
+      attempt: 1,
+      // 携带本次派发租约，结果回流时必须原样返回。
+      leaseToken,
+      // 指定节点执行的绝对截止时间。
+      deadlineAt: createDeadline(),
+      // 携带 Runtime 已完成变量解析的节点输入。
+      inputs: effect.inputs,
+      // 携带 Runtime 已完成变量解析的节点配置。
+      config: effect.config,
+      // 携带可选的嵌套 Scope 上下文。
+      scopeContext: effect.scopeContext,
+    }
+
+    // NodeRun 与 Outbox 同事务创建，进程崩溃也不会丢失待执行任务。
+    await transaction.workflowNodeRun.create({
+      // 将跨语言命令映射为 Prisma NodeRun 创建数据。
+      data: toNodeRunData(command),
+    })
+    // 创建待发布的 Outbox 记录，交由 Publisher 异步发送。
+    await transaction.executionOutbox.create({
+      // 定义 Outbox 消息的路由信息和协议载荷。
+      data: {
+        // 为 RabbitMQ 消息生成独立的唯一标识。
+        messageId: randomUUID(),
+        // 指定节点执行命令的逻辑主题。
+        topic: 'workflow.node.execute',
+        // 保存完整 ExecuteNodeCommand 作为消息载荷。
+        payload: command,
+      },
+    })
+  }
+}
+```
+
+文件：`apps/server/src/infra/rabbitmq/node-command.publisher.ts`
+
+```ts
+// 领取一批尚未发布且当前进程已获得处理权的 Outbox 消息。
+for (const message of await outboxRepository.claimPending()) {
+  // 使用 Publisher Confirm 模式把节点命令可靠发送到 RabbitMQ。
+  await rabbitmq.publishWithConfirm({
+    // 指定节点命令交换机。
+    exchange: 'workflow.node.commands',
+    // 使用统一 execute 路由键进入节点执行队列。
+    routingKey: 'execute',
+    // 使用 Outbox 消息标识作为 RabbitMQ Message ID。
+    messageId: message.messageId,
+    // 发送 Outbox 中保存的 ExecuteNodeCommand 载荷。
+    payload: message.payload,
+  })
+
+  // 必须收到 RabbitMQ Confirm 后，才能标记 Outbox 已发布。
+  await outboxRepository.markPublished(message.id)
+}
+```
+
+RabbitMQ 拓扑：
+
+```text
+Command Exchange: workflow.node.commands
+Execute Queue:    workflow.node.execute
+Event Exchange:   workflow.node.events
+Projector Queue:  workflow.runtime.projector
+Cancel Exchange:  workflow.node.cancel
+Dead Exchange:    workflow.node.dead
+```
+
+全部内置节点只使用 `workflow.node.execute`，不按节点类型拆队列。
+
+---
+
+## 4. 然后写 Go 执行层
+
+### 4.1 Go 程序入口
+
+文件：`apps/executor-go/cmd/executor/main.go`
 
 ```go
+// main 负责组装配置、RabbitMQ、Executor Registry 和 Worker 生命周期。
+func main() {
+	// 创建可响应进程中断与终止信号的根 Context。
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	// main 退出时释放信号监听相关资源。
+	defer stop()
+
+	// 从环境变量或配置文件加载 Executor 服务配置。
+	config := LoadConfig()
+	// 使用配置中的地址建立 RabbitMQ 连接，失败时直接终止启动。
+	connection := rabbitmq.MustConnect(config.RabbitMQURL)
+	// 进程退出前关闭 RabbitMQ 连接。
+	defer connection.Close()
+
+	// 创建按节点类型保存 Executor 的注册表。
+	registry := executor.NewRegistry()
+
+	// 所有内置节点只在 Go 中注册，Node.js 不维护第二份执行器。
+	registry.Register(start.NewExecutor())
+	// 注册 End 节点执行器。
+	registry.Register(end.NewExecutor())
+	// 注册 Condition 节点执行器。
+	registry.Register(condition.NewExecutor())
+	// 注册使用统一 HTTP Client 的 HTTP 节点执行器。
+	registry.Register(httpnode.NewExecutor(config.HTTPClient))
+	// 注册使用模型网关的 LLM 节点执行器。
+	registry.Register(llm.NewExecutor(config.ModelGateway))
+
+	// 使用 RabbitMQ 连接和 Executor Registry 创建任务 Worker。
+	worker := executor.NewWorker(connection, registry)
+	// 阻塞运行 Worker，直到 Context 取消或发生不可恢复错误。
+	if err := worker.Run(ctx); err != nil {
+		// 记录致命错误并终止进程，交由编排系统重启服务。
+		log.Fatal(err)
+	}
+}
+```
+
+### 4.2 Executor 与 Registry
+
+文件：
+
+- `apps/executor-go/internal/executor/executor.go`
+- `apps/executor-go/internal/executor/registry.go`
+
+```go
+// Executor 定义所有内置节点执行器必须实现的统一能力。
 type Executor interface {
-    Type() string
-    Version() uint32
-    Execute(
-        ctx context.Context,
-        request ExecuteNodeRequest,
-    ) (ExecuteNodeResult, error)
+	// Type 返回 Executor 能处理的唯一节点类型。
+	Type() string
+	// Execute 在给定 Context 中执行一个节点命令并返回标准结果。
+	Execute(
+		// ctx 传递截止时间、取消信号和链路上下文。
+		ctx context.Context,
+		// command 包含单节点执行所需的全部解析后数据。
+		command protocol.ExecuteNodeCommand,
+	// 返回标准节点结果；基础设施级异常通过 error 返回。
+	) (protocol.ExecuteNodeResult, error)
+}
+
+// Get 根据节点类型从 Registry 中查找对应 Executor。
+func (r *Registry) Get(
+	// nodeType 是工作流协议中声明的节点类型。
+	nodeType string,
+	// 返回匹配的 Executor；未注册时同时返回错误。
+) (Executor, error) {
+	// 从内部映射读取节点类型对应的 Executor 及存在标记。
+	item, ok := r.executors[nodeType]
+	// 未注册对应节点类型时返回明确错误。
+	if !ok {
+		// 错误中保留未知节点类型，便于诊断协议或注册问题。
+		return nil, fmt.Errorf("executor not found: %s", nodeType)
+	}
+	// 找到注册项时返回 Executor，错误值为空。
+	return item, nil
 }
 ```
 
-Go Registry 统一注册全部内置节点：
+### 4.3 Worker 消费任务
+
+文件：`apps/executor-go/internal/executor/worker.go`
 
 ```go
-registry.Register(NewStartExecutor())
-registry.Register(NewEndExecutor())
-registry.Register(NewConditionExecutor())
-registry.Register(NewLoopExecutor())
-registry.Register(NewLoopStartExecutor())
-registry.Register(NewLoopExitExecutor())
-registry.Register(NewHTTPExecutor())
-registry.Register(NewLLMExecutor())
-registry.Register(NewRAGExecutor())
-registry.Register(NewCodeExecutor())
-registry.Register(NewSubWorkflowExecutor())
+// Handle 处理一条 RabbitMQ 节点执行消息的完整生命周期。
+func (w *Worker) Handle(
+	// ctx 是 Worker 生命周期的根取消上下文。
+	ctx context.Context,
+	// delivery 封装 RabbitMQ 消息体与确认、拒绝操作。
+	delivery Delivery,
+	// 处理成功返回 nil，基础设施失败返回对应错误。
+) error {
+	// 将消息体解码并校验为标准 ExecuteNodeCommand。
+	command, err := w.protocol.DecodeCommand(delivery.Body)
+	// 解码失败表示消息不符合跨语言协议。
+	if err != nil {
+		// 协议不合法的消息不能无限重新进入任务队列。
+		return delivery.RejectToDeadLetter()
+	}
+
+	// 根据命令中的节点类型查找对应 Executor。
+	item, err := w.registry.Get(command.NodeType)
+	// 未注册 Executor 时发布标准失败结果并确认原消息。
+	if err != nil {
+		// 将查找错误转换为节点失败事件，避免任务无限重试。
+		return w.publishFailureAndAck(ctx, delivery, command, err)
+	}
+
+	// 在开始执行前可靠发布 Accepted 事件。
+	if err := w.publisher.PublishAccepted(ctx, command); err != nil {
+		// Accepted 尚未可靠发布时，保留任务让 RabbitMQ 重新投递。
+		return delivery.Requeue()
+	}
+	// Accepted 发布成功后确认节点命令消息，结束 RabbitMQ 投递责任。
+	if err := delivery.Ack(); err != nil {
+		// ACK 失败时把基础设施错误返回给 Worker 上层处理。
+		return err
+	}
+
+	// 使用命令截止时间派生实际节点执行 Context。
+	executionContext, cancel := context.WithDeadline(ctx, command.DeadlineAt)
+	// Handle 返回前释放计时器及相关 Context 资源。
+	defer cancel()
+
+	// 启动与当前命令和租约关联的周期性心跳发布器。
+	heartbeat := w.heartbeats.Start(executionContext, command)
+	// 节点执行结束后停止发送心跳。
+	defer heartbeat.Stop()
+
+	// 调用匹配的 Executor 执行单个节点。
+	result, err := item.Execute(executionContext, command)
+	// Executor 返回基础设施级错误时转换为标准内部失败结果。
+	if err != nil {
+		// 保留命令关联字段并封装不可预期的执行错误。
+		result = NewInternalFailure(command, err)
+	}
+
+	// 原样返回 leaseToken，NestJS 会拒绝旧 Worker 的迟到结果。
+	return w.publisher.PublishResult(executionContext, result)
+}
 ```
 
-### 5.2 执行命令
+Command 被 ACK 后如果 Go 进程崩溃，不依赖 RabbitMQ 自动重投；NestJS 根据心跳和租约过期时间
+生成新租约并重新派发，旧 Worker 即使恢复也无法覆盖新结果。
 
-消息 Envelope 使用版本化 JSON Schema；命令只包含单个节点本次执行所需数据，不包含完整
-Workflow。
+### 4.4 一个 HTTP Executor 示例
+
+文件：`apps/executor-go/internal/executors/http/executor.go`
+
+```go
+// Executor 实现 HTTP 类型节点的单节点执行逻辑。
+type Executor struct {
+	// client 是复用连接池、超时和传输配置的 HTTP 客户端。
+	client *http.Client
+}
+
+// Type 返回本 Executor 在 Registry 中对应的节点类型。
+func (e *Executor) Type() string {
+	// http 与工作流节点定义中的 nodeType 保持一致。
+	return "http"
+}
+
+// Execute 根据解析后的配置和输入发起一次 HTTP 请求。
+func (e *Executor) Execute(
+	// ctx 控制请求取消与执行截止时间。
+	ctx context.Context,
+	// command 携带节点关联信息、解析后的 Inputs 与 Config。
+	command protocol.ExecuteNodeCommand,
+	// 返回标准节点结果；仅不可封装的基础设施异常使用 error。
+) (protocol.ExecuteNodeResult, error) {
+	// 将通用配置对象解码并校验为 HTTP 节点配置。
+	config, err := DecodeConfig(command.Config)
+	// 配置不合法属于可预期的节点校验失败。
+	if err != nil {
+		// 返回标准校验失败结果，error 留空以避免 Worker 当作基础设施异常。
+		return protocol.ValidationFailure(command, "HTTP_CONFIG_INVALID", err), nil
+	}
+
+	// Config 和 Inputs 已由 Runtime 解析，Go 不再处理 VariableReference。
+	request, err := BuildRequest(ctx, config, command.Inputs)
+	// 无法构造合法 HTTP 请求时返回节点校验失败。
+	if err != nil {
+		// 使用稳定错误码标识请求参数或结构无效。
+		return protocol.ValidationFailure(command, "HTTP_REQUEST_INVALID", err), nil
+	}
+
+	// 使用注入的 HTTP Client 发送已经绑定 Context 的请求。
+	response, err := e.client.Do(request)
+	// 网络、超时等发送错误按可重试的瞬态失败处理。
+	if err != nil {
+		// 返回标准瞬态失败结果，由上层策略决定是否重试。
+		return protocol.TransientFailure(command, "HTTP_REQUEST_FAILED", err), nil
+	}
+	// Execute 返回前关闭响应体，避免连接和文件描述符泄漏。
+	defer response.Body.Close()
+
+	// 读取并标准化 HTTP 状态、响应头与响应体。
+	output, err := ReadResponse(response)
+	// 响应读取或解析失败属于 Executor 内部处理错误。
+	if err != nil {
+		// 返回标准内部失败结果并保留稳定错误码。
+		return protocol.InternalFailure(command, "HTTP_RESPONSE_INVALID", err), nil
+	}
+
+	// 组装跨语言协议要求的成功节点结果。
+	return protocol.ExecuteNodeResult{
+		// 回传原命令标识，供 NestJS 关联请求与事件。
+		CommandID:         command.CommandID,
+		// 回传单节点运行标识，供 NestJS 定位 NodeRun。
+		NodeRunID:         command.NodeRunID,
+		// 回传具体 Scope 下的节点执行标识，供 Runtime 定位节点与输出。
+		ExecutionKey:      command.ExecutionKey,
+		// 原样回传租约，供 NestJS 拒绝旧 Worker 的迟到结果。
+		LeaseToken:        command.LeaseToken,
+		// 将节点终态标记为执行成功。
+		Status:            protocol.NodeSucceeded,
+		// 把标准化 HTTP 响应暴露为 result 输出字段。
+		Outputs:           map[string]any{"result": output},
+		// 激活 result Handle，使 Runtime 推进对应出边。
+		ActivatedHandles: []string{"result"},
+	// 返回成功结果，基础设施 error 为空。
+	}, nil
+}
+```
+
+Condition 只需要返回命中的 Handle；Runtime 不需要知道具体条件表达式：
+
+```go
+// 返回 Condition 节点的成功结果，由 Runtime 根据 Handle 选择分支。
+return protocol.ExecuteNodeResult{
+	// 将节点终态标记为执行成功。
+	Status:            protocol.NodeSucceeded,
+	// 仅激活实际命中的 Handle，不向 Runtime 暴露条件实现细节。
+	ActivatedHandles: []string{matchedHandle},
+// Condition 正常完成时基础设施 error 为空。
+}, nil
+```
+
+---
+
+## 5. 最后把 Go 结果接回 Runtime
+
+### 5.1 RabbitMQ Consumer
+
+文件：`apps/server/src/infra/rabbitmq/node-event.consumer.ts`
 
 ```ts
-interface ExecuteNodeCommandV1 {
-  protocolVersion: 1
-  messageId: string
+// 将节点事件消费者注册为可由 NestJS 注入的 Provider。
+@Injectable()
+// 负责消费 RabbitMQ 节点事件并转交业务服务处理。
+export class NodeEventConsumer {
+  // 注入负责事务处理和 Runtime 恢复的事件服务。
+  constructor(private readonly workflowEventService: WorkflowEventService) {}
+
+  // 处理一条 RabbitMQ 节点事件消息并决定 ACK 或 NACK。
+  async handle(
+    // 当前 RabbitMQ 投递对象，封装消息体与 ACK、NACK 操作。
+    message: RabbitMessage,
+    // 消息处理及确认成功时完成，不返回业务数据。
+  ): Promise<void> {
+    // 捕获解析、业务事务和消息确认阶段的异常。
+    try {
+      // 按协议解析并校验 RabbitMQ 消息体。
+      const event = parseNodeEvent(message.body)
+      // 将合法事件交给 WorkflowEventService 原子处理。
+      await this.workflowEventService.handle(event)
+
+      // Service 的数据库事务提交成功后，才能 ACK RabbitMQ Event。
+      message.ack()
+      // 任意阶段失败时根据错误类型决定是否重新投递。
+    } catch (error) {
+      // 临时错误重新投递；不可恢复错误由统一策略进入死信。
+      message.nack({ requeue: isRetryableConsumerError(error) })
+    }
+  }
+}
+```
+
+### 5.2 Event Service 恢复 Runtime
+
+文件：`apps/server/src/services/workflow-event.service.ts`
+
+```ts
+// 将工作流事件服务注册为可由 NestJS 注入的 Provider。
+@Injectable()
+// 负责幂等保存节点事件，并在终态事件到达时恢复和推进 Runtime。
+export class WorkflowEventService {
+  // 注入事务客户端与 Runtime 迁移写入器。
+  constructor(
+    // 提供 Prisma 数据库事务能力。
+    private readonly prisma: PrismaService,
+    // 负责在当前事务中保存新状态、NodeRun 和后续 Outbox。
+    private readonly transitionWriter: RuntimeTransitionWriter,
+  ) {}
+
+  // 在单个数据库事务中处理一条标准节点事件。
+  async handle(
+    // 已通过跨语言 Schema 校验的节点事件。
+    event: NodeEvent,
+    // 事件事务处理成功时完成，不返回业务数据。
+  ): Promise<void> {
+    // 使用事务保证 Inbox、NodeRun、RunEvent 和 Runtime 迁移原子提交。
+    await this.prisma.$transaction(async (transaction) => {
+      // 按 messageId 插入 Inbox，仅首次插入返回成功。
+      const inserted = await insertInboxOnce(transaction, event.messageId)
+
+      // RabbitMQ 可能重复投递，Inbox 已存在时直接按成功处理。
+      if (!inserted) return
+
+      // 加行锁读取事件关联的 NodeRun，防止并发事件交叉覆盖。
+      const nodeRun = await findNodeRunForUpdate(transaction, event.nodeRunId)
+
+      // 已经过期的 Worker 不能覆盖新租约产生的结果。
+      if (nodeRun.leaseToken !== event.leaseToken) return
+
+      // 根据事件类型更新 NodeRun 的状态、心跳、增量或最终结果。
+      await applyEventToNodeRun(transaction, nodeRun, event)
+      // 追加不可变运行事件，供审计、SSE 和故障恢复使用。
+      await appendRunEvent(transaction, event)
+
+      // Accepted、Heartbeat 或 Delta 等非终态事件无需推进 Runtime。
+      if (!isTerminalNodeEvent(event)) return
+
+      // 对工作流运行记录加锁，串行应用可能并发完成的节点结果。
+      const run = await findWorkflowRunForUpdate(transaction, event.runId)
+      // 使用运行时保存的工作流快照重建完全相同的 Runtime。
+      const runtime = createWorkflowRuntime(run.workflowSnapshot)
+      // 将节点终态结果应用到已持久化状态并计算下一次迁移。
+      const transition = runtime.applyNodeResult(
+        // 传入上一次成功持久化的完整 RuntimeState。
+        run.runtimeState,
+        // 传入终态事件载荷中的标准节点执行结果。
+        event.payload.result,
+      )
+
+      // 新状态和下一批 Outbox 继续在当前事务中写入。
+      await this.transitionWriter.write(transaction, run, transition)
+    })
+  }
+}
+```
+
+到这里，一次完整循环结束：
+
+```text
+Runtime 产生节点任务
+  → NestJS 写 Outbox
+  → Go 执行节点
+  → NestJS 保存结果
+  → Runtime 计算下一批节点
+```
+
+SSE 从持久化后的 `WorkflowRunEvent` 推送，不能让 Go 直接维护前端连接。
+
+---
+
+## 6. 跨语言协议
+
+`workflow-protocol` 不下沉到 Runtime。它同时被 Runtime、NestJS MQ 适配层和 Go 消费。
+
+```text
+packages/workflow-protocol/schemas
+              │
+              ├──生成──> packages/workflow-protocol/src/generated
+              └──生成──> apps/executor-go/internal/protocol/generated.go
+```
+
+只有 Schema 可以手工修改，生成文件禁止手工维护。
+
+| 文件                               | 作用                                  |
+| ---------------------------------- | ------------------------------------- |
+| `schemas/node-command.schema.json` | Runtime 到 Go 的单节点任务            |
+| `schemas/node-result.schema.json`  | Go 返回的节点终态结果                 |
+| `schemas/node-event.schema.json`   | Accepted、Heartbeat、Delta 和终态事件 |
+
+Command 只包含单个节点需要的数据，不能携带完整 Workflow、Edge 或其他节点状态。
+
+`workflow-protocol` 是跨语言边界，不能导入 TypeScript Core 或 Runtime 类型。三个 JSON Schema
+必须在 `$defs` 中定义递归 `jsonValue` 和 `jsonObject`，生成的 TypeScript 值类型应与 Core 的
+`JsonValue` 保持结构兼容，协议对象应与 Runtime 使用的 `Record<string, JsonValue>` 兼容，Go
+则生成对应 JSON 值容器。协议中不允许使用无边界的 `Record<string, unknown>`。
+
+`nodeId` 和 `nodeType` 在协议 Schema 中仍然是非空字符串，因为 Core 的节点注册表允许扩展，
+Go 协议也不能依赖 TypeScript 的 `WorkflowNode`。强约束发生在进入 Runtime 前的 Core Workflow
+校验，以及 `RuntimeEffect` 转换为 Command 时的 TypeScript 结构检查。
+
+```ts
+// 以下 JSON 类型由跨语言 Schema 生成，不在生成文件中手工维护。
+// 定义协议允许直接传输的 JSON 基础值。
+export type ProtocolJsonPrimitive = string | number | boolean | null
+
+// 定义协议允许传输的 JSON 对象。
+export interface ProtocolJsonObject {
+  // 每个属性值都必须符合递归协议 JSON 值约束。
+  [key: string]: ProtocolJsonValue
+}
+
+// 定义协议允许跨 TypeScript 和 Go 传输的递归 JSON 值。
+export type ProtocolJsonValue =
+  // 允许 JSON 基础值。
+  | ProtocolJsonPrimitive
+  // 允许嵌套 JSON 对象。
+  | ProtocolJsonObject
+  // 允许嵌套 JSON 数组。
+  | ProtocolJsonValue[]
+
+// 定义节点执行时所在的 Loop Scope 路径。
+export interface ScopeContext {
+  // 按从外到内的顺序保存 scopeKey；根 Scope 使用空数组且通常省略整个上下文。
+  scopePath: string[]
+}
+
+// 定义 Go Loop Executor 可以返回、由 Runtime 解释的通用 Scope 状态迁移指令。
+export type RuntimeDirective =
+  // 创建 Loop 的第一次迭代 Scope。
+  | {
+      type: 'ENTER_SCOPE'
+      // 第一次进入必须为 1，Runtime 需要验证该值。
+      iteration: number
+    }
+  // 结束当前迭代并创建下一次迭代 Scope。
+  | {
+      type: 'REPEAT_SCOPE'
+      // 必须等于当前迭代加 1，Runtime 需要拒绝跳号或倒退。
+      iteration: number
+    }
+  // 结束当前迭代并离开 Loop，不再创建新 Scope。
+  | {
+      type: 'EXIT_SCOPE'
+    }
+
+// 定义 NestJS 派发给 Go Worker 的单节点执行命令。
+export interface ExecuteNodeCommand {
+  // 当前命令的全局唯一标识，用于消息追踪和事件关联。
   commandId: string
+  // 当前逻辑执行的幂等键，用于避免重复创建等价任务。
   idempotencyKey: string
-
+  // 所属工作流运行的唯一标识。
   runId: string
-  traceId: string
-  workflowVersionId: string
-  tenantId: string
-
+  // 本次单节点运行记录的唯一标识。
   nodeRunId: string
+  // 工作流定义中的节点标识。
   nodeId: string
+  // Go Registry 用于选择 Executor 的节点类型。
   nodeType: string
-  nodeTypeVersion: number
+  // 包含 Scope 和迭代信息的节点执行唯一键。
   executionKey: string
+  // 当前节点任务的派发尝试次数。
   attempt: number
 
-  leaseEpoch: number
-  leaseDurationMs: number
+  // 每次重新派发都生成新租约，用于拒绝旧 Worker 的迟到结果。
+  leaseToken: string
+  // 节点任务必须完成的绝对截止时间。
   deadlineAt: string
-
-  phase: 'INITIAL' | 'RESUME'
-  config: JsonValue
-  inputs: Record<string, JsonValue>
+  // Runtime 已完成变量解析且满足协议 JSON 对象约束的节点业务输入。
+  inputs: ProtocolJsonObject
+  // Runtime 已完成变量解析且满足协议 JSON 对象约束的节点配置。
+  config: ProtocolJsonObject
+  // 节点位于某次 Loop 迭代内时携带的可选 Scope 上下文。
   scopeContext?: ScopeContext
-  resume?: {
-    continuationToken: string
-    result: JsonValue
-  }
-
-  systemContext: {
-    userId?: string
-    appId: string
-    workflowId: string
-  }
-
-  credentialRefs: string[]
-  traceparent?: string
 }
-```
 
-约束：
-
-- `commandId` 标识一次节点 Attempt 的执行命令。
-- `idempotencyKey` 建议使用 `runId/executionKey/attempt`。
-- 同一个 Attempt 因租约失效重投时保持 `commandId`，只递增 `leaseEpoch`。
-- 业务重试创建新的 Attempt 和 `commandId`。
-- Secret 不进入消息体；只传稳定引用。
-- 文件、二进制和大型结果只传对象存储引用，不进入 MQ。
-- 单条命令需要设置应用级消息大小上限，建议初始不超过 256 KiB。
-
-### 5.3 执行结果
-
-```ts
-interface ExecuteNodeResultV1 {
-  protocolVersion: 1
-  messageId: string
+// 定义 Go Worker 返回给 NestJS 和 Runtime 的标准节点终态结果。
+export interface ExecuteNodeResult {
+  // 原样回传命令标识，供消息链路关联。
   commandId: string
-
-  runId: string
+  // 原样回传 NodeRun 标识，供 NestJS 定位单节点运行记录。
   nodeRunId: string
+  // 原样回传执行键，供 Runtime 定位节点和保存输出。
   executionKey: string
-  attempt: number
-  leaseEpoch: number
-
+  // 原样回传当前租约，供 NestJS 拒绝过期 Worker 的结果。
+  leaseToken: string
+  // 节点的成功、失败或挂起终态。
   status: 'SUCCEEDED' | 'FAILED' | 'SUSPENDED'
-  outputs?: Record<string, JsonValue>
+  // 节点成功时产生且满足协议 JSON 对象约束的可选输出字段集合。
+  outputs?: ProtocolJsonObject
 
-  routing?: {
-    activatedSourceHandles: string[]
-  }
-
-  scopeDirective?: {
-    action: 'ENTER' | 'REPEAT' | 'EXIT'
-    scopeId: string
-    context?: Record<string, JsonValue>
-  }
-
-  capabilityRequest?: {
-    name: string
-    payload: JsonValue
-    continuationToken: string
-  }
-
-  error?: {
-    code: string
-    message: string
-    kind: 'VALIDATION' | 'TRANSIENT' | 'UPSTREAM' | 'TIMEOUT' | 'INTERNAL'
-    retryable: boolean
-    retryAfterMs?: number
-    details?: JsonValue
-  }
+  // Runtime 只解释 Handle，不检查返回结果的节点类型。
+  activatedHandles: string[]
+  // Loop Executor 用于改变迭代 Scope 的可选通用指令。
+  directive?: RuntimeDirective
+  // 节点失败时返回的可选标准化错误。
+  error?: NodeExecutionError
 }
 ```
 
-Runtime 只能依赖 Result 中的通用字段推进状态，不能再次根据 `nodeType` 解释结果。
-
-### 5.4 节点事件
-
-统一事件类型：
-
-```text
-NODE_ACCEPTED
-NODE_STARTED
-NODE_HEARTBEAT
-NODE_PROGRESS
-NODE_OUTPUT_DELTA
-NODE_SUSPENDED
-NODE_SUCCEEDED
-NODE_FAILED
-NODE_CANCELLED
-NODE_TIMED_OUT
-```
-
-所有事件必须包含：
-
-- `protocolVersion`
-- `messageId`
-- `commandId`
-- `runId`
-- `nodeRunId`
-- `executionKey`
-- `attempt`
-- `leaseEpoch`
-- `occurredAt`
-- `traceId`
-- `sequence`
-
-Projector 通过 `messageId` 做 Inbox 幂等，并拒绝过期 `leaseEpoch` 的 Heartbeat 和 Terminal 事件。
-
-## 6. 内置节点执行语义
-
-所有内置节点都由 Go 执行，但它们使用相同的命令和结果协议。
-
-| 节点         | Go Executor 职责                                             |
-| ------------ | ------------------------------------------------------------ |
-| Start        | 把 Workflow 输入映射为节点输出，激活 `variables` Handle      |
-| End          | 接收并校验当前路径最终输入，不激活下游 Handle                |
-| Condition    | 计算条件，返回匹配的 `activatedSourceHandles`                |
-| Loop         | 判断最大迭代次数和终止条件，返回 `ENTER`、`REPEAT` 或 `EXIT` |
-| Loop Start   | 输出当前迭代输入、次数和 Scope Context                       |
-| Loop Exit    | 返回本轮结果与 `EXIT` Scope 指令                             |
-| HTTP         | 发起受控 HTTP 请求并返回响应                                 |
-| LLM          | 调用模型，发布 Delta 和最终结果                              |
-| RAG          | 调用知识库检索能力并返回召回结果                             |
-| Code         | 在隔离的 JavaScript Sandbox 中运行 `main`                    |
-| Sub Workflow | 请求平台启动子 WorkflowRun，挂起后在子 Run 完成时恢复        |
-
-### 6.1 Start 与 End
-
-- Start 仍通过 MQ 进入 Go，不在 Runtime 中做输入映射。
-- Go Start Executor 根据 Start 输出定义返回规范化输出，并激活配置的输出 Handle。
-- End 仍通过 MQ 进入 Go，不在 Runtime 中直接标记工作流完成。
-- Go End Executor 返回成功且没有激活 Handle。
-- Runtime 在当前激活图不存在 Ready/Running 节点后，根据 `Workflow.outputs` 解析最终输出并结束
-  WorkflowRun。
-
-### 6.2 Condition
-
-Runtime 在执行前解析 Condition 使用的变量引用，并把规范化 Config 与 Inputs 发送给 Go。
-
-Go Condition Executor：
-
-1. 按配置顺序计算 IF/ELIF。
-2. 没有命中时选择唯一 ELSE。
-3. 返回被选中的 `portId`：
-
-```json
-{
-  "status": "SUCCEEDED",
-  "routing": {
-    "activatedSourceHandles": ["branch-port-id"]
-  }
-}
-```
-
-Runtime 只沿被激活 Source Handle 对应的 Edge 推进，未激活分支标记为 `SKIPPED`。
-
-### 6.3 Loop
-
-Loop 的条件计算和迭代判断只存在于 Go；Runtime 只维护通用 Scope 生命周期。
-
-```mermaid
-sequenceDiagram
-  participant R as Node Runtime
-  participant M as RabbitMQ
-  participant G as Go Loop Executor
-
-  R->>M: Execute Loop INITIAL
-  M->>G: Node Command
-  G->>M: ENTER scope=loopId
-  M->>R: Node Result
-  R->>R: 调度该 Scope 内所有节点
-  R->>M: Execute Loop RESUME + 本轮结果
-  M->>G: Node Command
-  alt 继续循环
-    G->>M: REPEAT scope=loopId
-    M->>R: Node Result
-    R->>R: 创建下一 iteration executionKey
-  else 结束循环
-    G->>M: EXIT scope=loopId + outputs
-    M->>R: Node Result
-    R->>R: 激活 Loop 下游 Edge
-  end
-```
-
-Runtime 编译 Workflow 时根据 `parentId` 建立 Scope Tree。它知道一个 Scope 包含哪些节点，但不
-计算 Loop 的终止条件，也不判断最大迭代次数。
-
-建议执行路径：
-
-```text
-loop-node-id/iteration-1/child-node-id
-loop-node-id/iteration-2/child-node-id
-```
-
-嵌套 Loop 继续拼接父级 Scope，形成稳定 `executionKey`。
-
-### 6.4 Sub Workflow
-
-Go 不解析或加载子工作流。SubWorkflow Executor 使用通用 Suspend/Resume 协议：
-
-1. Runtime 投递 SubWorkflow 节点。
-2. Go 返回：
-
-```json
-{
-  "status": "SUSPENDED",
-  "capabilityRequest": {
-    "name": "workflow.run",
-    "payload": {
-      "workflowId": "target-workflow-id",
-      "input": {}
-    },
-    "continuationToken": "opaque-token"
-  }
-}
-```
-
-3. Runtime 创建 `parentRunId` 指向当前 Run 的子 WorkflowRun。
-4. 当前 NodeRun 保持挂起状态。
-5. 子 Run 进入终态后，Runtime 用 `phase=RESUME` 重新投递相同节点。
-6. Go SubWorkflow Executor 接收子 Run 输出，生成节点最终输出。
-
-`capabilityRequest` 是通用平台能力协议，不允许 Runtime 根据 `nodeType` 特判 SubWorkflow。
-
-### 6.5 Code
-
-当前 Code 节点保存 JavaScript `main` 函数。Go Executor 负责调度，但生产环境不能把不受信任代码
-直接运行在 Go 主进程中。
-
-推荐边界：
-
-- Go Code Executor 启动或调用独立 QuickJS Sandbox Worker。
-- Sandbox 不继承宿主环境变量和文件系统权限。
-- 默认禁止网络，按产品能力显式授权。
-- 限制 CPU 时间、墙钟时间、内存、输出大小和日志大小。
-- 超时或资源超限强制终止 Sandbox 进程。
-- 不建议把进程内 `goja` 作为生产隔离边界。
-
-## 7. RabbitMQ 设计
-
-### 7.1 选择 RabbitMQ
-
-当前场景是工作任务分发、竞争消费者、确认、背压、重投和死信，不是面向大规模历史回放的事件
-日志，因此选择 RabbitMQ Queue 模型。
-
-可靠性基线：
-
-- 生产任务队列使用 Quorum Queue。
-- Publisher 开启 Publisher Confirms。
-- Consumer 使用 Manual Acknowledgements。
-- 消息设置持久化属性。
-- 设置有限 Prefetch，避免单个 Worker 抢占过多任务。
-- 使用 Dead Letter Exchange 处理无法执行的 Poison Message。
-
-参考 RabbitMQ 官方文档：
-
-- [Reliability Guide](https://www.rabbitmq.com/docs/reliability)
-- [Quorum Queues](https://www.rabbitmq.com/docs/quorum-queues)
-- [Consumer Acknowledgements and Publisher Confirms](https://www.rabbitmq.com/docs/confirms)
-- [Consumer Prefetch](https://www.rabbitmq.com/docs/consumer-prefetch)
-- [Dead Letter Exchanges](https://www.rabbitmq.com/docs/dlx)
-
-### 7.2 MQ 拓扑
-
-#### Command
-
-```text
-Exchange: workflow.node.commands.v1
-  type: direct
-  durable: true
-
-Queue: workflow.node.execute.v1
-  type: quorum
-  durable: true
-  routing-key: execute
-  consumers: all Go Executor instances
-```
-
-所有内置节点进入同一条 `workflow.node.execute.v1`。禁止为 LLM、HTTP、Condition 等节点建立独立
-业务队列，避免产生不同的投递和恢复语义。
-
-未来如果出现资源隔离需求，可以在不改变 Executor 行为的前提下引入部署级 Worker Pool；该能力
-必须由基础设施配置驱动，不能让 Runtime 针对节点类型维护第二套行为逻辑。
-
-#### Event
-
-```text
-Exchange: workflow.node.events.v1
-  type: topic
-  durable: true
-
-Queue: workflow.runtime.projector.v1
-  type: quorum
-  durable: true
-  consumers: Nest Runtime instances
-```
-
-Projector Queue 使用竞争消费者；每个事件只由一个 Nest 实例完成数据库投影。
-
-#### SSE Fanout
-
-每个 Nest 实例声明自己的临时队列并绑定 `workflow.node.events.v1`：
-
-```text
-Queue: workflow.sse.<instance-id>
-  exclusive: true
-  auto-delete: true
-```
-
-该队列只服务当前实例上的实时 SSE 连接，不承担持久化。断线补偿依赖 PostgreSQL 中的
-`WorkflowRunEvent`。
-
-#### Cancel
-
-```text
-Exchange: workflow.node.cancel.v1
-  type: fanout
-  durable: false
-```
-
-每个 Go 实例维护独立临时 Cancel Queue。所有实例都能收到取消通知，只有持有对应
-`commandId + leaseEpoch` 的 Worker 取消本地 Context。
-
-取消请求同时持久化到 PostgreSQL；即使 Fanout 消息丢失，Heartbeat 或 Terminal Event 到达时也
-必须再次检查当前租约是否已经被取消。
-
-#### Dead Letter
-
-```text
-Exchange: workflow.node.dead.v1
-  type: direct
-  durable: true
-
-Queue: workflow.node.dead.v1
-  type: quorum
-  durable: true
-```
-
-以下消息进入 DLQ：
-
-- 无法解析的 Envelope。
-- 不支持的协议版本。
-- 缺失必要标识。
-- 超过最大 Broker 重投次数的 Poison Message。
-
-节点正常的上游失败、超时和业务失败不得进入 DLQ，应发布标准 `NODE_FAILED` 或
-`NODE_TIMED_OUT` 事件，由 Runtime 决定是否产生新的业务 Attempt。
-
-### 7.3 不使用 Direct Reply-to
-
-节点执行结果通过持久化 Event Exchange 和 Projector Queue 返回。不能使用 Direct Reply-to 或
-每次请求动态创建临时响应队列，因为它们无法满足长任务、重启恢复和数据库投影需要。
-
-## 8. 可靠性与一致性
-
-### 8.1 Command Outbox
-
-创建节点执行记录和发布消息不能做数据库/MQ 双写。
-
-Runtime 在同一个 Prisma 事务中：
-
-1. 创建或更新 WorkflowNodeRun。
-2. 插入 ExecutionOutbox。
-3. 提交事务。
-
-独立 Outbox Publisher：
-
-1. 使用 `FOR UPDATE SKIP LOCKED` 或等价机制领取未发布记录。
-2. 发布持久化 RabbitMQ 消息。
-3. 等待 Publisher Confirm。
-4. 只有 Confirm 成功后标记 `publishedAt`。
-5. 连接中断或未收到 Confirm 时保持未发布，后续重新发送。
-
-Outbox 重发会产生重复命令，因此消费者必须幂等。
-
-### 8.2 Event Inbox
-
-Nest Event Projector 收到事件后：
-
-1. 开启数据库事务。
-2. 尝试按 `messageId` 插入 ExecutionInbox。
-3. 已存在则 ACK 并结束。
-4. 校验 Run、NodeRun、Attempt 和 `leaseEpoch`。
-5. 更新 WorkflowNodeRun、WorkflowRun 和 WorkflowRunEvent。
-6. 提交事务。
-7. 最后 ACK RabbitMQ Delivery。
-
-数据库事务失败时 NACK/Requeue；不可恢复的协议错误进入 DLQ。
-
-### 8.3 Lease 与长任务
-
-不能让长时间执行的节点一直持有未 ACK Delivery。Go 接收 Command 后：
-
-1. 发布 `NODE_ACCEPTED`，包含 `workerId`、`leaseEpoch` 和 `leaseExpiresAt`。
-2. 等待该 Event 的 Publisher Confirm。
-3. ACK 原始 Command。
-4. 开始执行并定期发布 Heartbeat。
-
-Runtime 在 PostgreSQL 中维护：
-
-```text
-commandId
-leaseEpoch
-leaseExpiresAt
-workerId
-heartbeatAt
-```
-
-租约过期：
-
-- 相同业务 Attempt 保持不变。
-- `leaseEpoch + 1`。
-- 重新发布相同 `commandId`。
-- 旧 Worker 返回的 Heartbeat 和 Terminal Event 被 fencing token 拒绝。
-
-### 8.4 业务重试
-
-业务重试由 Runtime 单点决策，Go 不在内部静默执行跨 Attempt 重试。
-
-```text
-Worker 丢失或租约过期：same attempt + new leaseEpoch
-节点业务失败后重试：new attempt + new commandId + leaseEpoch=1
-```
-
-Go Result 提供：
-
-- `error.kind`
-- `error.retryable`
-- `error.retryAfterMs`
-
-Runtime 结合节点策略、最大次数、Run Deadline 和取消状态创建下一 Attempt。未来的定时重试计划
-保存在 PostgreSQL `nextAttemptAt`，到期后通过 Outbox 发布，不依赖 RabbitMQ 延迟插件。
-
-### 8.5 At Least Once 与幂等
-
-Publisher Confirm 和 Manual ACK 提供 At Least Once，不提供任意外部副作用的 Exactly Once。
-
-要求：
-
-- 每个 Command 都携带 `idempotencyKey`。
-- 支持幂等键的上游 API 必须透传。
-- 创建子工作流、写内部资源等平台能力必须按幂等键去重。
-- 无法幂等的副作用节点必须明确标记，并限制自动重试策略。
-- 旧 Lease 结果必须由 `leaseEpoch` 拒绝。
-
-### 8.6 并发与背压
-
-- RabbitMQ Consumer 设置有限 Prefetch。
-- Go 使用全局和租户级 Semaphore。
-- Workflow Runtime 设置单 Run 最大并行节点数。
-- 系统设置租户级最大 Running Run 和 Running Node 数。
-- MQ 积压只表示等待执行，不自动把 WorkflowRun 标记为失败。
-- 节点 Queue Wait Timeout 与 Node Execute Timeout 分开计算。
-
-## 9. 运行状态模型
-
-### 9.1 WorkflowRun
-
-沿用现有状态：
-
-```text
-QUEUED
-RUNNING
-SUCCEEDED
-FAILED
-CANCELLED
-TIMED_OUT
-```
-
-取消是异步过程，建议通过 `cancelRequestedAt` 表达请求中状态；只有所有 Running Node 停止且状态
-完成收敛后才进入 `CANCELLED`。
-
-### 9.2 WorkflowNodeRun
-
-沿用现有状态：
-
-```text
-PENDING
-RUNNING
-SUCCEEDED
-FAILED
-SKIPPED
-CANCELLED
-TIMED_OUT
-```
-
-`SUSPENDED` 是 SubWorkflow 等平台能力等待时的真实状态，实施时需要新增到
-`WorkflowNodeRunStatus`，不能把长时间挂起伪装成 RUNNING。
-
-推荐状态迁移：
-
-```mermaid
-stateDiagram-v2
-  [*] --> PENDING
-  PENDING --> RUNNING: NODE_ACCEPTED
-  RUNNING --> RUNNING: HEARTBEAT / PROGRESS / DELTA
-  RUNNING --> SUSPENDED: capability request
-  SUSPENDED --> PENDING: resume command
-  RUNNING --> SUCCEEDED: terminal success
-  RUNNING --> FAILED: terminal failure
-  RUNNING --> CANCELLED: cancel completed
-  RUNNING --> TIMED_OUT: deadline exceeded
-  PENDING --> SKIPPED: branch not activated
-```
-
-## 10. 数据模型增量
-
-现有 `WorkflowRun` 与 `WorkflowNodeRun` 继续保留，只增补执行基础设施字段。
-
-### 10.1 WorkflowRun 建议字段
-
-```text
-runtimeVersion       String
-protocolVersion      Int
-cancelRequestedAt    DateTime?
-deadlineAt           DateTime?
-lastEventSequence    BigInt
-```
-
-### 10.2 WorkflowNodeRun 建议字段
-
-```text
-commandId            String?   unique
-nodeTypeVersion      Int
-executorVersion      Int
-leaseEpoch           Int
-leaseExpiresAt       DateTime?
-workerId             String?
-heartbeatAt          DateTime?
-retryable            Boolean?
-nextAttemptAt        DateTime?
-```
-
-保留现有唯一约束：
-
-```text
-(runId, executionKey, attempt)
-```
-
-### 10.3 ExecutionOutbox
-
-```text
-id
-aggregateType
-aggregateId
-messageId
-eventType
-routingKey
-payload
-createdAt
-availableAt
-publishedAt
-publishAttempts
-lastError
-```
-
-`messageId` 唯一。
-
-### 10.4 ExecutionInbox
-
-```text
-messageId
-consumer
-processedAt
-```
-
-唯一约束：
-
-```text
-(messageId, consumer)
-```
-
-### 10.5 WorkflowRunEvent
-
-保存关键可回放事件：
-
-```text
-id
-runId
-sequence
-nodeRunId?
-eventType
-payload
-occurredAt
-```
-
-唯一约束：
-
-```text
-(runId, sequence)
-```
-
-LLM Token Delta 等高频临时事件不默认逐条写 PostgreSQL；最终 Node Output 必须持久化。需要完整
-流式审计时，应单独设计压缩对象存储，而不是把所有 Token 写入 Run Event 表。
-
-## 11. 节点版本与能力发现
-
-当前节点实例只有 `type`，目标模型增加：
-
-```ts
-interface WorkflowNode {
-  id: string
-  type: string
-  typeVersion: number
-  // ...
-}
-```
-
-发布 WorkflowVersion 时固定每个节点的 `typeVersion`。Runtime 不允许使用当前最新版本替换已发布
-版本中的节点语义。
-
-Go Executor 定期报告能力：
-
-```json
-{
-  "protocolVersions": [1],
-  "executors": [
-    { "type": "start", "versions": [1] },
-    { "type": "end", "versions": [1] },
-    { "type": "condition", "versions": [1] },
-    { "type": "loop", "versions": [1] },
-    { "type": "llm", "versions": [1] }
-  ]
-}
-```
-
-执行提交前，NestJS 必须确认：
-
-- Runtime 支持 Workflow Schema Version。
-- RabbitMQ 协议版本兼容。
-- Workflow 使用的每个 `nodeType + typeVersion` 都存在可用 Go Executor。
-
-缺失能力时在创建 Run 前失败，不允许运行到中途才发现 Executor 不存在。
-
-## 12. 跨语言契约与单一来源
-
-“Executor 只在 Go”解决行为逻辑重复，但 TypeScript/Go 之间仍需要稳定数据契约。
-
-建议目录：
-
-```text
-contracts/
-├── executor/v1/
-│   ├── execute-node-command.schema.json
-│   ├── execute-node-result.schema.json
-│   ├── node-event.schema.json
-│   └── capability.schema.json
-└── nodes/v1/generated/
-    ├── builtin-node-manifest.json
-    └── *.schema.json
-```
-
-契约来源：
-
-- Core Zod Schema 是编辑、保存和历史配置迁移的来源。
-- Runtime 执行前调用 Zod，将历史 Config 归一化。
-- 从规范化 Schema 生成 JSON Schema、Go Config DTO 与跨语言枚举。
-- Go 不手工复制 Condition Operator、HTTP Method 等常量。
-- Executor 行为只在 Go 手写。
-- Envelope Schema 独立版本化，不与 Workflow Schema Version 混用。
-
-无法完整表达为 JSON Schema 的 Zod Transform 只在 Runtime 进入执行边界前运行；Go 始终接收
-规范化结果。Go 仍需要做防御性反序列化和必要的运行期校验，但不再实现历史配置迁移。
-
-契约兼容原则：
-
-- V1 内只增加可选字段。
-- 删除、重命名或改变字段语义必须创建 V2。
-- 未知可选字段必须忽略。
-- 未知协议主版本必须拒绝并进入 DLQ。
-- 所有 JSON Number 必须明确整数、浮点和范围语义。
-- 所有时间统一使用 UTC RFC 3339。
-
-## 13. Secret 与平台能力
-
-### 13.1 Secret
-
-模型 API Key 和 Secret 环境变量不能进入 RabbitMQ Message、NodeRun Input、Run Event 或日志。
-
-命令只携带引用：
-
-```json
-{
-  "credentialRefs": ["model-group:model-group-id"]
-}
-```
-
-Go 使用内部 Credential Broker 获取短期执行凭证：
-
-- Go 与 NestJS 之间使用 mTLS。
-- 请求携带 Run-scoped 签名令牌。
-- Broker 校验 Tenant、Run、NodeRun 和 CredentialRef。
-- 凭证只驻留 Go 内存。
-- 日志、错误和 Trace Attributes 禁止记录凭证明文。
-- 后续迁移到 Vault/KMS 时只替换 Broker 实现。
-
-### 13.2 平台能力
-
-Go Executor 可以请求的平台能力包括：
-
-```text
-credential.resolve
-knowledge.retrieve
-workflow.run
-artifact.put
-artifact.get
-```
-
-平台能力必须通过版本化接口或 `capabilityRequest` 提供。Go 不允许为了执行节点直接访问 NestJS
-私有数据库表。
-
-## 14. SSE 与前端状态
-
-浏览器只连接 NestJS SSE，不直接连接 RabbitMQ。
-
-### 14.1 实时推送
-
-- 每个 NestJS 实例通过自己的临时 SSE Queue 接收实时事件。
-- SSE Event ID 使用 `runId:sequence`。
-- Lifecycle Event、Progress 和 LLM Delta 使用不同事件类型。
-- 对慢客户端设置每连接缓冲上限；超过上限时关闭连接，客户端使用 Last-Event-ID 重连。
-
-### 14.2 重连
-
-1. 客户端携带 `Last-Event-ID`。
-2. NestJS 从 WorkflowRunEvent 回放缺失的关键事件。
-3. 如果临时 Delta 已过期，发送完整 Run/NodeRun 快照。
-4. 接入当前 Nest 实例的实时事件流。
-
-最终数据库状态优先于实时事件。SSE 丢失不能影响 Runtime 正确性。
-
-## 15. 取消与超时
-
-### 15.1 取消
-
-1. NestJS 原子写入 `WorkflowRun.cancelRequestedAt`。
-2. Runtime 停止创建新的 Node Command。
-3. Pending 节点进入 CANCELLED；未激活节点按产品语义进入 SKIPPED 或 CANCELLED。
-4. NestJS 发布 Cancel Event。
-5. 持有当前 Lease 的 Go Worker 取消 `context.Context`。
-6. Go 中断上游请求或 Sandbox。
-7. 所有 Running 节点收敛后 WorkflowRun 进入 CANCELLED。
-
-取消与 Terminal Event 竞争时，数据库状态机必须使用条件更新，已经进入终态的 NodeRun 不能被旧
-事件覆盖。
-
-### 15.2 超时
-
-区分：
-
-- Queue Wait Timeout：等待 Worker 的最大时间。
-- Node Execute Timeout：Go 实际执行节点的最大时间。
-- Capability Wait Timeout：SUSPENDED 等待平台能力的最大时间。
-- Workflow Deadline：完整 Run 的最大时间。
-
-最终有效 Deadline 取节点、工作流和平台上限中的最早时间。
-
-## 16. 观测性
-
-### 16.1 Trace
-
-- Web 请求、WorkflowRun、NodeRun、RabbitMQ Publish/Consume 和上游调用使用同一个 Trace。
-- 消息携带 W3C `traceparent`。
-- `traceId` 同时写入 WorkflowRun，便于业务查询。
-- 每个 Node Attempt 创建独立 Span。
-
-### 16.2 Metrics
-
-至少提供：
-
-```text
-workflow_runs_total{status,trigger}
-workflow_run_duration_seconds
-workflow_node_runs_total{node_type,status}
-workflow_node_duration_seconds{node_type}
-workflow_node_queue_wait_seconds{node_type}
-workflow_node_retries_total{node_type,error_kind}
-workflow_node_lease_expired_total{node_type}
-rabbitmq_command_publish_failures_total
-rabbitmq_event_projector_lag
-executor_active_tasks{worker_id}
-executor_heartbeats_late_total
-```
-
-### 16.3 日志
-
-日志至少包含：
-
-```text
-traceId
-runId
-nodeRunId
-nodeId
-nodeType
-executionKey
-attempt
-leaseEpoch
-commandId
-workerId
-```
-
-禁止记录 API Key、Secret、完整 Prompt、敏感 HTTP Body 和未脱敏模型响应。
-
-## 17. 安全要求
-
-### 17.1 HTTP Executor
-
-- 只允许 HTTP/HTTPS。
-- 阻止本机、私网、链路本地、云元数据和保留地址，除非显式白名单。
-- 每次 DNS 解析和重定向都重新校验目标地址。
-- 限制重定向次数、请求体、响应体和 Header 大小。
-- 设置连接、响应头、读取和总执行超时。
-- 禁止在错误和事件中泄漏 Authorization Header。
-
-### 17.2 LLM Executor
-
-- 凭证只通过 Broker 获取。
-- 限制最大输出 Token、请求并发和响应大小。
-- Delta 事件设置长度和频率上限。
-- 取消时主动关闭上游响应体。
-
-### 17.3 Code Executor
-
-- 使用独立沙箱进程或容器。
-- 默认无网络、无宿主文件系统、无宿主环境变量。
-- CPU、内存、线程、文件描述符、日志和输出均有限额。
-- Sandbox 崩溃不能导致 Go Executor 主进程退出。
-
-## 18. 推荐目录
-
-```text
-apps/
-├── server/
-│   └── src/
-│       ├── modules/
-│       │   └── workflow-runtime.module.ts
-│       ├── services/
-│       │   └── workflow-run.service.ts
-│       └── infra/
-│           ├── rabbitmq/
-│           ├── execution-outbox/
-│           ├── execution-projector/
-│           └── credential-broker/
-│
-└── executor-go/
-    ├── cmd/
-    │   └── executor/main.go
-    └── internal/
-        ├── executor/
-        │   ├── executor.go
-        │   └── registry.go
-        ├── executors/
-        │   ├── start/
-        │   ├── end/
-        │   ├── condition/
-        │   ├── loop/
-        │   ├── loopstart/
-        │   ├── loopexit/
-        │   ├── http/
-        │   ├── llm/
-        │   ├── rag/
-        │   ├── code/
-        │   └── subworkflow/
-        ├── platform/
-        ├── sandbox/
-        └── transport/rabbitmq/
-
-contracts/
-├── executor/v1/
-└── nodes/v1/generated/
-
-packages/workflow-runtime/src/
-├── compiler/
-├── scheduler/
-├── state-machine/
-├── variable/
-├── scope/
-├── ports/
-└── index.ts
-```
-
-Redis 不从项目中移除。当前认证会话等能力仍可继续使用 Redis；本文只要求工作流执行消息不使用
-Redis Streams。
-
-## 19. 分阶段实施
-
-### 阶段一：协议和 Runtime 骨架
-
-- 为 WorkflowNode 增加 `typeVersion` 设计和兼容迁移。
-- 建立 `contracts/executor/v1`。
-- 实现 Runtime Compiler、State Machine、Variable Resolver 和抽象 Ports。
-- 服务端执行前统一使用 Core 做完整校验。
-- 明确 Full Run 与 Single Node Run 输入语义。
-
-验收：Runtime 可以把静态 Workflow 编译为确定性 ExecutionPlan，且不包含内置节点执行逻辑。
-
-### 阶段二：RabbitMQ 和持久化链路
-
-- 开发 Compose 增加 RabbitMQ。
-- 建立 Command/Event/DLX/Cancel 拓扑。
-- 实现 ExecutionOutbox、ExecutionInbox 和 WorkflowRunEvent。
-- 实现 WorkflowRun、WorkflowNodeRun Repository 和状态机条件更新。
-- 实现 Go 通用 Consumer、Registry 和事件 Publisher。
-
-验收：伪 Executor 可以在服务重启、消息重复和 Projector 重启后正确完成一次 NodeRun。
-
-### 阶段三：基础内置节点
-
-- Go 实现 Start、End、Condition、HTTP。
-- 跑通 `Start -> HTTP -> Condition -> End`。
-- 接入 SSE、断线重连、取消和节点超时。
-- 验证所有节点都经过同一 Execute Queue。
-
-验收：Node Runtime 中不存在这些节点的执行实现或节点类型分支。
-
-### 阶段四：模型和知识库节点
-
-- Go 实现 LLM 与流式 Delta。
-- 实现 Credential Broker。
-- Go 实现 RAG 和 Knowledge Capability。
-- 增加租户限流和模型级并发控制。
-
-验收：RabbitMQ、NodeRun、日志和 Trace 中不存在 Secret 明文。
-
-### 阶段五：Loop 和 SubWorkflow
-
-- 实现通用 Scope Directive。
-- Go 实现 Loop、Loop Start、Loop Exit。
-- 实现嵌套 Loop ExecutionKey。
-- 实现通用 Suspend/Resume 与 `workflow.run` Capability。
-- Go 实现 SubWorkflow。
-
-验收：Loop 条件和迭代决策只存在于 Go，Runtime 只解释通用 Scope Directive。
-
-### 阶段六：Code Sandbox 与生产强化
-
-- Go 实现 Code Executor。
-- 建立独立 JavaScript Sandbox Worker。
-- 完善 Lease、Fencing、业务重试和 Poison Message DLQ。
-- 增加 OpenTelemetry、Metrics、告警和容量压测。
-- 完成多 Nest、多 Go Executor 和多 RabbitMQ 节点演练。
-
-验收：Worker、Nest 和 RabbitMQ 单节点故障不会产生无法恢复的 Run；重复执行受到幂等与 Fencing
-保护。
-
-## 20. 最终验收标准
-
-- 全部核心内置节点的 Executor 只存在于 Go。
-- Runtime 调度循环没有基于内置 `node.type` 的执行分支。
-- 所有节点使用同一 Execute Queue 和同一 Event Contract。
-- Go 不读取完整 Workflow，不直接连接 Prisma 业务数据库。
-- PostgreSQL 是 WorkflowRun 和 WorkflowNodeRun 唯一事实源。
-- Command 使用 Outbox，Event 使用 Inbox，消息链路支持重复投递。
-- 长节点使用 Lease 和 Fencing，不长期占用未 ACK Delivery。
-- Condition 只通过 `activatedSourceHandles` 控制分支。
-- Loop 只通过通用 Scope Directive 控制进入、重复和退出。
-- SubWorkflow 使用通用 Suspend/Resume Capability。
-- Secret 不进入 MQ、Run Input/Output、Event、日志或 Trace。
-- SSE 支持 Last-Event-ID、状态回放和快照恢复。
-- 节点版本与协议版本均可独立演进。
-
-## 21. 已知权衡
-
-### 21.1 每个节点都有 MQ 往返
-
-Start、End 等轻量节点也进入 RabbitMQ，会增加单节点固定延迟。该成本是“所有节点统一一份 Executor
-实现”的直接代价，本方案接受该权衡。
-
-### 21.2 Runtime 仍理解图和 Scope
-
-Runtime 不理解节点业务，但必须理解 Edge、Handle、Scope 和通用 Directive，否则无法调度完整
-Workflow。这不属于两份 Executor 实现。
-
-### 21.3 跨语言 Schema 仍然存在
-
-TypeScript 需要编辑和保存 Schema，Go 需要反序列化执行 Config。通过生成 JSON Schema、Go DTO
-和共享枚举减少重复，但不能消除跨语言协议本身。
-
-### 21.4 Exactly Once 不可普遍保证
-
-MQ、进程和网络均可能在外部副作用之后、结果持久化之前失败。系统通过 At Least Once、
-Idempotency Key、Lease Epoch 和补偿策略控制风险，不对任意 HTTP 或第三方模型调用宣称严格
-Exactly Once。
+---
+
+## 7. Loop 与 Sub Workflow 如何进入这条链
+
+### 7.1 Loop
+
+每个 Scope 内仍然是 DAG，Loop 不使用图回边：
+
+1. Runtime 像普通节点一样派发 Loop Executor。
+2. Go 判断条件，返回 Scope Enter、Repeat 或 Exit。
+3. `ENTER_SCOPE` 创建 iteration 1；`REPEAT_SCOPE` 将当前 Scope 标记为 `COMPLETED` 并创建
+   iteration + 1；`EXIT_SCOPE` 结束当前 Scope 且不再创建新迭代。
+4. Runtime 再次通过 DAG Scheduler 计算该 Scope 的 Ready 节点。
+
+Loop 条件和是否继续只在 Go 中判断；Runtime 不解释 Loop 业务配置，只验证 Directive 的迭代号
+严格递增，并负责初始化 Scope 内部节点和边状态。嵌套 Loop 的新 Scope 必须保存
+`parentScopeKey`，`ScopeContext.scopePath` 则按从外到内的顺序携带完整 Scope 链。
+
+### 7.2 Sub Workflow
+
+1. Go 返回 `Suspend + workflow.run`。
+2. NestJS Capability Handler 创建子 Run。
+3. 当前 NodeRun 进入 Suspended。
+4. 子 Run 完成后，Runtime 使用 Resume 重新派发同一节点。
+5. Go 接收子 Run 输出并返回最终结果。
+
+Go 不读取或执行子 Workflow 的 DAG。子 Workflow 使用独立 `WorkflowRun` 和 `RuntimeState`，不写入
+父状态的 `scopes`；父节点与 `childRunId` 的关联由 NestJS NodeRun/Capability 状态持久化。
+
+---
+
+## 8. 文件清单与实现顺序
+
+### 8.1 按调用顺序的文件
+
+| 顺序 | 文件                                                         | 作用                                         |
+| ---- | ------------------------------------------------------------ | -------------------------------------------- |
+| 1    | `packages/workflow-core/src/node/workflow-node-schema.ts`    | 直接公开已有 JsonValue 和 JSON Schema        |
+| 2    | `packages/workflow-runtime/package.json`                     | 显式声明对 Core 的 workspace 依赖            |
+| 3    | `packages/workflow-runtime/src/index.ts`                     | Runtime 公开入口                             |
+| 4    | `packages/workflow-runtime/src/runtime/runtime-types.ts`     | 定义 Runtime 输入、状态和 Effect             |
+| 5    | `packages/workflow-runtime/src/runtime/workflow-runtime.ts`  | 校验启动上下文、应用结果和推进状态机         |
+| 6    | `packages/workflow-runtime/src/variable/*`                   | 解析 Inputs、Config 和 Workflow Outputs      |
+| 7    | `packages/workflow-runtime/src/dag/dag-scheduler.ts`         | 计算 Ready、Waiting 和 Skipped               |
+| 8    | `apps/server/src/controllers/workflow-run.controller.ts`     | 接收启动请求                                 |
+| 9    | `apps/server/src/services/workflow-run.service.ts`           | 使用 Core 校验 Workflow 并调用 Runtime       |
+| 10   | `apps/server/src/infra/runtime/runtime-transition.writer.ts` | 保存状态、NodeRun 和 Outbox                  |
+| 11   | `apps/server/src/infra/rabbitmq/node-command.publisher.ts`   | 可靠发布节点任务                             |
+| 12   | `packages/workflow-protocol/schemas/*`                       | 定义跨语言 JSON 值、Command、Result 和 Event |
+| 13   | `apps/executor-go/cmd/executor/main.go`                      | 组装 Worker 和全部 Executor                  |
+| 14   | `apps/executor-go/internal/executor/worker.go`               | 消费任务并执行节点                           |
+| 15   | `apps/executor-go/internal/executors/*/executor.go`          | 内置节点唯一实现                             |
+| 16   | `apps/server/src/infra/rabbitmq/node-event.consumer.ts`      | 消费 Go 节点事件                             |
+| 17   | `apps/server/src/services/workflow-event.service.ts`         | 保存结果并再次调用 Runtime                   |
+
+### 8.2 推荐实施顺序
+
+1. 直接导出 Core 已有的 `JsonValue/jsonValueSchema`，不改变现有 Schema 行为。
+2. 为 Runtime 声明 Core workspace 依赖，并补齐公开入口、RuntimeState 和 ExecutionPlan。
+3. 复用 Start `NodeOutputDefinition[]` 和系统变量定义，实现动态输入校验、身份一致性校验、
+   变量解析和 Edge 状态 DAG。
+4. 使用内存中的假节点结果验证 `start()` 与 `applyNodeResult()`。
+5. 建立带递归 JSON `$defs` 的协议 Schema，并生成 TypeScript 和 Go 类型。
+6. 实现 NestJS Controller、Service、TransitionWriter、Outbox 和 Inbox。
+7. 实现 RabbitMQ 拓扑、Publisher 和 Consumer。
+8. 建立 Go Main、Worker、Registry 和 Start、End、Condition、HTTP Executor。
+9. 跑通 `Start → HTTP → Condition → End`。
+10. 验证并行、汇聚、Skip 传播、变量路径和服务重启恢复。
+11. 再实现 LLM、RAG、Code、Loop 和 Sub Workflow。
+
+第一阶段完成标准：
+
+- Runtime 能产生第一批节点 Effect，并在结果返回后继续调度。
+- Core 是 Workflow、节点、边、变量引用、JsonValue、系统变量键及定义的唯一领域类型来源。
+- Start 输入由 Runtime 复用 Core 的 Start `outputs` 动态定义完成校验和默认值归一化。
+- Runtime、NestJS 和 TypeScript 协议不使用 `Record<string, unknown>` 表达持久化或跨语言值。
+- Inputs 和 Config 在离开 Runtime 前已经完成变量解析。
+- NestJS 能在同一事务中保存 RuntimeState、NodeRun 和 Outbox。
+- 全部内置节点只在 Go 中实现，并进入同一个 Execute Queue。
+- Go 返回 Handles 后，Runtime 能正确推进条件分支和并行汇聚。
+- Node.js、Go 或 RabbitMQ 重启后，可以从 PostgreSQL 恢复未完成运行。
