@@ -1,4 +1,4 @@
 interface:
-  display_name: "项目公共包（ai-workflow-packages）"
-  short_description: "维护所有 workspace packages 的职责、公开 API、使用方式与跨包边界"
-  default_prompt: "使用 $ai-workflow-packages 修改或使用项目中的 workspace packages。"
+  display_name: '项目公共包（ai-workflow-packages）'
+  short_description: '维护 workspace packages 的职责、公开 API、运行时与跨语言协议边界'
+  default_prompt: '使用 $ai-workflow-packages 修改或使用项目中的 workspace packages。'

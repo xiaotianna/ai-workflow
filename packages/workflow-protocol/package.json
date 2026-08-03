@@ -1,10 +1,15 @@
 {
   "name": "@ai-workflow/protocol",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
-  "scripts": {}
+  "scripts": {},
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1"
+  }
 }

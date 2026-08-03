@@ -44,6 +44,7 @@
     "eslint/no-new": "off",
     "eslint/no-continue": "off",
     "no-array-sort": "off",
+    "typescript/parameter-properties": "off",
     "eslint/no-unused-vars": [
       "error",
       {

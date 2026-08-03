@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-workflow.dev/schemas/execute-node-command.schema.json",
+  "title": "ExecuteNodeCommand",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocolVersion",
+    "commandId",
+    "idempotencyKey",
+    "runId",
+    "nodeRunId",
+    "nodeId",
+    "nodeType",
+    "executionKey",
+    "attempt",
+    "leaseToken",
+    "deadlineAt",
+    "inputs",
+    "config"
+  ],
+  "properties": {
+    "protocolVersion": { "const": "1" },
+    "commandId": { "type": "string", "minLength": 1 },
+    "idempotencyKey": { "type": "string", "minLength": 1 },
+    "runId": { "type": "string", "minLength": 1 },
+    "nodeRunId": { "type": "string", "minLength": 1 },
+    "nodeId": { "type": "string", "minLength": 1 },
+    "nodeType": { "type": "string", "minLength": 1 },
+    "executionKey": { "type": "string", "minLength": 1 },
+    "attempt": { "type": "integer", "minimum": 1 },
+    "leaseToken": { "type": "string", "minLength": 1 },
+    "deadlineAt": { "type": "string", "format": "date-time" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "https://ai-workflow.dev/schemas/json-value.schema.json"
+      }
+    },
+    "config": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "https://ai-workflow.dev/schemas/json-value.schema.json"
+      }
+    }
+  }
+}

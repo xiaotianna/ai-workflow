@@ -1,6 +1,7 @@
 {
   "name": "@ai-workflow/runtime",
   "version": "1.0.0",
+  "private": true,
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
@@ -8,6 +9,8 @@
   },
   "scripts": {},
   "dependencies": {
-    "@ai-workflow/core": "workspace:*"
+    "@ai-workflow/core": "workspace:*",
+    "@ai-workflow/protocol": "workspace:*",
+    "zod": "^4.4.3"
   }
 }

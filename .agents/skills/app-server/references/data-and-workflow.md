@@ -103,7 +103,10 @@
 ## Workspace package 边界
 
 - 使用 `@ai-workflow/core` 读取工作流 schema、节点注册表、端口和校验规则。
-- 使用 `@ai-workflow/runtime` 承载与 Nest 无关的执行引擎；当前 runtime 仍是占位包。
+- 使用 `@ai-workflow/runtime` 承载与 Nest 无关的执行状态机；当前已提供根作用域 DAG v1、
+  RuntimeState 恢复、`start()`、`applyNodeResult()` 和 Effect 公共契约，但尚未接入 Server 应用服务。
+- 使用 `@ai-workflow/protocol` 承载 TypeScript 与 Go 共用的版本化节点 Command/Result JSON 协议；
+  当前已提供 v1 Schema、TypeScript parser 与 Go codec，但尚未接入 Server MQ 链路。
 - 使用 `@ai-workflow/shared` 共享纯 TypeScript 协议；当前包仍只有占位导出。
 - 服务端不得依赖 `@ai-workflow/ui`、`@ai-workflow/form` 或 `@ai-workflow/nodes-ui`。
 
@@ -113,18 +116,21 @@
 2. 保存或编辑场景调用 `validateWorkflow(parsed.data, registry)`。
 3. 执行前调用 `validateExecutorWorkflow(parsed.data, registry)`，不先重复调用保存校验。
 4. 只有校验无问题后才持久化为有效版本或交给 runtime。
-5. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
-6. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
-7. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
+5. Runtime 的 ExecutionPlan 只从已验证快照建立查询索引；Server 不依赖 Compiler 再做一次静态
+   Workflow 校验。缺失的静态执行规则回到 Core 增加。
+6. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
+7. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
+8. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
-Go Executor 目标架构接入时，运行输入先通过 Core 公共 JSON 对象 Schema，再由 Runtime 根据
-Start 节点动态输出定义校验字段、类型、必填项和默认值。应用服务使用
-`SYSTEM_VARIABLE_KEYS` 和 Core `SystemVariableValues` 组装完整系统上下文，其中 `app_id` 来自
-Workflow 的数据库关联，`workflow_id` 来自已校验快照，`workflow_run_id` 来自新建 Run；不得
-使用 `ownerId`、`workflowId`、`startedAt` 等自定义键替代 Core 系统变量键。
+Go Executor 目标架构接入时，Runtime 根据 Start 节点动态输出定义校验运行输入字段、JSON 值、
+类型、必填项和默认值。应用服务使用 `SYSTEM_VARIABLE_KEYS` 组装
+`Record<SystemVariableKey, JsonValue>` 系统上下文，其中 `app_id` 来自 Workflow 的数据库关联，
+`workflow_id` 来自已校验快照，`workflow_run_id` 来自新建 Run；不得使用 `ownerId`、`workflowId`、
+`startedAt` 等自定义键替代 Core 系统变量键。
 
 ## LangGraph
 
 - 把 LangGraph 视为可替换执行适配器，不让 Core 模型直接依赖它。
-- 先把 Core 工作流转换为内部执行计划，再交给具体适配器。
+- 先把已经通过 Core 执行前校验的工作流转换为只读查询索引，再交给具体适配器；转换过程不维护
+  第二套静态校验。
 - 将重试、超时、取消、检查点和恢复语义定义在 runtime 接口，不散落在 Nest Controller 中。

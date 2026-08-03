@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-workflow.dev/schemas/json-value.schema.json",
+  "title": "JsonValue",
+  "oneOf": [
+    { "type": "string" },
+    { "type": "number" },
+    { "type": "boolean" },
+    { "type": "null" },
+    {
+      "type": "array",
+      "items": { "$ref": "#" }
+    },
+    {
+      "type": "object",
+      "additionalProperties": { "$ref": "#" }
+    }
+  ]
+}

@@ -204,6 +204,9 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 - `validateWorkflow` 用于编辑和保存，允许必填端口暂未连接，也不检查环。
 - `validateExecutorWorkflow` 用于执行前，额外检查必填输入和循环依赖；不需要先调用保存校验。
 - 原始请求、数据库 JSON 和导入文件都先做结构校验，再做业务校验。
+- Runtime 的 `buildExecutionPlan()` 只消费已通过上述两层校验的 Workflow 并建立查询索引，不得重复
+  节点、Edge、端口、环、Loop 作用域或变量引用规则。若执行依赖新的静态不变量（例如根 Start 数量、
+  Start/End 可达性或 Workflow 输出引用），先把规则加入 Core 的执行前校验，再由所有入口复用。
 
 ## 注意事项
 
@@ -215,12 +218,12 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
   `WorkflowNode.config` 使用 `Record<string, unknown>` 是通用节点外壳，具体配置继续由对应
   `NodeType.schema` 校验。不得仅为了 Runtime 或 MQ 边界全局收窄这两个领域字段。
 - `NodeOutputDefinition.defaultValue` 已在 `workflow-node-schema.ts` 中通过现有递归 `JsonValue` 和
-  `jsonValueSchema` 限制为 JSON 值。实现 Runtime 时直接给这两个现有定义增加 `export`，由现有
-  Node 入口和 Core 根入口公开；不要创建结构相同的 Runtime 值类型，也不要借此改写 Core 字段。
+  `jsonValueSchema` 限制为 JSON 值，并已经由 Node 入口和 Core 根入口公开。Runtime 直接从
+  `@ai-workflow/core` 复用，不要创建结构相同的 Runtime 值类型，也不要借此改写 Core 字段。
   `StartRuntimeInput`、RuntimeState、Runtime Effect 和跨语言协议仍不属于 Core。
 - 节点 `inputs`/`outputs` 与环境变量已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
-- `src/workflow/workflow-output-schema.ts` 已包含字段取值来源，但仍使用旧的
-  `outputVariableSchema`/`OutputVariable` 命名，且 `workflowSchema` 与子工作流尚未接入。
+- `src/workflow/workflow-output-schema.ts` 已包含字段取值来源并接入 `workflowSchema`；Workflow 输出
+  引用的存在性、可达性和运行时实际值解析仍需分别由 Core 执行前校验与 Runtime 补齐。
 - `package.json` 直接声明 Core 源码使用的 Zod 依赖，不依靠根目录提升。
 - 节点 `config` 的字段契约不提供 `defaultValue`，配置默认值唯一来源是
   `NodeType.createInitialConfig()`；这与 `NodeOutputDefinition.defaultValue` 的输入变量元数据

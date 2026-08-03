@@ -3,7 +3,7 @@
 工作流校验分为两层：
 
 1. `workflowSchema`：数据结构校验，校验外部输入的数据结构。
-2. `validation`：业务校验，校验节点配置、动态端口和连线关系。
+2. `validation`：业务校验，校验节点配置、动态端口、连线、Loop 结构和节点输入引用。
 
 数据结构校验通过后，根据业务场景调用 `validateWorkflow()` 或`validateExecutorWorkflow()`。两个方法只接收已经由 `workflowSchema` 解析的`Workflow`。
 
@@ -18,15 +18,18 @@
 | 源节点和目标节点存在      | 是                   | 是                           |
 | 不存在完全重复的连线      | 是                   | 是                           |
 | 源端口和目标端口存在      | 是                   | 是                           |
-| 端口数据类型匹配          | 是                   | 是                           |
 | 端口连接数符合 `multiple` | 是                   | 是                           |
+| Loop 父子与作用域结构合法 | 是                   | 是                           |
+| 节点输入变量引用合法      | 是                   | 是                           |
 | 必填输入端口已有连线      | 否                   | 是                           |
 | 不存在循环依赖            | 否                   | 是                           |
 
+Edge 不按 `dataType` 阻止连线；`dataType` 描述节点变量，不属于当前画布连线校验规则。
+
 `validateWorkflow()` 用于编辑和保存，允许工作流暂时不完整。
 
-`validateExecutorWorkflow()` 用于执行前校验，已经包含全部基础规则，调用方不需要
-先调用 `validateWorkflow()`。
+`validateExecutorWorkflow()` 用于执行前校验，已经包含 `validateWorkflow()` 的全部规则，并追加
+必填输入端口和有向无环检查；调用方不需要先调用 `validateWorkflow()`。
 
 ## 调用关系
 
@@ -40,7 +43,9 @@ workflowSchema.safeParse()
   │           │     └── nodeType.schema.safeParse(node.config)
   │           │           ├── 失败 → report(config 错误)
   │           │           └── 成功 → 使用 result.data 解析动态端口
-  │           └── validateEdges()
+  │           ├── validateEdges()
+  │           ├── validateLoopStructure()
+  │           └── validateVariableReferences()
   └── validateExecutorWorkflow()
         ├── collectWorkflowValidationResult()
         ├── validateRequiredNodeInputs()
