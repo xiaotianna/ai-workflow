@@ -29,6 +29,11 @@ import {
   appendWorkflowNodeDraftValidationIssues,
   createWorkflowCheckListIssues,
 } from '../utils/workflow-check-list'
+import {
+  getWorkflowEdgeExecutionClassName,
+  resolveWorkflowEdgeExecutionStatus,
+} from '../utils/workflow-edge-execution'
+import { useWorkflowExecutionCamera } from '../hooks/use-workflow-execution-camera'
 import type { WorkflowVersionHistoryPublishSync } from '../hooks/use-workflow-version-history'
 import type {
   WorkflowNodeExecutionStatuses,
@@ -37,6 +42,15 @@ import type {
 } from '../hooks/use-workflow-test-run'
 
 const EMPTY_NODE_EXECUTION_STATUSES: WorkflowNodeExecutionStatuses = {}
+
+function WorkflowExecutionCamera({
+  nodeExecutionStatuses,
+}: {
+  nodeExecutionStatuses: WorkflowNodeExecutionStatuses
+}) {
+  useWorkflowExecutionCamera(nodeExecutionStatuses)
+  return null
+}
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
@@ -216,13 +230,28 @@ export function WorkflowEditor({
     onTestRun: handleTestRunAction,
     disabled,
   })
-  const renderedEdges = hoveredNodeId
-    ? editor.edges.map((edge) =>
-        edge.source === hoveredNodeId || edge.target === hoveredNodeId
-          ? { ...edge, className: 'workflow-edge--node-hovered' }
-          : edge,
-      )
-    : editor.edges
+  const renderedEdges = useMemo(
+    () =>
+      editor.edges.map((edge) => {
+        const executionStatus = resolveWorkflowEdgeExecutionStatus(
+          nodeExecutionStatuses[edge.source],
+          nodeExecutionStatuses[edge.target],
+        )
+        const executionClassName = getWorkflowEdgeExecutionClassName(executionStatus)
+        const hovered =
+          Boolean(hoveredNodeId) && (edge.source === hoveredNodeId || edge.target === hoveredNodeId)
+        const className =
+          executionClassName ?? (hovered ? 'workflow-edge--node-hovered' : undefined)
+
+        if (!className) return edge
+
+        return {
+          ...edge,
+          className,
+        }
+      }),
+    [editor.edges, hoveredNodeId, nodeExecutionStatuses],
+  )
   const renderedNodes = useMemo(
     () =>
       editor.nodes.map((node) => {
@@ -239,7 +268,6 @@ export function WorkflowEditor({
       }),
     [editor.nodes, nodeExecutionStatuses],
   )
-
   return (
     <>
       <WorkflowSavePendingDialog
@@ -328,6 +356,7 @@ export function WorkflowEditor({
                       aria-disabled={disabled}
                       className="bg-muted/30 workflow-editor"
                     >
+                      <WorkflowExecutionCamera nodeExecutionStatuses={nodeExecutionStatuses} />
                       {/* 总面板组件 */}
                       <WorkflowPanel
                         appId={applicationMetadata?.id}

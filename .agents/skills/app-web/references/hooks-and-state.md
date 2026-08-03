@@ -178,6 +178,11 @@ function ExampleForm() {
   入口以及测试运行快捷键都不得再次提交；顶部运行按钮、画布/节点右键入口和 `Alt+R` 在取得
   runId 后统一切换为一次性暂停，调用取消接口成功后清除运行中节点状态并结束当前 SSE。暂停结果
   使用信息 Toast，不按运行失败提示；请求尚未取得 runId 或正在暂停时入口必须禁用。
+- 测试运行镜头由 `WorkflowExecutionCamera`（挂在 `ReactFlow` 子树内）调用
+  `useWorkflowExecutionCamera`：节点首次进入 `RUNNING`，或 SSE 批处理跳过 RUNNING 后首次出现
+  终态时，若节点完全位于视口外，则保持当前缩放并用 `setCenter` 动画居中；已在视口内不移动画布。
+  同一次运行对每个节点只跟焦一次；节点尚未测量或 panZoom 未就绪时短重试；动画遵循
+  reduced motion；不写入编辑器视口快照或自动保存。
 - 运行历史列表由 `useWorkflowRunHistory` 按应用 ID 管理初始加载、opaque cursor、继续加载、错误
   重试和请求取消；切换应用或刷新列表时必须中止旧请求并清空旧游标，继续加载时按 Run ID 去重。
   历史详情按选中的 Run ID 独立请求，返回列表或切换条目时取消上一条详情请求，不把历史列表或

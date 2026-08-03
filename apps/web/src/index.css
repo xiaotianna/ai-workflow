@@ -24,6 +24,38 @@
   stroke: var(--primary);
 }
 
+.workflow-editor .react-flow__edge.workflow-edge--running .react-flow__edge-path {
+  stroke: var(--primary);
+  stroke-dasharray: 5;
+  animation: workflow-edge-dashdraw 0.5s linear infinite;
+}
+
+.workflow-editor .react-flow__edge.workflow-edge--succeeded .react-flow__edge-path,
+.workflow-editor .react-flow__edge.workflow-edge--succeeded.selected .react-flow__edge-path {
+  stroke: var(--workflow-node-success);
+}
+
+.workflow-editor .react-flow__edge.workflow-edge--failed .react-flow__edge-path,
+.workflow-editor .react-flow__edge.workflow-edge--failed.selected .react-flow__edge-path {
+  stroke: var(--workflow-node-failed);
+}
+
+.workflow-editor .react-flow__edge.workflow-edge--running.selected .react-flow__edge-path {
+  stroke: var(--primary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflow-editor .react-flow__edge.workflow-edge--running .react-flow__edge-path {
+    animation: none;
+  }
+}
+
+@keyframes workflow-edge-dashdraw {
+  from {
+    stroke-dashoffset: 10;
+  }
+}
+
 .workflow-editor .workflow-edge-add {
   pointer-events: none;
 }
