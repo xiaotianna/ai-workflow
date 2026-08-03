@@ -102,6 +102,10 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     })
   }
 
+  function handleSelectCurrentDraft() {
+    setSelectedVersionId(undefined)
+  }
+
   return (
     <WorkflowEditorProvider
       key={`${app.id}:${draft.revision}`}
@@ -121,12 +125,18 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
       onPauseTestRun={testRun.pause}
       onPublish={workflowPublish.publish}
       onRestoreVersion={handleRestoreVersion}
-      onSelectedVersionChange={setSelectedVersionId}
+      onSelectCurrentDraft={handleSelectCurrentDraft}
       onTestRun={testRun.run}
       publishedAt={workflowPublish.deployment?.publishedAt}
       publishLoadError={workflowPublish.loadError}
       publishLoading={workflowPublish.loading}
       publishPending={workflowPublish.pending}
+      publishSync={{
+        pending: workflowPublish.pending,
+        versionId: workflowPublish.deployment?.versionId,
+        version: workflowPublish.deployment?.version,
+        publishedAt: workflowPublish.deployment?.publishedAt,
+      }}
       selectedVersionId={selectedVersionId}
       testRunCanPause={testRun.canPause}
       testRunPausing={testRun.pausing}

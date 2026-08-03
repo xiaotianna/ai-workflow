@@ -65,7 +65,7 @@ export const Publish = ({
           aria-keyshortcuts="Meta+Shift+P Control+Shift+P"
           disabled={loading || pending}
           onSelect={onPublish}
-          className="bg-primary text-primary-foreground data-highlighted:bg-primary/85 data-highlighted:text-primary-foreground active:bg-primary/70 h-8 w-full justify-center gap-1 rounded-lg px-3.5 py-0 text-sm font-semibold shadow-xs"
+          className="bg-primary text-primary-foreground data-[highlighted]:bg-primary/85 data-[highlighted]:text-primary-foreground active:bg-primary/70 h-8 w-full justify-center gap-1 rounded-lg px-3.5 py-0 text-sm font-semibold shadow-xs"
         >
           {pending ? <LoaderCircle className="size-3.5 animate-spin" aria-hidden /> : null}
           <span>{pending ? '发布中' : publishedAt ? '发布更新' : '发布工作流'}</span>

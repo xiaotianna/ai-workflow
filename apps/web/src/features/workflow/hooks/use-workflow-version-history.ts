@@ -4,13 +4,33 @@ import {
   renameStudioWorkflowVersion,
   type StudioWorkflowVersionDto,
 } from '@/api/studio'
-import { useEffect, useState } from 'react'
+import { getAuthUser } from '@/features/auth/session'
+import { useEffect, useRef, useState } from 'react'
 
-export function useWorkflowVersionHistory(appId: string) {
+export const PUBLISHING_VERSION_ID = '__publishing__'
+
+export interface WorkflowVersionHistoryPublishSync {
+  pending?: boolean
+  publishedAt?: string
+  version?: number
+  versionId?: string
+}
+
+export function isPublishingVersion(versionId: string) {
+  return versionId === PUBLISHING_VERSION_ID
+}
+
+export function useWorkflowVersionHistory(
+  appId: string,
+  publishSync?: WorkflowVersionHistoryPublishSync,
+) {
   const [versions, setVersions] = useState<StudioWorkflowVersionDto[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const publishSessionRef = useRef<{ active: boolean; baselineVersionId?: string }>({
+    active: false,
+  })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -18,7 +38,9 @@ export function useWorkflowVersionHistory(appId: string) {
     setLoadError(false)
 
     void listStudioWorkflowVersions(appId, controller.signal)
-      .then((result) => setVersions(result.items))
+      .then((result) => {
+        setVersions((currentVersions) => mergeFetchedVersions(result.items, currentVersions))
+      })
       .catch(() => {
         if (!controller.signal.aborted) setLoadError(true)
       })
@@ -28,6 +50,57 @@ export function useWorkflowVersionHistory(appId: string) {
 
     return () => controller.abort()
   }, [appId, reloadKey])
+
+  useEffect(() => {
+    const pending = publishSync?.pending ?? false
+    const versionId = publishSync?.versionId
+    const version = publishSync?.version
+    const publishedAt = publishSync?.publishedAt
+
+    if (pending) {
+      if (!publishSessionRef.current.active) {
+        publishSessionRef.current = { active: true, baselineVersionId: versionId }
+      }
+
+      setVersions((currentVersions) => {
+        if (currentVersions.some((item) => item.id === PUBLISHING_VERSION_ID)) {
+          return currentVersions
+        }
+
+        return [createOptimisticPublishedVersion(currentVersions), ...currentVersions]
+      })
+      return
+    }
+
+    if (!publishSessionRef.current.active) {
+      return
+    }
+
+    const baselineVersionId = publishSessionRef.current.baselineVersionId
+    publishSessionRef.current.active = false
+
+    setVersions((currentVersions) => {
+      const withoutPublishing = currentVersions.filter((item) => item.id !== PUBLISHING_VERSION_ID)
+
+      if (versionId && versionId !== baselineVersionId) {
+        if (withoutPublishing.some((item) => item.id === versionId)) {
+          return withoutPublishing
+        }
+
+        return [
+          createPublishedVersionFromDeployment({
+            versionId,
+            version,
+            publishedAt,
+            fallbackVersions: withoutPublishing,
+          }),
+          ...withoutPublishing,
+        ]
+      }
+
+      return withoutPublishing
+    })
+  }, [publishSync?.pending, publishSync?.publishedAt, publishSync?.version, publishSync?.versionId])
 
   async function rename(versionId: string, name: string) {
     const renamed = await renameStudioWorkflowVersion(appId, versionId, { name })
@@ -50,4 +123,54 @@ export function useWorkflowVersionHistory(appId: string) {
     remove,
     rename,
   }
+}
+
+function createOptimisticPublishedVersion(
+  currentVersions: readonly StudioWorkflowVersionDto[],
+): StudioWorkflowVersionDto {
+  const authUser = getAuthUser()
+
+  return {
+    id: PUBLISHING_VERSION_ID,
+    version: getNextWorkflowVersionNumber(currentVersions),
+    createdAt: new Date().toISOString(),
+    createdBy: authUser ? { id: '', username: authUser.username } : undefined,
+  }
+}
+
+function createPublishedVersionFromDeployment({
+  versionId,
+  version,
+  publishedAt,
+  fallbackVersions,
+}: {
+  versionId: string
+  version?: number
+  publishedAt?: string
+  fallbackVersions: readonly StudioWorkflowVersionDto[]
+}): StudioWorkflowVersionDto {
+  const authUser = getAuthUser()
+
+  return {
+    id: versionId,
+    version: version ?? getNextWorkflowVersionNumber(fallbackVersions),
+    createdAt: publishedAt ?? new Date().toISOString(),
+    createdBy: authUser ? { id: '', username: authUser.username } : undefined,
+  }
+}
+
+function getNextWorkflowVersionNumber(versions: readonly StudioWorkflowVersionDto[]): number {
+  return versions.reduce((maxVersion, item) => Math.max(maxVersion, item.version), 0) + 1
+}
+
+function mergeFetchedVersions(
+  fetchedVersions: readonly StudioWorkflowVersionDto[],
+  currentVersions: readonly StudioWorkflowVersionDto[],
+): StudioWorkflowVersionDto[] {
+  const publishingVersion = currentVersions.find((item) => item.id === PUBLISHING_VERSION_ID)
+  if (!publishingVersion) {
+    return [...fetchedVersions]
+  }
+
+  return [publishingVersion, ...fetchedVersions.filter((item) => item.id !== PUBLISHING_VERSION_ID)]
 }

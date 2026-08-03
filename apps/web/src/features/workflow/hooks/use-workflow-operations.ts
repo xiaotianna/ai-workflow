@@ -11,6 +11,7 @@ import { toWorkflowNode } from '@/utils/workflow/editor-transform'
 
 import type { useWorkflowEditor } from './use-workflow-editor'
 import type { WorkflowTestRunRequest, WorkflowTestRunResult } from './use-workflow-test-run'
+import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
 import {
   downloadWorkflowApplicationDsl,
   parseWorkflowApplicationDsl,
@@ -21,7 +22,9 @@ type WorkflowEditor = ReturnType<typeof useWorkflowEditor>
 
 interface UseWorkflowOperationsOptions {
   applicationMetadata?: WorkflowApplicationMetadata
+  checkListIssues?: readonly WorkflowCheckListIssue[]
   editor: WorkflowEditor
+  onCheckListRequired?: () => void
   onPauseTestRun?: () => Promise<void>
   onPublish?: (snapshot: ReturnType<WorkflowEditor['createSnapshot']>) => Promise<unknown>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
@@ -38,7 +41,9 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function useWorkflowOperations({
   applicationMetadata,
+  checkListIssues = [],
   editor,
+  onCheckListRequired,
   onPauseTestRun,
   onPublish,
   onTestRun,
@@ -156,6 +161,12 @@ export function useWorkflowOperations({
   async function publish() {
     if (publishPending) return
 
+    if (checkListIssues.length > 0) {
+      onCheckListRequired?.()
+      showToast('error', '检查清单存在问题，修复后才可发布')
+      return
+    }
+
     const snapshot = editor.createSnapshot()
     const parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
 
@@ -164,6 +175,7 @@ export function useWorkflowOperations({
       return
     }
 
+    // 兜底：检查清单会跳过无法映射到节点的 workflow 级执行前问题
     const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
     if (issues.length > 0) {
       showToast('error', issues[0]?.message ?? '工作流暂时无法发布')

@@ -17,6 +17,7 @@ import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variab
 import { WorkflowRunHistoryPanel } from './workflow-run-history-panel'
 import { WorkflowTestRunPanelContent } from './workflow-test-run-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
+import type { WorkflowVersionHistoryPublishSync } from '../hooks/use-workflow-version-history'
 import { WorkflowVersionHistoryPanel } from './workflow-version-history-panel'
 
 export type WorkflowAuxiliaryPanelType =
@@ -36,6 +37,7 @@ interface WorkflowAuxiliaryPanelProps {
   testRunPausing: boolean
   testRunPending: boolean
   testRunResult?: WorkflowTestRunResult
+  publishSync?: WorkflowVersionHistoryPublishSync
   selectedVersionId?: string
   onClose: () => void
   onCheckListIssueSelect: (nodeId: string) => void
@@ -189,7 +191,8 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   },
   'version-history': {
     title: '版本历史',
-    description: '查看、命名和恢复工作流的发布版本。',
+    description:
+      '查看、命名和恢复工作流的发布版本。历史版本不可回退，外部 API 始终接入当前最新发布版本。',
   },
 }
 
@@ -202,6 +205,7 @@ export function WorkflowAuxiliaryPanel({
   testRunPausing,
   testRunPending,
   testRunResult,
+  publishSync,
   selectedVersionId,
   onClose,
   onCheckListIssueSelect,
@@ -228,10 +232,12 @@ export function WorkflowAuxiliaryPanel({
       <header className="bg-background px-4 pt-4">
         <div className="flex items-start justify-between gap-3">
           <div className="mb-2 min-w-0">
-            <h2 id={titleId} className="text-foreground text-base leading-6 font-semibold">
+            <h2 id={titleId} className="text-foreground text-[15px] leading-6 font-semibold">
               {title}
             </h2>
-            <p className="text-muted-foreground mt-1 text-sm leading-5">{definition.description}</p>
+            <p className="text-muted-foreground mt-1 text-[13px] leading-5">
+              {definition.description}
+            </p>
           </div>
           <Button
             type="button"
@@ -275,6 +281,7 @@ export function WorkflowAuxiliaryPanel({
           appId && onRestoreVersion && onSelectCurrentDraft ? (
             <WorkflowVersionHistoryPanel
               appId={appId}
+              publishSync={publishSync}
               selectedVersionId={selectedVersionId}
               onRestore={onRestoreVersion}
               onSelectCurrentDraft={onSelectCurrentDraft}

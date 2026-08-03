@@ -152,13 +152,19 @@ function ExampleForm() {
   页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载
   也展示最近一次自动保存时间。不得把接口请求重新耦合进 `useWorkflowEditor`。
 - 工作流发布状态由 `useWorkflowPublish` 按应用 ID 加载当前部署并管理防重复提交；
-  `useWorkflowOperations.publish` 对当前编辑器快照执行 Core 发布前校验后调用页面注入的发布
-  请求，不依赖自动保存是否完成。成功响应即时更新最近发布时间；请求错误由统一 API Client
-  提示。发布快捷键 `Command/Ctrl+Shift+P` 继续在 `useWorkflowShortcuts` 集中注册，并同步维护
-  快捷键帮助定义。
+  `useWorkflowOperations.publish` 先按当前检查清单（含配置草稿问题）拦截发布，再对编辑器快照
+  执行 `validateExecutorWorkflow` 兜底后调用页面注入的发布请求，不依赖自动保存是否完成。
+  检查清单有问题时发布入口保持可点，点击或快捷键触发后用 Toast 提示“检查清单存在问题，
+  修复后才可发布”并打开检查清单面板，不展示具体问题文案，也不在发布菜单内写静态拦截。测试运行继续只做 Core 执行前校验，不因检查清单
+  额外规则禁止运行。成功响应即时更新最近发布时间；请求错误由统一 API Client 提示。发布快捷键
+  `Command/Ctrl+Shift+P` 继续在 `useWorkflowShortcuts` 集中注册，并同步维护快捷键帮助定义。
+  前后端发布校验并不等价：前端检查清单额外覆盖 UI 必填、条件分支、结束节点输出和配置草稿；
+  后端发布接口只复用 `validateExecutorWorkflow`，不复制检查清单逻辑。
 - 版本历史列表由 `useWorkflowVersionHistory` 按应用 ID 加载发布版本并管理重试、命名后的条目
-  替换和删除后的本地移除；恢复请求由页面更新草稿修订号并用返回快照重建编辑器。页面持有当前
-  恢复版本 ID，版本快照被编辑后立即切回“当前草稿”选择态；当前选中版本的删除入口保持禁用。
+  替换和删除后的本地移除；发布进行中若面板已打开，Hook 通过页面注入的 `publishSync` 在列表
+  顶部乐观插入“发布中”占位，成功后替换为部署响应中的版本 ID，失败则移除占位。恢复请求由页面
+  更新草稿修订号并用返回快照重建编辑器，同时保持该版本选中；恢复后的编辑与自动保存仍写入
+  当前草稿，直到用户显式切回「当前草稿」。当前选中版本的删除入口保持禁用。
 - 顶部“测试运行”和节点右键“运行该节点”统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
   `SINGLE_NODE` 判别请求并共享同一个 pending 与防重复锁；该 Hook 使用带 Bearer Token 的
   `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和

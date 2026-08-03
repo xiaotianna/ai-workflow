@@ -17,6 +17,7 @@ import type { RefObject } from 'react'
 import type { WorkflowSaveStatus } from '../hooks/use-workflow-save'
 import { WorkflowAuxiliaryPanel, type WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
 import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
+import type { WorkflowVersionHistoryPublishSync } from '../hooks/use-workflow-version-history'
 import type { WorkflowTestRunResult } from '../hooks/use-workflow-test-run'
 
 interface WorkflowPanelProps {
@@ -44,6 +45,7 @@ interface WorkflowPanelProps {
   publishLoadError?: boolean
   publishLoading?: boolean
   publishPending?: boolean
+  publishSync?: WorkflowVersionHistoryPublishSync
   saveStatus: WorkflowSaveStatus
   testRunCanPause?: boolean
   testRunPausing?: boolean
@@ -116,6 +118,7 @@ export const WorkflowPanel = ({
   publishLoadError = false,
   publishLoading = false,
   publishPending = false,
+  publishSync,
   saveStatus,
   testRunCanPause = false,
   testRunPausing = false,
@@ -317,6 +320,7 @@ export const WorkflowPanel = ({
                   testRunPausing={testRunPausing}
                   testRunPending={testRunPending}
                   testRunResult={testRunResult}
+                  publishSync={publishSync}
                   selectedVersionId={selectedVersionId}
                   onClose={onAuxiliaryPanelClose}
                   onCheckListIssueSelect={onCheckListIssueSelect}

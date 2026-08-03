@@ -29,6 +29,7 @@ import {
   appendWorkflowNodeDraftValidationIssues,
   createWorkflowCheckListIssues,
 } from '../utils/workflow-check-list'
+import type { WorkflowVersionHistoryPublishSync } from '../hooks/use-workflow-version-history'
 import type {
   WorkflowNodeExecutionStatuses,
   WorkflowTestRunRequest,
@@ -47,12 +48,13 @@ interface WorkflowEditorProps {
   onPauseTestRun?: () => Promise<void>
   onPublish?: (snapshot: WorkflowEditorSnapshot) => Promise<unknown>
   onRestoreVersion?: (versionId: string) => Promise<void>
-  onSelectedVersionChange?: (versionId?: string) => void
+  onSelectCurrentDraft?: () => void | Promise<void>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
   publishedAt?: string
   publishLoadError?: boolean
   publishLoading?: boolean
   publishPending?: boolean
+  publishSync?: WorkflowVersionHistoryPublishSync
   selectedVersionId?: string
   testRunCanPause?: boolean
   testRunResult?: WorkflowTestRunResult
@@ -71,12 +73,13 @@ export function WorkflowEditor({
   onPauseTestRun,
   onPublish,
   onRestoreVersion,
-  onSelectedVersionChange,
+  onSelectCurrentDraft,
   onTestRun,
   publishedAt,
   publishLoadError = false,
   publishLoading = false,
   publishPending = false,
+  publishSync,
   selectedVersionId,
   testRunCanPause = false,
   testRunResult,
@@ -115,7 +118,9 @@ export function WorkflowEditor({
   })
   const operations = useWorkflowOperations({
     applicationMetadata,
+    checkListIssues,
     editor,
+    onCheckListRequired: () => setActiveAuxiliaryPanel('check-list'),
     onPauseTestRun,
     onPublish,
     onTestRun,
@@ -180,12 +185,6 @@ export function WorkflowEditor({
     setActiveAuxiliaryPanel(undefined)
     editor.clearSelection()
   }, [disabled])
-
-  useEffect(() => {
-    if (editor.dirty && selectedVersionId) {
-      onSelectedVersionChange?.(undefined)
-    }
-  }, [editor.dirty, onSelectedVersionChange, selectedVersionId])
 
   useEffect(() => {
     const sourceNodeId = nodePicker.connectionSourceNodeId
@@ -352,6 +351,7 @@ export function WorkflowEditor({
                         publishLoadError={publishLoadError}
                         publishLoading={publishLoading}
                         publishPending={operations.publishPending}
+                        publishSync={publishSync}
                         saveStatus={save.status}
                         canRedo={editor.canRedo}
                         canUndo={editor.canUndo}
@@ -403,7 +403,7 @@ export function WorkflowEditor({
                         onPauseTestRun={() => void operations.pauseTestRun()}
                         onPublish={() => void operations.publish()}
                         onRestoreVersion={onRestoreVersion}
-                        onSelectCurrentDraft={() => onSelectedVersionChange?.(undefined)}
+                        onSelectCurrentDraft={() => void onSelectCurrentDraft?.()}
                         onShortcutHelpOpenChange={setShortcutHelpOpen}
                         onStartTestRun={(input) => void operations.testRun(input)}
                         onTestRun={handleTestRunAction}
