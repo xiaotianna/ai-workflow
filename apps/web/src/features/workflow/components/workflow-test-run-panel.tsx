@@ -39,24 +39,47 @@ interface WorkflowTestRunPanelContentProps {
 }
 
 const RUN_STATUS_PRESENTATIONS = {
-  CANCELLED: { label: '已取消', icon: Ban, className: 'text-muted-foreground' },
-  FAILED: { label: '运行失败', icon: CircleX, className: 'text-destructive' },
+  CANCELLED: {
+    label: '已取消',
+    icon: Ban,
+    className: 'text-muted-foreground',
+    surfaceClassName: 'border-border bg-muted/40',
+  },
+  FAILED: {
+    label: '运行失败',
+    icon: CircleX,
+    className: 'text-destructive',
+    surfaceClassName: 'border-destructive/40 bg-destructive/5 dark:bg-destructive/10',
+  },
   PENDING: {
     label: '等待中',
     icon: Clock3,
     className: 'text-muted-foreground',
+    surfaceClassName: 'border-border bg-muted/40',
   },
-  QUEUED: { label: '排队中', icon: Clock3, className: 'text-warning' },
-  RUNNING: { label: '运行中', icon: LoaderCircle, className: 'text-primary' },
+  QUEUED: {
+    label: '排队中',
+    icon: Clock3,
+    className: 'text-warning',
+    surfaceClassName: 'border-warning/40 bg-warning/10',
+  },
+  RUNNING: {
+    label: '运行中',
+    icon: LoaderCircle,
+    className: 'text-primary',
+    surfaceClassName: 'border-primary/40 bg-primary/5 dark:bg-primary/10',
+  },
   SUCCEEDED: {
     label: '运行成功',
     icon: CheckCircle2,
     className: 'text-success',
+    surfaceClassName: 'border-success/40 bg-success/10',
   },
   TIMED_OUT: {
     label: '运行超时',
     icon: CircleX,
     className: 'text-destructive',
+    surfaceClassName: 'border-destructive/40 bg-destructive/5 dark:bg-destructive/10',
   },
 } as const
 
@@ -324,13 +347,13 @@ function RunMetadata({ run }: { run: StudioWorkflowTestRunDto }) {
   ] as const
 
   return (
-    <section className="border-border/60 rounded-lg border-[0.5px] p-3">
-      <h3 className="text-foreground text-[13px] font-semibold">元数据</h3>
-      <dl className="mt-2.5 grid grid-cols-[72px_minmax(0,1fr)] gap-x-3 gap-y-2 text-[13px] leading-5">
+    <section className="px-1 py-1">
+      <h3 className="text-muted-foreground text-[13px] leading-5 font-semibold">元数据</h3>
+      <dl className="mt-2.5 grid grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-2 text-[13px] leading-5">
         {metadata.map(([label, value]) => (
           <div key={label} className="contents">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="text-foreground min-w-0 break-all">{value}</dd>
+            <dd className="text-foreground min-w-0 [overflow-wrap:anywhere]">{value}</dd>
           </div>
         ))}
       </dl>
@@ -438,7 +461,12 @@ function RunStatusSummary({ run }: { run: StudioWorkflowTestRunDto }) {
   const Icon = presentation.icon
 
   return (
-    <section className="border-border/60 flex items-center justify-between gap-3 rounded-lg border-[0.5px] px-3 py-2">
+    <section
+      className={cn(
+        'flex items-center justify-between gap-3 rounded-lg border px-3 py-2 transition-[background-color,border-color] duration-200',
+        presentation.surfaceClassName,
+      )}
+    >
       <div>
         <p className="text-muted-foreground text-[11px] leading-4">运行状态</p>
         <div

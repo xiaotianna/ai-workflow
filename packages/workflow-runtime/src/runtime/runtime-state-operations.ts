@@ -15,6 +15,8 @@ export interface BeginNodeExecutionResult {
   execution: RuntimeExecution
 }
 
+const MIN_RECORDED_DURATION_MS = 1
+
 function getWaitingNodeState(state: RuntimeState, nodeId: string) {
   const nodeState = state.nodeStates[nodeId]
   if (!nodeState || nodeState.status !== RUNTIME_NODE_STATUSES.WAITING) {
@@ -110,7 +112,15 @@ export function recordControlNodeSuccess(
   node: WorkflowNode,
   outputs: Record<string, JsonValue>,
 ): RuntimeExecution {
-  return createExecution(state, node, RUNTIME_EXECUTION_STATUSES.SUCCEEDED, {}, {}, outputs, 0)
+  return createExecution(
+    state,
+    node,
+    RUNTIME_EXECUTION_STATUSES.SUCCEEDED,
+    {},
+    {},
+    outputs,
+    MIN_RECORDED_DURATION_MS,
+  )
 }
 
 export function recordBusinessNodeSuccess(

@@ -69,9 +69,9 @@
   测试运行不得先创建再调用此接口；只有 POST 流已返回 runId 后意外中断，才允许自动恢复一次。
 - `POST /studio/apps/:appId/workflow-runs/:runId/cancel`：对当前用户、当前应用内仍为 `RUNNING` 的
   测试 Run 执行一次性暂停。服务端把 Run 写为 `CANCELLED`，取消未完成 NodeRun 与待派发
-  Outbox；已开始 NodeRun 的耗时按 `startedAt` 到暂停时刻计算，尚未开始的节点记录 `0 ms`，随后
-  发布 `workflow_finished`；Run 已进入终态时幂等返回当前快照。该接口不表示可恢复的
-  `PAUSED` 状态。
+  Outbox；NodeRun 从进入执行链路时开始计时，耗时按 `startedAt` 到暂停时刻计算且已开始记录
+  最少为 `1 ms`，随后发布 `workflow_finished`；Run 已进入终态时幂等返回当前快照。该接口不表示
+  可恢复的 `PAUSED` 状态。
 - `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
 - `POST /studio/apps/import`：导入 `dslVersion: 1` 的 JSON DSL，校验应用元数据、工作流定义
   与布局后创建新的应用、Workflow 和草稿；导入时重新生成应用与工作流 ID。

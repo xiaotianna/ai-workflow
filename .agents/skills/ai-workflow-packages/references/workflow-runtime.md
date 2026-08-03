@@ -43,8 +43,8 @@
   全部 INACTIVE 时 SKIPPED，并继续传播未激活路径。
 - 每次业务节点派发都会创建显式 Execution，State 保存 executionKey、nodeId、scopeKey、sequence、
   attempt、输入、配置、输出或标准错误；Start/End 等同步本地控制 Execution 额外持久化整数毫秒
-  `durationMs`，当前精度下为 `0`；业务节点实际耗时继续由宿主 NodeRun 记录。禁止拆解
-  executionKey 推断执行位置。
+  `durationMs`，即使在 1 ms 内完成也记录为 `1`；业务节点实际耗时继续由宿主 NodeRun 记录。
+  禁止拆解 executionKey 推断执行位置。
 - 状态迁移返回新 revision、可持久化 RuntimeState 和 `DISPATCH_NODE`、`COMPLETE_RUN` 或 `FAIL_RUN`
   Effect，不访问 NestJS、Prisma、RabbitMQ、Redis、HTTP 或 React。
 

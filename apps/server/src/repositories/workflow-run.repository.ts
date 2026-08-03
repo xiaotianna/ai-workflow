@@ -137,11 +137,11 @@ export class WorkflowRunRepository {
             : undefined,
           startedAt: now,
           finishedAt: terminal ? now : undefined,
-          durationMs: terminal ? 0 : undefined,
+          durationMs: terminal ? durationFrom(now, now) : undefined,
         },
       })
 
-      await createDispatchRecords(transaction, options.runId, options.dispatches)
+      await createDispatchRecords(transaction, options.runId, options.dispatches, now)
       return 'created'
     })
   }
@@ -185,7 +185,6 @@ export class WorkflowRunRepository {
           },
           data: {
             status: WorkflowNodeRunStatus.RUNNING,
-            startedAt: new Date(),
           },
         })
       }
@@ -436,7 +435,7 @@ export class WorkflowRunRepository {
             },
       })
 
-      await createDispatchRecords(transaction, runId, transition.dispatches)
+      await createDispatchRecords(transaction, runId, transition.dispatches, now)
 
       if (transition.terminal.status !== RUNTIME_RUN_STATUSES.RUNNING) {
         await cancelPendingDispatches(transaction, runId, now)
@@ -608,6 +607,7 @@ async function createDispatchRecords(
   transaction: Prisma.TransactionClient,
   runId: string,
   dispatches: readonly PreparedNodeDispatch[],
+  startedAt: Date,
 ) {
   if (dispatches.length === 0) return
 
@@ -624,6 +624,7 @@ async function createDispatchRecords(
       leaseToken: command.leaseToken,
       deadlineAt: new Date(command.deadlineAt),
       input: toJsonInput(command.inputs),
+      startedAt,
     })),
   })
 
@@ -725,7 +726,7 @@ function createNodeResultUpdate(
 }
 
 function durationFrom(startedAt: Date | null, finishedAt: Date) {
-  return startedAt ? Math.max(0, finishedAt.getTime() - startedAt.getTime()) : 0
+  return startedAt ? Math.max(1, finishedAt.getTime() - startedAt.getTime()) : 0
 }
 
 function toWorkflowRunStatus(status: RuntimeTerminalData['status']) {

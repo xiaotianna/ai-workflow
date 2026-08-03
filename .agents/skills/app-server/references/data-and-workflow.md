@@ -138,8 +138,9 @@ NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stal
 编辑器暂停测试运行使用一次性取消语义：Repository 只允许当前用户、当前应用的 `RUNNING` Run
 原子切换为 `CANCELLED`，同事务取消 `PENDING` / `RUNNING` NodeRun 和尚未发布的 Outbox。已经
 发布给 Worker 的命令可以完成传输，但 Result 因 Run 已终态必须按 stale 忽略；当前不提供恢复
-执行，不得把该能力描述为可续跑的 `PAUSED`。取消事务必须为每条未完成 NodeRun 固化耗时：已
-领取节点按 `startedAt` 到取消时刻计算，未领取节点记录 `0 ms`，禁止统一覆盖为零。
+执行，不得把该能力描述为可续跑的 `PAUSED`。NodeRun 在进入执行链路并创建派发记录时写入
+`startedAt`，派发器领取时不得重置；取消事务按该时间到取消时刻固化每条未完成 NodeRun 的耗时，
+不足 `1 ms` 的已开始记录按 `1 ms` 保存。
 
 测试运行进度通过 Server SSE 推送：Controller 建连后先读取持久化快照以覆盖建连竞态，Result
 事务提交成功后才发布 `node_finished`，并携带最新 `nodeStates`、`nodeRuns`、
