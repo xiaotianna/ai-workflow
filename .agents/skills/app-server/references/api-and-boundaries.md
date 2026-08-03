@@ -60,8 +60,9 @@
   的 `PENDING` 节点投影为 `RUNNING`，`TIMED_OUT` 节点投影为 `FAILED`。两种模式共用
   Runtime/Protocol、运行记录、Outbox/Inbox 和 Go Executor 链路；请求中的
   Secret 占位值按当前用户持久化草稿恢复。运行快照显式返回持久化 Run 的 `traceId`、`trigger`、
-  `input`、触发用户、排队/开始/结束时间和耗时；每条 NodeRun 返回 `input`、`output`、开始/结束
-  时间和耗时，供运行详情与追踪展示，不把 Prisma model 直接作为响应。
+  `input`、触发用户、排队/开始/结束时间和耗时；Run `input` 是归一化用户输入与非 Secret
+  `env.<name>`、全部 `sys.<key>` 的合并结果。每条 NodeRun 返回实际派发的 `input`、`output`、
+  开始/结束时间和耗时，供运行详情与追踪展示，不把 Prisma model 直接作为响应。
 - `GET /studio/apps/:appId/workflow-runs`：按 `queuedAt`、`id` 倒序游标分页读取当前用户和应用的
   测试与正式运行记录；`limit` 范围为 1–50，响应返回轻量 `items` 和 opaque `nextCursor`，列表
   不携带输入、输出、节点运行或工作流版本快照。

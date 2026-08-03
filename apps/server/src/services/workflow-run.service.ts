@@ -12,6 +12,7 @@ import {
   SYSTEM_VARIABLE_KEYS,
   type JsonValue,
   type NodeOutputDefinition,
+  type SystemVariableKey,
   type Workflow,
   type WorkflowNode,
   nodeRegistry,
@@ -25,6 +26,7 @@ import {
   type ExecuteNodeResult,
 } from '@ai-workflow/protocol'
 import {
+  createRuntimeContextInputs,
   createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
   projectStaticJsonNodeConfig,
@@ -374,24 +376,23 @@ export class WorkflowRunService {
       workflowVersionId,
       configResolver: this.createRuntimeConfigResolver(workflow),
     })
+    const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
 
     let transition: RuntimeTransition
     try {
       transition = runtime.start({
         runId,
         input,
-        systemVariables: {
-          [SYSTEM_VARIABLE_KEYS.USER_ID]: ownerId,
-          [SYSTEM_VARIABLE_KEYS.APP_ID]: appId,
-          [SYSTEM_VARIABLE_KEYS.WORKFLOW_ID]: workflow.id,
-          [SYSTEM_VARIABLE_KEYS.WORKFLOW_RUN_ID]: runId,
-          [SYSTEM_VARIABLE_KEYS.TIMESTAMP]: Date.now(),
-        },
+        systemVariables,
       })
     } catch (error) {
       throw new BadRequestException(getErrorMessage(error, '工作流无法启动'))
     }
 
+    const effectiveInput = {
+      ...transition.state.startInput,
+      ...createRuntimeContextInputs(workflow, systemVariables),
+    }
     const initialDispatches = this.prepareRuntimeDispatches(transition, runId)
     const created = await this.workflowRunRepository.createTestRun({
       ownerId,
@@ -403,7 +404,7 @@ export class WorkflowRunService {
       mode: TEST_RUN_MODES.FULL,
       definition: workflow,
       layout,
-      input,
+      input: effectiveInput,
       runtimeState: transition.state,
       terminal: getRuntimeTerminal(transition),
       dispatches: initialDispatches,
@@ -441,12 +442,17 @@ export class WorkflowRunService {
 
     const runId = randomUUID()
     const versionId = randomUUID()
+    const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
+    const effectiveInput = {
+      ...resolveSingleNodeMockInputs(node),
+      ...createRuntimeContextInputs(workflow, systemVariables),
+    }
     const command = this.createCommand({
       runId,
       node,
       executionKey: `${runId}:single:${node.id}`,
       attempt: 1,
-      inputs: resolveSingleNodeMockInputs(node),
+      inputs: effectiveInput,
       config: parsedConfig.data,
     })
     const dispatches = [{ command }]
@@ -462,7 +468,7 @@ export class WorkflowRunService {
       targetNodeId,
       definition: workflow,
       layout,
-      input: {},
+      input: effectiveInput,
       terminal: { status: 'RUNNING' },
       dispatches,
     })
@@ -768,6 +774,21 @@ function resolveSingleNodeMockInputs(node: WorkflowNode): Record<string, unknown
       value.type === 'value' ? value.value : value,
     ]),
   )
+}
+
+function createRunSystemVariables(
+  ownerId: string,
+  appId: string,
+  workflowId: string,
+  runId: string,
+): Record<SystemVariableKey, JsonValue> {
+  return {
+    [SYSTEM_VARIABLE_KEYS.USER_ID]: ownerId,
+    [SYSTEM_VARIABLE_KEYS.APP_ID]: appId,
+    [SYSTEM_VARIABLE_KEYS.WORKFLOW_ID]: workflowId,
+    [SYSTEM_VARIABLE_KEYS.WORKFLOW_RUN_ID]: runId,
+    [SYSTEM_VARIABLE_KEYS.TIMESTAMP]: Date.now(),
+  }
 }
 
 function adaptMockSuccessResult(

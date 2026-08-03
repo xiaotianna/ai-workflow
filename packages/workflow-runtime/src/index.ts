@@ -1,6 +1,8 @@
 export { buildExecutionPlan } from './compiler/build-execution-plan'
 export type { ExecutionPlan, StaticScopeKey } from './compiler/execution-plan'
 
+export { createRuntimeContextInputs } from './input/create-runtime-context-inputs'
+
 export {
   createRuntimeNodeConfigResolver,
   projectStaticJsonNodeConfig,
