@@ -61,6 +61,25 @@ export interface PublishStudioWorkflowParams {
   layout: WorkflowEditorSnapshot['layout']
 }
 
+export interface StudioWorkflowVersionDto {
+  id: string
+  version: number
+  name?: string
+  createdAt: string
+  createdBy?: {
+    id: string
+    username: string
+  }
+}
+
+export interface StudioWorkflowVersionListResult {
+  items: StudioWorkflowVersionDto[]
+}
+
+export interface RenameStudioWorkflowVersionParams {
+  name: string
+}
+
 export type StudioWorkflowTestRunMode = 'FULL' | 'SINGLE_NODE'
 
 export interface CreateStudioWorkflowTestRunParams {
@@ -253,6 +272,42 @@ export function publishStudioWorkflow(
   return apiClient.post<StudioWorkflowDeploymentDto, PublishStudioWorkflowParams>(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-deployment`,
     values,
+  )
+}
+
+export function listStudioWorkflowVersions(
+  appId: string,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowVersionListResult> {
+  return apiClient.get<StudioWorkflowVersionListResult>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-versions`,
+    { signal },
+  )
+}
+
+export function restoreStudioWorkflowVersion(
+  appId: string,
+  versionId: string,
+): Promise<StudioWorkflowDraftDto> {
+  return apiClient.post<StudioWorkflowDraftDto>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-versions/${encodeURIComponent(versionId)}/restore`,
+  )
+}
+
+export function renameStudioWorkflowVersion(
+  appId: string,
+  versionId: string,
+  values: RenameStudioWorkflowVersionParams,
+): Promise<StudioWorkflowVersionDto> {
+  return apiClient.patch<StudioWorkflowVersionDto, RenameStudioWorkflowVersionParams>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-versions/${encodeURIComponent(versionId)}`,
+    values,
+  )
+}
+
+export function deleteStudioWorkflowVersion(appId: string, versionId: string): Promise<void> {
+  return apiClient.delete<void>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-versions/${encodeURIComponent(versionId)}`,
   )
 }
 

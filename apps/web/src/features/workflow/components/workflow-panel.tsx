@@ -49,6 +49,7 @@ interface WorkflowPanelProps {
   testRunPausing?: boolean
   testRunPending?: boolean
   testRunResult?: WorkflowTestRunResult
+  selectedVersionId?: string
   onAddNodeOpenChange: (open: boolean) => void
   onAuxiliaryPanelClose: () => void
   onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
@@ -81,6 +82,8 @@ interface WorkflowPanelProps {
   onRedo: () => void
   onPauseTestRun: () => void
   onPublish: () => void
+  onRestoreVersion?: (versionId: string) => Promise<void>
+  onSelectCurrentDraft?: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onStartTestRun: (input: Record<string, unknown>) => void
   onTestRun: () => void
@@ -118,6 +121,7 @@ export const WorkflowPanel = ({
   testRunPausing = false,
   testRunPending = false,
   testRunResult,
+  selectedVersionId,
   onAddNodeOpenChange,
   onAuxiliaryPanelClose,
   onAuxiliaryPanelToggle,
@@ -137,6 +141,8 @@ export const WorkflowPanel = ({
   onRedo,
   onPauseTestRun,
   onPublish,
+  onRestoreVersion,
+  onSelectCurrentDraft,
   onShortcutHelpOpenChange,
   onStartTestRun,
   onTestRun,
@@ -311,11 +317,14 @@ export const WorkflowPanel = ({
                   testRunPausing={testRunPausing}
                   testRunPending={testRunPending}
                   testRunResult={testRunResult}
+                  selectedVersionId={selectedVersionId}
                   onClose={onAuxiliaryPanelClose}
                   onCheckListIssueSelect={onCheckListIssueSelect}
                   onAddEnvironmentVariable={onAddEnvironmentVariable}
                   onDeleteEnvironmentVariable={onDeleteEnvironmentVariable}
                   onPauseTestRun={onPauseTestRun}
+                  onRestoreVersion={onRestoreVersion}
+                  onSelectCurrentDraft={onSelectCurrentDraft}
                   onStartTestRun={onStartTestRun}
                   onUpdateEnvironmentVariable={onUpdateEnvironmentVariable}
                 />

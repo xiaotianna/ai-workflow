@@ -33,7 +33,9 @@
   恢复 Secret 占位值并调用 `validateExecutorWorkflow`。发布事务与测试运行创建版本共用
   Workflow 行锁串行分配递增版本号，创建来源为 `PUBLISH` 的不可变 `WorkflowVersion`，再通过
   `WorkflowDeployment.workflowId` 唯一约束原子创建或切换当前部署；发布接口不得返回版本定义或
-  Secret。
+  Secret。发布版本默认不设置名称，用户后续通过版本历史命名；版本历史只投影 `PUBLISH` 来源，
+  测试运行快照不作为用户可管理版本。恢复版本只覆盖并递增当前草稿，不修改原版本；删除前必须
+  阻止仍被部署或运行记录引用的版本。
 - 工作流定义顶层包含 `environmentVariables`，服务端直接使用 Core `workflowSchema` 与
   `validateWorkflow` 校验其稳定 ID、唯一名称、类型和值，不维护简化的 Workflow 类型或第二套
   解析规则。旧草稿缺少该字段时由 Core Schema 归一为空数组。DSL 导出必须将

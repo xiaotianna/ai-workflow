@@ -46,11 +46,14 @@ interface WorkflowEditorProps {
   onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
   onPauseTestRun?: () => Promise<void>
   onPublish?: (snapshot: WorkflowEditorSnapshot) => Promise<unknown>
+  onRestoreVersion?: (versionId: string) => Promise<void>
+  onSelectedVersionChange?: (versionId?: string) => void
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
   publishedAt?: string
   publishLoadError?: boolean
   publishLoading?: boolean
   publishPending?: boolean
+  selectedVersionId?: string
   testRunCanPause?: boolean
   testRunResult?: WorkflowTestRunResult
   testRunPausing?: boolean
@@ -67,11 +70,14 @@ export function WorkflowEditor({
   onSave,
   onPauseTestRun,
   onPublish,
+  onRestoreVersion,
+  onSelectedVersionChange,
   onTestRun,
   publishedAt,
   publishLoadError = false,
   publishLoading = false,
   publishPending = false,
+  selectedVersionId,
   testRunCanPause = false,
   testRunResult,
   testRunPausing = false,
@@ -174,6 +180,12 @@ export function WorkflowEditor({
     setActiveAuxiliaryPanel(undefined)
     editor.clearSelection()
   }, [disabled])
+
+  useEffect(() => {
+    if (editor.dirty && selectedVersionId) {
+      onSelectedVersionChange?.(undefined)
+    }
+  }, [editor.dirty, onSelectedVersionChange, selectedVersionId])
 
   useEffect(() => {
     const sourceNodeId = nodePicker.connectionSourceNodeId
@@ -352,6 +364,7 @@ export function WorkflowEditor({
                         nextStepSourceHandle={nodePicker.connectionSourceHandle}
                         shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
                         testRunResult={testRunResult}
+                        selectedVersionId={selectedVersionId}
                         disabled={disabled}
                         onAddNodeOpenChange={handleNodePickerOpenChange}
                         onAuxiliaryPanelClose={() => setActiveAuxiliaryPanel(undefined)}
@@ -389,6 +402,8 @@ export function WorkflowEditor({
                         onRedo={editor.redo}
                         onPauseTestRun={() => void operations.pauseTestRun()}
                         onPublish={() => void operations.publish()}
+                        onRestoreVersion={onRestoreVersion}
+                        onSelectCurrentDraft={() => onSelectedVersionChange?.(undefined)}
                         onShortcutHelpOpenChange={setShortcutHelpOpen}
                         onStartTestRun={(input) => void operations.testRun(input)}
                         onTestRun={handleTestRunAction}

@@ -1,5 +1,6 @@
 import {
   getStudioWorkflowDraft,
+  restoreStudioWorkflowVersion,
   saveStudioWorkflowDraft,
   type StudioWorkflowDraftDto,
 } from '@/api/studio'
@@ -35,6 +36,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     appId: app.id,
     status: 'loading',
   })
+  const [selectedVersionId, setSelectedVersionId] = useState<string>()
   const revisionRef = useRef<number | undefined>(undefined)
   const workflowPublish = useWorkflowPublish(app.id)
   const testRun = useWorkflowTestRun(app.id)
@@ -44,6 +46,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   useEffect(() => {
     const controller = new AbortController()
     revisionRef.current = undefined
+    setSelectedVersionId(undefined)
     setDraftState({
       appId: app.id,
       status: 'loading',
@@ -88,8 +91,20 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     revisionRef.current = savedDraft.revision
   }
 
+  async function handleRestoreVersion(versionId: string) {
+    const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId)
+    revisionRef.current = restoredDraft.revision
+    setSelectedVersionId(versionId)
+    setDraftState({
+      appId: app.id,
+      status: 'success',
+      draft: restoredDraft,
+    })
+  }
+
   return (
     <WorkflowEditorProvider
+      key={`${app.id}:${draft.revision}`}
       applicationMetadata={{
         id: app.id,
         title: app.title,
@@ -105,11 +120,14 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
       onSave={handleSave}
       onPauseTestRun={testRun.pause}
       onPublish={workflowPublish.publish}
+      onRestoreVersion={handleRestoreVersion}
+      onSelectedVersionChange={setSelectedVersionId}
       onTestRun={testRun.run}
       publishedAt={workflowPublish.deployment?.publishedAt}
       publishLoadError={workflowPublish.loadError}
       publishLoading={workflowPublish.loading}
       publishPending={workflowPublish.pending}
+      selectedVersionId={selectedVersionId}
       testRunCanPause={testRun.canPause}
       testRunPausing={testRun.pausing}
       testRunPending={testRun.pending}

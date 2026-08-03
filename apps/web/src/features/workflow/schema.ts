@@ -78,3 +78,15 @@ export function getEnvironmentVariableFormInitialValues(
     description: variable?.description ?? '',
   }
 }
+
+export const workflowVersionNameFormSchema = z.object({
+  name: z.string().trim().min(1, '版本名称不能为空').max(40, '版本名称不能超过 40 个字符'),
+})
+
+export type WorkflowVersionNameFormInput = z.input<typeof workflowVersionNameFormSchema>
+
+export function getWorkflowVersionNameFormInitialValues(
+  name?: string,
+): WorkflowVersionNameFormInput {
+  return { name: name ?? '' }
+}

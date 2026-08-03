@@ -53,6 +53,15 @@
 - `POST /studio/apps/:appId/workflow-deployment`：发布前端提交的当前编辑器快照。请求携带
   `definition` 和 `layout`；服务端按当前用户草稿恢复 Secret 占位值并执行 Core 执行前校验，
   成功后创建来源为 `PUBLISH` 的不可变版本并原子切换当前部署，返回新的版本 ID、版本号和发布时间。
+- `GET /studio/apps/:appId/workflow-versions`：按版本号倒序返回当前应用由发布形成的历史版本；
+  列表只包含版本 ID、版本号、可选名称、创建时间和创建人，不返回工作流定义或 Secret，测试运行
+  产生的内部快照不进入版本历史。
+- `POST /studio/apps/:appId/workflow-versions/:versionId/restore`：把当前用户和应用内的发布版本
+  快照恢复为当前草稿，原子递增草稿修订号并返回脱敏后的完整草稿；版本快照本身保持不可变。
+- `PATCH /studio/apps/:appId/workflow-versions/:versionId`：设置发布版本名称，名称去除首尾空白后
+  必填且最长 40 个字符。
+- `DELETE /studio/apps/:appId/workflow-versions/:versionId`：删除当前用户和应用内未被部署或运行记录
+  引用的发布版本；仍被引用时返回 `409`，不得绕过关联约束删除。
 - `POST /studio/apps/:appId/workflow-runs/test`：测试当前提交的编辑器快照。`mode=FULL` 运行完整根
   DAG；`mode=SINGLE_NODE` 必须携带 `targetNodeId`。前端使用 `fetch` 以 POST 提交请求体并读取
   `text/event-stream` 响应，不使用仅支持 GET 的原生 `EventSource`。事件依次为当前数据库快照的

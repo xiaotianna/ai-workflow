@@ -156,6 +156,9 @@ function ExampleForm() {
   请求，不依赖自动保存是否完成。成功响应即时更新最近发布时间；请求错误由统一 API Client
   提示。发布快捷键 `Command/Ctrl+Shift+P` 继续在 `useWorkflowShortcuts` 集中注册，并同步维护
   快捷键帮助定义。
+- 版本历史列表由 `useWorkflowVersionHistory` 按应用 ID 加载发布版本并管理重试、命名后的条目
+  替换和删除后的本地移除；恢复请求由页面更新草稿修订号并用返回快照重建编辑器。页面持有当前
+  恢复版本 ID，版本快照被编辑后立即切回“当前草稿”选择态；当前选中版本的删除入口保持禁用。
 - 顶部“测试运行”和节点右键“运行该节点”统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
   `SINGLE_NODE` 判别请求并共享同一个 pending 与防重复锁；该 Hook 使用带 Bearer Token 的
   `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和

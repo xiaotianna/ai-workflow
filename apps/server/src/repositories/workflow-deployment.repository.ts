@@ -89,7 +89,7 @@ export class WorkflowDeploymentRepository {
           schemaVersion: options.schemaVersion,
           definition: options.definition,
           layout: options.layout,
-          note: '发布更新',
+          note: null,
           createdById: options.ownerId,
         },
         select: {

@@ -17,6 +17,7 @@ import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variab
 import { WorkflowRunHistoryPanel } from './workflow-run-history-panel'
 import { WorkflowTestRunPanelContent } from './workflow-test-run-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
+import { WorkflowVersionHistoryPanel } from './workflow-version-history-panel'
 
 export type WorkflowAuxiliaryPanelType =
   | 'test-run'
@@ -35,12 +36,15 @@ interface WorkflowAuxiliaryPanelProps {
   testRunPausing: boolean
   testRunPending: boolean
   testRunResult?: WorkflowTestRunResult
+  selectedVersionId?: string
   onClose: () => void
   onCheckListIssueSelect: (nodeId: string) => void
   onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
   onDeleteEnvironmentVariable: (variableId: string) => boolean
   onPauseTestRun: () => void
   onStartTestRun: (input: Record<string, unknown>) => void
+  onRestoreVersion?: (versionId: string) => Promise<void>
+  onSelectCurrentDraft?: () => void
   onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
 }
 
@@ -157,10 +161,6 @@ function SystemVariablesPanelContent() {
   )
 }
 
-function VersionHistoryPanelContent() {
-  return <EmptyPanelContent>暂无历史版本</EmptyPanelContent>
-}
-
 const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   WorkflowAuxiliaryPanelType,
   WorkflowAuxiliaryPanelDefinition
@@ -189,8 +189,7 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   },
   'version-history': {
     title: '版本历史',
-    description: '查看工作流保存和发布形成的历史版本。',
-    Content: VersionHistoryPanelContent,
+    description: '查看、命名和恢复工作流的发布版本。',
   },
 }
 
@@ -203,11 +202,14 @@ export function WorkflowAuxiliaryPanel({
   testRunPausing,
   testRunPending,
   testRunResult,
+  selectedVersionId,
   onClose,
   onCheckListIssueSelect,
   onAddEnvironmentVariable,
   onDeleteEnvironmentVariable,
   onPauseTestRun,
+  onRestoreVersion,
+  onSelectCurrentDraft,
   onStartTestRun,
   onUpdateEnvironmentVariable,
 }: WorkflowAuxiliaryPanelProps) {
@@ -268,6 +270,17 @@ export function WorkflowAuxiliaryPanel({
             />
           ) : (
             <EmptyPanelContent>当前应用暂时无法读取运行记录</EmptyPanelContent>
+          )
+        ) : type === 'version-history' ? (
+          appId && onRestoreVersion && onSelectCurrentDraft ? (
+            <WorkflowVersionHistoryPanel
+              appId={appId}
+              selectedVersionId={selectedVersionId}
+              onRestore={onRestoreVersion}
+              onSelectCurrentDraft={onSelectCurrentDraft}
+            />
+          ) : (
+            <EmptyPanelContent>当前应用暂时无法读取历史版本</EmptyPanelContent>
           )
         ) : type === 'check-list' ? (
           <CheckListPanelContent issues={checkListIssues} onIssueSelect={onCheckListIssueSelect} />
