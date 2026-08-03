@@ -67,7 +67,11 @@ export interface StudioWorkflowNodeRunDto {
   executionKey: string
   attempt: number
   status: string
+  input?: unknown
   output?: unknown
+  startedAt?: string
+  finishedAt?: string
+  durationMs?: number
   error?: {
     code: string
     message: string
@@ -84,10 +88,21 @@ export interface StudioWorkflowNodeExecutionStateDto {
 
 export interface StudioWorkflowTestRunDto {
   id: string
+  traceId: string
+  trigger: string
   mode: StudioWorkflowTestRunMode
   targetNodeId?: string
   status: string
+  input: unknown
   output?: unknown
+  queuedAt: string
+  startedAt?: string
+  finishedAt?: string
+  durationMs?: number
+  triggeredBy?: {
+    id: string
+    username: string
+  }
   error?: {
     code: string
     message: string
@@ -95,6 +110,8 @@ export interface StudioWorkflowTestRunDto {
   }
   nodeRuns: StudioWorkflowNodeRunDto[]
   nodeStates: StudioWorkflowNodeExecutionStateDto[]
+  traceNodeDurations?: Record<string, number>
+  traceNodeIds?: string[]
 }
 
 export type StudioWorkflowTestRunSseEvent =
@@ -107,7 +124,10 @@ export type StudioWorkflowTestRunSseEvent =
       data: {
         runId: string
         node: StudioWorkflowNodeExecutionStateDto
+        nodeRuns?: StudioWorkflowNodeRunDto[]
         nodeStates: StudioWorkflowNodeExecutionStateDto[]
+        traceNodeDurations?: Record<string, number>
+        traceNodeIds?: string[]
       }
     }
   | {

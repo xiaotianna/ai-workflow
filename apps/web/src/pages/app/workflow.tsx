@@ -106,6 +106,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
       testRunCanPause={testRun.canPause}
       testRunPausing={testRun.pausing}
       testRunPending={testRun.pending}
+      testRunResult={testRun.result}
       nodeExecutionStatuses={testRun.nodeExecutionStatuses}
     />
   )

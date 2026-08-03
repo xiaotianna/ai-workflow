@@ -52,10 +52,16 @@
   DAG；`mode=SINGLE_NODE` 必须携带 `targetNodeId`。前端使用 `fetch` 以 POST 提交请求体并读取
   `text/event-stream` 响应，不使用仅支持 GET 的原生 `EventSource`。事件依次为当前数据库快照的
   `workflow_started`、状态推进时的 `node_finished` 和终态的 `workflow_finished`。初始快照与
-  每个增量事件都提供最新 `nodeStates`，状态包含 `RUNNING` / `SUCCEEDED` / `FAILED`，供前端准确
-  标记当前执行节点；尚未领取的 `PENDING` 节点投影为 `RUNNING`，`TIMED_OUT` 节点投影为
-  `FAILED`。两种模式共用 Runtime/Protocol、运行记录、Outbox/Inbox 和 Go Executor 链路；请求中的
-  Secret 占位值按当前用户持久化草稿恢复。
+  每个增量事件都提供最新 `nodeStates`、`nodeRuns`、`traceNodeDurations` 和 `traceNodeIds`：
+  `traceNodeIds` 必须从持久化 RuntimeState 的 Execution `sequence` 生成，只包含真正进入执行链路
+  的节点，禁止按画布拓扑补齐未执行节点；`traceNodeDurations` 合并 Runtime 本地控制 Execution 与
+  持久化 NodeRun 的终态耗时，运行中节点不返回临时递增耗时。状态包含 `RUNNING` / `SUCCEEDED` /
+  `FAILED`，供前端准确标记当前执行节点；尚未领取
+  的 `PENDING` 节点投影为 `RUNNING`，`TIMED_OUT` 节点投影为 `FAILED`。两种模式共用
+  Runtime/Protocol、运行记录、Outbox/Inbox 和 Go Executor 链路；请求中的
+  Secret 占位值按当前用户持久化草稿恢复。运行快照显式返回持久化 Run 的 `traceId`、`trigger`、
+  `input`、触发用户、排队/开始/结束时间和耗时；每条 NodeRun 返回 `input`、`output`、开始/结束
+  时间和耗时，供运行详情与追踪展示，不把 Prisma model 直接作为响应。
 - `GET /studio/apps/:appId/workflow-runs/:runId`：按当前用户和应用读取异步测试 Run、节点状态、输出
   或错误，作为详情与恢复快照使用；不得仅凭 runId 跨应用读取，也不得由 Web 用于终态轮询。
 - `GET /studio/apps/:appId/workflow-runs/:runId/events`：为详情和恢复场景保留的事件流接口；事件
@@ -63,7 +69,8 @@
   测试运行不得先创建再调用此接口；只有 POST 流已返回 runId 后意外中断，才允许自动恢复一次。
 - `POST /studio/apps/:appId/workflow-runs/:runId/cancel`：对当前用户、当前应用内仍为 `RUNNING` 的
   测试 Run 执行一次性暂停。服务端把 Run 写为 `CANCELLED`，取消未完成 NodeRun 与待派发
-  Outbox，并发布 `workflow_finished`；Run 已进入终态时幂等返回当前快照。该接口不表示可恢复的
+  Outbox；已开始 NodeRun 的耗时按 `startedAt` 到暂停时刻计算，尚未开始的节点记录 `0 ms`，随后
+  发布 `workflow_finished`；Run 已进入终态时幂等返回当前快照。该接口不表示可恢复的
   `PAUSED` 状态。
 - `POST /studio/apps`：创建应用，并同时创建对应 Workflow 与空草稿。
 - `POST /studio/apps/import`：导入 `dslVersion: 1` 的 JSON DSL，校验应用元数据、工作流定义

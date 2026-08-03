@@ -138,13 +138,16 @@ NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stal
 编辑器暂停测试运行使用一次性取消语义：Repository 只允许当前用户、当前应用的 `RUNNING` Run
 原子切换为 `CANCELLED`，同事务取消 `PENDING` / `RUNNING` NodeRun 和尚未发布的 Outbox。已经
 发布给 Worker 的命令可以完成传输，但 Result 因 Run 已终态必须按 stale 忽略；当前不提供恢复
-执行，不得把该能力描述为可续跑的 `PAUSED`。
+执行，不得把该能力描述为可续跑的 `PAUSED`。取消事务必须为每条未完成 NodeRun 固化耗时：已
+领取节点按 `startedAt` 到取消时刻计算，未领取节点记录 `0 ms`，禁止统一覆盖为零。
 
 测试运行进度通过 Server SSE 推送：Controller 建连后先读取持久化快照以覆盖建连竞态，Result
-事务提交成功后才发布 `node_finished`，Run 进入终态后发布 `workflow_finished`。Start/End 等本地
-控制节点从 RuntimeState 的终态节点状态投影，Web 只展示成功和失败。当前事件订阅器是 Server
-进程内边界；部署多个 Server 实例前必须替换为 Redis Pub/Sub 等跨实例事件协调，但数据库仍是
-恢复快照和最终状态的事实来源。
+事务提交成功后才发布 `node_finished`，并携带最新 `nodeStates`、`nodeRuns`、
+`traceNodeDurations` 与 `traceNodeIds`；Run 进入终态后发布 `workflow_finished`。追踪顺序从
+RuntimeState 已持久化的 Execution `sequence` 生成，Start/End 等本地控制节点也以其 Execution
+为准，只返回真正进入执行链路的节点；终态耗时由本地控制 Execution 与 NodeRun 合并投影。当前事件
+订阅器是 Server 进程内边界；部署多个 Server 实例前必须替换为 Redis Pub/Sub 等跨实例事件协调，
+但数据库仍是恢复快照、追踪顺序和最终状态的事实来源。
 
 完整测试运行中，Runtime 根据 Start 节点动态输出定义校验运行输入字段、JSON 值、
 类型、必填项和默认值。应用服务使用 `SYSTEM_VARIABLE_KEYS` 组装

@@ -3,6 +3,7 @@ import { LoaderCircle, Pause, Play } from 'lucide-react'
 
 interface TestRunProps {
   onClick: () => void
+  active?: boolean
   canPause?: boolean
   pending?: boolean
   pausing?: boolean
@@ -10,6 +11,7 @@ interface TestRunProps {
 
 export const TestRun = ({
   onClick,
+  active = false,
   canPause = false,
   pending = false,
   pausing = false,
@@ -19,10 +21,11 @@ export const TestRun = ({
       type="button"
       variant="secondary"
       size="sm"
-      className="text-primary h-8 gap-1.5 rounded-lg px-3 text-[13px]"
+      className={`text-primary h-8 gap-1.5 rounded-lg px-3 text-[13px] ${active && !pending ? 'bg-button-secondary-bg-active' : ''}`}
       aria-keyshortcuts="Alt+R"
       aria-busy={pausing}
-      aria-label={pending ? '暂停测试运行' : '开始测试运行'}
+      aria-label={pending ? '暂停测试运行' : '打开测试运行'}
+      aria-pressed={active}
       disabled={pending && (!canPause || pausing)}
       onClick={onClick}
     >

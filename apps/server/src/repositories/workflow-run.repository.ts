@@ -562,14 +562,27 @@ export class WorkflowRunRepository {
 
 const workflowRunSummarySelect = {
   id: true,
+  traceId: true,
+  trigger: true,
   mode: true,
   targetNodeId: true,
   status: true,
   runtimeState: true,
+  input: true,
   output: true,
   errorCode: true,
   errorMessage: true,
   errorDetails: true,
+  queuedAt: true,
+  startedAt: true,
+  finishedAt: true,
+  durationMs: true,
+  triggeredBy: {
+    select: {
+      id: true,
+      username: true,
+    },
+  },
   nodeRuns: {
     orderBy: [{ createdAt: 'asc' }, { attempt: 'asc' }],
     select: {
@@ -579,10 +592,14 @@ const workflowRunSummarySelect = {
       executionKey: true,
       attempt: true,
       status: true,
+      input: true,
       output: true,
       errorCode: true,
       errorMessage: true,
       errorDetails: true,
+      startedAt: true,
+      finishedAt: true,
+      durationMs: true,
     },
   },
 } satisfies Prisma.WorkflowRunSelect
@@ -648,19 +665,27 @@ async function cancelPendingDispatches(
   runId: string,
   now: Date,
 ) {
-  await transaction.workflowNodeRun.updateMany({
+  const nodeRuns = await transaction.workflowNodeRun.findMany({
     where: {
       runId,
       status: {
         in: [WorkflowNodeRunStatus.PENDING, WorkflowNodeRunStatus.RUNNING],
       },
     },
-    data: {
-      status: WorkflowNodeRunStatus.CANCELLED,
-      finishedAt: now,
-      durationMs: 0,
-    },
+    select: { id: true, startedAt: true },
   })
+  await Promise.all(
+    nodeRuns.map((nodeRun) =>
+      transaction.workflowNodeRun.update({
+        where: { id: nodeRun.id },
+        data: {
+          status: WorkflowNodeRunStatus.CANCELLED,
+          finishedAt: now,
+          durationMs: durationFrom(nodeRun.startedAt, now),
+        },
+      }),
+    ),
+  )
 
   await transaction.workflowCommandOutbox.updateMany({
     where: {

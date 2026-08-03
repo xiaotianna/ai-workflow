@@ -1,5 +1,9 @@
 import type { TestRunMode } from '@/dto/workflow-run.dto'
-import type { WorkflowNodeRunStatus, WorkflowRunStatus } from '@/generated/prisma/client'
+import type {
+  WorkflowNodeRunStatus,
+  WorkflowRunStatus,
+  WorkflowRunTrigger,
+} from '@/generated/prisma/client'
 
 export type WorkflowNodeExecutionStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 
@@ -15,7 +19,11 @@ export interface WorkflowNodeRunVo {
   executionKey: string
   attempt: number
   status: WorkflowNodeRunStatus
+  input?: unknown
   output?: unknown
+  startedAt?: Date
+  finishedAt?: Date
+  durationMs?: number
   error?: {
     code: string
     message: string
@@ -25,10 +33,21 @@ export interface WorkflowNodeRunVo {
 
 export interface WorkflowTestRunVo {
   id: string
+  traceId: string
+  trigger: WorkflowRunTrigger
   mode: TestRunMode
   targetNodeId?: string
   status: WorkflowRunStatus
+  input: unknown
   output?: unknown
+  queuedAt: Date
+  startedAt?: Date
+  finishedAt?: Date
+  durationMs?: number
+  triggeredBy?: {
+    id: string
+    username: string
+  }
   error?: {
     code: string
     message: string
@@ -36,12 +55,17 @@ export interface WorkflowTestRunVo {
   }
   nodeRuns: WorkflowNodeRunVo[]
   nodeStates: WorkflowNodeExecutionStateVo[]
+  traceNodeDurations: Record<string, number>
+  traceNodeIds: string[]
 }
 
 export interface WorkflowRunNodeFinishedEventVo {
   runId: string
   node: WorkflowNodeExecutionStateVo
+  nodeRuns: WorkflowNodeRunVo[]
   nodeStates: WorkflowNodeExecutionStateVo[]
+  traceNodeDurations: Record<string, number>
+  traceNodeIds: string[]
 }
 
 export type WorkflowRunStreamEvent =

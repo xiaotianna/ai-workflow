@@ -3,6 +3,7 @@ import {
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
   type WorkflowEnvironmentVariable,
+  type WorkflowNode,
 } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
@@ -11,10 +12,13 @@ import { ArrowRight, CircleCheck, X } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
 import { getWorkflowVariableDataTypeLabel } from '../utils/workflow-variable-presentation'
 import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
+import type { WorkflowTestRunResult } from '../hooks/use-workflow-test-run'
 import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variables-panel'
+import { WorkflowTestRunPanelContent } from './workflow-test-run-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
 
 export type WorkflowAuxiliaryPanelType =
+  | 'test-run'
   | 'run-history'
   | 'check-list'
   | 'environment-variables'
@@ -25,10 +29,16 @@ interface WorkflowAuxiliaryPanelProps {
   type: WorkflowAuxiliaryPanelType
   checkListIssues: readonly WorkflowCheckListIssue[]
   environmentVariables: readonly WorkflowEnvironmentVariable[]
+  nodes: readonly WorkflowNode[]
+  testRunPausing: boolean
+  testRunPending: boolean
+  testRunResult?: WorkflowTestRunResult
   onClose: () => void
   onCheckListIssueSelect: (nodeId: string) => void
   onAddEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
   onDeleteEnvironmentVariable: (variableId: string) => boolean
+  onPauseTestRun: () => void
+  onStartTestRun: (input: Record<string, unknown>) => void
   onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
 }
 
@@ -104,7 +114,7 @@ function CheckListPanelContent({ issues, onIssueSelect }: CheckListPanelContentP
               {nodeIssues.map((issue) => (
                 <li key={issue.id} className="relative pl-3">
                   <span
-                    className="absolute top-1/2 -left-[3px] size-1.5 -translate-y-1/2 rounded-full bg-[#f79009]"
+                    className="absolute top-1/2 -left-0.75 size-1.5 -translate-y-1/2 rounded-full bg-[#f79009]"
                     aria-hidden
                   />
                   <button
@@ -157,6 +167,10 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   WorkflowAuxiliaryPanelType,
   WorkflowAuxiliaryPanelDefinition
 > = {
+  'test-run': {
+    title: '测试运行',
+    description: '配置输入并查看本次运行的结果与节点追踪。',
+  },
   'run-history': {
     title: '运行历史',
     description: '查看当前工作流的测试与正式运行记录。',
@@ -187,10 +201,16 @@ export function WorkflowAuxiliaryPanel({
   type,
   checkListIssues,
   environmentVariables,
+  nodes,
+  testRunPausing,
+  testRunPending,
+  testRunResult,
   onClose,
   onCheckListIssueSelect,
   onAddEnvironmentVariable,
   onDeleteEnvironmentVariable,
+  onPauseTestRun,
+  onStartTestRun,
   onUpdateEnvironmentVariable,
 }: WorkflowAuxiliaryPanelProps) {
   const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type]
@@ -203,11 +223,11 @@ export function WorkflowAuxiliaryPanel({
     <aside
       id="workflow-auxiliary-panel"
       aria-labelledby={titleId}
-      className="nodrag nowheel border-border/50 bg-background flex h-full w-100 flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg"
+      className="nodrag nowheel nokey border-border/50 bg-background flex h-full w-100 flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg"
     >
       <header className="bg-background px-4 pt-4">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+          <div className="mb-2 min-w-0">
             <h2 id={titleId} className="text-foreground text-base leading-6 font-semibold">
               {title}
             </h2>
@@ -226,8 +246,21 @@ export function WorkflowAuxiliaryPanel({
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {type === 'check-list' ? (
+      <div
+        className={
+          type === 'test-run' ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0 flex-1 overflow-y-auto'
+        }
+      >
+        {type === 'test-run' ? (
+          <WorkflowTestRunPanelContent
+            nodes={nodes}
+            pausing={testRunPausing}
+            pending={testRunPending}
+            result={testRunResult}
+            onPause={onPauseTestRun}
+            onRun={onStartTestRun}
+          />
+        ) : type === 'check-list' ? (
           <CheckListPanelContent issues={checkListIssues} onIssueSelect={onCheckListIssueSelect} />
         ) : type === 'environment-variables' ? (
           <WorkflowEnvironmentVariablesPanel

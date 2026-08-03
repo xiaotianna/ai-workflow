@@ -24,6 +24,7 @@ interface UseWorkflowOperationsOptions {
   editor: WorkflowEditor
   onPauseTestRun?: () => Promise<void>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
+  onTestRunStart?: () => void
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
@@ -38,13 +39,14 @@ export function useWorkflowOperations({
   editor,
   onPauseTestRun,
   onTestRun,
+  onTestRunStart,
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
 }: UseWorkflowOperationsOptions) {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
-  async function testRun() {
+  async function testRun(input: Record<string, unknown> = {}) {
     if (testRunPending) return
 
     const snapshot = editor.createSnapshot()
@@ -67,9 +69,12 @@ export function useWorkflowOperations({
       return
     }
 
+    onTestRunStart?.()
+
     try {
       const result = await onTestRun({
         mode: 'FULL',
+        input,
         snapshot: { ...snapshot, workflow: parsedWorkflow.data },
       })
       if (result.status === 'CANCELLED') {
@@ -115,6 +120,8 @@ export function useWorkflowOperations({
       ...toWorkflowNode(canvasNode),
       config: parsedConfig.data,
     }
+
+    onTestRunStart?.()
 
     try {
       const result = await onTestRun({

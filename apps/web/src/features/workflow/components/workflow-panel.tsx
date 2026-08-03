@@ -17,6 +17,7 @@ import type { RefObject } from 'react'
 import type { WorkflowSaveStatus } from '../hooks/use-workflow-save'
 import { WorkflowAuxiliaryPanel, type WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
 import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
+import type { WorkflowTestRunResult } from '../hooks/use-workflow-test-run'
 
 interface WorkflowPanelProps {
   addNodeButtonRef: RefObject<HTMLButtonElement | null>
@@ -29,6 +30,7 @@ interface WorkflowPanelProps {
   checkListIssues: readonly WorkflowCheckListIssue[]
   configRenderers?: NodeConfigRendererMap
   environmentVariables: readonly WorkflowEnvironmentVariable[]
+  nodes: readonly WorkflowNode[]
   nextStepSourceNodeId?: string
   nextStepSourceHandle?: string
   selectedNode?: WorkflowNode
@@ -41,6 +43,7 @@ interface WorkflowPanelProps {
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
+  testRunResult?: WorkflowTestRunResult
   onAddNodeOpenChange: (open: boolean) => void
   onAuxiliaryPanelClose: () => void
   onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
@@ -71,7 +74,9 @@ interface WorkflowPanelProps {
   ) => void
   onNextStepNodeSelect: (nodeId: string) => void
   onRedo: () => void
+  onPauseTestRun: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
+  onStartTestRun: (input: Record<string, unknown>) => void
   onTestRun: () => void
   onUndo: () => void
   onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
@@ -88,6 +93,7 @@ export const WorkflowPanel = ({
   checkListIssues,
   configRenderers,
   environmentVariables,
+  nodes,
   nextStepSourceNodeId,
   nextStepSourceHandle,
   selectedNode,
@@ -100,6 +106,7 @@ export const WorkflowPanel = ({
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
+  testRunResult,
   onAddNodeOpenChange,
   onAuxiliaryPanelClose,
   onAuxiliaryPanelToggle,
@@ -117,7 +124,9 @@ export const WorkflowPanel = ({
   onNextStepOpenChange,
   onNextStepNodeSelect,
   onRedo,
+  onPauseTestRun,
   onShortcutHelpOpenChange,
+  onStartTestRun,
   onTestRun,
   onUndo,
   onUpdateEnvironmentVariable,
@@ -274,10 +283,16 @@ export const WorkflowPanel = ({
                   type={activeAuxiliaryPanel}
                   checkListIssues={checkListIssues}
                   environmentVariables={environmentVariables}
+                  nodes={nodes}
+                  testRunPausing={testRunPausing}
+                  testRunPending={testRunPending}
+                  testRunResult={testRunResult}
                   onClose={onAuxiliaryPanelClose}
                   onCheckListIssueSelect={onCheckListIssueSelect}
                   onAddEnvironmentVariable={onAddEnvironmentVariable}
                   onDeleteEnvironmentVariable={onDeleteEnvironmentVariable}
+                  onPauseTestRun={onPauseTestRun}
+                  onStartTestRun={onStartTestRun}
                   onUpdateEnvironmentVariable={onUpdateEnvironmentVariable}
                 />
               </motion.div>

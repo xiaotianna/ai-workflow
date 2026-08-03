@@ -36,6 +36,7 @@ export const WorkflowActionBar = ({
     >
       {/* 测试运行 */}
       <TestRun
+        active={activePanel === 'test-run'}
         canPause={testRunCanPause}
         pending={testRunPending}
         pausing={testRunPausing}

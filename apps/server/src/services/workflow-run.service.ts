@@ -24,6 +24,7 @@ import {
   createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
   projectStaticJsonNodeConfig,
+  RUNTIME_EXECUTION_STATUSES,
   RUNTIME_NODE_STATUSES,
   runtimeStateSchema,
   type DispatchNodeEffect,
@@ -470,7 +471,12 @@ export class WorkflowRunService {
     try {
       const run = await this.getRunVo(runId)
       for (const node of completedNodes) {
-        this.workflowRunEventStream.publishNodeFinished(runId, node, run.nodeStates)
+        this.workflowRunEventStream.publishNodeFinished(runId, node, {
+          nodeRuns: run.nodeRuns,
+          nodeStates: run.nodeStates,
+          traceNodeDurations: run.traceNodeDurations,
+          traceNodeIds: run.traceNodeIds,
+        })
       }
       if (run.status !== WorkflowRunStatus.RUNNING) {
         this.workflowRunEventStream.publishWorkflowFinished(run)
@@ -484,12 +490,22 @@ export class WorkflowRunService {
 }
 
 function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
+  const trace = collectRunTrace(run)
+
   return {
     id: run.id,
+    traceId: run.traceId,
+    trigger: run.trigger,
     mode: run.mode,
     ...(run.targetNodeId ? { targetNodeId: run.targetNodeId } : {}),
     status: run.status,
+    input: run.input,
     ...(run.output !== null ? { output: run.output } : {}),
+    queuedAt: run.queuedAt,
+    ...(run.startedAt ? { startedAt: run.startedAt } : {}),
+    ...(run.finishedAt ? { finishedAt: run.finishedAt } : {}),
+    ...(run.durationMs !== null ? { durationMs: run.durationMs } : {}),
+    ...(run.triggeredBy ? { triggeredBy: run.triggeredBy } : {}),
     ...(run.errorCode && run.errorMessage
       ? {
           error: {
@@ -506,7 +522,11 @@ function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
       executionKey: nodeRun.executionKey,
       attempt: nodeRun.attempt,
       status: nodeRun.status,
+      ...(nodeRun.input !== null ? { input: nodeRun.input } : {}),
       ...(nodeRun.output !== null ? { output: nodeRun.output } : {}),
+      ...(nodeRun.startedAt ? { startedAt: nodeRun.startedAt } : {}),
+      ...(nodeRun.finishedAt ? { finishedAt: nodeRun.finishedAt } : {}),
+      ...(nodeRun.durationMs !== null ? { durationMs: nodeRun.durationMs } : {}),
       ...(nodeRun.errorCode && nodeRun.errorMessage
         ? {
             error: {
@@ -518,7 +538,43 @@ function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
         : {}),
     })),
     nodeStates: collectRunNodeStates(run),
+    traceNodeDurations: trace.nodeDurations,
+    traceNodeIds: trace.nodeIds,
   }
+}
+
+function collectRunTrace(run: WorkflowRunSummary): {
+  nodeDurations: Record<string, number>
+  nodeIds: string[]
+} {
+  const parsedRuntimeState = runtimeStateSchema.safeParse(run.runtimeState)
+  const orderedExecutions = parsedRuntimeState.success
+    ? Object.values(parsedRuntimeState.data.executions).sort(
+        (left, right) => left.sequence - right.sequence,
+      )
+    : []
+  const nodeIds = [
+    ...new Set(
+      orderedExecutions.length > 0
+        ? orderedExecutions.map((execution) => execution.nodeId)
+        : run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
+    ),
+  ]
+  const nodeDurations: Record<string, number> = {}
+
+  for (const nodeRun of run.nodeRuns) {
+    if (nodeRun.durationMs !== null) nodeDurations[nodeRun.nodeId] = nodeRun.durationMs
+  }
+  for (const execution of orderedExecutions) {
+    if (
+      nodeDurations[execution.nodeId] === undefined &&
+      execution.status !== RUNTIME_EXECUTION_STATUSES.RUNNING
+    ) {
+      nodeDurations[execution.nodeId] = execution.durationMs ?? 0
+    }
+  }
+
+  return { nodeDurations, nodeIds }
 }
 
 function collectRunNodeStates(run: WorkflowRunSummary): WorkflowNodeExecutionStateVo[] {

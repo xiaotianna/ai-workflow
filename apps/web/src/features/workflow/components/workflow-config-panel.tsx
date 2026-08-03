@@ -26,11 +26,13 @@ import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zo
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { Separator } from '@ai-workflow/ui/components/separator'
+import { Tabs, TabsContent } from '@ai-workflow/ui/components/tabs'
 import { X } from 'lucide-react'
 import { z } from 'zod'
 
 import { builtinWorkflowNodeConfigFieldRenderers } from '../node-config-renderers/builtin'
 import { WorkflowNextStep } from './workflow-next-step'
+import { WorkflowPanelTabsList, WorkflowPanelTabsTrigger } from './workflow-panel-tabs'
 
 interface WorkflowConfigPanelProps {
   node: WorkflowNode
@@ -350,106 +352,108 @@ export const WorkflowConfigPanel = ({
         />
       </div>
 
-      <div className="border-border mt-2 border-b-[0.5px] px-4">
-        <span className="border-primary inline-flex border-b-2 pb-2 text-sm font-medium">设置</span>
-      </div>
+      <Tabs defaultValue="settings" className="flex min-h-0 flex-1 flex-col">
+        <WorkflowPanelTabsList aria-label="节点配置内容" className="shrink-0">
+          <WorkflowPanelTabsTrigger value="settings">设置</WorkflowPanelTabsTrigger>
+        </WorkflowPanelTabsList>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {hasPanelContent ? (
-          <div className="py-3">
-            {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
-            {inputVariableSection ? (
-              <div className="px-5">
-                <NodeVariableSection
-                  section={inputVariableSection}
-                  inputs={inputs}
-                  outputs={outputs}
-                  availableVariables={availableVariables}
-                  inputErrors={inputErrors}
-                  outputErrors={outputErrors}
-                  onInputsChange={handleInputsChange}
-                  onOutputsChange={handleOutputsChange}
-                />
-              </div>
-            ) : null}
+        <TabsContent value="settings" className="min-h-0 flex-1 overflow-y-auto">
+          {hasPanelContent ? (
+            <div className="py-3">
+              {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
+              {inputVariableSection ? (
+                <div className="px-5">
+                  <NodeVariableSection
+                    section={inputVariableSection}
+                    inputs={inputs}
+                    outputs={outputs}
+                    availableVariables={availableVariables}
+                    inputErrors={inputErrors}
+                    outputErrors={outputErrors}
+                    onInputsChange={handleInputsChange}
+                    onOutputsChange={handleOutputsChange}
+                  />
+                </div>
+              ) : null}
 
-            {inputVariableSection && hasConfigSection ? (
-              <Separator className="bg-border/50 mt-5 mb-3" />
-            ) : null}
+              {inputVariableSection && hasConfigSection ? (
+                <Separator className="bg-border/50 mt-5 mb-3" />
+              ) : null}
 
-            {/* 完整配置使用专属 renderer；字段配置统一按 field.ui 分发。 */}
-            {configRenderer ? (
-              <div className="px-5">
-                <NodeConfigSection
-                  renderer={configRenderer}
-                  renderers={configRenderers}
-                  config={form.config}
-                  availableVariables={availableVariables}
-                  errors={errors}
-                  onConfigChange={handleConfigChange}
-                />
-              </div>
-            ) : hasFields ? (
-              <div className="px-5">
-                <NodeConfigFields
-                  fields={formFields}
-                  renderers={builtinWorkflowNodeConfigFieldRenderers}
-                  values={form.config}
-                  errors={errors}
-                  availableVariables={availableVariables}
-                  onChange={handleFieldChange}
-                />
-              </div>
-            ) : null}
+              {/* 完整配置使用专属 renderer；字段配置统一按 field.ui 分发。 */}
+              {configRenderer ? (
+                <div className="px-5">
+                  <NodeConfigSection
+                    renderer={configRenderer}
+                    renderers={configRenderers}
+                    config={form.config}
+                    availableVariables={availableVariables}
+                    errors={errors}
+                    onConfigChange={handleConfigChange}
+                  />
+                </div>
+              ) : hasFields ? (
+                <div className="px-5">
+                  <NodeConfigFields
+                    fields={formFields}
+                    renderers={builtinWorkflowNodeConfigFieldRenderers}
+                    values={form.config}
+                    errors={errors}
+                    availableVariables={availableVariables}
+                    onChange={handleFieldChange}
+                  />
+                </div>
+              ) : null}
 
-            {outputVariableSection && (inputVariableSection || hasConfigSection) ? (
-              <Separator className="bg-border/50 mt-5 mb-3" />
-            ) : null}
+              {outputVariableSection && (inputVariableSection || hasConfigSection) ? (
+                <Separator className="bg-border/50 mt-5 mb-3" />
+              ) : null}
 
-            {/* 输出变量配置 */}
-            {outputVariableSection ? (
-              <div className="px-5">
-                <NodeVariableSection
-                  section={outputVariableSection}
-                  inputs={inputs}
-                  outputs={outputs}
-                  availableVariables={availableVariables}
-                  inputErrors={inputErrors}
-                  outputErrors={outputErrors}
-                  onInputsChange={handleInputsChange}
-                  onOutputsChange={handleOutputsChange}
-                />
-              </div>
-            ) : null}
-          </div>
-        ) : (
-          <p className="text-muted-foreground px-5 py-3 text-sm">当前节点暂无可配置项</p>
-        )}
+              {/* 输出变量配置 */}
+              {outputVariableSection ? (
+                <div className="px-5">
+                  <NodeVariableSection
+                    section={outputVariableSection}
+                    inputs={inputs}
+                    outputs={outputs}
+                    availableVariables={availableVariables}
+                    inputErrors={inputErrors}
+                    outputErrors={outputErrors}
+                    onInputsChange={handleInputsChange}
+                    onOutputsChange={handleOutputsChange}
+                  />
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-muted-foreground px-5 py-3 text-sm">当前节点暂无可配置项</p>
+          )}
 
-        {errors.form ? (
-          <p className="text-destructive mt-3 px-5 py-3 text-xs leading-4">{errors.form}</p>
-        ) : null}
+          {errors.form ? (
+            <p className="text-destructive mt-3 px-5 py-3 text-xs leading-4">{errors.form}</p>
+          ) : null}
 
-        <Separator className="bg-border/50 mt-3" />
+          <Separator className="bg-border/50 mt-3" />
 
-        {/* 下一个节点连接器渲染 */}
-        <WorkflowNextStep
-          nodeId={node.id}
-          nodeType={nodeType}
-          disabled={nextStepDisabled}
-          errorBranchDisabled={errorBranchNextStepDisabled}
-          errorBranchOpen={errorBranchNextStepOpen}
-          open={nextStepOpen}
-          className="px-5 pt-3 pb-5"
-          canChangeNode={canChangeNextStepNode}
-          canDeleteNode={canDeleteNextStepNode}
-          onChangeNode={onChangeNextStepNode}
-          onDeleteNode={onDeleteNextStepNode}
-          onDisconnectNode={onDisconnectNextStepNode}
-          onOpenChange={onNextStepOpenChange}
-          onSelectNode={onNextStepNodeSelect}
-        />
-      </div>
+          {/* 下一个节点连接器渲染 */}
+          <WorkflowNextStep
+            nodeId={node.id}
+            nodeType={nodeType}
+            disabled={nextStepDisabled}
+            errorBranchDisabled={errorBranchNextStepDisabled}
+            errorBranchOpen={errorBranchNextStepOpen}
+            open={nextStepOpen}
+            className="px-5 pt-3 pb-5"
+            canChangeNode={canChangeNextStepNode}
+            canDeleteNode={canDeleteNextStepNode}
+            onChangeNode={onChangeNextStepNode}
+            onDeleteNode={onDeleteNextStepNode}
+            onDisconnectNode={onDisconnectNextStepNode}
+            onOpenChange={onNextStepOpenChange}
+            onSelectNode={onNextStepNodeSelect}
+          />
+        </TabsContent>
+      </Tabs>
     </aside>
   )
 }

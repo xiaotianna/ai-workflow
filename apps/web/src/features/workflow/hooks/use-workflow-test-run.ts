@@ -17,6 +17,7 @@ export type WorkflowNodeExecutionStatuses = Readonly<
 export type WorkflowTestRunRequest =
   | {
       mode: 'FULL'
+      input: Record<string, unknown>
       snapshot: WorkflowEditorSnapshot
     }
   | {
@@ -37,6 +38,7 @@ export function useWorkflowTestRun(appId: string) {
   const [activeRunId, setActiveRunId] = useState<string>()
   const [pending, setPending] = useState(false)
   const [pausing, setPausing] = useState(false)
+  const [runResult, setRunResult] = useState<StudioWorkflowTestRunDto>()
   const [nodeExecutionStatuses, setNodeExecutionStatuses] = useState<WorkflowNodeExecutionStatuses>(
     {},
   )
@@ -60,6 +62,7 @@ export function useWorkflowTestRun(appId: string) {
       activeRunIdRef.current = undefined
       setActiveRunId(undefined)
       setPending(true)
+      setRunResult(undefined)
       setNodeExecutionStatuses({})
       const abortController = new AbortController()
       abortControllerRef.current = abortController
@@ -76,8 +79,30 @@ export function useWorkflowTestRun(appId: string) {
             runState.id = event.data.id
             activeRunIdRef.current = event.data.id
             setActiveRunId(event.data.id)
+            setRunResult(event.data)
           }
-          if (event.event === 'workflow_finished') runState.result = event.data
+          if (event.event === 'node_finished') {
+            setRunResult((current) => {
+              if (current?.id !== event.data.runId) return current
+              const traceNodeIds = event.data.traceNodeIds ?? current.traceNodeIds
+
+              return {
+                ...current,
+                nodeRuns: event.data.nodeRuns ?? current.nodeRuns,
+                nodeStates: event.data.nodeStates,
+                traceNodeDurations: event.data.traceNodeDurations ?? current.traceNodeDurations,
+                ...(traceNodeIds
+                  ? {
+                      traceNodeIds: reconcileTraceNodeIds(traceNodeIds, event.data.node.nodeId),
+                    }
+                  : {}),
+              }
+            })
+          }
+          if (event.event === 'workflow_finished') {
+            runState.result = event.data
+            setRunResult(event.data)
+          }
         }
 
         try {
@@ -87,7 +112,7 @@ export function useWorkflowTestRun(appId: string) {
               mode: request.mode,
               ...(request.mode === 'SINGLE_NODE'
                 ? { targetNodeId: request.targetNodeId }
-                : { input: {} }),
+                : { input: request.input }),
               definition: request.snapshot.workflow,
               layout: request.snapshot.layout,
             },
@@ -112,20 +137,24 @@ export function useWorkflowTestRun(appId: string) {
           }
         }
 
-        const result = runState.result ?? pausedResultRef.current
-        if (!result) {
+        const terminalResult = runState.result ?? pausedResultRef.current
+        if (!terminalResult) {
           clearRunningNodeStates(setNodeExecutionStatuses)
           if (runState.error instanceof Error) throw runState.error
           throw new Error('运行事件流在工作流结束前已断开')
         }
 
-        if (result.status === 'CANCELLED' && pauseRequestedRef.current) return result
-
-        if (result.status !== 'SUCCEEDED') {
-          throw new Error(result.error?.message ?? getTerminalErrorMessage(result.status))
+        if (terminalResult.status === 'CANCELLED' && pauseRequestedRef.current) {
+          return terminalResult
         }
 
-        return result
+        if (terminalResult.status !== 'SUCCEEDED') {
+          throw new Error(
+            terminalResult.error?.message ?? getTerminalErrorMessage(terminalResult.status),
+          )
+        }
+
+        return terminalResult
       } finally {
         if (abortControllerRef.current === abortController) {
           abortControllerRef.current = undefined
@@ -152,15 +181,16 @@ export function useWorkflowTestRun(appId: string) {
     setPausing(true)
 
     try {
-      const result = await cancelStudioWorkflowTestRun(appId, runId)
+      const pausedResult = await cancelStudioWorkflowTestRun(appId, runId)
       if (abortControllerRef.current !== abortController) return
-      if (result.status !== 'CANCELLED') {
+      if (pausedResult.status !== 'CANCELLED') {
         pauseRequestedRef.current = false
         return
       }
 
-      pausedResultRef.current = result
-      applyNodeStates(result.nodeStates, setNodeExecutionStatuses)
+      pausedResultRef.current = pausedResult
+      setRunResult(pausedResult)
+      applyNodeStates(pausedResult.nodeStates, setNodeExecutionStatuses)
       abortController.abort()
     } catch (error) {
       if (abortControllerRef.current === abortController) pauseRequestedRef.current = false
@@ -177,8 +207,14 @@ export function useWorkflowTestRun(appId: string) {
     pause,
     pausing,
     pending,
+    result: runResult,
     run,
   }
+}
+
+function reconcileTraceNodeIds(snapshotNodeIds: readonly string[], eventNodeId: string): string[] {
+  if (snapshotNodeIds.includes(eventNodeId)) return [...snapshotNodeIds]
+  return [...snapshotNodeIds, eventNodeId]
 }
 
 function applyNodeStates(

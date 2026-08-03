@@ -40,6 +40,7 @@ function createExecution(
   inputs: Record<string, JsonValue>,
   config: Record<string, JsonValue>,
   outputs?: Record<string, JsonValue>,
+  durationMs?: number,
 ): RuntimeExecution {
   const nodeState = getWaitingNodeState(state, node.id)
   const executionKey = createExecutionKey(state)
@@ -50,6 +51,7 @@ function createExecution(
     sequence: state.nextExecutionSequence,
     attempt: 1,
     status,
+    ...(durationMs !== undefined ? { durationMs } : {}),
     inputs,
     config,
     ...(outputs ? { outputs } : {}),
@@ -108,7 +110,7 @@ export function recordControlNodeSuccess(
   node: WorkflowNode,
   outputs: Record<string, JsonValue>,
 ): RuntimeExecution {
-  return createExecution(state, node, RUNTIME_EXECUTION_STATUSES.SUCCEEDED, {}, {}, outputs)
+  return createExecution(state, node, RUNTIME_EXECUTION_STATUSES.SUCCEEDED, {}, {}, outputs, 0)
 }
 
 export function recordBusinessNodeSuccess(

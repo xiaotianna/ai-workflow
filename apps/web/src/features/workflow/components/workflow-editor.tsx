@@ -47,6 +47,7 @@ interface WorkflowEditorProps {
   onPauseTestRun?: () => Promise<void>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
   testRunCanPause?: boolean
+  testRunResult?: WorkflowTestRunResult
   testRunPausing?: boolean
   testRunPending?: boolean
   nodeExecutionStatuses?: WorkflowNodeExecutionStatuses
@@ -62,6 +63,7 @@ export function WorkflowEditor({
   onPauseTestRun,
   onTestRun,
   testRunCanPause = false,
+  testRunResult,
   testRunPausing = false,
   testRunPending = false,
   nodeExecutionStatuses = EMPTY_NODE_EXECUTION_STATUSES,
@@ -100,6 +102,7 @@ export function WorkflowEditor({
     editor,
     onPauseTestRun,
     onTestRun,
+    onTestRunStart: () => setActiveAuxiliaryPanel('test-run'),
     testRunCanPause,
     testRunPausing,
     testRunPending,
@@ -141,7 +144,12 @@ export function WorkflowEditor({
       void operations.pauseTestRun()
       return
     }
-    void operations.testRun()
+
+    handleAuxiliaryPanelToggle('test-run')
+  }
+
+  function handleOpenNodeConfig(nodeId: string) {
+    editor.openNodeConfig(nodeId)
   }
 
   useEffect(() => {
@@ -282,7 +290,7 @@ export function WorkflowEditor({
                       onNodeClick={(event, node) => {
                         if (disabled) return
                         if (event.metaKey || event.ctrlKey || event.shiftKey) return
-                        editor.openNodeConfig(node.id)
+                        handleOpenNodeConfig(node.id)
                       }}
                       onNodeContextMenu={contextMenu.handleNodeContextMenu}
                       onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
@@ -320,10 +328,12 @@ export function WorkflowEditor({
                         checkListIssues={checkListIssues}
                         configRenderers={configRenderers}
                         environmentVariables={editor.environmentVariables}
+                        nodes={editor.workflow.nodes}
                         addNodeOpen={disabled ? false : nodePicker.open}
                         nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
                         nextStepSourceHandle={nodePicker.connectionSourceHandle}
                         shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
+                        testRunResult={testRunResult}
                         disabled={disabled}
                         onAddNodeOpenChange={handleNodePickerOpenChange}
                         onAuxiliaryPanelClose={() => setActiveAuxiliaryPanel(undefined)}
@@ -341,7 +351,7 @@ export function WorkflowEditor({
                         }
                         canDeleteNextStepNode={editor.canDeleteNode}
                         onCloseNodeConfig={() => editor.clearSelection()}
-                        onCheckListIssueSelect={editor.openNodeConfig}
+                        onCheckListIssueSelect={handleOpenNodeConfig}
                         onNodeDraftValidationIssuesChange={editor.setNodeDraftValidationIssues}
                         onChangeNextStepNode={(nodeId, anchorPosition, sourceHandle) =>
                           editor.selectedNode
@@ -357,9 +367,11 @@ export function WorkflowEditor({
                         onDeleteEnvironmentVariable={editor.deleteEnvironmentVariable}
                         onDisconnectNextStepNode={editor.disconnectNodes}
                         onNextStepOpenChange={handleNextStepOpenChange}
-                        onNextStepNodeSelect={editor.openNodeConfig}
+                        onNextStepNodeSelect={handleOpenNodeConfig}
                         onRedo={editor.redo}
+                        onPauseTestRun={() => void operations.pauseTestRun()}
                         onShortcutHelpOpenChange={setShortcutHelpOpen}
+                        onStartTestRun={(input) => void operations.testRun(input)}
                         onTestRun={handleTestRunAction}
                         testRunCanPause={operations.testRunCanPause}
                         testRunPausing={operations.testRunPausing}

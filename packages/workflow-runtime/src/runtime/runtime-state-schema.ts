@@ -82,6 +82,8 @@ export const runtimeExecutionSchema = z.object({
   attempt: z.number().int().positive(),
   // 当前 Execution 的运行状态
   status: runtimeExecutionStatusSchema,
+  // 本地控制节点完成后记录的执行耗时；业务节点的实际耗时由宿主 NodeRun 持久化
+  durationMs: z.number().int().nonnegative().optional(),
   // 已完成变量解析，可以安全派发给 Executor 的节点输入
   inputs: z.record(z.string(), jsonValueSchema),
   // 已通过节点 Schema 校验并完成变量解析，可以安全派发给 Executor 的节点配置

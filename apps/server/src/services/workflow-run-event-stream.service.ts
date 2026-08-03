@@ -29,12 +29,15 @@ export class WorkflowRunEventStreamService {
   publishNodeFinished(
     runId: string,
     node: WorkflowNodeExecutionStateVo,
-    nodeStates: WorkflowNodeExecutionStateVo[],
+    snapshot: Pick<
+      WorkflowTestRunVo,
+      'nodeRuns' | 'nodeStates' | 'traceNodeDurations' | 'traceNodeIds'
+    >,
   ): void {
     this.publish(runId, {
       event: 'node_finished',
       id: `${runId}:${node.nodeId}:${node.status}`,
-      data: { runId, node, nodeStates },
+      data: { runId, node, ...snapshot },
     })
   }
 
