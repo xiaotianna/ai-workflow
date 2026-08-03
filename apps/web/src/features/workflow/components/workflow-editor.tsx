@@ -1,7 +1,7 @@
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { Background, ConnectionLineType, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import { useWorkflowEditor } from '../hooks/use-workflow-editor'
-import { ERROR_HANDLING_PORT_ID, type WorkflowEdge, type WorkflowNode } from '@ai-workflow/core'
+import { ERROR_HANDLING_PORT_ID, type WorkflowEdge } from '@ai-workflow/core'
 import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -29,6 +29,13 @@ import {
   appendWorkflowNodeDraftValidationIssues,
   createWorkflowCheckListIssues,
 } from '../utils/workflow-check-list'
+import type {
+  WorkflowNodeExecutionStatuses,
+  WorkflowTestRunRequest,
+  WorkflowTestRunResult,
+} from '../hooks/use-workflow-test-run'
+
+const EMPTY_NODE_EXECUTION_STATUSES: WorkflowNodeExecutionStatuses = {}
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
@@ -36,9 +43,13 @@ interface WorkflowEditorProps {
   initialSavedAt?: Date
   initialSnapshot: WorkflowEditorSnapshot
   disabled?: boolean
-  onRunNode?: (node: WorkflowNode, snapshot: WorkflowEditorSnapshot) => unknown | Promise<unknown>
   onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
-  onTestRun?: (snapshot: WorkflowEditorSnapshot) => unknown | Promise<unknown>
+  onPauseTestRun?: () => Promise<void>
+  onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
+  testRunCanPause?: boolean
+  testRunPausing?: boolean
+  testRunPending?: boolean
+  nodeExecutionStatuses?: WorkflowNodeExecutionStatuses
 }
 
 export function WorkflowEditor({
@@ -47,9 +58,13 @@ export function WorkflowEditor({
   initialSavedAt,
   initialSnapshot,
   disabled = false,
-  onRunNode,
   onSave,
+  onPauseTestRun,
   onTestRun,
+  testRunCanPause = false,
+  testRunPausing = false,
+  testRunPending = false,
+  nodeExecutionStatuses = EMPTY_NODE_EXECUTION_STATUSES,
 }: WorkflowEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const addNodeButtonRef = useRef<HTMLButtonElement>(null)
@@ -83,8 +98,11 @@ export function WorkflowEditor({
   const operations = useWorkflowOperations({
     applicationMetadata,
     editor,
-    onRunNode,
+    onPauseTestRun,
     onTestRun,
+    testRunCanPause,
+    testRunPausing,
+    testRunPending,
   })
   const contextMenu = useWorkflowContextMenu({
     editor,
@@ -116,6 +134,14 @@ export function WorkflowEditor({
 
   function handleAuxiliaryPanelToggle(panel: WorkflowAuxiliaryPanelType) {
     setActiveAuxiliaryPanel((currentPanel) => (currentPanel === panel ? undefined : panel))
+  }
+
+  function handleTestRunAction() {
+    if (operations.testRunPending) {
+      void operations.pauseTestRun()
+      return
+    }
+    void operations.testRun()
   }
 
   useEffect(() => {
@@ -155,7 +181,7 @@ export function WorkflowEditor({
     },
     onSave: save.saveNow,
     onShortcutHelpOpenChange: setShortcutHelpOpen,
-    onTestRun: () => void operations.testRun(),
+    onTestRun: handleTestRunAction,
     disabled,
   })
   const renderedEdges = hoveredNodeId
@@ -165,6 +191,22 @@ export function WorkflowEditor({
           : edge,
       )
     : editor.edges
+  const renderedNodes = useMemo(
+    () =>
+      editor.nodes.map((node) => {
+        const executionStatus = nodeExecutionStatuses[node.id]
+        if (!executionStatus) return node
+
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            executionStatus,
+          },
+        }
+      }),
+    [editor.nodes, nodeExecutionStatuses],
+  )
 
   return (
     <>
@@ -205,7 +247,7 @@ export function WorkflowEditor({
                   <div className="h-full min-h-0 w-full">
                     <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
                       ref={canvasRef}
-                      nodes={editor.nodes}
+                      nodes={renderedNodes}
                       edges={renderedEdges}
                       nodeTypes={workflowNodeTypes}
                       edgeTypes={workflowEdgeTypes}
@@ -318,7 +360,10 @@ export function WorkflowEditor({
                         onNextStepNodeSelect={editor.openNodeConfig}
                         onRedo={editor.redo}
                         onShortcutHelpOpenChange={setShortcutHelpOpen}
-                        onTestRun={() => void operations.testRun()}
+                        onTestRun={handleTestRunAction}
+                        testRunCanPause={operations.testRunCanPause}
+                        testRunPausing={operations.testRunPausing}
+                        testRunPending={operations.testRunPending}
                         onUndo={editor.undo}
                         onUpdateEnvironmentVariable={editor.updateEnvironmentVariable}
                       />

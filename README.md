@@ -22,7 +22,7 @@
 
 ## 本地开发基础设施
 
-开发环境的 PostgreSQL 和 Redis 由仓库根目录的
+开发环境的 PostgreSQL、Redis 和 RabbitMQ 由仓库根目录的
 `compose.dev.yaml` 统一管理，应用仍直接在本机运行。
 
 启动基础设施：
@@ -43,11 +43,15 @@ pnpm docker:dev:down
 
 - PostgreSQL：`localhost:5432`
 - Redis：`localhost:6379`
+- RabbitMQ AMQP：`localhost:5672`
+- RabbitMQ Management：`http://localhost:15672`
 - 数据库名和用户名：`ai_workflow`
+- RabbitMQ 用户名：`ai_workflow`，默认开发密码：`ai_workflow_dev`
 
 端口或开发数据库凭据可通过执行 Compose 命令时设置
-`POSTGRES_PORT`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`
-和 `REDIS_PORT` 覆盖。开发数据保存在 Docker named volume 中，
+`POSTGRES_PORT`、`POSTGRES_DB`、`POSTGRES_USER`、`POSTGRES_PASSWORD`、
+`REDIS_PORT`、`RABBITMQ_PORT`、`RABBITMQ_MANAGEMENT_PORT`、`RABBITMQ_USER`、
+`RABBITMQ_PASSWORD` 和 `RABBITMQ_VHOST` 覆盖。开发数据保存在 Docker named volume 中，
 执行 `docker:dev:down` 不会删除数据。
 
 ## 应用开发

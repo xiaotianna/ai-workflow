@@ -15,6 +15,7 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common'
+import { nodeRegistry, validateWorkflow } from '@ai-workflow/core'
 
 @Injectable()
 export class WorkflowDraftService {
@@ -35,6 +36,10 @@ export class WorkflowDraftService {
     const submittedDefinition = parseWorkflowDefinition(dto.definition)
     if (!submittedDefinition) {
       throw new BadRequestException('工作流定义格式无效')
+    }
+    const issues = validateWorkflow(submittedDefinition, nodeRegistry)
+    if (issues.length > 0) {
+      throw new BadRequestException(issues[0]?.message ?? '工作流定义格式无效')
     }
 
     const layout = parseWorkflowLayout(dto.layout)

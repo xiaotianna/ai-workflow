@@ -29,14 +29,16 @@
   `ownerId`、应用、Workflow ID 与修订号，并用带修订号条件的更新原子递增 `revision`；
   冲突返回 `409`。保存成功时同步更新 `App.updatedAt`，让 Studio 的最近编辑排序反映画布
   修改。
-- 工作流定义顶层包含 `environmentVariables`，服务端草稿解析负责保留并校验其稳定 ID、唯一名称、
-  `string` / `number` / `secret` 类型和值；旧草稿缺少该字段时归一为空数组。DSL 导出必须将
+- 工作流定义顶层包含 `environmentVariables`，服务端直接使用 Core `workflowSchema` 与
+  `validateWorkflow` 校验其稳定 ID、唯一名称、类型和值，不维护简化的 Workflow 类型或第二套
+  解析规则。旧草稿缺少该字段时由 Core Schema 归一为空数组。DSL 导出必须将
   `secret` 类型的值清空；草稿读取与保存响应把 Secret 值固定脱敏为 `********`。保存已有 Secret 时，
   请求中的 `********` 只表示沿用数据库原值，不得把占位符覆盖进持久化定义；提交其他值才更新密钥。
 - Studio DSL 使用 JSON 附件导出，固定携带 `dslVersion`、应用元数据、草稿
-  `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿在导出前至少校验工作流
-  顶层结构；在 Core 提供可被 NodeNext 服务端直接加载的构建入口后，改为复用
-  `workflowSchema` 与 `validateWorkflow` 做完整校验。
+  `schemaVersion`/`revision`、`definition` 和 `layout`。数据库草稿与导入文件使用 Core
+  `workflowSchema` 和 `validateWorkflow` 完成结构及保存校验；测试运行额外使用
+  `validateExecutorWorkflow` 执行完整执行前校验。所有入口都直接依赖 package 根入口，不得在
+  Server 复制 Workflow、Runtime 或 Protocol 契约。
 - Studio DSL 导入只接受 `dslVersion: 1` 的 JSON 结构；服务端校验应用元数据、节点与连线
   基本结构、ID 唯一性、连线引用和画布布局后再持久化。导入会生成新的 App/Workflow ID，
   保留草稿结构版本并从新的修订记录开始，不沿用导出文件中的系统修订号。
@@ -104,9 +106,9 @@
 
 - 使用 `@ai-workflow/core` 读取工作流 schema、节点注册表、端口和校验规则。
 - 使用 `@ai-workflow/runtime` 承载与 Nest 无关的执行状态机；当前已提供根作用域 DAG v1、
-  RuntimeState 恢复、`start()`、`applyNodeResult()` 和 Effect 公共契约，但尚未接入 Server 应用服务。
+  RuntimeState 恢复、`start()`、`applyNodeResult()` 和 Effect 公共契约，并已接入测试运行应用服务。
 - 使用 `@ai-workflow/protocol` 承载 TypeScript 与 Go 共用的版本化节点 Command/Result JSON 协议；
-  当前已提供 v1 Schema、TypeScript parser 与 Go codec，但尚未接入 Server MQ 链路。
+  当前 Server RabbitMQ Publisher/Consumer 与 Go Worker 两端都使用 v1 parser/codec。
 - 使用 `@ai-workflow/shared` 共享纯 TypeScript 协议；当前包仍只有占位导出。
 - 服务端不得依赖 `@ai-workflow/ui`、`@ai-workflow/form` 或 `@ai-workflow/nodes-ui`。
 
@@ -122,7 +124,29 @@
 7. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
 8. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
-Go Executor 目标架构接入时，Runtime 根据 Start 节点动态输出定义校验运行输入字段、JSON 值、
+测试运行通过同一个应用服务与持久化链路处理 `FULL` 和 `SINGLE_NODE`：每次运行创建不可变
+`WorkflowVersion`，并保存 Run、NodeRun、RuntimeState revision、Command Outbox、Result Inbox、
+idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId/NodeRun/leaseToken，再用
+revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING → PUBLISHED/FAILED`
+和 `FOR UPDATE SKIP LOCKED` claim 派发；stale claim 可恢复。Go 只有在 Result 获得 Publisher Confirm
+后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。当前节点业务 Executor 仍为
+mock；后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
+NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
+达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布
+`workflow_finished`。业务副作用幂等存储和真实节点不得假装已经实现。
+
+编辑器暂停测试运行使用一次性取消语义：Repository 只允许当前用户、当前应用的 `RUNNING` Run
+原子切换为 `CANCELLED`，同事务取消 `PENDING` / `RUNNING` NodeRun 和尚未发布的 Outbox。已经
+发布给 Worker 的命令可以完成传输，但 Result 因 Run 已终态必须按 stale 忽略；当前不提供恢复
+执行，不得把该能力描述为可续跑的 `PAUSED`。
+
+测试运行进度通过 Server SSE 推送：Controller 建连后先读取持久化快照以覆盖建连竞态，Result
+事务提交成功后才发布 `node_finished`，Run 进入终态后发布 `workflow_finished`。Start/End 等本地
+控制节点从 RuntimeState 的终态节点状态投影，Web 只展示成功和失败。当前事件订阅器是 Server
+进程内边界；部署多个 Server 实例前必须替换为 Redis Pub/Sub 等跨实例事件协调，但数据库仍是
+恢复快照和最终状态的事实来源。
+
+完整测试运行中，Runtime 根据 Start 节点动态输出定义校验运行输入字段、JSON 值、
 类型、必填项和默认值。应用服务使用 `SYSTEM_VARIABLE_KEYS` 组装
 `Record<SystemVariableKey, JsonValue>` 系统上下文，其中 `app_id` 来自 Workflow 的数据库关联，
 `workflow_id` 来自已校验快照，`workflow_run_id` 来自新建 Run；不得使用 `ownerId`、`workflowId`、

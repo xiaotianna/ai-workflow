@@ -6,6 +6,7 @@ import {
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
+import { useWorkflowTestRun } from '@/features/workflow/hooks/use-workflow-test-run'
 import type { StudioAppListItem } from '@/features/studio'
 import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -34,6 +35,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     status: 'loading',
   })
   const revisionRef = useRef<number | undefined>(undefined)
+  const testRun = useWorkflowTestRun(app.id)
   const draft =
     draftState.appId === app.id && draftState.status === 'success' ? draftState.draft : undefined
 
@@ -99,6 +101,12 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
       initialSavedAt={new Date(draft.updatedAt)}
       disabled={disabled}
       onSave={handleSave}
+      onPauseTestRun={testRun.pause}
+      onTestRun={testRun.run}
+      testRunCanPause={testRun.canPause}
+      testRunPausing={testRun.pausing}
+      testRunPending={testRun.pending}
+      nodeExecutionStatuses={testRun.nodeExecutionStatuses}
     />
   )
 }

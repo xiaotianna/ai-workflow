@@ -1,0 +1,17 @@
+model WorkflowResultInbox {
+  id          String   @id @default(uuid()) @db.Uuid
+  commandId   String   @unique @db.Uuid
+  runId       String   @db.Uuid
+  nodeRunId   String   @unique @db.Uuid
+  leaseToken  String
+  payload     Json     @db.JsonB
+  processedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  run     WorkflowRun           @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeRun WorkflowNodeRun       @relation(fields: [nodeRunId], references: [id], onDelete: Cascade)
+  command WorkflowCommandOutbox @relation(fields: [commandId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+  @@map("workflow_result_inbox")
+}

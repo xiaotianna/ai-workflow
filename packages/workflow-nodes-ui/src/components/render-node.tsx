@@ -3,6 +3,7 @@ import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/co
 import type {
   ModelReferenceDisplayResolver,
   NodeEditorCapabilities,
+  NodeExecutionStatus,
   NodePortRender,
   VariableReferenceDisplayResolver,
 } from '../contracts/node-content'
@@ -25,6 +26,7 @@ export interface RenderNodeProps {
   editorCapabilities?: NodeEditorCapabilities
   // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
   dragHandleClassName?: string
+  executionStatus?: NodeExecutionStatus
 }
 
 const EMPTY_PORTS = {
@@ -45,6 +47,7 @@ export const RenderNode = ({
   resolveModelReferenceDisplay,
   editorCapabilities,
   dragHandleClassName,
+  executionStatus,
 }: RenderNodeProps) => {
   const nodeType = nodeRegistry.get(node.type)
 
@@ -67,6 +70,7 @@ export const RenderNode = ({
         onSelect={onSelect ? () => onSelect(node.id) : undefined}
         onDelete={onDelete ? () => onDelete(node.id) : undefined}
         renderPort={renderPort}
+        executionStatus={executionStatus}
       >
         <NodeContentList>
           <div className="rounded-md bg-amber-50 px-2 py-1.5 text-xs text-amber-700">
@@ -110,6 +114,7 @@ export const RenderNode = ({
         resolveModelReferenceDisplay={resolveModelReferenceDisplay}
         editorCapabilities={editorCapabilities}
         dragHandleClassName={dragHandleClassName}
+        executionStatus={executionStatus}
       />
     )
   }
@@ -143,6 +148,7 @@ export const RenderNode = ({
       onSelect={selectNode}
       onDelete={deleteNode}
       renderPort={renderPort}
+      executionStatus={executionStatus}
     >
       {body}
     </BaseNode>

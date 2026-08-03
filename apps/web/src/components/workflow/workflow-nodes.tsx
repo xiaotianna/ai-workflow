@@ -187,6 +187,7 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
           type === BuiltinNodeType.LLM ? resolvePersistedModelReferenceDisplay : undefined
         }
         dragHandleClassName="drag-handle"
+        executionStatus={data.executionStatus}
         editorCapabilities={
           disabled
             ? undefined

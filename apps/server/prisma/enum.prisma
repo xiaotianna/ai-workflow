@@ -41,6 +41,13 @@ enum WorkflowNodeRunStatus {
   TIMED_OUT // 节点自身执行超时
 }
 
+enum WorkflowCommandOutboxStatus {
+  PENDING // 已与 RuntimeState 同事务保存，等待派发
+  PUBLISHING // 已被 Publisher 领取，等待 RabbitMQ confirm
+  PUBLISHED // 已发送给节点执行器
+  FAILED // 当前派发失败，保留错误供后续恢复
+}
+
 // 配置模型的用途分类
 enum ModelType {
   CHAT

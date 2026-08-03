@@ -202,11 +202,12 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
 ```
 
 - `validateWorkflow` 用于编辑和保存，允许必填端口暂未连接，也不检查环。
-- `validateExecutorWorkflow` 用于执行前，额外检查必填输入和循环依赖；不需要先调用保存校验。
+- `validateExecutorWorkflow` 用于执行前，额外检查必填输入、循环依赖、根作用域恰好一个 Start、
+  至少一个 End，以及所有根节点从 Start 可达并可到达 End；不需要先调用保存校验。
 - 原始请求、数据库 JSON 和导入文件都先做结构校验，再做业务校验。
 - Runtime 的 `buildExecutionPlan()` 只消费已通过上述两层校验的 Workflow 并建立查询索引，不得重复
-  节点、Edge、端口、环、Loop 作用域或变量引用规则。若执行依赖新的静态不变量（例如根 Start 数量、
-  Start/End 可达性或 Workflow 输出引用），先把规则加入 Core 的执行前校验，再由所有入口复用。
+  节点、Edge、端口、环、Loop 作用域或变量引用规则。若执行依赖新的静态不变量（例如 Workflow
+  输出引用），先把规则加入 Core 的执行前校验，再由所有入口复用。
 
 ## 注意事项
 
@@ -221,7 +222,10 @@ const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
   `jsonValueSchema` 限制为 JSON 值，并已经由 Node 入口和 Core 根入口公开。Runtime 直接从
   `@ai-workflow/core` 复用，不要创建结构相同的 Runtime 值类型，也不要借此改写 Core 字段。
   `StartRuntimeInput`、RuntimeState、Runtime Effect 和跨语言协议仍不属于 Core。
-- 节点 `inputs`/`outputs` 与环境变量已接入 Workflow 结构与保存校验，变量值解析 Runtime 尚未实现。
+- 节点 `inputs`/`outputs` 与环境变量已接入 Workflow 结构与保存校验，变量值解析由 Runtime 实现。
+- 包根 `types`/`default` 条件继续指向 TypeScript 源码，`require` 条件指向 `dist/index.cjs`；package
+  module 类型保持 CommonJS，使 NestJS NodeNext 可以直接解析根入口类型，不需要 Server 维护镜像
+  声明或加载适配层。Server 启动或构建前通过 `build:node` 生成 CJS 入口，所有调用方仍只从包根使用。
 - `src/workflow/workflow-output-schema.ts` 已包含字段取值来源并接入 `workflowSchema`；Workflow 输出
   引用的存在性、可达性和运行时实际值解析仍需分别由 Core 执行前校验与 Runtime 补齐。
 - `package.json` 直接声明 Core 源码使用的 Zod 依赖，不依靠根目录提升。

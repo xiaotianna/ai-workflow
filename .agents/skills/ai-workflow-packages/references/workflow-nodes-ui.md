@@ -170,6 +170,11 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
 - `BaseNode` 默认态与选中态保持相同的 `1.5px` 实体边框宽度，选中时只切换
   `border-primary` 和轻量语义阴影；不使用会向外扩张的 ring，也不在状态切换时修改边框
   宽度，避免节点内容区尺寸变化和圆角错位。
+- `RenderNode`、完整节点 renderer、`BaseNode`、`NodeWrapper` 和 `NodeHeader` 统一透传可选
+  `executionStatus`；接受 `RUNNING` / `SUCCEEDED` / `FAILED`。运行中使用 `border-primary` 与
+  蓝色旋转图标，成功使用 `--workflow-node-success: #17b26a`，失败使用
+  `--workflow-node-failed: #f04438`；终态图标与对应边框同色。状态图标位于 Header 右侧，所有
+  状态都保持 `1.5px` 边框宽度不变。状态由应用层临时注入，不进入 Core 节点数据。
 - 节点卡片、节点选择器和 MiniMap 的节点标识色统一来自 `NODE_THEMES`；调用方使用
   `getNodeThemeColor(type)` 获取带默认回退的颜色，不复制映射或硬编码节点色。
 - `NodePortsRender` 将端口锚点贴在节点左右边缘，`stacked` 布局从卡片顶部 `20px`

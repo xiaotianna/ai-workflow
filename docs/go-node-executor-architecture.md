@@ -1,6 +1,7 @@
 # Go 节点执行器架构
 
-> 状态：第一阶段根作用域 Runtime 与 Workflow Protocol 已实施；Server 与 Go Executor 应用仍待接入。
+> 状态：根作用域 Runtime、Workflow Protocol、Server Outbox/Inbox、RabbitMQ Publisher/Consumer 和
+> Go Worker 已接入；当前只有节点业务 Executor 仍为 mock。
 >
 > 本文只定义职责、边界、关键契约和实施顺序，不提供可直接复制的逐文件伪实现。实际实现始终以
 > `@ai-workflow/core`、`@ai-workflow/runtime`、`@ai-workflow/protocol` 和 `apps/server` 的源码为准。
@@ -36,13 +37,13 @@
 
 本文不能把规划写成已经落地的能力。当前真实状态是：
 
-| 范围                    | 已有内容                                                                  | 仍缺少的内容                                               |
-| ----------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `@ai-workflow/core`     | Workflow、节点、Edge、变量、节点注册表、配置 Schema、保存校验和执行前校验 | 少数执行静态规则仍需补齐，见第 4 节                        |
-| `@ai-workflow/runtime`  | 根作用域 ExecutionPlan、状态机、变量解析、DAG 调度、恢复和公开入口        | Loop、Sub Workflow、取消、业务重试和流式事件               |
-| `@ai-workflow/protocol` | v1 Schema、TypeScript 类型与解析器、Go 类型、Codec 和 Result 构造器       | 后续协议版本、流式事件和实际 Go Executor 集成              |
-| `apps/server`           | `WorkflowVersion`、`WorkflowRun`、`WorkflowNodeRun` 等 Prisma 模型        | 运行服务、RuntimeState 持久化、MQ、Outbox/Inbox 和租约恢复 |
-| Go Executor             | 尚无应用                                                                  | 进程入口、Worker、Registry、Executor 和节点实现            |
+| 范围                    | 已有内容                                                                  | 仍缺少的内容                                  |
+| ----------------------- | ------------------------------------------------------------------------- | --------------------------------------------- |
+| `@ai-workflow/core`     | Workflow、节点、Edge、变量、节点注册表、配置 Schema、保存校验和执行前校验 | Workflow outputs 与 Config 引用等后续静态规则 |
+| `@ai-workflow/runtime`  | 根作用域 ExecutionPlan、状态机、变量解析、DAG 调度、恢复和公开入口        | Loop、Sub Workflow、取消、业务重试和流式事件  |
+| `@ai-workflow/protocol` | v1 Schema、TypeScript/Go codec，并已用于 RabbitMQ Command/Result 边界     | 后续协议版本和流式事件                        |
+| `apps/server`           | 测试运行、RuntimeState revision、Outbox/Result、CAS 与运行状态 SSE        | 取消、超时扫描和 Secret Gateway               |
+| Go Executor             | RabbitMQ Worker、Publisher Confirm、Registry 与分节点 mock Executor       | 幂等副作用存储和真实业务节点 Executor         |
 
 `packages/workflow-runtime/src` 已按本文第一阶段边界形成可用公共 API；`packages/workflow-protocol`
 的 JSON Schema 是 TypeScript 与 Go 消息校验的唯一来源。后续能力仍需遵守 State Schema 和协议版本策略。
@@ -140,6 +141,7 @@ const runtime = createWorkflowRuntime(parsed.data)
 - 节点输入中的节点引用只读取连线可达的上游公开输出；
 - 执行前必填输入端口已经连接；
 - 工作流不存在执行 Edge 环。
+- 根作用域恰好一个 Start、至少一个 End，且所有根节点都可从 Start 到达并可到达 End。
 
 Edge 当前不按 `dataType` 阻止连接，这是现有领域设计，不应在 Runtime 恢复一套类型连线校验。
 
@@ -383,16 +385,15 @@ RabbitMQ 链路按 at-least-once 设计：
 - `WorkflowRun` 保存一次运行的身份、输入、终态输出和错误；
 - `WorkflowNodeRun` 保存某个 executionKey 的具体 attempt、输入、输出和错误。
 
-现有模型还不足以可靠恢复 Runtime。实施时需要增加或建立独立模型保存：
+当前 Prisma 已在 `WorkflowRun` 上保存 RuntimeState JSON 与 revision，并增加：
 
-- 带 `schemaVersion` 的 RuntimeState；
-- Run 状态修订号；
 - Command Outbox；
-- Result Inbox 或等价的消费幂等记录；
-- NodeRun 当前租约、截止时间和必要的恢复信息。
+- Result Inbox 消费幂等记录；
+- NodeRun 的 commandId、idempotencyKey、leaseToken、deadlineAt 与恢复索引。
 
-具体是扩展 `WorkflowRun` 还是新增 RuntimeState 表，应在写 Prisma 迁移时根据查询和更新频率决定，
-本文不提前伪造最终字段名。
+测试运行结果事务校验 commandId、NodeRun、leaseToken 与 revision CAS。Outbox Publisher 使用
+`FOR UPDATE SKIP LOCKED` 领取命令，stale `PUBLISHING` claim 会被重新领取；Result Consumer 发生临时
+处理错误时进入 TTL retry queue，超过次数后进入 DLQ。超时扫描仍未实现。
 
 ### 8.2 启动事务
 
@@ -455,6 +456,10 @@ type Worker struct {
 }
 ```
 
+当前 `apps/executor-go` 已提供 RabbitMQ Worker、无 fallback 的 Registry 和 `internal/executors`
+分节点 Mock。各节点只打印安全命令身份并返回协议结果；Worker 只有在 Result 获得 Publisher Confirm
+后才 Ack Command。
+
 处理流程固定为：
 
 1. 解码并校验 Command；
@@ -513,15 +518,16 @@ Go 不接收子 Workflow 的完整 DAG。Sub Workflow 需要专门的宿主 Effe
 
 ## 11. 实施顺序
 
-1. 整理 Core 执行前校验空缺，先确定 Start/End、可达性、Workflow outputs 和 Config 引用规则。
+1. 整理 Core 执行前校验空缺，Start/End 与根 DAG 可达性已落地，继续补 Workflow outputs 和 Config 引用规则。
 2. 删除 Runtime 草稿中重复静态校验的设计，让 `buildExecutionPlan()` 只建立索引。
 3. 完成 Runtime 最小公开契约、RuntimeState Schema、根 DAG 和变量解析。
 4. 建立最小 Protocol Schema，并生成 TypeScript 与 Go 类型。
-5. 为 Server 增加 RuntimeState、revision、Outbox、Inbox 和 lease 持久化。
-6. 实现 Server 启动/结果事务和 RabbitMQ Publisher/Consumer。
-7. 实现 Go Worker、Registry 和第一批业务节点 Executor。
+5. Server 已增加 RuntimeState、revision、Outbox、Inbox 和 lease 持久化。
+6. Server 已通过 RabbitMQ Publisher/Consumer 跑通启动、Outbox、结果事务和进程重启后的派发恢复。
+7. Go 已提供 Worker、Publisher Confirm、Registry 与分节点 mock Executor；下一步逐个替换真实业务逻辑。
 8. 验证并行结果乱序、重复消息、进程重启、租约过期和超时恢复。
-9. 基础链路稳定后再实现 Loop、Secret Gateway、流式事件和 Sub Workflow。
+9. 基础链路稳定后再实现 Loop、Secret Gateway、节点内容/token 级流式事件和 Sub Workflow；运行状态
+   SSE 已由 Server 宿主实现。
 
 每一步只公开已经可用的 API，不让文档中的未来文件名反向绑死实现目录。
 

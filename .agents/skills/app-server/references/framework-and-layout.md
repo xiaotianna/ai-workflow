@@ -34,7 +34,8 @@ apps/server/
 │   ├── controllers/
 │   │   ├── auth.controller.ts
 │   │   ├── model.controller.ts
-│   │   └── studio-app.controller.ts
+│   │   ├── studio-app.controller.ts
+│   │   └── workflow-run.controller.ts
 │   ├── dto/
 │   │   ├── auth.dto.ts
 │   │   ├── model.dto.ts
@@ -44,18 +45,22 @@ apps/server/
 │   │   ├── model-credential.service.ts
 │   │   ├── model-endpoint-policy.service.ts
 │   │   └── *adapter.ts
+│   ├── infra/workflow-mq/
 │   ├── modules/
 │   │   ├── auth.module.ts
 │   │   ├── models.module.ts
 │   │   └── studio.module.ts
 │   ├── repositories/
 │   │   ├── model-group.repository.ts
-│   │   └── studio-app.repository.ts
+│   │   ├── studio-app.repository.ts
+│   │   └── workflow-run.repository.ts
 │   └── services/
 │       ├── auth.service.ts
 │       ├── model-connection-test.service.ts
 │       ├── model-group.service.ts
-│       └── studio-app.service.ts
+│       ├── studio-app.service.ts
+│       ├── workflow-run-timeout-scanner.service.ts
+│       └── workflow-run.service.ts
 ├── .oxlintrc.json
 ├── nest-cli.json
 ├── package.json
@@ -64,7 +69,12 @@ apps/server/
 └── tsconfig.build.json
 ```
 
-后续按需扩展 `common/`、`config/`、`infrastructure/`、`modules/`、`prisma/`，不预先生成空模块。
+Server 直接从 `@ai-workflow/core`、`@ai-workflow/runtime` 和 `@ai-workflow/protocol` 根入口使用公开
+契约，不创建本地类型镜像或 package 加载适配层；各 package 的条件导出负责 NodeNext 类型解析和
+CommonJS 运行时入口。`infra/workflow-mq` 统一声明 RabbitMQ 拓扑并承载 Outbox Publisher、Result
+Consumer 和连接生命周期。`WorkflowRunTimeoutScanner` 作为 `StudioModule` provider 管理
+`deadlineAt` 扫描生命周期，并复用 `WorkflowRunService` 的统一终态入口。业务服务不得自行访问
+`process.env` 或把 AMQP 细节散落到 Controller。
 
 ## 常用命令
 

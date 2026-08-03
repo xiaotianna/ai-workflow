@@ -7,7 +7,7 @@ export const httpNodeForm = {
   url: {
     ui: FIELD_UI_TYPES.TEXT,
     label: '请求地址',
-    description: '请输入完整的 HTTP 或 HTTPS 地址。',
+    description: '请输入完整的 HTTP 或 HTTPS 地址',
     required: true,
   },
   method: {

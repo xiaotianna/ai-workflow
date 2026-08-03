@@ -38,6 +38,9 @@ interface WorkflowPanelProps {
   selectedNodeDefaultLabel?: string
   lastSavedAt?: Date
   saveStatus: WorkflowSaveStatus
+  testRunCanPause?: boolean
+  testRunPausing?: boolean
+  testRunPending?: boolean
   onAddNodeOpenChange: (open: boolean) => void
   onAuxiliaryPanelClose: () => void
   onAuxiliaryPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
@@ -94,6 +97,9 @@ export const WorkflowPanel = ({
   selectedNodeDefaultLabel,
   lastSavedAt,
   saveStatus,
+  testRunCanPause = false,
+  testRunPausing = false,
+  testRunPending = false,
   onAddNodeOpenChange,
   onAuxiliaryPanelClose,
   onAuxiliaryPanelToggle,
@@ -128,6 +134,9 @@ export const WorkflowPanel = ({
           activePanel={activeAuxiliaryPanel}
           checkListIssueCount={checkListIssues.length}
           disabled={disabled}
+          testRunCanPause={testRunCanPause}
+          testRunPausing={testRunPausing}
+          testRunPending={testRunPending}
           onPanelToggle={onAuxiliaryPanelToggle}
           onTestRun={onTestRun}
         />

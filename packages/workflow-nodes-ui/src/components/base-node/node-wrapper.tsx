@@ -1,5 +1,6 @@
 import { cn } from '@ai-workflow/ui/lib/utils'
 import type { KeyboardEvent, ReactNode } from 'react'
+import type { NodeExecutionStatus } from '../../contracts/node-content'
 
 export interface NodeWrapperProps {
   children: ReactNode
@@ -9,6 +10,7 @@ export interface NodeWrapperProps {
   ariaLabel?: string
   wrapperClassName?: string
   className?: string
+  executionStatus?: NodeExecutionStatus
 }
 
 // 统一处理普通节点和完整节点渲染器的外层、卡片样式、选择、禁用与键盘交互
@@ -20,6 +22,7 @@ export function NodeWrapper({
   ariaLabel,
   wrapperClassName,
   className,
+  executionStatus,
 }: NodeWrapperProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.target !== event.currentTarget || !onSelect || disabled) {
@@ -52,8 +55,11 @@ export function NodeWrapper({
         className={cn(
           'relative border-[1.5px] shadow-xs transition-[border-color,background-color]',
           'bg-card border-border/30 w-60 rounded-[15px]',
-          selected && 'border-primary',
           className,
+          selected && 'border-primary',
+          executionStatus === 'RUNNING' && 'border-primary',
+          executionStatus === 'SUCCEEDED' && 'border-workflow-node-success',
+          executionStatus === 'FAILED' && 'border-workflow-node-failed',
         )}
       >
         {children}

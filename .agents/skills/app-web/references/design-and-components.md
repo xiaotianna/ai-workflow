@@ -167,6 +167,12 @@
 - 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
   `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
   `NODE_THEMES` 或固定使用主色。
+- 测试运行的节点状态直接透传给 Nodes UI：`RUNNING` 在 Header 右侧显示蓝色 loading，并用
+  primary 边框标记当前运行节点；`SUCCEEDED` / `FAILED` 分别使用 Nodes UI 的成功、失败图标
+  和同色边框。Web 不复制图标、色值或按节点类型增加状态分支。
+- 顶部“测试运行”按钮空闲时使用 Play 图标；运行中取得 runId 后切换为 Pause 图标与“暂停运行”，
+  暂停请求期间显示 loading 与“暂停中”。创建请求尚未返回 runId、重复暂停或暂停请求处理中
+  必须使用真实禁用态；`Alt+R` 与画布/节点右键运行入口复用相同的运行/暂停切换逻辑。
 - 工作流“检查清单”使用画布内浮动辅助面板，不使用 Sheet/Drawer 或全屏遮罩；打开和关闭时
   通过 Motion 做轻量的位移、缩放与透明度过渡，不播放从页面边缘滑入的抽屉动画。清单按节点
   分组展示 Core 校验、必填配置和运行前连线问题，节点图标和颜色继续复用 Nodes UI。问题项

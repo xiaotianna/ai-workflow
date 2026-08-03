@@ -54,7 +54,8 @@ import '@ai-workflow/ui/globals.css'
 - `Toaster` 使用无边框状态渐变背景与 20px 描边状态图标；图标直接使用对应的
   `text-success`、`text-destructive`、`text-warning`、`text-info` 语义色，不叠加实心圆底。
 - Hook：`useIsMobile`。
-- 业务界面共享 token：`--workflow-edge` 用于工作流画布普通连线。
+- 业务界面共享 token：`--workflow-edge` 用于工作流画布普通连线；
+  `--workflow-node-success: #17b26a` 与 `--workflow-node-failed: #f04438` 只用于工作流节点执行态。
 - 状态 token：`--success`、`--warning`、`--info` 分别用于成功、警告、信息通知和
   对应状态，错误状态继续使用 `--destructive`。
 

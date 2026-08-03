@@ -12,17 +12,13 @@ export function TextField({
   onChange,
 }: FieldRendererProps<TextFieldSchema, string>) {
   return (
-    <Form.Field
-      label={field.label}
-      description={field.description}
-      error={error}
-      required={field.required}
-    >
+    <Form.Field label={field.label} error={error} required={field.required}>
       <Input
         name={name}
         type="text"
         value={value ?? ''}
         required={field.required}
+        placeholder={field.description}
         disabled={disabled}
         aria-label={field.label}
         aria-invalid={Boolean(error)}

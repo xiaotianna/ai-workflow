@@ -45,6 +45,9 @@ const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) =>
         MODEL_CONNECTION_PRIVATE_HOSTS: Joi.string()
           .allow('')
           .default(nodeEnv === 'production' ? '' : developmentPrivateModelHosts),
+        RABBITMQ_URL: Joi.string()
+          .uri({ scheme: ['amqp', 'amqps'] })
+          .default('amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow'),
       }),
       validationOptions: {
         // 一次显示全部配置错误

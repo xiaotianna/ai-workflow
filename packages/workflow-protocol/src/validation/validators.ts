@@ -1,9 +1,9 @@
 import Ajv2020, { type ValidateFunction } from 'ajv/dist/2020.js'
 import addFormats from 'ajv-formats'
 
-import executeNodeCommandSchema from '../../schemas/execute-node-command.schema.json' with { type: 'json' }
-import executeNodeResultSchema from '../../schemas/execute-node-result.schema.json' with { type: 'json' }
-import jsonValueSchema from '../../schemas/json-value.schema.json' with { type: 'json' }
+import executeNodeCommandSchema from '../../schemas/execute-node-command.schema.json'
+import executeNodeResultSchema from '../../schemas/execute-node-result.schema.json'
+import jsonValueSchema from '../../schemas/json-value.schema.json'
 import type { ExecuteNodeCommand } from '../generated/execute-node-command.generated'
 import type { ExecuteNodeResult } from '../generated/execute-node-result.generated'
 import { ProtocolValidationError, toProtocolValidationIssues } from './protocol-validation-error'

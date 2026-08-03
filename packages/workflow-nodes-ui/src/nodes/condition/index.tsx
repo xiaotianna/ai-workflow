@@ -156,12 +156,18 @@ export function ConditionNode({
   onDelete,
   renderPort,
   resolveVariableReferenceDisplay,
+  executionStatus,
 }: NodeRendererProps<ConditionNodeConfig>) {
   const conditions = node.config.conditions
 
   return (
-    <NodeWrapper selected={selected} disabled={disabled} onSelect={onSelect}>
-      <NodeHeader definition={definition} onDelete={onDelete} />
+    <NodeWrapper
+      selected={selected}
+      disabled={disabled}
+      onSelect={onSelect}
+      executionStatus={executionStatus}
+    >
+      <NodeHeader definition={definition} onDelete={onDelete} executionStatus={executionStatus} />
 
       {/* 输入端口 */}
       <NodePortsRender

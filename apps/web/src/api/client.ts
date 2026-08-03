@@ -22,6 +22,17 @@ interface ApiClientAuthOptions {
   onUnauthorized: () => void
 }
 
+export interface SseMessage {
+  event: string
+  data: string
+  id?: string
+}
+
+interface SseStreamOptions {
+  signal?: AbortSignal
+  onMessage: (message: SseMessage) => void
+}
+
 let authOptions: ApiClientAuthOptions | null = null
 
 const client = create({
@@ -130,4 +141,137 @@ export const apiClient = {
       responseType: 'blob',
     })
   },
+
+  async postSse<D>(url: string, data: D, options: SseStreamOptions): Promise<void> {
+    return fetchSseStream(
+      url,
+      {
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      },
+      options,
+    )
+  },
+
+  async getSse(url: string, options: SseStreamOptions): Promise<void> {
+    return fetchSseStream(
+      url,
+      {
+        method: 'GET',
+      },
+      options,
+    )
+  },
+}
+
+async function fetchSseStream(
+  url: string,
+  request: RequestInit,
+  options: SseStreamOptions,
+): Promise<void> {
+  const token = authOptions?.getAccessToken()
+  const headers = new Headers(request.headers)
+  headers.set('Accept', 'text/event-stream')
+  if (token) headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(resolveApiUrl(url), {
+    ...request,
+    headers,
+    signal: options.signal,
+  })
+
+  if (!response.ok) {
+    const message = await readFetchErrorMessage(response)
+    if ((response.status === 401 || response.status === 403) && token) {
+      authOptions?.onUnauthorized()
+    }
+    throw new Error(message)
+  }
+
+  if (!response.headers.get('content-type')?.includes('text/event-stream')) {
+    throw new Error('服务器没有返回有效的 SSE 事件流')
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error('当前浏览器无法读取 SSE 事件流')
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  try {
+    while (true) {
+      // eslint-disable-next-line no-await-in-loop
+      const { done, value } = await reader.read()
+      buffer += decoder.decode(value, { stream: !done })
+
+      let boundary = findSseFrameBoundary(buffer)
+      while (boundary) {
+        const frame = buffer.slice(0, boundary.index)
+        buffer = buffer.slice(boundary.index + boundary.length)
+        const message = parseSseFrame(frame)
+        if (message) options.onMessage(message)
+        boundary = findSseFrameBoundary(buffer)
+      }
+
+      if (done) break
+    }
+  } catch (error) {
+    try {
+      await reader.cancel()
+    } catch {
+      // 请求已中止或连接已关闭时无需再次处理 reader 取消失败。
+    }
+    throw error
+  }
+}
+
+function resolveApiUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url
+
+  const baseUrl = String(import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+  if (!baseUrl) return url
+  return `${baseUrl}/${url.replace(/^\/+/, '')}`
+}
+
+function findSseFrameBoundary(value: string): { index: number; length: number } | undefined {
+  const match = /\r?\n\r?\n/.exec(value)
+  return match?.index === undefined ? undefined : { index: match.index, length: match[0].length }
+}
+
+function parseSseFrame(frame: string): SseMessage | undefined {
+  let event = 'message'
+  let id: string | undefined = undefined
+  const data: string[] = []
+
+  for (const line of frame.split(/\r?\n/)) {
+    if (!line || line.startsWith(':')) continue
+    const separatorIndex = line.indexOf(':')
+    const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex)
+    const rawValue = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1)
+    const value = rawValue.startsWith(' ') ? rawValue.slice(1) : rawValue
+
+    if (field === 'event') event = value
+    if (field === 'id') id = value
+    if (field === 'data') data.push(value)
+  }
+
+  if (data.length === 0) return undefined
+  return {
+    event,
+    data: data.join('\n'),
+    ...(id ? { id } : {}),
+  }
+}
+
+async function readFetchErrorMessage(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { message?: unknown }
+    if (typeof body.message === 'string' && body.message.trim()) return body.message
+  } catch {
+    // 非 JSON 错误响应使用下面的状态兜底文案。
+  }
+
+  if (response.status === 401 || response.status === 403) return '登录状态已失效，请重新登录'
+  return `SSE 连接失败（${response.status}）`
 }

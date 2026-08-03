@@ -30,6 +30,7 @@ export function ErrorHandlingNode<TConfig extends ErrorHandlingNodeConfig>({
   onDelete,
   renderPort,
   children,
+  executionStatus,
 }: ErrorHandlingNodeProps<TConfig>) {
   const errorHandling = node.config.errorHandling
   const errorPort = ports.outputs[ERROR_HANDLING_PORT_ID]
@@ -39,8 +40,13 @@ export function ErrorHandlingNode<TConfig extends ErrorHandlingNodeConfig>({
   const showErrorHandling = errorHandling.mode !== ERROR_HANDLING_MODES.NONE
 
   return (
-    <NodeWrapper selected={selected} disabled={disabled} onSelect={onSelect}>
-      <NodeHeader definition={definition} onDelete={onDelete} />
+    <NodeWrapper
+      selected={selected}
+      disabled={disabled}
+      onSelect={onSelect}
+      executionStatus={executionStatus}
+    >
+      <NodeHeader definition={definition} onDelete={onDelete} executionStatus={executionStatus} />
 
       <NodePortsRender
         nodeId={node.id}

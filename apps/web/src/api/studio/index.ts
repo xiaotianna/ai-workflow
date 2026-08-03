@@ -1,4 +1,4 @@
-import { apiClient } from '@/api/client'
+import { apiClient, type SseMessage } from '@/api/client'
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 
 export type StudioAppSort = 'updated_desc' | 'created_desc' | 'created_asc'
@@ -49,6 +49,71 @@ export interface SaveStudioWorkflowDraftParams {
   definition: WorkflowEditorSnapshot['workflow']
   layout: WorkflowEditorSnapshot['layout']
 }
+
+export type StudioWorkflowTestRunMode = 'FULL' | 'SINGLE_NODE'
+
+export interface CreateStudioWorkflowTestRunParams {
+  mode: StudioWorkflowTestRunMode
+  targetNodeId?: string
+  definition: WorkflowEditorSnapshot['workflow']
+  layout: WorkflowEditorSnapshot['layout']
+  input?: Record<string, unknown>
+}
+
+export interface StudioWorkflowNodeRunDto {
+  id: string
+  nodeId: string
+  nodeType: string
+  executionKey: string
+  attempt: number
+  status: string
+  output?: unknown
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
+export type StudioWorkflowNodeExecutionStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
+
+export interface StudioWorkflowNodeExecutionStateDto {
+  nodeId: string
+  status: StudioWorkflowNodeExecutionStatus
+}
+
+export interface StudioWorkflowTestRunDto {
+  id: string
+  mode: StudioWorkflowTestRunMode
+  targetNodeId?: string
+  status: string
+  output?: unknown
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+  nodeRuns: StudioWorkflowNodeRunDto[]
+  nodeStates: StudioWorkflowNodeExecutionStateDto[]
+}
+
+export type StudioWorkflowTestRunSseEvent =
+  | {
+      event: 'workflow_started'
+      data: StudioWorkflowTestRunDto
+    }
+  | {
+      event: 'node_finished'
+      data: {
+        runId: string
+        node: StudioWorkflowNodeExecutionStateDto
+        nodeStates: StudioWorkflowNodeExecutionStateDto[]
+      }
+    }
+  | {
+      event: 'workflow_finished'
+      data: StudioWorkflowTestRunDto
+    }
 
 export function listStudioApps(
   params: ListStudioAppsParams,
@@ -109,6 +174,68 @@ export function saveStudioWorkflowDraft(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-draft`,
     values,
   )
+}
+
+export function streamStudioWorkflowTestRun(
+  appId: string,
+  values: CreateStudioWorkflowTestRunParams,
+  onEvent: (event: StudioWorkflowTestRunSseEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return apiClient.postSse(`/studio/apps/${encodeURIComponent(appId)}/workflow-runs/test`, values, {
+    signal,
+    onMessage: createWorkflowTestRunMessageHandler(onEvent),
+  })
+}
+
+export function resumeStudioWorkflowTestRun(
+  appId: string,
+  runId: string,
+  onEvent: (event: StudioWorkflowTestRunSseEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  return apiClient.getSse(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-runs/${encodeURIComponent(runId)}/events`,
+    {
+      signal,
+      onMessage: createWorkflowTestRunMessageHandler(onEvent),
+    },
+  )
+}
+
+export function cancelStudioWorkflowTestRun(
+  appId: string,
+  runId: string,
+): Promise<StudioWorkflowTestRunDto> {
+  return apiClient.post<StudioWorkflowTestRunDto>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-runs/${encodeURIComponent(runId)}/cancel`,
+  )
+}
+
+function createWorkflowTestRunMessageHandler(
+  onEvent: (event: StudioWorkflowTestRunSseEvent) => void,
+): (message: SseMessage) => void {
+  return (message) => {
+    const data = JSON.parse(message.data) as unknown
+
+    if (
+      message.event === 'workflow_started' ||
+      message.event === 'node_finished' ||
+      message.event === 'workflow_finished'
+    ) {
+      onEvent({ event: message.event, data } as StudioWorkflowTestRunSseEvent)
+      return
+    }
+
+    if (message.event === 'error') {
+      const error = data as { message?: unknown }
+      throw new Error(
+        typeof error.message === 'string' && error.message.trim()
+          ? error.message
+          : '运行事件流异常',
+      )
+    }
+  }
 }
 
 export async function exportStudioAppDsl(appId: string): Promise<ExportedStudioAppDsl> {

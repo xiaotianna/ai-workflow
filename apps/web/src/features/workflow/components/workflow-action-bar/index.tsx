@@ -11,6 +11,9 @@ interface WorkflowActionBarProps {
   activePanel?: WorkflowAuxiliaryPanelType
   checkListIssueCount: number
   disabled?: boolean
+  testRunCanPause?: boolean
+  testRunPausing?: boolean
+  testRunPending?: boolean
   onPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
   onTestRun: () => void
 }
@@ -19,6 +22,9 @@ export const WorkflowActionBar = ({
   activePanel,
   checkListIssueCount,
   disabled = false,
+  testRunCanPause = false,
+  testRunPausing = false,
+  testRunPending = false,
   onPanelToggle,
   onTestRun,
 }: WorkflowActionBarProps) => {
@@ -29,7 +35,12 @@ export const WorkflowActionBar = ({
       className="m-0 flex min-w-0 items-center gap-1.5 border-0 p-0"
     >
       {/* 测试运行 */}
-      <TestRun onClick={onTestRun} />
+      <TestRun
+        canPause={testRunCanPause}
+        pending={testRunPending}
+        pausing={testRunPausing}
+        onClick={onTestRun}
+      />
       {/* 运行历史 */}
       <RunHistory
         active={activePanel === 'run-history'}

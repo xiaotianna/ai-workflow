@@ -162,6 +162,9 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
   `NODE_THEMES` 作为唯一节点标识色来源，并通过 `getNodeThemeColor(type)` 获取未知
   类型的默认回退色。
 - 节点输入、输出 Handle 保持使用 `--primary`，不跟随节点标识色变化。
+- 节点执行态由 Nodes UI 统一展示：运行中使用蓝色旋转图标和 `border-primary`，成功使用
+  `#17b26a`，失败使用 `#f04438`；状态图标放在 Header 右侧，执行态边框保持 `1.5px`，不得
+  因状态切换改变节点尺寸。
 - 节点没有可见 Body 内容时只显示 Header，不保留 Body 的水平或底部间距；默认描述为空时
   不渲染空 Body 容器，专属节点可以保留有明确文案的空状态。
 
@@ -173,6 +176,8 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 | `--input-focus` / `border-input-focus`           | 输入控件与通用控件的聚焦边框 |
 | `--input-placeholder` / `text-input-placeholder` | 输入提示文字                 |
 | `--workflow-edge` / `text-workflow-edge`         | 工作流画布普通连线           |
+| `--workflow-node-success`                        | 工作流节点运行成功           |
+| `--workflow-node-failed`                         | 工作流节点运行失败           |
 | `--background` / `bg-background`                 | 输入控件聚焦背景             |
 | `--border` / `border-border`                     | 容器、浮层的静态细边框       |
 | `--info` / `bg-info`                             | 信息状态与信息通知           |

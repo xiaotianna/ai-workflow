@@ -18,6 +18,9 @@
   系统变量、Node/Edge 索引、Execution 反向索引和逻辑序号一致性。
 - 根入口同时导出 RuntimeState、Effect、Transition、状态常量和稳定的 `RuntimeError` 契约；变量解析、
   Scheduler 和 State 写操作保持包内私有。
+- 包根 `types`/`default` 条件指向 TypeScript 源码，`require` 条件提供 CommonJS Server 使用的 CJS
+  入口；package module 类型保持 CommonJS，使 NestJS NodeNext 直接解析公开类型。CJS 产物只由
+  `build:node` 生成，不新增深层公开路径或 Server 本地镜像。
 
 ## 值与协议边界
 

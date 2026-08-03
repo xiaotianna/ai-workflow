@@ -151,6 +151,17 @@ function ExampleForm() {
   `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
   页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载
   也展示最近一次自动保存时间。不得把接口请求重新耦合进 `useWorkflowEditor`。
+- 顶部“测试运行”和节点右键“运行该节点”统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
+  `SINGLE_NODE` 判别请求并共享同一个 pending 与防重复锁；该 Hook 使用带 Bearer Token 的
+  `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和
+  `workflow_finished`，不得恢复为原生 `EventSource` 或状态 GET 轮询。初始快照和每个
+  `node_finished` 事件都携带最新 `nodeStates`，Hook 只维护临时的节点 `RUNNING` / `SUCCEEDED` /
+  `FAILED` 展示态，不写入编辑器快照、历史或自动保存；POST 流已取得 runId 后意外中断时，只允许
+  通过 GET SSE 自动恢复一次，恢复仍失败必须清除残留 `RUNNING` 状态并抛出错误。页面只注入 appId，
+  `useWorkflowOperations` 继续负责运行前 Core 校验、节点配置校验和 Toast。任一模式运行期间，两处
+  入口以及测试运行快捷键都不得再次提交；顶部运行按钮、画布/节点右键入口和 `Alt+R` 在取得
+  runId 后统一切换为一次性暂停，调用取消接口成功后清除运行中节点状态并结束当前 SSE。暂停结果
+  使用信息 Toast，不按运行失败提示；请求尚未取得 runId 或正在暂停时入口必须禁用。
 - 只有持久化节点/连线/环境变量变化才触发自动保存：React Flow 变更继续统一复用
   `hasNodeMutation`、`hasEdgeMutation` 判断，节点增删替换、拖动位置、主动缩放尺寸和连线
   增删替换会置脏；选择、Hover、面板开关以及画布平移/缩放不得置脏或发请求。自动保存期间

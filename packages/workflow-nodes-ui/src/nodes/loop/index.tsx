@@ -16,6 +16,7 @@ export function LoopNode({
   editorCapabilities,
   dragHandleClassName,
   renderPort,
+  executionStatus,
 }: NodeRendererProps<LoopNodeConfig>) {
   const nodeCapabilities = editorCapabilities?.[node.type]
   const addChildNodeAction = nodeCapabilities?.addChildNode
@@ -30,10 +31,12 @@ export function LoopNode({
         onSelect={onSelect}
         wrapperClassName="size-full"
         className="flex size-full min-h-105 min-w-170 flex-col"
+        executionStatus={executionStatus}
       >
         <NodeHeader
           definition={definition}
           onDelete={onDelete}
+          executionStatus={executionStatus}
           className={cn('shrink-0', dragHandleClassName)}
           actions={
             addChildNodeAction && addChildNodeAction.nodeTypes.length > 0 ? (

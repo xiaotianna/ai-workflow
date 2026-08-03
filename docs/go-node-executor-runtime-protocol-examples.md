@@ -13,8 +13,8 @@
 
 1. 调用方已经使用 Core 的 `workflowSchema.safeParse()` 和
    `validateExecutorWorkflow(workflow, nodeRegistry)` 校验同一份不可变 WorkflowVersion 快照。
-2. Core 在真正接入 Runtime 前，需要补齐主架构文档第 4.3 节已经列出的 Start、End、可达性和
-   Workflow outputs 静态规则；这里不把这些规则偷偷复制到 `buildExecutionPlan()`。
+2. Core 已在执行前校验中覆盖根 Start、End 与可达性；Workflow outputs 等后续静态规则仍只在
+   Core 补充，不复制到 `buildExecutionPlan()`。
 3. 第一阶段只运行根作用域 DAG。包含 Loop、Loop Start、Loop Exit、Sub Workflow 或 Secret
    明文解析需求的 Workflow，由 Server 的执行能力检查在创建 Run 前拒绝。
 4. Start 和 End 由 Runtime 本地推进；其他已支持的业务节点通过 `DISPATCH_NODE` Effect 交给宿主。
@@ -2592,7 +2592,7 @@ NodeRun attempt 和 leaseToken 校验。Runtime 故意不访问这些持久化�
 
 ## 7. `DISPATCH_NODE` 到 Protocol Command 的字段映射
 
-Server 后续实现时按下面关系组装，不需要 Runtime 预先知道数据库与租约字段：
+Server 当前测试运行按下面关系组装，不需要 Runtime 预先知道数据库与租约字段：
 
 | Protocol Command 字段      | 来源                                         |
 | -------------------------- | -------------------------------------------- |
@@ -2609,14 +2609,14 @@ Server 后续实现时按下面关系组装，不需要 Runtime 预先知道数�
 Result 回来时，Server 先用 Protocol parser 校验消息，再校验 `commandId`、`nodeRunId`、`attempt` 与
 `leaseToken`，最后只把通过关联检查的 Result 交给 Runtime。
 
-## 8. 第一阶段明确不包含的内容
+## 8. 本 Runtime/Protocol 示例明确不包含的内容
 
 - Loop Scope、嵌套 Scope 和迭代 execution location；
 - Sub Workflow 的宿主 Effect；
 - Secret Gateway 或短期凭证 Pointer；
 - 节点业务自动重试、取消、Heartbeat、Delta 和流式输出；
-- Server 持久化、Outbox/Inbox、RabbitMQ Publisher/Consumer 和租约恢复；
-- Go Worker、Registry、业务 Executor；
+- Server 的 RabbitMQ Publisher/Consumer、自动 claim 恢复与超时扫描实现；
+- Go MQ Worker、幂等副作用和真实业务 Executor 的实现；
 - HTTP/Condition/Loop Config 的显式 projector 示例；
 - Core 的 Start/End、可达性、Workflow outputs 和 Config 引用静态规则补丁。
 
@@ -2630,8 +2630,9 @@ Schema 版本和恢复迁移，而不是修改已持久化的 v1 含义。
 3. 落地 Runtime Error、State Schema、ExecutionPlan 和动态输入校验。
 4. 落地变量解析、显式 Config resolver 和根 DAG Scheduler。
 5. 落地 `createWorkflowRuntime()` 与根入口导出。
-6. Server 先只开放 Config 能安全投影、Go Registry 也已支持的节点集合。
-7. 完成 Server 的 State revision、Outbox、Inbox 和 lease 后，再接 Go Worker。
+6. Server 已用静态 Config projector、State revision、Outbox、Inbox 和 lease 跑通测试运行。
+7. 当前 Go Worker 通过 `internal/executors.RegisterBuiltins` 注册各节点 Mock；Registry 无 fallback，
+   未注册类型返回稳定失败结果，真实实现逐个替换对应节点目录。
 8. 根 DAG 的乱序、重复消息和恢复语义稳定后，再设计 State Schema v2 的 Loop Scope。
 
 ## 10. 代码审查检查表

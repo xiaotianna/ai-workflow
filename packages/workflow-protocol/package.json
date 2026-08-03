@@ -2,12 +2,18 @@
   "name": "@ai-workflow/protocol",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
+  "type": "commonjs",
   "main": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./src/index.ts",
+      "require": "./dist/index.cjs",
+      "default": "./src/index.ts"
+    }
   },
-  "scripts": {},
+  "scripts": {
+    "build:node": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --sourcemap --loader:.json=json --outfile=dist/index.cjs"
+  },
   "dependencies": {
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1"

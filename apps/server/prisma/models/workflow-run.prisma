@@ -9,6 +9,8 @@ model WorkflowRun {
   mode              WorkflowRunMode    @default(FULL) // 工作流运行范围
   targetNodeId      String? // 当mode为SINGLE_NODE，指定运行的节点id
   status            WorkflowRunStatus  @default(QUEUED)
+  runtimeState      Json?              @db.JsonB // FULL 模式可恢复的 RuntimeState 快照
+  runtimeRevision   Int                @default(0) // RuntimeState 乐观锁修订号
   input             Json               @db.JsonB // 本次运行收到的输入数据
   output            Json?              @db.JsonB // 本次运行输出数据
   errorCode         String?
@@ -23,10 +25,12 @@ model WorkflowRun {
   version     WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Restrict)
   triggeredBy User?           @relation("WorkflowRunTriggeredBy", fields: [triggeredById], references: [id], onDelete: SetNull)
 
-  parentRun   WorkflowRun?      @relation("WorkflowRunParent", fields: [parentRunId], references: [id])
-  childRuns   WorkflowRun[]     @relation("WorkflowRunParent")
-  nodeRuns    WorkflowNodeRun[] // 本次运行产生的所有节点执行记录，一条 Run 通常对应多条 NodeRun，并且同一个节点可能因为重试产生多次尝试
-  apiCallLogs ApiCallLog[]
+  parentRun     WorkflowRun?            @relation("WorkflowRunParent", fields: [parentRunId], references: [id])
+  childRuns     WorkflowRun[]           @relation("WorkflowRunParent")
+  nodeRuns      WorkflowNodeRun[] // 本次运行产生的所有节点执行记录，一条 Run 通常对应多条 NodeRun，并且同一个节点可能因为重试产生多次尝试
+  commandOutbox WorkflowCommandOutbox[]
+  resultInbox   WorkflowResultInbox[]
+  apiCallLogs   ApiCallLog[]
 
   @@index([workflowId, queuedAt])
   @@index([workflowId, status, queuedAt])

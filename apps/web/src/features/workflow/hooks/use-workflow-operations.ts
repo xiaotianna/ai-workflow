@@ -3,15 +3,14 @@ import {
   validateExecutorWorkflow,
   validateWorkflow,
   workflowSchema,
-  type WorkflowNode,
 } from '@ai-workflow/core'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useState } from 'react'
 
-import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { toWorkflowNode } from '@/utils/workflow/editor-transform'
 
 import type { useWorkflowEditor } from './use-workflow-editor'
+import type { WorkflowTestRunRequest, WorkflowTestRunResult } from './use-workflow-test-run'
 import {
   downloadWorkflowApplicationDsl,
   parseWorkflowApplicationDsl,
@@ -23,8 +22,11 @@ type WorkflowEditor = ReturnType<typeof useWorkflowEditor>
 interface UseWorkflowOperationsOptions {
   applicationMetadata?: WorkflowApplicationMetadata
   editor: WorkflowEditor
-  onRunNode?: (node: WorkflowNode, snapshot: WorkflowEditorSnapshot) => unknown | Promise<unknown>
-  onTestRun?: (snapshot: WorkflowEditorSnapshot) => unknown | Promise<unknown>
+  onPauseTestRun?: () => Promise<void>
+  onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
+  testRunCanPause?: boolean
+  testRunPausing?: boolean
+  testRunPending?: boolean
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -34,12 +36,17 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function useWorkflowOperations({
   applicationMetadata,
   editor,
-  onRunNode,
+  onPauseTestRun,
   onTestRun,
+  testRunCanPause = false,
+  testRunPausing = false,
+  testRunPending = false,
 }: UseWorkflowOperationsOptions) {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   async function testRun() {
+    if (testRunPending) return
+
     const snapshot = editor.createSnapshot()
     const parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
 
@@ -61,14 +68,23 @@ export function useWorkflowOperations({
     }
 
     try {
-      await onTestRun({ ...snapshot, workflow: parsedWorkflow.data })
-      showToast('success', '测试运行已提交')
+      const result = await onTestRun({
+        mode: 'FULL',
+        snapshot: { ...snapshot, workflow: parsedWorkflow.data },
+      })
+      if (result.status === 'CANCELLED') {
+        showToast('info', '测试运行已暂停')
+        return
+      }
+      showToast('success', '测试运行成功')
     } catch (error) {
       showToast('error', getErrorMessage(error, '测试运行失败'))
     }
   }
 
   async function runNode(nodeId: string) {
+    if (testRunPending) return
+
     if (!editor.canRunNode(nodeId)) {
       showToast('error', '当前节点不可单独运行')
       return
@@ -89,7 +105,7 @@ export function useWorkflowOperations({
       return
     }
 
-    if (!onRunNode) {
+    if (!onTestRun) {
       showToast('info', '节点运行服务尚未接入')
       return
     }
@@ -101,10 +117,28 @@ export function useWorkflowOperations({
     }
 
     try {
-      await onRunNode(node, snapshot)
-      showToast('success', `“${node.label ?? nodeType.definition.label}”已提交运行`)
+      const result = await onTestRun({
+        mode: 'SINGLE_NODE',
+        targetNodeId: node.id,
+        snapshot,
+      })
+      if (result.status === 'CANCELLED') {
+        showToast('info', `“${node.label ?? nodeType.definition.label}”运行已暂停`)
+        return
+      }
+      showToast('success', `“${node.label ?? nodeType.definition.label}”运行成功`)
     } catch (error) {
       showToast('error', getErrorMessage(error, '节点运行失败'))
+    }
+  }
+
+  async function pauseTestRun() {
+    if (!testRunPending || !testRunCanPause || testRunPausing || !onPauseTestRun) return
+
+    try {
+      await onPauseTestRun()
+    } catch {
+      // 普通取消接口错误已由统一 API Client 展示，避免重复 Toast。
     }
   }
 
@@ -135,8 +169,12 @@ export function useWorkflowOperations({
     importDialogOpen,
     importDsl,
     openImportDialog: () => setImportDialogOpen(true),
+    pauseTestRun,
     runNode,
     setImportDialogOpen,
     testRun,
+    testRunCanPause,
+    testRunPausing,
+    testRunPending,
   }
 }

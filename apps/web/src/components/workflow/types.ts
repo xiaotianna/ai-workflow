@@ -1,4 +1,5 @@
 import type { Workflow, WorkflowNode } from '@ai-workflow/core'
+import type { NodeExecutionStatus } from '@ai-workflow/nodes-ui'
 import type { Node, Viewport, XYPosition } from '@xyflow/react'
 
 // 工作流编辑器数据（分为core的运行数据，和渲染数据）
@@ -61,6 +62,7 @@ export interface WorkflowCanvasNodeData extends Record<string, unknown> {
   config: WorkflowNode['config']
   inputs: WorkflowNode['inputs']
   outputs: WorkflowNode['outputs']
+  executionStatus?: NodeExecutionStatus
 }
 
 export interface WorkflowCanvasNode extends Node<WorkflowCanvasNodeData> {

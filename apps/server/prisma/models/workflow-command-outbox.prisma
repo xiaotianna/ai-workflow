@@ -1,0 +1,22 @@
+model WorkflowCommandOutbox {
+  id          String                      @id @db.Uuid // 与协议 commandId 保持一致
+  runId       String                      @db.Uuid
+  nodeRunId   String                      @unique @db.Uuid
+  status      WorkflowCommandOutboxStatus @default(PENDING)
+  payload     Json                        @db.JsonB
+  publishAttempts Int                     @default(0)
+  nextAttemptAt  DateTime                 @default(now())
+  claimedAt      DateTime?
+  publishedAt DateTime?
+  lastError   String?
+  createdAt   DateTime                    @default(now())
+  updatedAt   DateTime                    @updatedAt
+
+  run         WorkflowRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  nodeRun     WorkflowNodeRun      @relation(fields: [nodeRunId], references: [id], onDelete: Cascade)
+  resultInbox WorkflowResultInbox?
+
+  @@index([status, nextAttemptAt, createdAt])
+  @@index([runId, createdAt])
+  @@map("workflow_command_outbox")
+}

@@ -28,7 +28,19 @@ const testRunStrategy: WorkflowContextMenuActionStrategy = {
   label: '测试运行',
   order: 20,
   shortcutId: 'test-run',
+  isVisible: ({ operations }) => !operations.testRunPending,
   execute: ({ operations }) => void operations.testRun(),
+}
+
+const pauseTestRunStrategy: WorkflowContextMenuActionStrategy = {
+  id: 'canvas.pause-test-run',
+  scope: 'canvas',
+  label: '暂停运行',
+  order: 20,
+  shortcutId: 'test-run',
+  isVisible: ({ operations }) => operations.testRunPending,
+  isDisabled: ({ operations }) => !operations.testRunCanPause || operations.testRunPausing,
+  execute: ({ operations }) => void operations.pauseTestRun(),
 }
 
 const pasteStrategy: WorkflowContextMenuActionStrategy = {
@@ -65,6 +77,7 @@ const runNodeStrategy: WorkflowContextMenuActionStrategy = {
   scope: 'node',
   label: '运行该节点',
   order: 10,
+  isVisible: ({ operations }) => !operations.testRunPending,
   isDisabled: (context) => {
     const nodeId = getNodeId(context)
     return !nodeId || !context.editor.canRunNode(nodeId)
@@ -73,6 +86,16 @@ const runNodeStrategy: WorkflowContextMenuActionStrategy = {
     const nodeId = getNodeId(context)
     if (nodeId) void context.operations.runNode(nodeId)
   },
+}
+
+const pauseNodeRunStrategy: WorkflowContextMenuActionStrategy = {
+  id: 'node.pause-test-run',
+  scope: 'node',
+  label: '暂停当前运行',
+  order: 10,
+  isVisible: ({ operations }) => operations.testRunPending,
+  isDisabled: ({ operations }) => !operations.testRunCanPause || operations.testRunPausing,
+  execute: ({ operations }) => void operations.pauseTestRun(),
 }
 
 const replaceNodeStrategy: WorkflowContextMenuActionStrategy = {
@@ -150,10 +173,12 @@ export const workflowContextMenuActionRegistry =
   new WorkflowContextMenuActionRegistry().registerAll([
     addNodeStrategy,
     testRunStrategy,
+    pauseTestRunStrategy,
     pasteStrategy,
     exportDslStrategy,
     importApplicationStrategy,
     runNodeStrategy,
+    pauseNodeRunStrategy,
     replaceNodeStrategy,
     copyNodeStrategy,
     duplicateNodeStrategy,

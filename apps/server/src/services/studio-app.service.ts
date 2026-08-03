@@ -10,10 +10,10 @@ import {
   parseWorkflowDefinition,
   parseWorkflowLayout,
   redactWorkflowDefinitionSecrets,
-  type WorkflowDefinition,
   type WorkflowLayout,
 } from '@/utils/workflow-draft'
 import type { StudioAppDslExport, StudioAppListVo, StudioAppVo } from '@/vo/studio.vo'
+import { nodeRegistry, validateWorkflow, type Workflow } from '@ai-workflow/core'
 import {
   BadRequestException,
   Injectable,
@@ -247,10 +247,14 @@ export class StudioAppService {
     rawDefinition: unknown,
     errorMessage: string,
     internalError = false,
-  ): WorkflowDefinition {
-    return (
+  ): Workflow {
+    const definition =
       parseWorkflowDefinition(rawDefinition) ?? this.throwInvalidDsl(errorMessage, internalError)
-    )
+    const issues = validateWorkflow(definition, nodeRegistry)
+    if (issues.length > 0) {
+      this.throwInvalidDsl(issues[0]?.message ?? errorMessage, internalError)
+    }
+    return definition
   }
 
   private parseWorkflowLayout(rawLayout: unknown, internalError = false): WorkflowLayout {

@@ -15,6 +15,9 @@
   执行完整 Schema 边界校验；失败抛出带稳定 issues 的 `ProtocolValidationError`。
 - `ProtocolJsonValue` 与生成消息类型位于 `src/generated`，生成文件不手工修改，调用方只从包根入口
   导入。
+- 包根 `types`/`default` 条件指向 TypeScript 源码，并提供 `require` 的 CJS bundle 供 Server 使用；
+  package module 类型保持 CommonJS，使 NestJS NodeNext 直接解析公开类型。两种入口必须继续复用
+  同一批 Schema 与 parser，不维护第二套协议实现或 Server 本地镜像。
 
 ## Go 公共入口
 

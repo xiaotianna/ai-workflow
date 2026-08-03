@@ -1,14 +1,14 @@
 # AI Workflow Server
 
 `@ai-workflow/server` 是 AI Workflow monorepo 的 NestJS 服务端应用，负责 HTTP 接口、
-鉴权、配置、日志、PostgreSQL/Prisma 数据访问、Redis 会话，以及后续的工作流持久化和
-运行时接入。
+鉴权、配置、日志、PostgreSQL/Prisma 数据访问、Redis 会话，以及工作流持久化和运行时接入。
 
 ## 当前技术栈
 
 - NestJS 11 + TypeScript
 - PostgreSQL 17 + Prisma 7
 - Redis 7.4
+- RabbitMQ 4 + amqplib
 - JWT + Argon2
 - Winston
 - class-validator / class-transformer
@@ -27,6 +27,8 @@ apps/server/
 │   │   ├── workflow-deployment.prisma
 │   │   ├── workflow-draft.prisma
 │   │   ├── workflow-node-run.prisma
+│   │   ├── workflow-command-outbox.prisma
+│   │   ├── workflow-result-inbox.prisma
 │   │   ├── workflow-run.prisma
 │   │   ├── workflow-version.prisma
 │   │   └── workflow.prisma
@@ -48,7 +50,8 @@ apps/server/
 │   ├── infra/
 │   │   ├── model-provider/      # 模型供应商适配、凭证加密与地址策略
 │   │   ├── prisma/              # Prisma Client 和连接生命周期
-│   │   └── redis/               # Redis Client 和连接生命周期
+│   │   ├── redis/               # Redis Client 和连接生命周期
+│   │   └── workflow-mq/         # RabbitMQ 拓扑、Outbox Publisher 与 Result Consumer
 │   ├── interceptors/            # 成功响应统一封装
 │   ├── modules/                 # NestJS 模块与依赖装配
 │   ├── repositories/            # Prisma/Redis 数据访问封装
@@ -74,6 +77,9 @@ apps/server/
 - 当前用户查询、用户名和密码修改、退出登录。
 - Prisma 和 Redis 的 NestJS 生命周期管理。
 - 对话/嵌入模型组的持久化、启停、加密凭证和模型列表连通性测试。
+- 完整工作流与单节点测试运行，共用 Runtime、Protocol、运行记录和执行器链路。
+- RuntimeState revision、Command Outbox、Result Inbox、leaseToken 和 deadline 持久化。
+- RabbitMQ 持久队列、Publisher Confirm、Outbox claim/重试、Result 重试与死信队列。
 - 全局 DTO 校验、成功响应封装和异常过滤。
 - Winston 控制台日志与按日期切割的文件日志。
 - `/images/` 和 `/avatars/` 静态资源访问。
@@ -94,34 +100,38 @@ apps/server/
 - Service：编排业务用例和事务边界。
 - Repository：封装 Prisma、Redis 和其他基础设施访问。
 - `infra/`：管理具体客户端和连接生命周期。
-- 工作流结构和业务校验使用 `@ai-workflow/core`。
-- 工作流执行计划和调度后续由 `@ai-workflow/runtime` 承载。
+- 工作流结构、类型、常量和业务校验直接使用 `@ai-workflow/core` 根入口，不在 Server 重复声明。
+- 工作流状态机、类型和根 DAG 调度直接使用 `@ai-workflow/runtime` 根入口。
+- Executor 消息类型和边界解析直接使用 `@ai-workflow/protocol` 根入口；RabbitMQ 拓扑、Outbox/Inbox
+  持久化和租约仍由 Server 负责。
 - 服务端不依赖 Web、UI、Form 或 Nodes UI。
 
 ## 数据表设计
 
 当前 Prisma schema 与 migration 包含用户、工作流和模型配置数据：
 
-| 表                     | 简要职责                             |
-| ---------------------- | ------------------------------------ |
-| `apps`                 | 应用名称、图标、描述、类型和用户归属 |
-| `workflows`            | 工作流稳定身份，与 App 一对一        |
-| `workflow_drafts`      | 当前画布定义、布局和乐观锁 revision  |
-| `workflow_versions`    | 发布、测试和手动保存的不可变快照     |
-| `workflow_deployments` | 各环境当前激活的版本                 |
-| `api_keys`             | API Key 前缀、哈希、过期和吊销状态   |
-| `api_call_logs`        | HTTP/API 调用结果和耗时              |
-| `workflow_runs`        | 一次完整工作流运行                   |
-| `workflow_node_runs`   | 节点级执行状态、输入输出、错误和耗时 |
-| `model_groups`         | 用户的对话/嵌入供应商配置与加密凭证  |
-| `configured_models`    | 模型组内稳定模型 ID、顺序和启用状态  |
+| 表                        | 简要职责                             |
+| ------------------------- | ------------------------------------ |
+| `apps`                    | 应用名称、图标、描述、类型和用户归属 |
+| `workflows`               | 工作流稳定身份，与 App 一对一        |
+| `workflow_drafts`         | 当前画布定义、布局和乐观锁 revision  |
+| `workflow_versions`       | 发布、测试和手动保存的不可变快照     |
+| `workflow_deployments`    | 各环境当前激活的版本                 |
+| `api_keys`                | API Key 前缀、哈希、过期和吊销状态   |
+| `api_call_logs`           | HTTP/API 调用结果和耗时              |
+| `workflow_runs`           | 运行状态、RuntimeState 与 revision   |
+| `workflow_node_runs`      | 节点执行、幂等键、租约、输入输出     |
+| `workflow_command_outbox` | 待派发的节点协议命令                 |
+| `workflow_result_inbox`   | 已消费的节点结果与幂等记录           |
+| `model_groups`            | 用户的对话/嵌入供应商配置与加密凭证  |
+| `configured_models`       | 模型组内稳定模型 ID、顺序和启用状态  |
 
 工作流节点、连线和输出使用 JSONB 整体保存，React Flow 的位置、Loop 尺寸和 viewport
 使用独立 layout JSONB。API 调用日志和运行日志分离，因为 API 可能在启动工作流前失败，
 测试或子工作流运行也可能不经过 API。
 
-完整关系、字段和生命周期见
-[工作流数据库设计](../../docs/workflow-database-design.md)。
+运行时职责、关系和恢复目标见
+[Go 节点执行器架构](../../docs/go-node-executor-architecture.md)。
 
 ## 配置
 
@@ -137,6 +147,7 @@ apps/server/
 | `JWT_EXPIRES_IN`                  | JWT 有效期，默认 `7d`                                 |
 | `MODEL_CREDENTIAL_ENCRYPTION_KEY` | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
 | `MODEL_CONNECTION_PRIVATE_HOSTS`  | 允许模型探测访问的私有 `host[:port]`，逗号分隔        |
+| `RABBITMQ_URL`                    | AMQP 地址，默认连接 `compose.dev.yaml` 的开发 vhost   |
 
 开发和测试环境未配置模型凭证密钥时，会通过 HKDF 从 `JWT_SECRET` 派生用途隔离密钥；生产环境
 必须配置专用密钥。开发环境默认只放行 `localhost:11434`、`127.0.0.1:11434` 和
@@ -160,6 +171,35 @@ apps/server/
 
 Prisma 7 从 `prisma.config.ts` 读取整个 `prisma/` schema 目录和数据库地址，不在
 `schema.prisma` 的 datasource 中声明连接地址。
+
+## 工作流测试运行
+
+`POST /studio/apps/:appId/workflow-runs/test` 同时承载两种编辑器测试入口：`mode=FULL` 运行根 DAG，
+`mode=SINGLE_NODE` 携带 `targetNodeId` 只运行指定业务节点。两种模式都会保存不可变测试版本、Run、
+NodeRun、Command Outbox 与 Result Inbox。
+
+前端通过 `fetch` 向创建接口发送 POST 请求并直接读取 SSE 响应，依次接收 `workflow_started`、
+`node_finished` 和 `workflow_finished`。事件流建连后先发送数据库当前快照，避免创建 Run 与订阅
+之间漏掉已完成节点；初始快照和节点完成增量均携带包含 `RUNNING`、`SUCCEEDED`、`FAILED` 的最新
+节点状态，其中尚未被 Publisher 领取的 `PENDING` 节点按 `RUNNING` 展示，执行超时按 `FAILED`
+展示。POST 事件流在取得 runId 后意外中断时，Web 只使用 GET SSE 自动恢复一次；恢复仍失败则清除
+残留的运行中状态。普通 Run GET 只保留给详情与最终快照恢复，不用于轮询。
+
+运行中可调用 `POST /studio/apps/:appId/workflow-runs/:runId/cancel` 执行一次性暂停：Run 原子进入
+`CANCELLED`，尚未完成的 NodeRun 与待派发 Outbox 同事务取消，并通过 `workflow_finished` 通知
+前端。已经发送给 Worker 的命令不强制中断，但其迟到 Result 会按 stale 忽略，不再推进工作流。
+
+两种测试模式都按异步链路执行：创建 Run 时将 RuntimeState、NodeRun 和 Command Outbox 同事务提交；
+后台 Publisher 领取 Outbox，经 RabbitMQ Publisher Confirm 后标记已发布；Go Worker 消费命令并在 Result
+可靠发布后 Ack；Server Result Consumer 校验协议、commandId、leaseToken 与 revision CAS，在同一事务中
+写入 Inbox、推进 RuntimeState，并生成下一批 Outbox。
+
+Outbox 采用 `PENDING → PUBLISHING → PUBLISHED/FAILED` 状态和 stale claim 恢复，消息处理按
+at-least-once 设计。损坏的 Outbox 命令与达到最大处理次数的 Result 会把 Run 写入失败终态并发布
+`workflow_finished`；后台扫描 `deadlineAt`，把无结果的到期节点与 Run 写入超时终态。Go 已按节点
+类型注册 `llm`、`rag`、`code`、`http`、`condition` 的具体 Mock Executor；RabbitMQ transport、
+Registry、Runtime、SSE、持久化与幂等链路均为正式边界。真实业务节点逻辑、业务副作用幂等存储和
+Secret Gateway 仍属于后续阶段。
 
 ## 常用命令
 

@@ -4,6 +4,7 @@ import { validateAcyclicWorkflow } from './validate-cycle'
 import { validateEdges } from './validate-edge'
 import { validateLoopStructure } from './validate-loop-structure'
 import { validateNodes, validateRequiredNodeInputs } from './validate-node'
+import { validateRootExecution } from './validate-root-execution'
 import { validateVariableReferences } from './validate-variable-references'
 import type {
   EdgeValidationResult,
@@ -61,6 +62,7 @@ export const validateExecutorWorkflow = (
   // 该校验只针对于运行时候执行
   validateRequiredNodeInputs(result.nodes, result.edges.inputConnectionCounts, report)
   validateAcyclicWorkflow(result.nodes.nodeIds, result.edges.resolvedEdges, report)
+  validateRootExecution(workflow.nodes, result.edges.resolvedEdges, report)
 
   return result.issues
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { NodeDefinition } from '@ai-workflow/core'
 import type { NodePortRender } from '../../contracts/node-content'
+import type { NodeExecutionStatus } from '../../contracts/node-content'
 import { NodeHeader } from './node-header'
 import { NodePortsRender } from './node-ports-render'
 import { NodeWrapper } from './node-wrapper'
@@ -17,6 +18,7 @@ export interface BaseNodeProps {
   renderPort?: NodePortRender
   // 各节点组件ui
   children?: ReactNode
+  executionStatus?: NodeExecutionStatus
 }
 
 export function BaseNode({
@@ -29,11 +31,17 @@ export function BaseNode({
   onDelete,
   renderPort,
   children,
+  executionStatus,
 }: BaseNodeProps) {
   return (
-    <NodeWrapper selected={selected} disabled={disabled} onSelect={onSelect}>
+    <NodeWrapper
+      selected={selected}
+      disabled={disabled}
+      onSelect={onSelect}
+      executionStatus={executionStatus}
+    >
       {/* Header */}
-      <NodeHeader definition={definition} onDelete={onDelete} />
+      <NodeHeader definition={definition} onDelete={onDelete} executionStatus={executionStatus} />
 
       {/* Body */}
       {children}
