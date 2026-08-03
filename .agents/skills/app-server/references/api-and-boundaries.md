@@ -62,8 +62,14 @@
   Secret 占位值按当前用户持久化草稿恢复。运行快照显式返回持久化 Run 的 `traceId`、`trigger`、
   `input`、触发用户、排队/开始/结束时间和耗时；每条 NodeRun 返回 `input`、`output`、开始/结束
   时间和耗时，供运行详情与追踪展示，不把 Prisma model 直接作为响应。
+- `GET /studio/apps/:appId/workflow-runs`：按 `queuedAt`、`id` 倒序游标分页读取当前用户和应用的
+  测试与正式运行记录；`limit` 范围为 1–50，响应返回轻量 `items` 和 opaque `nextCursor`，列表
+  不携带输入、输出、节点运行或工作流版本快照。
 - `GET /studio/apps/:appId/workflow-runs/:runId`：按当前用户和应用读取异步测试 Run、节点状态、输出
-  或错误，作为详情与恢复快照使用；不得仅凭 runId 跨应用读取，也不得由 Web 用于终态轮询。
+  或错误，并返回该 Run 绑定版本的 `definition` 供历史追踪还原节点；不得仅凭 runId 跨应用读取，
+  `definition` 中的 Secret 环境变量必须清空，不得把版本快照中的真实密钥返回浏览器；也不得由
+  Web 用于终态轮询。SSE 内部快照继续使用不携带 `definition` 的运行 VO，避免每个事件重复发送
+  完整版本定义。
 - `GET /studio/apps/:appId/workflow-runs/:runId/events`：为详情和恢复场景保留的事件流接口；事件
   顺序与 POST 测试接口一致，使用注释心跳防止代理空闲断开，鉴权仍使用 Bearer Token。Web 新建
   测试运行不得先创建再调用此接口；只有 POST 流已返回 runId 后意外中断，才允许自动恢复一次。

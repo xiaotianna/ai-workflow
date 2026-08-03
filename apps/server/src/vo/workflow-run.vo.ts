@@ -59,6 +59,30 @@ export interface WorkflowTestRunVo {
   traceNodeIds: string[]
 }
 
+export interface WorkflowRunListItemVo {
+  id: string
+  trigger: WorkflowRunTrigger
+  mode: TestRunMode
+  status: WorkflowRunStatus
+  queuedAt: Date
+  startedAt?: Date
+  finishedAt?: Date
+  durationMs?: number
+  triggeredBy?: {
+    id: string
+    username: string
+  }
+}
+
+export interface WorkflowRunListVo {
+  items: WorkflowRunListItemVo[]
+  nextCursor: string | null
+}
+
+export interface WorkflowRunDetailVo extends WorkflowTestRunVo {
+  definition: unknown
+}
+
 export interface WorkflowRunNodeFinishedEventVo {
   runId: string
   node: WorkflowNodeExecutionStateVo

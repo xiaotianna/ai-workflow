@@ -14,6 +14,7 @@ import { getWorkflowVariableDataTypeLabel } from '../utils/workflow-variable-pre
 import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
 import type { WorkflowTestRunResult } from '../hooks/use-workflow-test-run'
 import { WorkflowEnvironmentVariablesPanel } from './workflow-environment-variables-panel'
+import { WorkflowRunHistoryPanel } from './workflow-run-history-panel'
 import { WorkflowTestRunPanelContent } from './workflow-test-run-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
 
@@ -26,6 +27,7 @@ export type WorkflowAuxiliaryPanelType =
   | 'version-history'
 
 interface WorkflowAuxiliaryPanelProps {
+  appId?: string
   type: WorkflowAuxiliaryPanelType
   checkListIssues: readonly WorkflowCheckListIssue[]
   environmentVariables: readonly WorkflowEnvironmentVariable[]
@@ -58,10 +60,6 @@ function EmptyPanelContent({ children }: EmptyPanelContentProps) {
       <p className="text-muted-foreground max-w-64 text-sm leading-6">{children}</p>
     </div>
   )
-}
-
-function RunHistoryPanelContent() {
-  return <EmptyPanelContent>暂无运行记录</EmptyPanelContent>
 }
 
 interface CheckListPanelContentProps {
@@ -174,7 +172,6 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   'run-history': {
     title: '运行历史',
     description: '查看当前工作流的测试与正式运行记录。',
-    Content: RunHistoryPanelContent,
   },
   'check-list': {
     title: '检查清单',
@@ -198,6 +195,7 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
 }
 
 export function WorkflowAuxiliaryPanel({
+  appId,
   type,
   checkListIssues,
   environmentVariables,
@@ -248,7 +246,9 @@ export function WorkflowAuxiliaryPanel({
 
       <div
         className={
-          type === 'test-run' ? 'min-h-0 flex-1 overflow-hidden' : 'min-h-0 flex-1 overflow-y-auto'
+          type === 'test-run' || type === 'run-history'
+            ? 'min-h-0 flex-1 overflow-hidden'
+            : 'min-h-0 flex-1 overflow-y-auto'
         }
       >
         {type === 'test-run' ? (
@@ -260,6 +260,15 @@ export function WorkflowAuxiliaryPanel({
             onPause={onPauseTestRun}
             onRun={onStartTestRun}
           />
+        ) : type === 'run-history' ? (
+          appId ? (
+            <WorkflowRunHistoryPanel
+              appId={appId}
+              refreshKey={testRunPending ? 'pending' : testRunResult?.id}
+            />
+          ) : (
+            <EmptyPanelContent>当前应用暂时无法读取运行记录</EmptyPanelContent>
+          )
         ) : type === 'check-list' ? (
           <CheckListPanelContent issues={checkListIssues} onIssueSelect={onCheckListIssueSelect} />
         ) : type === 'environment-variables' ? (

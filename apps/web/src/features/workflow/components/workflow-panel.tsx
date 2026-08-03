@@ -20,6 +20,7 @@ import type { WorkflowCheckListIssue } from '../utils/workflow-check-list'
 import type { WorkflowTestRunResult } from '../hooks/use-workflow-test-run'
 
 interface WorkflowPanelProps {
+  appId?: string
   addNodeButtonRef: RefObject<HTMLButtonElement | null>
   disabled?: boolean
   addNodeOpen: boolean
@@ -83,6 +84,7 @@ interface WorkflowPanelProps {
 }
 
 export const WorkflowPanel = ({
+  appId,
   addNodeButtonRef,
   disabled = false,
   addNodeOpen,
@@ -280,6 +282,7 @@ export const WorkflowPanel = ({
                 }}
               >
                 <WorkflowAuxiliaryPanel
+                  appId={appId}
                   type={activeAuxiliaryPanel}
                   checkListIssues={checkListIssues}
                   environmentVariables={environmentVariables}

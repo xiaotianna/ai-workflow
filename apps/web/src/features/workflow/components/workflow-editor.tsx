@@ -306,6 +306,7 @@ export function WorkflowEditor({
                     >
                       {/* 总面板组件 */}
                       <WorkflowPanel
+                        appId={applicationMetadata?.id}
                         addNodeButtonRef={addNodeButtonRef}
                         activeAuxiliaryPanel={activeAuxiliaryPanel}
                         selectedNode={editor.selectedNode}

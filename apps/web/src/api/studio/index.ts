@@ -114,6 +114,35 @@ export interface StudioWorkflowTestRunDto {
   traceNodeIds?: string[]
 }
 
+export interface StudioWorkflowRunListItemDto {
+  id: string
+  trigger: string
+  mode: StudioWorkflowTestRunMode
+  status: string
+  queuedAt: string
+  startedAt?: string
+  finishedAt?: string
+  durationMs?: number
+  triggeredBy?: {
+    id: string
+    username: string
+  }
+}
+
+export interface StudioWorkflowRunListResult {
+  items: StudioWorkflowRunListItemDto[]
+  nextCursor: string | null
+}
+
+export interface ListStudioWorkflowRunsParams {
+  cursor?: string
+  limit?: number
+}
+
+export interface StudioWorkflowRunDetailDto extends StudioWorkflowTestRunDto {
+  definition: WorkflowEditorSnapshot['workflow']
+}
+
 export type StudioWorkflowTestRunSseEvent =
   | {
       event: 'workflow_started'
@@ -193,6 +222,31 @@ export function saveStudioWorkflowDraft(
   return apiClient.put<StudioWorkflowDraftDto, SaveStudioWorkflowDraftParams>(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-draft`,
     values,
+  )
+}
+
+export function listStudioWorkflowRuns(
+  appId: string,
+  params: ListStudioWorkflowRunsParams,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowRunListResult> {
+  return apiClient.get<StudioWorkflowRunListResult>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-runs`,
+    {
+      params,
+      signal,
+    },
+  )
+}
+
+export function getStudioWorkflowRun(
+  appId: string,
+  runId: string,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowRunDetailDto> {
+  return apiClient.get<StudioWorkflowRunDetailDto>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-runs/${encodeURIComponent(runId)}`,
+    { signal },
   )
 }
 

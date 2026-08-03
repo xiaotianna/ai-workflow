@@ -1,5 +1,9 @@
 import type { PreparedNodeDispatch } from '@/common/interfaces/workflow-run-persistence.interface'
-import { CreateWorkflowTestRunDto, TEST_RUN_MODES } from '@/dto/workflow-run.dto'
+import {
+  CreateWorkflowTestRunDto,
+  ListWorkflowRunsDto,
+  TEST_RUN_MODES,
+} from '@/dto/workflow-run.dto'
 import { WorkflowNodeRunStatus, WorkflowRunStatus } from '@/generated/prisma/client'
 import {
   BuiltinNodeType,
@@ -38,9 +42,16 @@ import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-str
 import {
   parseWorkflowDefinition,
   parseWorkflowLayout,
+  redactWorkflowDefinitionSecrets,
   restoreMaskedWorkflowDefinitionSecrets,
 } from '@/utils/workflow-draft'
-import type { WorkflowNodeExecutionStateVo, WorkflowTestRunVo } from '@/vo/workflow-run.vo'
+import type {
+  WorkflowNodeExecutionStateVo,
+  WorkflowRunDetailVo,
+  WorkflowRunListItemVo,
+  WorkflowRunListVo,
+  WorkflowTestRunVo,
+} from '@/vo/workflow-run.vo'
 import {
   BadRequestException,
   Injectable,
@@ -49,10 +60,16 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
+import { isUUID } from 'class-validator'
 
 const EXECUTION_DEADLINE_MS = 30_000
 const RESULT_APPLY_MAX_ATTEMPTS = 5
 type WorkflowRunSummary = NonNullable<Awaited<ReturnType<WorkflowRunRepository['findRunSummary']>>>
+type WorkflowRunListItem = Awaited<ReturnType<WorkflowRunRepository['listOwnedRuns']>>[number]
+interface WorkflowRunCursor {
+  id: string
+  queuedAt: Date
+}
 const UNSUPPORTED_FULL_RUN_NODE_TYPES = new Set<string>([
   BuiltinNodeType.LOOP,
   BuiltinNodeType.LOOP_START,
@@ -80,6 +97,49 @@ export class WorkflowRunService {
     return dto.mode === TEST_RUN_MODES.FULL
       ? this.runFullWorkflow(ownerId, appId, snapshot.workflow, snapshot.layout, dto.input ?? {})
       : this.runSingleNode(ownerId, appId, snapshot.workflow, snapshot.layout, dto.targetNodeId)
+  }
+
+  async listRuns(
+    ownerId: string,
+    appId: string,
+    query: ListWorkflowRunsDto,
+  ): Promise<WorkflowRunListVo> {
+    const workflow = await this.workflowRunRepository.findOwnedWorkflow(ownerId, appId)
+    if (!workflow) throw new NotFoundException('应用不存在')
+
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
+    const runs = await this.workflowRunRepository.listOwnedRuns({
+      ownerId,
+      appId,
+      limit: query.limit,
+      cursor,
+    })
+    const hasMore = runs.length > query.limit
+    const page = hasMore ? runs.slice(0, query.limit) : runs
+    const lastRun = page.at(-1)
+
+    return {
+      items: page.map(toWorkflowRunListItemVo),
+      nextCursor:
+        hasMore && lastRun
+          ? this.encodeCursor({
+              id: lastRun.id,
+              queuedAt: lastRun.queuedAt,
+            })
+          : null,
+    }
+  }
+
+  async getRunDetail(ownerId: string, appId: string, runId: string): Promise<WorkflowRunDetailVo> {
+    const run = await this.workflowRunRepository.findOwnedRunDetail(ownerId, appId, runId)
+    if (!run) throw new NotFoundException('运行记录不存在')
+    const definition = parseWorkflowDefinition(run.version.definition)
+    if (!definition) throw new InternalServerErrorException('运行绑定的工作流版本快照格式无效')
+
+    return {
+      ...toWorkflowTestRunVo(run),
+      definition: redactWorkflowDefinitionSecrets(definition),
+    }
   }
 
   async processNodeResult(
@@ -200,6 +260,41 @@ export class WorkflowRunService {
       }
     }
     return run
+  }
+
+  private encodeCursor(cursor: WorkflowRunCursor): string {
+    return Buffer.from(
+      JSON.stringify({
+        id: cursor.id,
+        queuedAt: cursor.queuedAt.toISOString(),
+      }),
+    ).toString('base64url')
+  }
+
+  private decodeCursor(cursor: string): WorkflowRunCursor {
+    try {
+      const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
+        id?: unknown
+        queuedAt?: unknown
+      }
+      const queuedAt =
+        typeof parsed.queuedAt === 'string' && parsed.queuedAt
+          ? new Date(parsed.queuedAt)
+          : undefined
+
+      if (
+        typeof parsed.id !== 'string' ||
+        !isUUID(parsed.id, '4') ||
+        !queuedAt ||
+        Number.isNaN(queuedAt.getTime())
+      ) {
+        throw new Error('Invalid cursor')
+      }
+
+      return { id: parsed.id, queuedAt }
+    } catch {
+      throw new BadRequestException('分页游标无效')
+    }
   }
 
   async failRunForCommand(
@@ -486,6 +581,20 @@ export class WorkflowRunService {
         `Workflow SSE 事件发布失败 runId=${runId}：${getErrorMessage(error, '未知错误')}`,
       )
     }
+  }
+}
+
+function toWorkflowRunListItemVo(run: WorkflowRunListItem): WorkflowRunListItemVo {
+  return {
+    id: run.id,
+    trigger: run.trigger,
+    mode: run.mode,
+    status: run.status,
+    queuedAt: run.queuedAt,
+    ...(run.startedAt ? { startedAt: run.startedAt } : {}),
+    ...(run.finishedAt ? { finishedAt: run.finishedAt } : {}),
+    ...(run.durationMs !== null ? { durationMs: run.durationMs } : {}),
+    ...(run.triggeredBy ? { triggeredBy: run.triggeredBy } : {}),
   }
 }
 

@@ -1,8 +1,21 @@
 import { WorkflowRunMode } from '@/generated/prisma/client'
-import { IsIn, IsObject, IsOptional, IsString, ValidateIf } from 'class-validator'
+import { Type } from 'class-transformer'
+import { IsIn, IsInt, IsObject, IsOptional, IsString, Max, Min, ValidateIf } from 'class-validator'
 
 export const TEST_RUN_MODES = WorkflowRunMode
 export type TestRunMode = WorkflowRunMode
+
+export class ListWorkflowRunsDto {
+  @IsOptional()
+  @IsString({ message: '分页游标必须是字符串' })
+  cursor?: string
+
+  @Type(() => Number)
+  @Max(50, { message: '每次最多加载 50 条运行记录' })
+  @Min(1, { message: '每次至少加载 1 条运行记录' })
+  @IsInt({ message: '加载条数必须是整数' })
+  limit = 20
+}
 
 export class CreateWorkflowTestRunDto {
   @IsIn(Object.values(TEST_RUN_MODES), { message: '测试运行模式无效' })

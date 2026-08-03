@@ -62,6 +62,18 @@ interface FailCommandOptions {
   nodeRunStatus: typeof WorkflowNodeRunStatus.FAILED | typeof WorkflowNodeRunStatus.TIMED_OUT
 }
 
+interface WorkflowRunCursor {
+  id: string
+  queuedAt: Date
+}
+
+interface ListOwnedRunsOptions {
+  ownerId: string
+  appId: string
+  limit: number
+  cursor?: WorkflowRunCursor
+}
+
 export interface ClaimedWorkflowCommand {
   id: string
   payload: unknown
@@ -542,6 +554,44 @@ export class WorkflowRunRepository {
     })
   }
 
+  findOwnedWorkflow(ownerId: string, appId: string) {
+    return this.prisma.workflow.findFirst({
+      where: {
+        appId,
+        app: {
+          ownerId,
+          deletedAt: null,
+        },
+      },
+      select: { id: true },
+    })
+  }
+
+  listOwnedRuns(options: ListOwnedRunsOptions) {
+    return this.prisma.workflowRun.findMany({
+      where: {
+        workflow: {
+          appId: options.appId,
+          app: {
+            ownerId: options.ownerId,
+            deletedAt: null,
+          },
+        },
+        ...(options.cursor
+          ? {
+              OR: [
+                { queuedAt: { lt: options.cursor.queuedAt } },
+                { queuedAt: options.cursor.queuedAt, id: { lt: options.cursor.id } },
+              ],
+            }
+          : {}),
+      },
+      orderBy: [{ queuedAt: 'desc' }, { id: 'desc' }],
+      take: options.limit + 1,
+      select: workflowRunListItemSelect,
+    })
+  }
+
   findOwnedRunSummary(ownerId: string, appId: string, runId: string) {
     return this.prisma.workflowRun.findFirst({
       where: {
@@ -557,7 +607,40 @@ export class WorkflowRunRepository {
       select: workflowRunSummarySelect,
     })
   }
+
+  findOwnedRunDetail(ownerId: string, appId: string, runId: string) {
+    return this.prisma.workflowRun.findFirst({
+      where: {
+        id: runId,
+        workflow: {
+          appId,
+          app: {
+            ownerId,
+            deletedAt: null,
+          },
+        },
+      },
+      select: workflowRunDetailSelect,
+    })
+  }
 }
+
+const workflowRunListItemSelect = {
+  id: true,
+  trigger: true,
+  mode: true,
+  status: true,
+  queuedAt: true,
+  startedAt: true,
+  finishedAt: true,
+  durationMs: true,
+  triggeredBy: {
+    select: {
+      id: true,
+      username: true,
+    },
+  },
+} satisfies Prisma.WorkflowRunSelect
 
 const workflowRunSummarySelect = {
   id: true,
@@ -599,6 +682,15 @@ const workflowRunSummarySelect = {
       startedAt: true,
       finishedAt: true,
       durationMs: true,
+    },
+  },
+} satisfies Prisma.WorkflowRunSelect
+
+const workflowRunDetailSelect = {
+  ...workflowRunSummarySelect,
+  version: {
+    select: {
+      definition: true,
     },
   },
 } satisfies Prisma.WorkflowRunSelect

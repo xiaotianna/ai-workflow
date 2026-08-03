@@ -1,10 +1,15 @@
 import type { AuthenticatedRequest } from '@/common/interfaces/auth-context.interface'
 import { JwtAuth } from '@/decorators/jwt-auth.decorator'
-import { CreateWorkflowTestRunDto } from '@/dto/workflow-run.dto'
+import { CreateWorkflowTestRunDto, ListWorkflowRunsDto } from '@/dto/workflow-run.dto'
 import { WorkflowRunStatus } from '@/generated/prisma/client'
 import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-stream.service'
 import { WorkflowRunService } from '@/services/workflow-run.service'
-import type { WorkflowRunStreamEvent, WorkflowTestRunVo } from '@/vo/workflow-run.vo'
+import type {
+  WorkflowRunDetailVo,
+  WorkflowRunListVo,
+  WorkflowRunStreamEvent,
+  WorkflowTestRunVo,
+} from '@/vo/workflow-run.vo'
 import {
   BadRequestException,
   Body,
@@ -13,6 +18,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common'
@@ -28,6 +34,22 @@ export class WorkflowRunController {
     private readonly workflowRunService: WorkflowRunService,
     private readonly workflowRunEventStream: WorkflowRunEventStreamService,
   ) {}
+
+  @Get()
+  listRuns(
+    @Req() request: AuthenticatedRequest,
+    @Param(
+      'appId',
+      new ParseUUIDPipe({
+        version: '4',
+        exceptionFactory: () => new BadRequestException('应用不存在'),
+      }),
+    )
+    appId: string,
+    @Query() query: ListWorkflowRunsDto,
+  ): Promise<WorkflowRunListVo> {
+    return this.workflowRunService.listRuns(request.auth.userId, appId, query)
+  }
 
   @Post('test')
   async streamTestRunFromSnapshot(
@@ -59,8 +81,8 @@ export class WorkflowRunController {
     )
     appId: string,
     @Param('runId', new ParseUUIDPipe({ version: '4' })) runId: string,
-  ): Promise<WorkflowTestRunVo> {
-    return this.workflowRunService.getTestRun(request.auth.userId, appId, runId)
+  ): Promise<WorkflowRunDetailVo> {
+    return this.workflowRunService.getRunDetail(request.auth.userId, appId, runId)
   }
 
   @Post(':runId/cancel')
