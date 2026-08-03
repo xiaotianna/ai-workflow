@@ -23,6 +23,21 @@ export interface ListStudioAppsParams {
   limit?: number
   search?: string
   sort?: StudioAppSort
+  publishedOnly?: boolean
+}
+
+export interface StudioSubWorkflowContractDto {
+  workflowId: string
+  versionId: string
+  version: number
+  publishedAt: string
+  inputVariables: WorkflowEditorSnapshot['workflow']['nodes'][number]['outputs']
+  outputVariables: Array<{
+    key: string
+    label: string
+    dataType: WorkflowEditorSnapshot['workflow']['outputs'][number]['dataType']
+    description?: string
+  }>
 }
 
 export interface SaveStudioAppParams {
@@ -261,6 +276,16 @@ export function getStudioWorkflowDeployment(
 ): Promise<StudioWorkflowDeploymentDto | null> {
   return apiClient.get<StudioWorkflowDeploymentDto | null>(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-deployment`,
+    { signal },
+  )
+}
+
+export function getStudioSubWorkflowContract(
+  appId: string,
+  signal?: AbortSignal,
+): Promise<StudioSubWorkflowContractDto> {
+  return apiClient.get<StudioSubWorkflowContractDto>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-deployment/contract`,
     { signal },
   )
 }

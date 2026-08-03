@@ -7,6 +7,7 @@ import {
   parseWorkflowLayout,
   restoreMaskedWorkflowDefinitionSecrets,
 } from '@/utils/workflow-draft'
+import type { StudioSubWorkflowContractVo } from '@/vo/workflow-deployment-contract.vo'
 import type { WorkflowDeploymentVo } from '@/vo/workflow-deployment.vo'
 import {
   BadRequestException,
@@ -14,7 +15,12 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common'
-import { nodeRegistry, validateExecutorWorkflow, workflowSchema } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  nodeRegistry,
+  validateExecutorWorkflow,
+  workflowSchema,
+} from '@ai-workflow/core'
 
 @Injectable()
 export class WorkflowDeploymentService {
@@ -34,6 +40,40 @@ export class WorkflowDeploymentService {
       versionId: deployment.version.id,
       version: deployment.version.version,
       publishedAt: deployment.version.createdAt,
+    }
+  }
+
+  async getPublishedContract(ownerId: string, appId: string): Promise<StudioSubWorkflowContractVo> {
+    const app = await this.workflowDeploymentRepository.findOwnedPublishedContract(ownerId, appId)
+    if (!app?.workflow) throw new NotFoundException('应用不存在')
+
+    const deployment = app.workflow.deployments[0]
+    if (!deployment) {
+      throw new BadRequestException('工作流尚未发布，无法作为子工作流')
+    }
+
+    const definition = parseWorkflowDefinition(deployment.version.definition)
+    if (!definition) {
+      throw new InternalServerErrorException('已发布工作流定义无效')
+    }
+
+    const startNode = definition.nodes.find((node) => node.type === BuiltinNodeType.START)
+    if (!startNode) {
+      throw new BadRequestException('已发布工作流缺少开始节点，无法作为子工作流')
+    }
+
+    return {
+      workflowId: app.workflow.id,
+      versionId: deployment.version.id,
+      version: deployment.version.version,
+      publishedAt: deployment.version.createdAt,
+      inputVariables: startNode.outputs,
+      outputVariables: definition.outputs.map((output) => ({
+        key: output.key,
+        label: output.label,
+        dataType: output.dataType,
+        ...(output.description ? { description: output.description } : {}),
+      })),
     }
   }
 

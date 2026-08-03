@@ -144,6 +144,13 @@ function ExampleForm() {
 - `WorkflowModelCatalogProvider` 使用同一懒加载规则，只在 LLM 配置字段挂载后加载 Chat 模型
   分组；选择模型时把模型组名称、模型标识、显示名称和供应商类型随稳定 ID 一起写入节点配置。
   RAG 与 LLM 画布摘要只消费已保存快照，禁止为摘要或节点挂载请求完整候选目录。
+- `WorkflowStudioAppCatalogProvider` 同样懒加载 Studio 应用目录，只在子工作流配置字段挂载后
+  请求，且固定带 `publishedOnly=true`，未发布应用不进入候选。选择时按 `appId` 拉取
+  `workflow-deployment/contract`，用已发布版本的 Start 输入与 `Workflow.outputs` 公开字段，经
+  Core `createSubWorkflowNodeVariables` 同步绑定。配置面板通过
+  `WorkflowNodeConfigActionsProvider` 原子写回 `config.workflow`、`inputs` 和 `outputs`，字段
+  renderer 不得再走普通 `onChange` 以免覆盖变量。选择器排除当前编辑中的应用；画布摘要只读
+  持久化名称与图标快照。
 
 ## 工作流编辑器
 

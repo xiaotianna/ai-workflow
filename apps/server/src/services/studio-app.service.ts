@@ -43,6 +43,7 @@ export class StudioAppService {
       search: query.search || undefined,
       sort: query.sort,
       cursor,
+      publishedOnly: query.publishedOnly,
     })
     const hasMore = apps.length > query.limit
     const page = hasMore ? apps.slice(0, query.limit) : apps

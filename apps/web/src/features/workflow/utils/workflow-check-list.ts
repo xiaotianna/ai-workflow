@@ -69,6 +69,13 @@ function isRequiredFieldEmpty(field: FieldSchema, value: unknown) {
     return !isNonEmptyString(model.groupId) || !isNonEmptyString(model.configuredModelId)
   }
 
+  if (field.ui === FIELD_UI_TYPES.SUB_WORKFLOW) {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return true
+
+    const workflow = value as Record<string, unknown>
+    return !isNonEmptyString(workflow.id)
+  }
+
   return false
 }
 

@@ -39,7 +39,8 @@
 
 - `GET /studio/apps`：游标分页获取应用；`limit` 范围为 1–50，支持 `search` 与
   `updated_desc`、`created_desc`、`created_asc` 排序，返回 `items` 和 opaque
-  `nextCursor`。前端不得解析或自行构造游标。
+  `nextCursor`。可选 `publishedOnly=true` 只返回当前已有 `WorkflowDeployment` 的应用，供
+  子工作流选择器使用。前端不得解析或自行构造游标。
 - `GET /studio/apps/:appId`：获取应用详情；路径参数不是 UUID v4 时返回 `400`，资源不存在或
   不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“应用不存在”。
 - `GET /studio/apps/:appId/workflow-draft`：读取当前应用草稿的 `schemaVersion`、`revision`、
@@ -50,6 +51,10 @@
   Secret 原样提交该占位符时，服务端保留数据库中的原值，只有提交其他值时才替换密钥。
 - `GET /studio/apps/:appId/workflow-deployment`：读取当前应用正在部署的发布版本；尚未发布时返回
   `null`，已发布时返回版本 ID、递增版本号和发布时间，不返回版本定义或 Secret。
+- `GET /studio/apps/:appId/workflow-deployment/contract`：读取当前部署版本的子工作流公开契约；
+  返回 `workflowId`、版本身份、Start 输入变量（`node.outputs`）和 `Workflow.outputs` 公开字段
+  （`key`/`label`/`dataType`/`description`），不返回完整 DAG、布局或 Secret。尚未发布时返回
+  `400`。
 - `POST /studio/apps/:appId/workflow-deployment`：发布前端提交的当前编辑器快照。请求携带
   `definition` 和 `layout`；服务端按当前用户草稿恢复 Secret 占位值并执行 Core 执行前校验，
   成功后创建来源为 `PUBLISH` 的不可变版本并原子切换当前部署，返回新的版本 ID、版本号和发布时间。

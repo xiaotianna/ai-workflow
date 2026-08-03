@@ -214,8 +214,9 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
 }
 ```
 
-- 平台无业务依赖的字段由 `builtinFields` 提供；`LLM_MODEL` 依赖 Web 模型目录，必须通过
-  `NodeConfigFields.renderers` 注入，不在 Form 中提供占位实现。
+- 平台无业务依赖的字段由 `builtinFields` 提供；`LLM_MODEL`、`KNOWLEDGE_BASE` 与
+  `SUB_WORKFLOW` 依赖 Web 业务目录，必须通过 `NodeConfigFields.renderers` 注入，不在 Form
+  中提供占位实现。
 - `AnyFieldRenderer` 只用于异构组件 map 的动态边界。
 - 每个组件通过 `FieldRendererProps<TField, TValue>` 保留具体 schema 和值类型，例如
   `NumberField` 使用 `FieldRendererProps<NumberFieldSchema, number>`。

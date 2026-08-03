@@ -2,6 +2,7 @@ import type { AuthenticatedRequest } from '@/common/interfaces/auth-context.inte
 import { JwtAuth } from '@/decorators/jwt-auth.decorator'
 import { PublishWorkflowDto } from '@/dto/workflow-deployment.dto'
 import { WorkflowDeploymentService } from '@/services/workflow-deployment.service'
+import type { StudioSubWorkflowContractVo } from '@/vo/workflow-deployment-contract.vo'
 import type { WorkflowDeploymentVo } from '@/vo/workflow-deployment.vo'
 import {
   BadRequestException,
@@ -32,6 +33,21 @@ export class WorkflowDeploymentController {
     appId: string,
   ): Promise<WorkflowDeploymentVo | null> {
     return this.workflowDeploymentService.getCurrent(request.auth.userId, appId)
+  }
+
+  @Get('contract')
+  getPublishedContract(
+    @Req() request: AuthenticatedRequest,
+    @Param(
+      'appId',
+      new ParseUUIDPipe({
+        version: '4',
+        exceptionFactory: () => new BadRequestException('应用不存在'),
+      }),
+    )
+    appId: string,
+  ): Promise<StudioSubWorkflowContractVo> {
+    return this.workflowDeploymentService.getPublishedContract(request.auth.userId, appId)
   }
 
   @Post()

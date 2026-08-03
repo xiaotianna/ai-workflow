@@ -28,6 +28,7 @@ interface ListStudioAppsOptions {
   search?: string
   sort: StudioAppSort
   cursor?: StudioAppCursor
+  publishedOnly?: boolean
 }
 
 interface CreateStudioAppOptions {
@@ -60,6 +61,17 @@ export class StudioAppRepository {
               name: {
                 contains: options.search,
                 mode: 'insensitive' as const,
+              },
+            }
+          : {}),
+        ...(options.publishedOnly
+          ? {
+              workflow: {
+                is: {
+                  deployments: {
+                    some: {},
+                  },
+                },
               },
             }
           : {}),

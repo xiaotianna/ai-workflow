@@ -50,7 +50,7 @@ import {
 
 不要从 `packages/workflow-core/src/*` 深层导入。
 需要由其他 package 实现专属界面的内置节点通过根入口导出节点对象及其配置类型；当前
-Code、HTTP、LLM、RAG 与 Condition 节点分别公开对应节点对象和配置类型，供 Form 与
+Code、HTTP、LLM、RAG、Condition 与 Sub Workflow 节点分别公开对应节点对象和配置类型，供 Form 与
 Nodes UI 保持 schema 和组件类型关联。
 
 ## 核心模型
@@ -68,26 +68,33 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
   `code_editor`、`key_value_table`、`request_body`、`condition_rules`、`condition_branches`、
-  `llm_model`、`knowledge_base`、`context_messages` 和 `error_handling` 作为字段 schema 的唯一
-  判别值，不再同时声明数据 `type` 和 `ui`。
+  `llm_model`、`knowledge_base`、`sub_workflow`、`context_messages` 和 `error_handling` 作为
+  字段 schema 的唯一判别值，不再同时声明数据 `type` 和 `ui`。
 - `FieldSchemaByUI` 是字段 UI 到具体 schema 接口的显式类型表；
   `FieldSchema<TUI>` 直接通过该表获得具体字段类型，不使用条件类型。
 - `TextFieldSchema`、`NumberFieldSchema`、`TextareaFieldSchema`、`SelectFieldSchema`、
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
   `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionRulesFieldSchema`、
   `ConditionBranchesFieldSchema`、`LlmModelFieldSchema`、`KnowledgeBaseFieldSchema`、
-  `ContextMessagesFieldSchema` 和 `ErrorHandlingFieldSchema` 都继承 `BaseFieldSchema`。
-  `NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
+  `SubWorkflowFieldSchema`、`ContextMessagesFieldSchema` 和 `ErrorHandlingFieldSchema` 都继承
+  `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
-- 当前 `loop`、`code`、`rag`、`http`、`condition` 和 `llm` 已声明通用节点配置 form；Code 使用
-  `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema 中重复保存
-  语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明 `config.knowledgeBases`，
-  按顺序保存不允许重复的知识库引用；每项包含稳定 `id` 和可选 `title` / `icon` 展示快照，创建
-  节点时可为空。正整数 `config.topK` 范围为 1 到 20、默认 `5`，通过紧随其后的 SLIDER 字段
-  显示“召回设置”。旧 `config.knowledgeBaseId` 与 `config.knowledgeBaseIds` 由 schema 自动迁移
-  为缺少展示快照的引用对象，历史配置缺少 `topK` 时补齐默认值。Web 只在配置字段挂载时加载
-  外部目录并补全快照；Core 不依赖外部知识库数据。
+- 当前 `loop`、`code`、`rag`、`http`、`condition`、`llm` 和 `sub_workflow` 已声明通用节点配置
+  form；Code 使用 `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema
+  中重复保存语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明
+  `config.knowledgeBases`，按顺序保存不允许重复的知识库引用；每项包含稳定 `id` 和可选
+  `title` / `icon` 展示快照，创建节点时可为空。正整数 `config.topK` 范围为 1 到 20、默认 `5`，
+  通过紧随其后的 SLIDER 字段显示“召回设置”。旧 `config.knowledgeBaseId` 与
+  `config.knowledgeBaseIds` 由 schema 自动迁移为缺少展示快照的引用对象，历史配置缺少 `topK`
+  时补齐默认值。Web 只在配置字段挂载时加载外部目录并补全快照；Core 不依赖外部知识库数据。
+- Sub Workflow 使用 `FIELD_UI_TYPES.SUB_WORKFLOW` 声明 `config.workflow`：稳定 `id` 为被调用
+  Workflow ID，`appId` 供 Studio 目录匹配与拉取已发布契约，可选 `name` / `icon` 为展示快照；
+  创建节点时允许空引用草稿，旧 `config.workflowId` 字符串由 schema 迁移为引用对象。节点只声明
+  输入变量区（`INPUT_BINDINGS`），不提供可编辑输出区；公开输出由 Web 在选择已发布目标后写入
+  `node.outputs`，只复用目标发布版本 `Workflow.outputs` 的 `key`、`label`、`dataType` 和可选
+  `description`。`createSubWorkflowNodeVariables()` 根据目标 Start 的 `outputs` 与
+  `Workflow.outputs` 生成输入绑定和输出定义，并保留同名旧输入绑定。未发布工作流不得作为候选。
 - HTTP、LLM 与 Code 共用 `config.errorHandling` 异常处理契约，使用 `mode` 区分 `none`、
   `default_value` 和 `error_branch`；字段缺省时由 schema 补为 `none`。默认值模式保存经过
   `jsonValueSchema` 校验的可序列化 JSON；异常分支模式通过统一 `resolveErrorHandlingPorts`
@@ -164,7 +171,8 @@ Nodes UI 保持 schema 和组件类型关联。
 - Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
 - 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
-  End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段。
+  End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段写入
+  `node.outputs`，不保存目标输出的内部 `value`。
 - 当前正式注册的内置节点包括 `start`、`end`、`llm`、`rag`、`code`、`http`、
   `loop`、`loop_start`、`loop_exit`、`condition` 和 `sub_workflow`。
 - Code 节点新增时默认创建直接值输入 `arg1`、`arg2` 和 string 输出 `result`，初始代码

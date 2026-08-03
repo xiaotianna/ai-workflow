@@ -27,6 +27,7 @@ import {
   LoopNode,
   getNodeThemeColor,
   NODE_THEMES,
+  WorkflowReferenceIcon,
 } from '@ai-workflow/nodes-ui'
 ```
 
@@ -124,6 +125,10 @@ RAG 节点通过 `defineNodeUI(ragNode, RagNodeContent)` 注册专属内容，�
 未选择时复用 Core form 的空状态；旧配置迁移后缺少展示快照时提示打开配置面板刷新信息。
 `KnowledgeBaseReferenceIcon` 提供配置表单与画布共用的默认和紧凑尺寸，图标缺失时使用
 `BookOpen` 回退。Nodes UI 不读取 Web 的知识库列表，也不复制动态多选项。
+Sub Workflow 节点通过 `defineNodeUI(subWorkflowNode, SubWorkflowNodeContent)` 注册专属内容，
+读取经过 schema 解析后的 `node.config.workflow`；已选时用 `WorkflowReferenceIcon` 与名称做
+单行摘要，未选择时复用 Core form 说明，缺少展示快照时提示刷新。`WorkflowReferenceIcon`
+提供默认和紧凑尺寸，图标缺失时使用 `Network` 回退。Nodes UI 不请求 Studio 应用列表。
 
 ## 新增节点界面
 

@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer'
 import {
   Equals,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -37,6 +38,15 @@ export class ListStudioAppsDto {
   @IsIn(STUDIO_APP_SORTS, { message: '不支持当前排序方式' })
   @IsOptional()
   sort: StudioAppSort = 'updated_desc'
+
+  @Transform(({ value }) => {
+    if (value === true || value === 'true') return true
+    if (value === false || value === 'false') return false
+    return value
+  })
+  @IsBoolean({ message: 'publishedOnly 必须是布尔值' })
+  @IsOptional()
+  publishedOnly?: boolean
 }
 
 export class CreateStudioAppDto {

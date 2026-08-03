@@ -12,6 +12,7 @@ export const FIELD_UI_TYPES = {
   CONDITION_BRANCHES: 'condition_branches',
   LLM_MODEL: 'llm_model',
   KNOWLEDGE_BASE: 'knowledge_base',
+  SUB_WORKFLOW: 'sub_workflow',
   CONTEXT_MESSAGES: 'context_messages',
   ERROR_HANDLING: 'error_handling',
 } as const

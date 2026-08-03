@@ -1,4 +1,6 @@
 import {
+  BuiltinNodeType,
+  createSubWorkflowNodeVariables,
   nodeInputBindingsSchema,
   nodeOutputDefinitionsSchema,
   nodeRegistry,
@@ -31,6 +33,10 @@ import { X } from 'lucide-react'
 import { z } from 'zod'
 
 import { builtinWorkflowNodeConfigFieldRenderers } from '../node-config-renderers/builtin'
+import {
+  WorkflowNodeConfigActionsProvider,
+  type SubWorkflowSelectionPayload,
+} from './workflow-node-config-actions-context'
 import { WorkflowNextStep } from './workflow-next-step'
 import { WorkflowPanelTabsList, WorkflowPanelTabsTrigger } from './workflow-panel-tabs'
 
@@ -266,6 +272,38 @@ export const WorkflowConfigPanel = ({
     })
   }
 
+  function handleSubWorkflowSelection(payload: SubWorkflowSelectionPayload) {
+    const { inputs: nextInputs, outputs: nextOutputs } = createSubWorkflowNodeVariables(
+      payload.target,
+      inputs,
+    )
+    const nextConfig = {
+      ...form.config,
+      workflow: payload.workflow,
+    }
+    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
+    const parsedInputs = validateFormByZod(nodeInputBindingsSchema, nextInputs)
+    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+
+    updateFormField('config', nextConfig)
+    updateFormField('inputs', nextInputs)
+    updateFormField('outputs', nextOutputs)
+    reportDraftValidationIssues({
+      config: nextConfig,
+      inputs: nextInputs,
+      outputs: nextOutputs,
+    })
+
+    if (!parsedConfig.success || !parsedInputs.success || !parsedOutputs.success) return
+
+    onApply({
+      ...node,
+      config: parsedConfig.data,
+      inputs: parsedInputs.data,
+      outputs: parsedOutputs.data,
+    })
+  }
+
   function handleInputsChange(nextInputs: NodeInputBindingsFormValue) {
     updateFormField('inputs', nextInputs)
     reportDraftValidationIssues({ inputs: nextInputs })
@@ -299,9 +337,65 @@ export const WorkflowConfigPanel = ({
   const variableForm = resolveNodeVariableForm(nodeType.variableForm)
   const inputVariableSection = variableForm.input
   const outputVariableSection = variableForm.output
+  // 子工作流需先选择目标再同步输入键，配置区放在输入变量之前
+  const configBeforeInputs = node.type === BuiltinNodeType.SUB_WORKFLOW
   const hasPanelContent = Boolean(
     inputVariableSection || configRenderer || hasFields || outputVariableSection,
   )
+
+  const configSection = configRenderer ? (
+    <div className="px-5">
+      <NodeConfigSection
+        renderer={configRenderer}
+        renderers={configRenderers}
+        config={form.config}
+        availableVariables={availableVariables}
+        errors={errors}
+        onConfigChange={handleConfigChange}
+      />
+    </div>
+  ) : hasFields ? (
+    <div className="px-5">
+      <NodeConfigFields
+        fields={formFields}
+        renderers={builtinWorkflowNodeConfigFieldRenderers}
+        values={form.config}
+        errors={errors}
+        availableVariables={availableVariables}
+        onChange={handleFieldChange}
+      />
+    </div>
+  ) : null
+
+  const inputSection = inputVariableSection ? (
+    <div className="px-5">
+      <NodeVariableSection
+        section={inputVariableSection}
+        inputs={inputs}
+        outputs={outputs}
+        availableVariables={availableVariables}
+        inputErrors={inputErrors}
+        outputErrors={outputErrors}
+        onInputsChange={handleInputsChange}
+        onOutputsChange={handleOutputsChange}
+      />
+    </div>
+  ) : null
+
+  const outputSection = outputVariableSection ? (
+    <div className="px-5">
+      <NodeVariableSection
+        section={outputVariableSection}
+        inputs={inputs}
+        outputs={outputs}
+        availableVariables={availableVariables}
+        inputErrors={inputErrors}
+        outputErrors={outputErrors}
+        onInputsChange={handleInputsChange}
+        onOutputsChange={handleOutputsChange}
+      />
+    </div>
+  ) : null
 
   return (
     <aside className="nodrag nowheel nokey bg-background border-border/50 flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
@@ -358,76 +452,37 @@ export const WorkflowConfigPanel = ({
         </WorkflowPanelTabsList>
 
         <TabsContent value="settings" className="min-h-0 flex-1 overflow-y-auto">
-          {hasPanelContent ? (
-            <div className="py-3">
-              {/* 输入变量配置（可以通过插件注册自定义配置表单，在packages/form子包中） */}
-              {inputVariableSection ? (
-                <div className="px-5">
-                  <NodeVariableSection
-                    section={inputVariableSection}
-                    inputs={inputs}
-                    outputs={outputs}
-                    availableVariables={availableVariables}
-                    inputErrors={inputErrors}
-                    outputErrors={outputErrors}
-                    onInputsChange={handleInputsChange}
-                    onOutputsChange={handleOutputsChange}
-                  />
-                </div>
-              ) : null}
+          <WorkflowNodeConfigActionsProvider applySubWorkflowSelection={handleSubWorkflowSelection}>
+            {hasPanelContent ? (
+              <div className="py-3">
+                {configBeforeInputs ? (
+                  <>
+                    {configSection}
+                    {hasConfigSection && inputVariableSection ? (
+                      <Separator className="bg-border/50 mt-5 mb-3" />
+                    ) : null}
+                    {inputSection}
+                  </>
+                ) : (
+                  <>
+                    {inputSection}
+                    {inputVariableSection && hasConfigSection ? (
+                      <Separator className="bg-border/50 mt-5 mb-3" />
+                    ) : null}
+                    {configSection}
+                  </>
+                )}
 
-              {inputVariableSection && hasConfigSection ? (
-                <Separator className="bg-border/50 mt-5 mb-3" />
-              ) : null}
+                {outputVariableSection && (inputVariableSection || hasConfigSection) ? (
+                  <Separator className="bg-border/50 mt-5 mb-3" />
+                ) : null}
 
-              {/* 完整配置使用专属 renderer；字段配置统一按 field.ui 分发。 */}
-              {configRenderer ? (
-                <div className="px-5">
-                  <NodeConfigSection
-                    renderer={configRenderer}
-                    renderers={configRenderers}
-                    config={form.config}
-                    availableVariables={availableVariables}
-                    errors={errors}
-                    onConfigChange={handleConfigChange}
-                  />
-                </div>
-              ) : hasFields ? (
-                <div className="px-5">
-                  <NodeConfigFields
-                    fields={formFields}
-                    renderers={builtinWorkflowNodeConfigFieldRenderers}
-                    values={form.config}
-                    errors={errors}
-                    availableVariables={availableVariables}
-                    onChange={handleFieldChange}
-                  />
-                </div>
-              ) : null}
-
-              {outputVariableSection && (inputVariableSection || hasConfigSection) ? (
-                <Separator className="bg-border/50 mt-5 mb-3" />
-              ) : null}
-
-              {/* 输出变量配置 */}
-              {outputVariableSection ? (
-                <div className="px-5">
-                  <NodeVariableSection
-                    section={outputVariableSection}
-                    inputs={inputs}
-                    outputs={outputs}
-                    availableVariables={availableVariables}
-                    inputErrors={inputErrors}
-                    outputErrors={outputErrors}
-                    onInputsChange={handleInputsChange}
-                    onOutputsChange={handleOutputsChange}
-                  />
-                </div>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-muted-foreground px-5 py-3 text-sm">当前节点暂无可配置项</p>
-          )}
+                {outputSection}
+              </div>
+            ) : (
+              <p className="text-muted-foreground px-5 py-3 text-sm">当前节点暂无可配置项</p>
+            )}
+          </WorkflowNodeConfigActionsProvider>
 
           {errors.form ? (
             <p className="text-destructive mt-3 px-5 py-3 text-xs leading-4">{errors.form}</p>

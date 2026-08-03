@@ -55,6 +55,36 @@ export class WorkflowDeploymentRepository {
     })
   }
 
+  findOwnedPublishedContract(ownerId: string, appId: string) {
+    return this.prisma.app.findFirst({
+      where: {
+        id: appId,
+        ownerId,
+        deletedAt: null,
+      },
+      select: {
+        workflow: {
+          select: {
+            id: true,
+            deployments: {
+              take: 1,
+              select: {
+                version: {
+                  select: {
+                    id: true,
+                    version: true,
+                    createdAt: true,
+                    definition: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    })
+  }
+
   publishOwned(options: PublishWorkflowOptions): Promise<PublishWorkflowResult> {
     return this.prisma.$transaction(async (transaction) => {
       const app = await transaction.app.findFirst({

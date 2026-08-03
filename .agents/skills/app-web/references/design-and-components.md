@@ -56,6 +56,12 @@
   工作流知识库目录同样由配置表单与 RAG 画布摘要共用；画布把知识库名称和 API 图标解析后
   注入 Nodes UI，每个引用分别使用统一节点内容条目展示。配置表单与画布的知识库图标共同复用
   Nodes UI 的 `KnowledgeBaseReferenceIcon`，按场景使用默认或紧凑尺寸。
+  子工作流字段同样由 Web 注入：`WorkflowStudioAppCatalogProvider` 懒加载且只请求已发布的
+  Studio 应用，`SubWorkflowField` 单选目标后拉取发布契约（非草稿）；选择后通过配置面板
+  `applySubWorkflowSelection` 同步 `config.workflow`、Start 输入绑定与 `Workflow.outputs`
+  公开输出，禁止字段 `onChange` 用旧 node 覆盖变量。选择器排除当前应用，配置区在子工作流
+  节点上置于输入变量之前。画布摘要直接读取持久化 `name` / `icon` 快照，图标复用 Nodes UI
+  的 `WorkflowReferenceIcon`。
   LLM 配置的 Prompt 已替换为“上下文”消息编辑器；旧 Prompt 由 Core schema 自动迁移为 SYSTEM
   消息。消息支持 SYSTEM、ASSISTANT、USER 角色，卡片工具区只保留插入变量与删除，字段标题区
   提供新增消息；变量选择复用 Form 的 `NodeVariablePicker`，编辑核心复用 UI 的 `TiptapEditor`。
