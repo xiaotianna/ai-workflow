@@ -48,6 +48,11 @@
   `definition` 和 `layout`，成功后返回递增后的修订号。修订号落后时返回 `409`，不得静默
   覆盖其他编辑会话的更新。读取与保存响应中的 `secret` 环境变量值固定为 `********`；保存请求对已有
   Secret 原样提交该占位符时，服务端保留数据库中的原值，只有提交其他值时才替换密钥。
+- `GET /studio/apps/:appId/workflow-deployment`：读取当前应用正在部署的发布版本；尚未发布时返回
+  `null`，已发布时返回版本 ID、递增版本号和发布时间，不返回版本定义或 Secret。
+- `POST /studio/apps/:appId/workflow-deployment`：发布前端提交的当前编辑器快照。请求携带
+  `definition` 和 `layout`；服务端按当前用户草稿恢复 Secret 占位值并执行 Core 执行前校验，
+  成功后创建来源为 `PUBLISH` 的不可变版本并原子切换当前部署，返回新的版本 ID、版本号和发布时间。
 - `POST /studio/apps/:appId/workflow-runs/test`：测试当前提交的编辑器快照。`mode=FULL` 运行完整根
   DAG；`mode=SINGLE_NODE` 必须携带 `targetNodeId`。前端使用 `fetch` 以 POST 提交请求体并读取
   `text/event-stream` 响应，不使用仅支持 GET 的原生 `EventSource`。事件依次为当前数据库快照的

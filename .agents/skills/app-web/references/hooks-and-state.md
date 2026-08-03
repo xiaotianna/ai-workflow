@@ -151,6 +151,11 @@ function ExampleForm() {
   `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
   页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载
   也展示最近一次自动保存时间。不得把接口请求重新耦合进 `useWorkflowEditor`。
+- 工作流发布状态由 `useWorkflowPublish` 按应用 ID 加载当前部署并管理防重复提交；
+  `useWorkflowOperations.publish` 对当前编辑器快照执行 Core 发布前校验后调用页面注入的发布
+  请求，不依赖自动保存是否完成。成功响应即时更新最近发布时间；请求错误由统一 API Client
+  提示。发布快捷键 `Command/Ctrl+Shift+P` 继续在 `useWorkflowShortcuts` 集中注册，并同步维护
+  快捷键帮助定义。
 - 顶部“测试运行”和节点右键“运行该节点”统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
   `SINGLE_NODE` 判别请求并共享同一个 pending 与防重复锁；该 Hook 使用带 Bearer Token 的
   `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和

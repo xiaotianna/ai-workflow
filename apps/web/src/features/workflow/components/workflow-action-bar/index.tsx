@@ -11,10 +11,15 @@ interface WorkflowActionBarProps {
   activePanel?: WorkflowAuxiliaryPanelType
   checkListIssueCount: number
   disabled?: boolean
+  publishedAt?: string
+  publishLoadError?: boolean
+  publishLoading?: boolean
+  publishPending?: boolean
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
   onPanelToggle: (panel: WorkflowAuxiliaryPanelType) => void
+  onPublish: () => void
   onTestRun: () => void
 }
 
@@ -22,10 +27,15 @@ export const WorkflowActionBar = ({
   activePanel,
   checkListIssueCount,
   disabled = false,
+  publishedAt,
+  publishLoadError = false,
+  publishLoading = false,
+  publishPending = false,
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
   onPanelToggle,
+  onPublish,
   onTestRun,
 }: WorkflowActionBarProps) => {
   return (
@@ -64,7 +74,13 @@ export const WorkflowActionBar = ({
         onClick={() => onPanelToggle('system-variables')}
       />
       {/* 发布 */}
-      <Publish />
+      <Publish
+        loadError={publishLoadError}
+        loading={publishLoading}
+        pending={publishPending}
+        publishedAt={publishedAt}
+        onPublish={onPublish}
+      />
       {/* 版本历史 */}
       <VersionHistory
         active={activePanel === 'version-history'}

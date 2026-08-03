@@ -16,6 +16,7 @@ export const WORKFLOW_SHORTCUT_GROUPS: readonly WorkflowShortcutGroup[] = [
     label: '工作流',
     shortcuts: [
       { id: 'save', label: '保存工作流', keys: [['⌘ / Ctrl', 'S']] },
+      { id: 'publish', label: '发布工作流', keys: [['⌘ / Ctrl', 'Shift', 'P']] },
       { id: 'test-run', label: '测试运行 / 暂停', keys: [['⌥ / Alt', 'R']] },
       { id: 'undo', label: '撤销', keys: [['⌘ / Ctrl', 'Z']] },
       {

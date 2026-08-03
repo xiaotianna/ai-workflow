@@ -160,6 +160,10 @@
   行为。
 - 工作流操作栏的系统变量按钮复用 `@ai-workflow/ui/components/variable-icon`，由图标组件
   通过 `currentColor` 继承按钮文字色，不在 Web 层直接用 `<img>` 渲染固定色 SVG。
+- 工作流操作栏的“发布”使用右对齐 Dropdown 展示当前发布状态和相对时间；尚未发布、加载中与
+  发布中必须有明确文案和真实禁用态。发布操作使用当前画布快照，成功后更新顶部已发布状态，
+  同时支持 `Command/Ctrl+Shift+P`，不得在弹窗内保留硬编码发布时间。弹窗状态标题使用 14px，
+  发布时间或状态详情使用 16px。
 - Web 内的紧凑操作提示统一复用 `components/tooltip.tsx` 的 `Tooltip`，且只在 Hover 时
   展示；按钮获得键盘焦点、被点击或保持选中状态时不单独展示提示。工作流右上操作栏直接
   使用通用 Tooltip 并显示在按钮下方；底部画布工具栏由 Feature 内的 `ToolbarTooltip`

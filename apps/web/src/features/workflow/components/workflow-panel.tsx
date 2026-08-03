@@ -40,6 +40,10 @@ interface WorkflowPanelProps {
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
   selectedNodeDefaultLabel?: string
   lastSavedAt?: Date
+  publishedAt?: string
+  publishLoadError?: boolean
+  publishLoading?: boolean
+  publishPending?: boolean
   saveStatus: WorkflowSaveStatus
   testRunCanPause?: boolean
   testRunPausing?: boolean
@@ -76,6 +80,7 @@ interface WorkflowPanelProps {
   onNextStepNodeSelect: (nodeId: string) => void
   onRedo: () => void
   onPauseTestRun: () => void
+  onPublish: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onStartTestRun: (input: Record<string, unknown>) => void
   onTestRun: () => void
@@ -104,6 +109,10 @@ export const WorkflowPanel = ({
   selectedNodeAvailableVariables,
   selectedNodeDefaultLabel,
   lastSavedAt,
+  publishedAt,
+  publishLoadError = false,
+  publishLoading = false,
+  publishPending = false,
   saveStatus,
   testRunCanPause = false,
   testRunPausing = false,
@@ -127,6 +136,7 @@ export const WorkflowPanel = ({
   onNextStepNodeSelect,
   onRedo,
   onPauseTestRun,
+  onPublish,
   onShortcutHelpOpenChange,
   onStartTestRun,
   onTestRun,
@@ -137,7 +147,13 @@ export const WorkflowPanel = ({
     <>
       {/* 左上状态栏 */}
       <Panel position="top-left">
-        <WorkflowStatusPanel lastSavedAt={lastSavedAt} saveStatus={saveStatus} />
+        <WorkflowStatusPanel
+          lastSavedAt={lastSavedAt}
+          publishedAt={publishedAt}
+          publishLoadError={publishLoadError}
+          publishLoading={publishLoading}
+          saveStatus={saveStatus}
+        />
       </Panel>
       {/* 右上角操作栏 */}
       <Panel position="top-right" className="z-20!">
@@ -145,10 +161,15 @@ export const WorkflowPanel = ({
           activePanel={activeAuxiliaryPanel}
           checkListIssueCount={checkListIssues.length}
           disabled={disabled}
+          publishedAt={publishedAt}
+          publishLoadError={publishLoadError}
+          publishLoading={publishLoading}
+          publishPending={publishPending}
           testRunCanPause={testRunCanPause}
           testRunPausing={testRunPausing}
           testRunPending={testRunPending}
           onPanelToggle={onAuxiliaryPanelToggle}
+          onPublish={onPublish}
           onTestRun={onTestRun}
         />
       </Panel>

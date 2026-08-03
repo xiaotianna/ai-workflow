@@ -2,6 +2,9 @@ import type { WorkflowSaveStatus } from '../../hooks/use-workflow-save'
 
 interface WorkflowStatusPanelProps {
   lastSavedAt?: Date
+  publishedAt?: string
+  publishLoadError?: boolean
+  publishLoading?: boolean
   saveStatus: WorkflowSaveStatus
 }
 
@@ -14,7 +17,13 @@ function getSaveStatusLabel(saveStatus: WorkflowSaveStatus, lastSavedAt?: Date) 
   return `自动保存 ${lastSavedAt.toLocaleTimeString('zh-CN', { hour12: false })}`
 }
 
-export const WorkflowStatusPanel = ({ lastSavedAt, saveStatus }: WorkflowStatusPanelProps) => {
+export const WorkflowStatusPanel = ({
+  lastSavedAt,
+  publishedAt,
+  publishLoadError = false,
+  publishLoading = false,
+  saveStatus,
+}: WorkflowStatusPanelProps) => {
   return (
     <div
       role="status"
@@ -23,7 +32,15 @@ export const WorkflowStatusPanel = ({ lastSavedAt, saveStatus }: WorkflowStatusP
     >
       <span>{getSaveStatusLabel(saveStatus, lastSavedAt)}</span>
       <span aria-hidden>·</span>
-      <span>未发布</span>
+      <span>
+        {publishLoading
+          ? '正在获取发布状态…'
+          : publishLoadError
+            ? '发布状态未知'
+            : publishedAt
+              ? '已发布'
+              : '未发布'}
+      </span>
     </div>
   )
 }

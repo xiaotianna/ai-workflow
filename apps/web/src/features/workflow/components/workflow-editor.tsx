@@ -45,7 +45,12 @@ interface WorkflowEditorProps {
   disabled?: boolean
   onSave: (document: WorkflowEditorSnapshot) => void | Promise<void>
   onPauseTestRun?: () => Promise<void>
+  onPublish?: (snapshot: WorkflowEditorSnapshot) => Promise<unknown>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
+  publishedAt?: string
+  publishLoadError?: boolean
+  publishLoading?: boolean
+  publishPending?: boolean
   testRunCanPause?: boolean
   testRunResult?: WorkflowTestRunResult
   testRunPausing?: boolean
@@ -61,7 +66,12 @@ export function WorkflowEditor({
   disabled = false,
   onSave,
   onPauseTestRun,
+  onPublish,
   onTestRun,
+  publishedAt,
+  publishLoadError = false,
+  publishLoading = false,
+  publishPending = false,
   testRunCanPause = false,
   testRunResult,
   testRunPausing = false,
@@ -101,8 +111,10 @@ export function WorkflowEditor({
     applicationMetadata,
     editor,
     onPauseTestRun,
+    onPublish,
     onTestRun,
     onTestRunStart: () => setActiveAuxiliaryPanel('test-run'),
+    publishPending,
     testRunCanPause,
     testRunPausing,
     testRunPending,
@@ -187,6 +199,7 @@ export function WorkflowEditor({
     onAuxiliaryPanelOpenChange: (open) => {
       if (!open) setActiveAuxiliaryPanel(undefined)
     },
+    onPublish: () => void operations.publish(),
     onSave: save.saveNow,
     onShortcutHelpOpenChange: setShortcutHelpOpen,
     onTestRun: handleTestRunAction,
@@ -323,6 +336,10 @@ export function WorkflowEditor({
                         selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
                         selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
                         lastSavedAt={save.lastSavedAt}
+                        publishedAt={publishedAt}
+                        publishLoadError={publishLoadError}
+                        publishLoading={publishLoading}
+                        publishPending={operations.publishPending}
                         saveStatus={save.status}
                         canRedo={editor.canRedo}
                         canUndo={editor.canUndo}
@@ -371,6 +388,7 @@ export function WorkflowEditor({
                         onNextStepNodeSelect={handleOpenNodeConfig}
                         onRedo={editor.redo}
                         onPauseTestRun={() => void operations.pauseTestRun()}
+                        onPublish={() => void operations.publish()}
                         onShortcutHelpOpenChange={setShortcutHelpOpen}
                         onStartTestRun={(input) => void operations.testRun(input)}
                         onTestRun={handleTestRunAction}

@@ -50,6 +50,17 @@ export interface SaveStudioWorkflowDraftParams {
   layout: WorkflowEditorSnapshot['layout']
 }
 
+export interface StudioWorkflowDeploymentDto {
+  versionId: string
+  version: number
+  publishedAt: string
+}
+
+export interface PublishStudioWorkflowParams {
+  definition: WorkflowEditorSnapshot['workflow']
+  layout: WorkflowEditorSnapshot['layout']
+}
+
 export type StudioWorkflowTestRunMode = 'FULL' | 'SINGLE_NODE'
 
 export interface CreateStudioWorkflowTestRunParams {
@@ -221,6 +232,26 @@ export function saveStudioWorkflowDraft(
 ): Promise<StudioWorkflowDraftDto> {
   return apiClient.put<StudioWorkflowDraftDto, SaveStudioWorkflowDraftParams>(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-draft`,
+    values,
+  )
+}
+
+export function getStudioWorkflowDeployment(
+  appId: string,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowDeploymentDto | null> {
+  return apiClient.get<StudioWorkflowDeploymentDto | null>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-deployment`,
+    { signal },
+  )
+}
+
+export function publishStudioWorkflow(
+  appId: string,
+  values: PublishStudioWorkflowParams,
+): Promise<StudioWorkflowDeploymentDto> {
+  return apiClient.post<StudioWorkflowDeploymentDto, PublishStudioWorkflowParams>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-deployment`,
     values,
   )
 }

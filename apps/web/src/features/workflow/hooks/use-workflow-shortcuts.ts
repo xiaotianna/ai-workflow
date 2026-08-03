@@ -11,6 +11,7 @@ interface UseWorkflowShortcutsOptions {
   interactionBlocked?: boolean
   onAddNodeOpenChange: (open: boolean) => void
   onAuxiliaryPanelOpenChange: (open: boolean) => void
+  onPublish: () => void
   onSave: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onTestRun: () => void
@@ -55,6 +56,7 @@ export function useWorkflowShortcuts({
   interactionBlocked = false,
   onAddNodeOpenChange,
   onAuxiliaryPanelOpenChange,
+  onPublish,
   onSave,
   onShortcutHelpOpenChange,
   onTestRun,
@@ -111,7 +113,10 @@ export function useWorkflowShortcuts({
       }
 
       if (modifierPressed && !event.altKey) {
-        if (key === 's' && !event.shiftKey) {
+        if (key === 'p' && event.shiftKey && !event.repeat) {
+          event.preventDefault()
+          onPublish()
+        } else if (key === 's' && !event.shiftKey) {
           event.preventDefault()
           onSave()
         } else if (key === 'z' && !event.shiftKey && editor.canUndo) {
@@ -183,6 +188,7 @@ export function useWorkflowShortcuts({
     interactionBlocked,
     onAddNodeOpenChange,
     onAuxiliaryPanelOpenChange,
+    onPublish,
     onSave,
     onShortcutHelpOpenChange,
     onTestRun,

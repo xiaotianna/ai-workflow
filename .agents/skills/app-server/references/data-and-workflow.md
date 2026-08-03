@@ -29,6 +29,11 @@
   `ownerId`、应用、Workflow ID 与修订号，并用带修订号条件的更新原子递增 `revision`；
   冲突返回 `409`。保存成功时同步更新 `App.updatedAt`，让 Studio 的最近编辑排序反映画布
   修改。
+- 工作流发布使用前端提交的当前编辑器快照，不等待自动保存完成；服务端从当前用户持久化草稿
+  恢复 Secret 占位值并调用 `validateExecutorWorkflow`。发布事务与测试运行创建版本共用
+  Workflow 行锁串行分配递增版本号，创建来源为 `PUBLISH` 的不可变 `WorkflowVersion`，再通过
+  `WorkflowDeployment.workflowId` 唯一约束原子创建或切换当前部署；发布接口不得返回版本定义或
+  Secret。
 - 工作流定义顶层包含 `environmentVariables`，服务端直接使用 Core `workflowSchema` 与
   `validateWorkflow` 校验其稳定 ID、唯一名称、类型和值，不维护简化的 Workflow 类型或第二套
   解析规则。旧草稿缺少该字段时由 Core Schema 归一为空数组。DSL 导出必须将

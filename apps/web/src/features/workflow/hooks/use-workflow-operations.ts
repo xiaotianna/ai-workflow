@@ -23,8 +23,10 @@ interface UseWorkflowOperationsOptions {
   applicationMetadata?: WorkflowApplicationMetadata
   editor: WorkflowEditor
   onPauseTestRun?: () => Promise<void>
+  onPublish?: (snapshot: ReturnType<WorkflowEditor['createSnapshot']>) => Promise<unknown>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
   onTestRunStart?: () => void
+  publishPending?: boolean
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
@@ -38,8 +40,10 @@ export function useWorkflowOperations({
   applicationMetadata,
   editor,
   onPauseTestRun,
+  onPublish,
   onTestRun,
   onTestRunStart,
+  publishPending = false,
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
@@ -149,6 +153,39 @@ export function useWorkflowOperations({
     }
   }
 
+  async function publish() {
+    if (publishPending) return
+
+    const snapshot = editor.createSnapshot()
+    const parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
+
+    if (!parsedWorkflow.success) {
+      showToast('error', parsedWorkflow.error.issues[0]?.message ?? '工作流结构无效')
+      return
+    }
+
+    const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
+    if (issues.length > 0) {
+      showToast('error', issues[0]?.message ?? '工作流暂时无法发布')
+      return
+    }
+
+    if (!onPublish) {
+      showToast('info', '工作流发布服务尚未接入')
+      return
+    }
+
+    try {
+      await onPublish({
+        ...snapshot,
+        workflow: parsedWorkflow.data,
+      })
+      showToast('success', '工作流发布成功')
+    } catch {
+      // 请求错误已由统一 API Client 展示，避免重复 Toast。
+    }
+  }
+
   function exportDsl() {
     downloadWorkflowApplicationDsl(editor.createSnapshot(), applicationMetadata)
     showToast('success', 'DSL 已导出')
@@ -177,6 +214,8 @@ export function useWorkflowOperations({
     importDsl,
     openImportDialog: () => setImportDialogOpen(true),
     pauseTestRun,
+    publish,
+    publishPending,
     runNode,
     setImportDialogOpen,
     testRun,
