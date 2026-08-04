@@ -24,6 +24,7 @@ model WorkflowNodeRun {
   run           WorkflowRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
   commandOutbox WorkflowCommandOutbox?
   resultInbox   WorkflowResultInbox?
+  childRun      WorkflowRun?            @relation("WorkflowRunParentNode")
 
   @@unique([runId, executionKey, attempt])
   @@index([runId, createdAt])

@@ -67,6 +67,7 @@ import { randomUUID } from 'node:crypto'
 import { isUUID } from 'class-validator'
 
 const EXECUTION_DEADLINE_MS = 30_000
+const SUB_WORKFLOW_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000
 const RESULT_APPLY_MAX_ATTEMPTS = 5
 type WorkflowRunSummary = NonNullable<Awaited<ReturnType<WorkflowRunRepository['findRunSummary']>>>
 type WorkflowRunListItem = Awaited<ReturnType<WorkflowRunRepository['listOwnedRuns']>>[number]
@@ -74,7 +75,6 @@ interface WorkflowRunCursor {
   id: string
   queuedAt: Date
 }
-const UNSUPPORTED_FULL_RUN_NODE_TYPES = new Set<string>([BuiltinNodeType.SUB_WORKFLOW])
 const RUNTIME_NODE_CONFIG_PROJECTORS: Readonly<Record<string, RuntimeNodeConfigProjector>> = {
   [BuiltinNodeType.LLM]: projectLlmNodeConfig,
   [BuiltinNodeType.HTTP]: projectHttpNodeConfig,
@@ -236,10 +236,149 @@ export class WorkflowRunService {
       if (applied === 'conflict') continue
       // eslint-disable-next-line no-await-in-loop
       await this.emitRunEvents(context.runId, completedNodes, applied)
+      if (applied === 'applied' && transition.state.status !== 'RUNNING') {
+        // 子 Run 进入终态后，将它的公开输出或错误作为父 sub_workflow 节点结果继续推进。
+        // eslint-disable-next-line no-await-in-loop
+        await this.processChildRunCompletion(context.runId)
+      }
       return applied
     }
 
     throw new InternalServerErrorException('工作流结果并发推进冲突次数过多')
+  }
+
+  async executeSubWorkflowCommand(command: ExecuteNodeCommand): Promise<void> {
+    if (command.nodeType !== BuiltinNodeType.SUB_WORKFLOW) {
+      throw new BadRequestException('仅 sub_workflow 命令可由服务端编排')
+    }
+
+    const parsedConfig = nodeRegistry
+      .getOrThrow(BuiltinNodeType.SUB_WORKFLOW)
+      .schema.safeParse(command.config)
+    if (!parsedConfig.success || !parsedConfig.data.workflow.id) {
+      await this.processNodeResult(
+        createFailedResult(command, 'SUB_WORKFLOW_CONFIG_INVALID', '子工作流配置不完整'),
+      )
+      return
+    }
+
+    const target = await this.workflowRunRepository.findSubWorkflowTarget(
+      command.runId,
+      parsedConfig.data.workflow.id,
+    )
+    if (target?.status === 'recursive') {
+      await this.processNodeResult(
+        createFailedResult(command, 'SUB_WORKFLOW_RECURSIVE_CALL', '检测到递归子工作流调用'),
+      )
+      return
+    }
+    if (!target) {
+      await this.processNodeResult(
+        createFailedResult(
+          command,
+          'SUB_WORKFLOW_NOT_PUBLISHED',
+          '子工作流不存在、未发布或无权访问',
+        ),
+      )
+      return
+    }
+
+    const parsedWorkflow = workflowSchema.safeParse(target.version.definition)
+    if (!parsedWorkflow.success) {
+      await this.processNodeResult(
+        createFailedResult(command, 'SUB_WORKFLOW_DEFINITION_INVALID', '子工作流发布版本定义无效'),
+      )
+      return
+    }
+    const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
+    if (issues.length > 0) {
+      await this.processNodeResult(
+        createFailedResult(
+          command,
+          'SUB_WORKFLOW_DEFINITION_INVALID',
+          issues[0]?.message ?? '子工作流发布版本无法执行',
+        ),
+      )
+      return
+    }
+
+    const childRunId = randomUUID()
+    const runtime = createWorkflowRuntime(parsedWorkflow.data, {
+      workflowVersionId: target.version.id,
+      configResolver: this.createRuntimeConfigResolver(parsedWorkflow.data),
+    })
+    let transition: RuntimeTransition
+    try {
+      transition = runtime.start({
+        runId: childRunId,
+        input: command.inputs,
+        systemVariables: createRunSystemVariables(
+          // 子 Run 沿用父调用者；WORKFLOW_ID / RUN_ID 则切换为子上下文。
+          target.triggeredById,
+          target.workflow.appId,
+          parsedWorkflow.data.id,
+          childRunId,
+        ),
+      })
+    } catch (error) {
+      await this.processNodeResult(
+        createFailedResult(
+          command,
+          'SUB_WORKFLOW_START_FAILED',
+          getErrorMessage(error, '子工作流无法启动'),
+        ),
+      )
+      return
+    }
+
+    const outcome = await this.workflowRunRepository.createSubWorkflowRun({
+      parentCommand: command,
+      childRunId,
+      childWorkflowId: parsedWorkflow.data.id,
+      childVersionId: target.version.id,
+      traceId: randomUUID(),
+      input: command.inputs,
+      runtimeState: transition.state,
+      terminal: getRuntimeTerminal(transition),
+      dispatches: this.prepareRuntimeDispatches(transition, childRunId),
+    })
+    if (outcome === 'created' && transition.state.status !== 'RUNNING') {
+      await this.processChildRunCompletion(childRunId)
+    }
+  }
+
+  async processChildRunCompletion(childRunId: string): Promise<void> {
+    const child = await this.workflowRunRepository.findChildRunCompletion(childRunId)
+    if (!child?.parentNodeRun || child.status === WorkflowRunStatus.RUNNING) return
+
+    const base = {
+      protocolVersion: '1' as const,
+      commandId: child.parentNodeRun.commandId,
+      nodeRunId: child.parentNodeRun.id,
+      executionKey: child.parentNodeRun.executionKey,
+      leaseToken: child.parentNodeRun.leaseToken,
+    }
+    const result =
+      child.status === WorkflowRunStatus.SUCCEEDED
+        ? parseExecuteNodeResult({
+            ...base,
+            status: 'SUCCEEDED',
+            outputs: child.output ?? {},
+            activatedHandles: ['result'],
+          })
+        : parseExecuteNodeResult({
+            ...base,
+            status: 'FAILED',
+            error: {
+              code: child.errorCode ?? 'SUB_WORKFLOW_FAILED',
+              message: child.errorMessage ?? '子工作流执行失败',
+              retryable: false,
+              ...(child.errorDetails && typeof child.errorDetails === 'object'
+                ? { details: child.errorDetails }
+                : {}),
+            },
+          })
+    await this.processNodeResult(result)
   }
 
   async getTestRun(ownerId: string, appId: string, runId: string): Promise<WorkflowTestRunVo> {
@@ -316,7 +455,10 @@ export class WorkflowRunService {
       runStatus: failure.runStatus ?? WorkflowRunStatus.FAILED,
       nodeRunStatus: failure.nodeRunStatus ?? WorkflowNodeRunStatus.FAILED,
     })
-    if (!runId || !this.workflowRunEventStream.hasSubscribers(runId)) return
+    if (!runId) return
+
+    await this.processChildRunCompletion(runId)
+    if (!this.workflowRunEventStream.hasSubscribers(runId)) return
 
     try {
       const run = await this.getRunVo(runId)
@@ -429,7 +571,7 @@ export class WorkflowRunService {
       node.type === BuiltinNodeType.LOOP ||
       node.type === BuiltinNodeType.LOOP_START ||
       node.type === BuiltinNodeType.LOOP_EXIT ||
-      UNSUPPORTED_FULL_RUN_NODE_TYPES.has(node.type)
+      node.type === BuiltinNodeType.SUB_WORKFLOW
     ) {
       throw new BadRequestException('当前节点不支持单独测试运行')
     }
@@ -483,13 +625,6 @@ export class WorkflowRunService {
   }
 
   private assertFullRunCapabilities(workflow: Workflow) {
-    const unsupportedNode = workflow.nodes.find((node) =>
-      UNSUPPORTED_FULL_RUN_NODE_TYPES.has(node.type),
-    )
-    if (unsupportedNode) {
-      throw new BadRequestException(`当前测试运行暂不支持节点：${unsupportedNode.type}`)
-    }
-
     if (
       workflow.environmentVariables.some(
         (variable) => variable.type === ENVIRONMENT_VARIABLE_TYPES.SECRET,
@@ -558,7 +693,12 @@ export class WorkflowRunService {
       executionKey: options.executionKey,
       attempt: options.attempt,
       leaseToken: randomUUID(),
-      deadlineAt: new Date(Date.now() + EXECUTION_DEADLINE_MS).toISOString(),
+      deadlineAt: new Date(
+        Date.now() +
+          (options.node.type === BuiltinNodeType.SUB_WORKFLOW
+            ? SUB_WORKFLOW_EXECUTION_DEADLINE_MS
+            : EXECUTION_DEADLINE_MS),
+      ).toISOString(),
       inputs: options.inputs,
       config: options.config,
     })
@@ -899,4 +1039,16 @@ function createRunSystemVariables(
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message ? error.message : fallback
+}
+
+function createFailedResult(command: ExecuteNodeCommand, code: string, message: string) {
+  return parseExecuteNodeResult({
+    protocolVersion: command.protocolVersion,
+    commandId: command.commandId,
+    nodeRunId: command.nodeRunId,
+    executionKey: command.executionKey,
+    leaseToken: command.leaseToken,
+    status: 'FAILED',
+    error: { code, message, retryable: false },
+  })
 }

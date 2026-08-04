@@ -14,6 +14,7 @@ import {
 } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
 import type { JsonValue } from '@ai-workflow/core'
+import type { ExecuteNodeCommand } from '@ai-workflow/protocol'
 import {
   RUNTIME_EXECUTION_STATUSES,
   RUNTIME_RUN_STATUSES,
@@ -34,6 +35,18 @@ interface CreateTestRunOptions {
   layout: unknown
   input: Record<string, unknown>
   runtimeState?: RuntimeState
+  terminal: RuntimeTerminalData
+  dispatches: readonly PreparedNodeDispatch[]
+}
+
+interface CreateSubWorkflowRunOptions {
+  parentCommand: ExecuteNodeCommand
+  childRunId: string
+  childWorkflowId: string
+  childVersionId: string
+  traceId: string
+  input: Record<string, JsonValue>
+  runtimeState: RuntimeState
   terminal: RuntimeTerminalData
   dispatches: readonly PreparedNodeDispatch[]
 }
@@ -161,6 +174,167 @@ export class WorkflowRunRepository {
       await createDispatchRecords(transaction, options.runId, options.dispatches, now)
       return 'created'
     })
+  }
+
+  async findSubWorkflowTarget(parentRunId: string, workflowId: string) {
+    const parent = await this.prisma.workflowRun.findUnique({
+      where: { id: parentRunId },
+      select: { triggeredById: true, workflowId: true, parentRunId: true },
+    })
+    if (!parent?.triggeredById) return null
+
+    const ancestorWorkflowIds = new Set<string>([parent.workflowId])
+    let ancestorRunId = parent.parentRunId
+    while (ancestorRunId) {
+      // 子工作流调用深度通常很小；逐层读取可同时兼容 PostgreSQL 与测试数据库。
+      // eslint-disable-next-line no-await-in-loop
+      const ancestor = await this.prisma.workflowRun.findUnique({
+        where: { id: ancestorRunId },
+        select: { workflowId: true, parentRunId: true },
+      })
+      if (!ancestor) break
+      ancestorWorkflowIds.add(ancestor.workflowId)
+      ancestorRunId = ancestor.parentRunId
+    }
+    if (ancestorWorkflowIds.has(workflowId)) return { status: 'recursive' as const }
+
+    const deployment = await this.prisma.workflowDeployment.findFirst({
+      where: {
+        workflowId,
+        workflow: {
+          app: { ownerId: parent.triggeredById, deletedAt: null },
+        },
+      },
+      select: {
+        workflow: { select: { appId: true } },
+        version: { select: { id: true, definition: true } },
+      },
+    })
+    return deployment
+      ? {
+          status: 'found' as const,
+          version: deployment.version,
+          workflow: deployment.workflow,
+          triggeredById: parent.triggeredById,
+        }
+      : null
+  }
+
+  createSubWorkflowRun(
+    options: CreateSubWorkflowRunOptions,
+  ): Promise<'created' | 'duplicate' | 'stale'> {
+    return this.prisma.$transaction(async (transaction) => {
+      const parentNodeRun = await transaction.workflowNodeRun.findUnique({
+        where: { id: options.parentCommand.nodeRunId },
+        select: {
+          runId: true,
+          commandId: true,
+          leaseToken: true,
+          status: true,
+          childRun: { select: { id: true } },
+          run: { select: { status: true, triggeredById: true } },
+        },
+      })
+      if (parentNodeRun?.childRun) return 'duplicate'
+      if (
+        !parentNodeRun ||
+        parentNodeRun.runId !== options.parentCommand.runId ||
+        parentNodeRun.commandId !== options.parentCommand.commandId ||
+        parentNodeRun.leaseToken !== options.parentCommand.leaseToken ||
+        parentNodeRun.status !== WorkflowNodeRunStatus.RUNNING ||
+        parentNodeRun.run.status !== WorkflowRunStatus.RUNNING
+      ) {
+        return 'stale'
+      }
+
+      const now = new Date()
+      const status = toWorkflowRunStatus(options.terminal.status)
+      const terminal = status !== WorkflowRunStatus.RUNNING
+      await transaction.workflowRun.create({
+        data: {
+          id: options.childRunId,
+          workflowId: options.childWorkflowId,
+          workflowVersionId: options.childVersionId,
+          triggeredById: parentNodeRun.run.triggeredById,
+          parentRunId: options.parentCommand.runId,
+          parentNodeRunId: options.parentCommand.nodeRunId,
+          traceId: options.traceId,
+          trigger: WorkflowRunTrigger.SUB_WORKFLOW,
+          status,
+          runtimeState: toJsonInput(options.runtimeState),
+          runtimeRevision: options.runtimeState.revision,
+          input: toJsonInput(options.input),
+          output: options.terminal.output ? toJsonInput(options.terminal.output) : undefined,
+          errorCode: options.terminal.error?.code,
+          errorMessage: options.terminal.error?.message,
+          errorDetails: options.terminal.error?.details
+            ? toJsonInput(options.terminal.error.details)
+            : undefined,
+          startedAt: now,
+          finishedAt: terminal ? now : undefined,
+          durationMs: terminal ? durationFrom(now, now) : undefined,
+        },
+      })
+      await createDispatchRecords(transaction, options.childRunId, options.dispatches, now)
+      await transaction.workflowCommandOutbox.update({
+        where: { id: options.parentCommand.commandId },
+        data: {
+          status: WorkflowCommandOutboxStatus.PUBLISHED,
+          claimedAt: null,
+          publishedAt: now,
+          lastError: null,
+        },
+      })
+      return 'created'
+    })
+  }
+
+  findChildRunCompletion(childRunId: string) {
+    return this.prisma.workflowRun.findUnique({
+      where: { id: childRunId },
+      select: {
+        status: true,
+        output: true,
+        errorCode: true,
+        errorMessage: true,
+        errorDetails: true,
+        parentNodeRun: {
+          select: {
+            commandId: true,
+            id: true,
+            executionKey: true,
+            leaseToken: true,
+          },
+        },
+      },
+    })
+  }
+
+  async findPendingChildCompletionIds(limit: number): Promise<string[]> {
+    const childRuns = await this.prisma.workflowRun.findMany({
+      where: {
+        status: {
+          in: [
+            WorkflowRunStatus.SUCCEEDED,
+            WorkflowRunStatus.FAILED,
+            WorkflowRunStatus.TIMED_OUT,
+            WorkflowRunStatus.CANCELLED,
+          ],
+        },
+        parentNodeRun: {
+          is: {
+            status: WorkflowNodeRunStatus.RUNNING,
+            resultInbox: { is: null },
+            run: { status: WorkflowRunStatus.RUNNING },
+          },
+        },
+      },
+      orderBy: { finishedAt: 'asc' },
+      take: limit,
+      select: { id: true },
+    })
+
+    return childRuns.map((run) => run.id)
   }
 
   claimPendingCommands(options: ClaimPendingCommandsOptions): Promise<ClaimedWorkflowCommand[]> {

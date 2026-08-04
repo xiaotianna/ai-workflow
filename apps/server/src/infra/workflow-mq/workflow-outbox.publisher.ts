@@ -5,6 +5,7 @@ import {
   parseExecuteNodeResult,
   type ExecuteNodeCommand,
 } from '@ai-workflow/protocol'
+import { BuiltinNodeType } from '@ai-workflow/core'
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import {
   WORKFLOW_COMMAND_EXCHANGE,
@@ -76,6 +77,10 @@ export class WorkflowOutboxPublisher implements OnApplicationBootstrap, OnModule
     }
 
     try {
+      if (command.nodeType === BuiltinNodeType.SUB_WORKFLOW) {
+        await this.workflowRunService.executeSubWorkflowCommand(command)
+        return
+      }
       await this.workflowMqService.publish(
         WORKFLOW_COMMAND_EXCHANGE,
         WORKFLOW_COMMAND_ROUTING_KEY,

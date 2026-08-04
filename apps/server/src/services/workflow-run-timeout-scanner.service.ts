@@ -34,6 +34,15 @@ export class WorkflowRunTimeoutScanner implements OnApplicationBootstrap, OnModu
     this.scanning = true
 
     try {
+      const completedChildRunIds = await this.workflowRunRepository.findPendingChildCompletionIds(
+        WORKFLOW_TIMEOUT_SCAN_BATCH_SIZE,
+      )
+      await Promise.all(
+        completedChildRunIds.map((runId) =>
+          this.workflowRunService.processChildRunCompletion(runId),
+        ),
+      )
+
       const commandIds = await this.workflowRunRepository.findExpiredCommandIds(
         new Date(),
         WORKFLOW_TIMEOUT_SCAN_BATCH_SIZE,
