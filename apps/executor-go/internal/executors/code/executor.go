@@ -23,7 +23,7 @@ func (nodeExecutor *Executor) Execute(
 	command protocol.ExecuteNodeCommand,
 ) (protocol.ExecuteNodeResult, error) {
 	nodeExecutor.logger.Printf(
-		"code mock execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d",
+		"code execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d",
 		command.CommandID,
 		command.RunID,
 		command.NodeRunID,
@@ -33,7 +33,7 @@ func (nodeExecutor *Executor) Execute(
 
 	return protocol.NewSucceededResult(
 		executor.ResultIdentity(command),
-		map[string]any{"__mockExecutor": true, "result": map[string]any{"mock": true}},
+		map[string]any{"result": map[string]any{}},
 		[]string{"result"},
 	), nil
 }

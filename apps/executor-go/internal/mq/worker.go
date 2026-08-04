@@ -8,9 +8,10 @@ import (
 	"log"
 	"time"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"node-executor-go/internal/executor"
 	protocol "workflow-protocol"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 const (
@@ -24,6 +25,17 @@ type Worker struct {
 	logger      *log.Logger
 }
 
+/*
+实现mq节点执行worker：
+连接 RabbitMQ
+→ 监听节点执行命令
+→ 解析并校验命令
+→ 根据 nodeType 找到执行器
+→ 执行节点
+→ 发送执行结果
+→ RabbitMQ 确认结果已收到
+→ Ack 原始命令
+*/
 func NewWorker(rabbitMQURL string, registry *executor.Registry, logger *log.Logger) *Worker {
 	return &Worker{
 		rabbitMQURL: rabbitMQURL,
@@ -80,6 +92,7 @@ func (worker *Worker) runSession(ctx context.Context) error {
 		return fmt.Errorf("enable publisher confirms: %w", err)
 	}
 
+	// 监听节点执行命名（注册消费者）
 	deliveries, err := consumerChannel.Consume(
 		CommandQueue,
 		"executor-go",
@@ -108,6 +121,7 @@ func (worker *Worker) runSession(ctx context.Context) error {
 			return formatAMQPCloseError("consumer channel", closeError)
 		case closeError := <-publisherClosed:
 			return formatAMQPCloseError("publisher channel", closeError)
+		// 接收【监听节点执行命名】的消息
 		case delivery, open := <-deliveries:
 			if !open {
 				return errors.New("workflow command delivery channel closed")
@@ -122,9 +136,11 @@ func (worker *Worker) handleDelivery(
 	publisherChannel *amqp.Channel,
 	delivery amqp.Delivery,
 ) {
+	// 校验命令
 	command, err := protocol.DecodeExecuteNodeCommand(delivery.Body)
 	if err != nil {
 		worker.logger.Printf("reject invalid workflow command messageId=%s error=%v", delivery.MessageId, err)
+		// 校验失败，不放回原队列
 		if rejectErr := delivery.Reject(false); rejectErr != nil {
 			worker.logger.Printf("reject invalid workflow command failed error=%v", rejectErr)
 		}

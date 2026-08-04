@@ -23,7 +23,7 @@ func (nodeExecutor *Executor) Execute(
 	command protocol.ExecuteNodeCommand,
 ) (protocol.ExecuteNodeResult, error) {
 	nodeExecutor.logger.Printf(
-		"rag mock execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d",
+		"rag execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d",
 		command.CommandID,
 		command.RunID,
 		command.NodeRunID,
@@ -34,8 +34,7 @@ func (nodeExecutor *Executor) Execute(
 	return protocol.NewSucceededResult(
 		executor.ResultIdentity(command),
 		map[string]any{
-			"__mockExecutor": true,
-			"documents":      []any{map[string]any{"content": "mock:rag"}},
+			"documents": []any{},
 		},
 		[]string{"documents"},
 	), nil

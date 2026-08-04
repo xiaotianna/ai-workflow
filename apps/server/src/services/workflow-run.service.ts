@@ -7,11 +7,9 @@ import {
 import { WorkflowNodeRunStatus, WorkflowRunStatus } from '@/generated/prisma/client'
 import {
   BuiltinNodeType,
-  DATA_TYPE_KINDS,
   ENVIRONMENT_VARIABLE_TYPES,
   SYSTEM_VARIABLE_KEYS,
   type JsonValue,
-  type NodeOutputDefinition,
   type SystemVariableKey,
   type Workflow,
   type WorkflowNode,
@@ -23,7 +21,6 @@ import {
   parseExecuteNodeCommand,
   parseExecuteNodeResult,
   type ExecuteNodeCommand,
-  type ExecuteNodeResult,
 } from '@ai-workflow/protocol'
 import {
   createRuntimeContextInputs,
@@ -176,27 +173,26 @@ export class WorkflowRunService {
         return 'stale'
       }
 
-      const parsedWorkflow = workflowSchema.safeParse(context.run.version.definition)
-      if (!parsedWorkflow.success) {
-        throw new InternalServerErrorException('运行绑定的工作流版本快照格式无效')
-      }
-
-      const result = adaptMockSuccessResult(context.nodeId, protocolResult, parsedWorkflow.data)
       if (context.run.mode === TEST_RUN_MODES.SINGLE_NODE) {
         // eslint-disable-next-line no-await-in-loop
         const applied = await this.workflowRunRepository.completeSingleNodeRun({
           runId: context.runId,
-          result,
+          result: protocolResult,
           transportError,
         })
         if (applied === 'conflict') continue
         // eslint-disable-next-line no-await-in-loop
         await this.emitRunEvents(
           context.runId,
-          [{ nodeId: context.nodeId, status: result.status }],
+          [{ nodeId: context.nodeId, status: protocolResult.status }],
           applied,
         )
         return applied
+      }
+
+      const parsedWorkflow = workflowSchema.safeParse(context.run.version.definition)
+      if (!parsedWorkflow.success) {
+        throw new InternalServerErrorException('运行绑定的工作流版本快照格式无效')
       }
 
       if (!context.run.runtimeState) {
@@ -212,7 +208,7 @@ export class WorkflowRunService {
       try {
         transition = runtime.applyNodeResult(
           context.run.runtimeState as unknown as RuntimeState,
-          result,
+          protocolResult,
         )
       } catch (error) {
         throw new InternalServerErrorException(getErrorMessage(error, 'RuntimeState 恢复失败'))
@@ -229,7 +225,7 @@ export class WorkflowRunService {
         state: transition.state,
         terminal: getRuntimeTerminal(transition),
         dispatches,
-        result,
+        result: protocolResult,
         transportError,
       })
       if (applied === 'conflict') continue
@@ -444,7 +440,7 @@ export class WorkflowRunService {
     const versionId = randomUUID()
     const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
     const effectiveInput = {
-      ...resolveSingleNodeMockInputs(node),
+      ...resolveSingleNodeInputs(node),
       ...createRuntimeContextInputs(workflow, systemVariables),
     }
     const command = this.createCommand({
@@ -767,7 +763,7 @@ function getRuntimeTerminal(transition: RuntimeTransition): {
   }
 }
 
-function resolveSingleNodeMockInputs(node: WorkflowNode): Record<string, unknown> {
+function resolveSingleNodeInputs(node: WorkflowNode): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(node.inputs).map(([key, value]) => [
       key,
@@ -788,73 +784,6 @@ function createRunSystemVariables(
     [SYSTEM_VARIABLE_KEYS.WORKFLOW_ID]: workflowId,
     [SYSTEM_VARIABLE_KEYS.WORKFLOW_RUN_ID]: runId,
     [SYSTEM_VARIABLE_KEYS.TIMESTAMP]: Date.now(),
-  }
-}
-
-function adaptMockSuccessResult(
-  nodeId: string,
-  result: ExecuteNodeResult,
-  workflow: Workflow,
-): ExecuteNodeResult {
-  if (result.status === 'FAILED' || result.outputs.__mockExecutor !== true) return result
-
-  const node = workflow.nodes.find((candidate) => candidate.id === nodeId)
-  if (!node) {
-    return parseExecuteNodeResult({
-      protocolVersion: result.protocolVersion,
-      commandId: result.commandId,
-      nodeRunId: result.nodeRunId,
-      executionKey: result.executionKey,
-      leaseToken: result.leaseToken,
-      status: 'FAILED',
-      error: {
-        code: 'MOCK_NODE_NOT_FOUND',
-        message: 'Mock Executor 返回结果时找不到节点快照',
-        retryable: false,
-      },
-    })
-  }
-
-  const outgoingHandles = new Set(
-    workflow.edges.filter((edge) => edge.source === node.id).map((edge) => edge.sourceHandle),
-  )
-  const activatedHandles = result.activatedHandles.filter((handle) => outgoingHandles.has(handle))
-
-  return parseExecuteNodeResult({
-    protocolVersion: result.protocolVersion,
-    commandId: result.commandId,
-    nodeRunId: result.nodeRunId,
-    executionKey: result.executionKey,
-    leaseToken: result.leaseToken,
-    status: 'SUCCEEDED',
-    outputs: Object.fromEntries(
-      node.outputs.map((output) => [output.key, createMockOutputValue(node, output)]),
-    ),
-    activatedHandles,
-  })
-}
-
-function createMockOutputValue(node: WorkflowNode, output: NodeOutputDefinition): JsonValue {
-  if (output.defaultValue !== undefined) return output.defaultValue
-
-  switch (output.dataType) {
-    case DATA_TYPE_KINDS.STRING: {
-      return `mock:${node.type}:${output.key}`
-    }
-    case DATA_TYPE_KINDS.NUMBER: {
-      return 0
-    }
-    case DATA_TYPE_KINDS.BOOLEAN: {
-      return true
-    }
-    case DATA_TYPE_KINDS.JSON: {
-      return {
-        mock: true,
-        nodeId: node.id,
-        nodeType: node.type,
-        outputKey: output.key,
-      }
-    }
   }
 }
 

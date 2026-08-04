@@ -11,6 +11,7 @@ import (
 	ragexecutor "node-executor-go/internal/executors/rag"
 )
 
+// 注册所有的node executor
 func RegisterBuiltins(registry *executor.Registry, logger *log.Logger) {
 	registry.Register(llmexecutor.NodeType, llmexecutor.New(logger))
 	registry.Register(ragexecutor.NodeType, ragexecutor.New(logger))

@@ -137,7 +137,8 @@ idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId
 revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING → PUBLISHED/FAILED`
 和 `FOR UPDATE SKIP LOCKED` claim 派发；stale claim 可恢复。Go 只有在 Result 获得 Publisher Confirm
 后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。当前节点业务 Executor 仍为
-mock；后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
+最小占位实现，但其 Result 与后续完整实现使用同一协议链路；Server 不识别执行器实现类型，
+不从版本快照改写或补齐输出。后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布
 `workflow_finished`。业务副作用幂等存储和真实节点不得假装已经实现。

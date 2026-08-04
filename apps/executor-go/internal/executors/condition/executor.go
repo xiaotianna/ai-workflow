@@ -22,9 +22,9 @@ func (nodeExecutor *Executor) Execute(
 	_ context.Context,
 	command protocol.ExecuteNodeCommand,
 ) (protocol.ExecuteNodeResult, error) {
-	activatedHandle := resolveMockBranch(command.Config)
+	activatedHandle := resolveBranch(command.Config)
 	nodeExecutor.logger.Printf(
-		"condition mock execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d activatedHandle=%s",
+		"condition execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d activatedHandle=%s",
 		command.CommandID,
 		command.RunID,
 		command.NodeRunID,
@@ -45,7 +45,7 @@ func (nodeExecutor *Executor) Execute(
 	), nil
 }
 
-func resolveMockBranch(config map[string]any) string {
+func resolveBranch(config map[string]any) string {
 	conditions, ok := config["conditions"].([]any)
 	if !ok {
 		return ""
