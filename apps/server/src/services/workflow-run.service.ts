@@ -74,12 +74,7 @@ interface WorkflowRunCursor {
   id: string
   queuedAt: Date
 }
-const UNSUPPORTED_FULL_RUN_NODE_TYPES = new Set<string>([
-  BuiltinNodeType.LOOP,
-  BuiltinNodeType.LOOP_START,
-  BuiltinNodeType.LOOP_EXIT,
-  BuiltinNodeType.SUB_WORKFLOW,
-])
+const UNSUPPORTED_FULL_RUN_NODE_TYPES = new Set<string>([BuiltinNodeType.SUB_WORKFLOW])
 const RUNTIME_NODE_CONFIG_PROJECTORS: Readonly<Record<string, RuntimeNodeConfigProjector>> = {
   [BuiltinNodeType.LLM]: projectLlmNodeConfig,
   [BuiltinNodeType.HTTP]: projectHttpNodeConfig,
@@ -431,6 +426,9 @@ export class WorkflowRunService {
     if (
       node.type === BuiltinNodeType.START ||
       node.type === BuiltinNodeType.END ||
+      node.type === BuiltinNodeType.LOOP ||
+      node.type === BuiltinNodeType.LOOP_START ||
+      node.type === BuiltinNodeType.LOOP_EXIT ||
       UNSUPPORTED_FULL_RUN_NODE_TYPES.has(node.type)
     ) {
       throw new BadRequestException('当前节点不支持单独测试运行')
@@ -485,8 +483,8 @@ export class WorkflowRunService {
   }
 
   private assertFullRunCapabilities(workflow: Workflow) {
-    const unsupportedNode = workflow.nodes.find(
-      (node) => node.parentId !== undefined || UNSUPPORTED_FULL_RUN_NODE_TYPES.has(node.type),
+    const unsupportedNode = workflow.nodes.find((node) =>
+      UNSUPPORTED_FULL_RUN_NODE_TYPES.has(node.type),
     )
     if (unsupportedNode) {
       throw new BadRequestException(`当前测试运行暂不支持节点：${unsupportedNode.type}`)
@@ -585,8 +583,10 @@ export class WorkflowRunService {
         this.workflowRunEventStream.publishNodeFinished(runId, node, {
           nodeRuns: run.nodeRuns,
           nodeStates: run.nodeStates,
+          loopIterations: run.loopIterations,
           traceNodeDurations: run.traceNodeDurations,
           traceNodeIds: run.traceNodeIds,
+          traceExecutions: run.traceExecutions,
         })
       }
       if (run.status !== WorkflowRunStatus.RUNNING) {
@@ -642,6 +642,7 @@ function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
       : {}),
     nodeRuns: run.nodeRuns.map((nodeRun) => ({
       id: nodeRun.id,
+      executionKey: nodeRun.executionKey,
       nodeId: nodeRun.nodeId,
       nodeType: nodeRun.nodeType,
       status: nodeRun.status,
@@ -661,14 +662,32 @@ function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
         : {}),
     })),
     nodeStates: collectRunNodeStates(run),
+    loopIterations: collectLoopIterations(run.runtimeState),
     traceNodeDurations: trace.nodeDurations,
     traceNodeIds: trace.nodeIds,
+    traceExecutions: trace.executions,
   }
+}
+
+function collectLoopIterations(runtimeState: unknown): WorkflowTestRunVo['loopIterations'] {
+  const parsedRuntimeState = runtimeStateSchema.safeParse(runtimeState)
+  if (!parsedRuntimeState.success) return {}
+
+  return Object.fromEntries(
+    Object.entries(parsedRuntimeState.data.loopStates).map(([loopNodeId, loopState]) => [
+      loopNodeId,
+      {
+        iteration: loopState.iteration,
+        maxIterations: loopState.maxIterations,
+      },
+    ]),
+  )
 }
 
 function collectRunTrace(run: WorkflowRunSummary): {
   nodeDurations: Record<string, number>
   nodeIds: string[]
+  executions: WorkflowTestRunVo['traceExecutions']
 } {
   const parsedRuntimeState = runtimeStateSchema.safeParse(run.runtimeState)
   const orderedExecutions = parsedRuntimeState.success
@@ -684,6 +703,9 @@ function collectRunTrace(run: WorkflowRunSummary): {
     ),
   ]
   const nodeDurations: Record<string, number> = {}
+  const nodeRunByExecutionKey = new Map(
+    run.nodeRuns.map((nodeRun) => [nodeRun.executionKey, nodeRun]),
+  )
 
   for (const nodeRun of run.nodeRuns) {
     if (nodeRun.durationMs !== null) nodeDurations[nodeRun.nodeId] = nodeRun.durationMs
@@ -697,7 +719,63 @@ function collectRunTrace(run: WorkflowRunSummary): {
     }
   }
 
-  return { nodeDurations, nodeIds }
+  const executions: WorkflowTestRunVo['traceExecutions'] = orderedExecutions.map((execution) => {
+    const nodeRun = nodeRunByExecutionKey.get(execution.executionKey)
+    const error =
+      nodeRun?.errorCode && nodeRun.errorMessage
+        ? {
+            code: nodeRun.errorCode,
+            message: nodeRun.errorMessage,
+            ...(nodeRun.errorDetails !== null ? { details: nodeRun.errorDetails } : {}),
+          }
+        : execution.error
+
+    return {
+      executionKey: execution.executionKey,
+      nodeId: execution.nodeId,
+      scopeKey: execution.scopeKey,
+      sequence: execution.sequence,
+      ...(execution.iteration ? { iteration: execution.iteration } : {}),
+      status: nodeRun?.status ?? execution.status,
+      input: execution.inputs,
+      ...(nodeRun?.output !== null && nodeRun?.output !== undefined
+        ? { output: nodeRun.output }
+        : execution.outputs
+          ? { output: execution.outputs }
+          : {}),
+      ...((nodeRun?.durationMs ?? execution.durationMs) !== null &&
+      (nodeRun?.durationMs ?? execution.durationMs) !== undefined
+        ? { durationMs: nodeRun?.durationMs ?? execution.durationMs }
+        : {}),
+      ...(error ? { error } : {}),
+    }
+  })
+
+  if (executions.length === 0) {
+    executions.push(
+      ...run.nodeRuns.map((nodeRun, sequence) => ({
+        executionKey: nodeRun.executionKey,
+        nodeId: nodeRun.nodeId,
+        scopeKey: 'root',
+        sequence,
+        status: nodeRun.status,
+        input: nodeRun.input ?? {},
+        ...(nodeRun.output !== null ? { output: nodeRun.output } : {}),
+        ...(nodeRun.durationMs !== null ? { durationMs: nodeRun.durationMs } : {}),
+        ...(nodeRun.errorCode && nodeRun.errorMessage
+          ? {
+              error: {
+                code: nodeRun.errorCode,
+                message: nodeRun.errorMessage,
+                ...(nodeRun.errorDetails !== null ? { details: nodeRun.errorDetails } : {}),
+              },
+            }
+          : {}),
+      })),
+    )
+  }
+
+  return { nodeDurations, nodeIds, executions }
 }
 
 function collectRunNodeStates(run: WorkflowRunSummary): WorkflowNodeExecutionStateVo[] {
@@ -747,13 +825,23 @@ function collectCompletedNodeTransitions(
   const completed: WorkflowNodeExecutionStateVo[] = []
 
   for (const [nodeId, nextNodeState] of Object.entries(nextState.nodeStates)) {
+    const previousNodeState = previousState.nodeStates[nodeId]
+    if (
+      previousNodeState?.status === RUNTIME_NODE_STATUSES.RUNNING &&
+      nextNodeState.status === RUNTIME_NODE_STATUSES.RUNNING &&
+      previousNodeState.latestExecutionKey !== nextNodeState.latestExecutionKey
+    ) {
+      completed.push({ nodeId, status: 'SUCCEEDED' })
+      continue
+    }
+
     if (
       nextNodeState.status !== RUNTIME_NODE_STATUSES.SUCCEEDED &&
       nextNodeState.status !== RUNTIME_NODE_STATUSES.FAILED
     ) {
       continue
     }
-    if (previousState.nodeStates[nodeId]?.status === nextNodeState.status) continue
+    if (previousNodeState?.status === nextNodeState.status) continue
     completed.push({ nodeId, status: nextNodeState.status })
   }
 

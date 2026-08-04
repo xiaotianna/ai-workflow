@@ -257,17 +257,26 @@ export function WorkflowEditor({
     () =>
       editor.nodes.map((node) => {
         const executionStatus = nodeExecutionStatuses[node.id]
-        if (!executionStatus) return node
+        const loopIteration = testRunResult?.loopIterations[node.id]
+        if (!executionStatus && !loopIteration) return node
 
         return {
           ...node,
           data: {
             ...node.data,
             executionStatus,
+            ...(loopIteration
+              ? {
+                  executionProgress: {
+                    current: loopIteration.iteration,
+                    total: loopIteration.maxIterations,
+                  },
+                }
+              : {}),
           },
         }
       }),
-    [editor.nodes, nodeExecutionStatuses],
+    [editor.nodes, nodeExecutionStatuses, testRunResult?.loopIterations],
   )
   return (
     <>

@@ -180,6 +180,8 @@ Sub Workflow 节点通过 `defineNodeUI(subWorkflowNode, SubWorkflowNodeContent)
   蓝色旋转图标，成功使用 `--workflow-node-success: #17b26a`，失败使用
   `--workflow-node-failed: #f04438`；终态图标与对应边框同色。状态图标位于 Header 右侧，所有
   状态都保持 `1.5px` 边框宽度不变。状态由应用层临时注入，不进入 Core 节点数据。
+- 完整节点 renderer 可通过 `executionProgress` 消费应用层注入的临时运行进度；Loop 仅在
+  `RUNNING` 时于 Header 展示“第 current / total 次”，该数据不进入 Workflow 快照。
 - 节点卡片、节点选择器和 MiniMap 的节点标识色统一来自 `NODE_THEMES`；调用方使用
   `getNodeThemeColor(type)` 获取带默认回退的颜色，不复制映射或硬编码节点色。
 - `NodePortsRender` 将端口锚点贴在节点左右边缘，`stacked` 布局从卡片顶部 `20px`

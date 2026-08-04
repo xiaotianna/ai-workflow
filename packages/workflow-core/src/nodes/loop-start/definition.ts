@@ -19,3 +19,18 @@ export const loopStartNodeDefinition = {
     },
   },
 } satisfies NodeDefinition
+
+export const LOOP_START_FIXED_OUTPUTS = [
+  {
+    key: 'input',
+    label: '循环输入',
+    dataType: DATA_TYPE_KINDS.JSON,
+    description: 'Loop 节点在本轮接收到的输入',
+  },
+  {
+    key: 'iteration',
+    label: '循环次数',
+    dataType: DATA_TYPE_KINDS.NUMBER,
+    description: '从 1 开始的当前循环次数',
+  },
+] as const

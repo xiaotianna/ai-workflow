@@ -13,7 +13,9 @@ export const DefaultNodeContent = ({ definition }: NodeContentProps) => {
 
   return (
     <NodeContentList>
-      <div className="text-slate-500">{definition.description}</div>
+      <div className="text-muted-foreground text-xs leading-4 font-normal">
+        {definition.description}
+      </div>
     </NodeContentList>
   )
 }

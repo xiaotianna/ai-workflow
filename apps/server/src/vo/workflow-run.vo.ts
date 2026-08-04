@@ -12,8 +12,14 @@ export interface WorkflowNodeExecutionStateVo {
   status: WorkflowNodeExecutionStatus
 }
 
+export interface WorkflowLoopIterationVo {
+  iteration: number
+  maxIterations: number
+}
+
 export interface WorkflowNodeRunVo {
   id: string
+  executionKey: string
   nodeId: string
   nodeType: string
   status: WorkflowNodeRunStatus
@@ -21,6 +27,23 @@ export interface WorkflowNodeRunVo {
   output?: unknown
   startedAt?: Date
   finishedAt?: Date
+  durationMs?: number
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
+export interface WorkflowTraceExecutionVo {
+  executionKey: string
+  nodeId: string
+  scopeKey: string
+  sequence: number
+  iteration?: number
+  status: string
+  input: unknown
+  output?: unknown
   durationMs?: number
   error?: {
     code: string
@@ -53,8 +76,10 @@ export interface WorkflowTestRunVo {
   }
   nodeRuns: WorkflowNodeRunVo[]
   nodeStates: WorkflowNodeExecutionStateVo[]
+  loopIterations: Record<string, WorkflowLoopIterationVo>
   traceNodeDurations: Record<string, number>
   traceNodeIds: string[]
+  traceExecutions: WorkflowTraceExecutionVo[]
 }
 
 export interface WorkflowRunListItemVo {
@@ -86,8 +111,10 @@ export interface WorkflowRunNodeFinishedEventVo {
   node: WorkflowNodeExecutionStateVo
   nodeRuns: WorkflowNodeRunVo[]
   nodeStates: WorkflowNodeExecutionStateVo[]
+  loopIterations: Record<string, WorkflowLoopIterationVo>
   traceNodeDurations: Record<string, number>
   traceNodeIds: string[]
+  traceExecutions: WorkflowTraceExecutionVo[]
 }
 
 export type WorkflowRunStreamEvent =

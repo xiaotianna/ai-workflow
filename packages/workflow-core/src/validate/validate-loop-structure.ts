@@ -5,14 +5,13 @@ import type { ReportValidationIssueFn } from './validate-types'
 
 // 判断一个节点是不是 Loop 专用的系统节点（只有loop_start和loop_exit）
 const isLoopSystemNode = (node: WorkflowNode): boolean =>
-  node.type === BuiltinNodeType.LOOP_START ||
-  node.type === BuiltinNodeType.LOOP_EXIT
+  node.type === BuiltinNodeType.LOOP_START || node.type === BuiltinNodeType.LOOP_EXIT
 
 // 检查每个节点的 parentId 引用是否合法
 const validateParentReferences = (
   nodes: readonly WorkflowNode[],
   nodeById: ReadonlyMap<string, WorkflowNode>,
-  report: ReportValidationIssueFn
+  report: ReportValidationIssueFn,
 ): void => {
   for (const node of nodes) {
     // loop系统节点必须要有父loop
@@ -22,7 +21,7 @@ const validateParentReferences = (
           scope: 'node',
           nodeId: node.id,
           field: 'parentId',
-          message: `${node.type} 必须属于一个 Loop`
+          message: `${node.type} 必须属于一个 Loop`,
         })
       }
       continue
@@ -35,7 +34,7 @@ const validateParentReferences = (
         scope: 'node',
         nodeId: node.id,
         field: 'parentId',
-        message: `父节点不存在：${node.parentId}`
+        message: `父节点不存在：${node.parentId}`,
       })
       continue
     }
@@ -46,7 +45,7 @@ const validateParentReferences = (
         scope: 'node',
         nodeId: node.id,
         field: 'parentId',
-        message: '节点不能将自己设置为父节点'
+        message: '节点不能将自己设置为父节点',
       })
       continue
     }
@@ -57,7 +56,7 @@ const validateParentReferences = (
         scope: 'node',
         nodeId: node.id,
         field: 'parentId',
-        message: `父节点必须是 Loop：${node.parentId}`
+        message: `父节点必须是 Loop：${node.parentId}`,
       })
     }
   }
@@ -71,7 +70,7 @@ const validateParentReferences = (
 const validateParentCycles = (
   nodes: readonly WorkflowNode[],
   nodeById: ReadonlyMap<string, WorkflowNode>,
-  report: ReportValidationIssueFn
+  report: ReportValidationIssueFn,
 ): void => {
   for (const node of nodes) {
     const visited = new Set<string>([node.id])
@@ -83,7 +82,7 @@ const validateParentCycles = (
           scope: 'node',
           nodeId: node.id,
           field: 'parentId',
-          message: '节点父子关系中存在循环'
+          message: '节点父子关系中存在循环',
         })
         break
       }
@@ -103,7 +102,8 @@ const validateParentCycles = (
  */
 const validateLoopChildren = (
   nodes: readonly WorkflowNode[],
-  report: ReportValidationIssueFn
+  edges: readonly WorkflowEdge[],
+  report: ReportValidationIssueFn,
 ): void => {
   const childrenByParentId = new Map<string, WorkflowNode[]>()
 
@@ -119,18 +119,14 @@ const validateLoopChildren = (
     if (loop.type !== BuiltinNodeType.LOOP) continue
 
     const children = childrenByParentId.get(loop.id) ?? []
-    const loopStarts = children.filter(
-      (node) => node.type === BuiltinNodeType.LOOP_START
-    )
-    const loopExits = children.filter(
-      (node) => node.type === BuiltinNodeType.LOOP_EXIT
-    )
+    const loopStarts = children.filter((node) => node.type === BuiltinNodeType.LOOP_START)
+    const loopExits = children.filter((node) => node.type === BuiltinNodeType.LOOP_EXIT)
 
     if (loopStarts.length !== 1) {
       report({
         scope: 'node',
         nodeId: loop.id,
-        message: `Loop 必须包含且只包含一个 Loop Start，当前数量：${loopStarts.length}`
+        message: `Loop 必须包含且只包含一个 Loop Start，当前数量：${loopStarts.length}`,
       })
     }
 
@@ -138,20 +134,63 @@ const validateLoopChildren = (
       report({
         scope: 'node',
         nodeId: loop.id,
-        message: `Loop 必须包含且只包含一个 Loop Exit，当前数量：${loopExits.length}`
+        message: `Loop 必须包含且只包含一个 Loop Exit，当前数量：${loopExits.length}`,
       })
     }
 
     for (const child of children) {
-      if (
-        child.type === BuiltinNodeType.START ||
-        child.type === BuiltinNodeType.END
-      ) {
+      if (child.type === BuiltinNodeType.START || child.type === BuiltinNodeType.END) {
         report({
           scope: 'node',
           nodeId: child.id,
           field: 'type',
-          message: 'Loop 内不能使用主工作流 Start 或 End'
+          message: 'Loop 内不能使用主工作流 Start 或 End',
+        })
+      }
+    }
+
+    if (loopStarts.length !== 1 || loopExits.length !== 1) continue
+
+    const childIds = new Set(children.map((child) => child.id))
+    const scopedEdges = edges.filter(
+      (edge) => childIds.has(edge.source) && childIds.has(edge.target),
+    )
+    const walk = (initialId: string, direction: 'forward' | 'backward') => {
+      const visited = new Set<string>([initialId])
+      const queue = [initialId]
+      while (queue.length > 0) {
+        const currentId = queue.shift()!
+        for (const edge of scopedEdges) {
+          const nextId =
+            direction === 'forward' && edge.source === currentId
+              ? edge.target
+              : direction === 'backward' && edge.target === currentId
+                ? edge.source
+                : undefined
+          if (nextId && !visited.has(nextId)) {
+            visited.add(nextId)
+            queue.push(nextId)
+          }
+        }
+      }
+      return visited
+    }
+
+    const reachableFromStart = walk(loopStarts[0]!.id, 'forward')
+    const canReachExit = walk(loopExits[0]!.id, 'backward')
+    for (const child of children) {
+      if (!reachableFromStart.has(child.id)) {
+        report({
+          scope: 'node',
+          nodeId: child.id,
+          message: 'Loop 内节点必须从 Loop Start 可达',
+        })
+      }
+      if (!canReachExit.has(child.id)) {
+        report({
+          scope: 'node',
+          nodeId: child.id,
+          message: 'Loop 内节点必须能到达 Loop Exit',
         })
       }
     }
@@ -167,7 +206,7 @@ const getScopeId = (node: WorkflowNode): string => node.parentId ?? ROOT_SCOPE
 const validateEdgeScopes = (
   edges: readonly WorkflowEdge[],
   nodeById: ReadonlyMap<string, WorkflowNode>,
-  report: ReportValidationIssueFn
+  report: ReportValidationIssueFn,
 ): void => {
   for (const edge of edges) {
     const source = nodeById.get(edge.source)
@@ -179,7 +218,7 @@ const validateEdgeScopes = (
       report({
         scope: 'edge',
         edgeId: edge.id,
-        message: '边不能跨越 Loop 作用域，外部节点必须通过 Loop 自身的端口传值'
+        message: '边不能跨越 Loop 作用域，外部节点必须通过 Loop 自身的端口传值',
       })
     }
   }
@@ -189,7 +228,7 @@ const validateEdgeScopes = (
 export const validateLoopStructure = (
   nodes: readonly WorkflowNode[],
   edges: readonly WorkflowEdge[],
-  report: ReportValidationIssueFn
+  report: ReportValidationIssueFn,
 ): void => {
   const nodeById = new Map(nodes.map((node) => [node.id, node]))
   // 检查父节点引用是否存在、类型是否合法
@@ -197,7 +236,7 @@ export const validateLoopStructure = (
   // 检查parentId形成的父子关系中是否存在循环
   validateParentCycles(nodes, nodeById, report)
   // 检查每个 Loop 内部是否有正确的 Start/Exit 组成
-  validateLoopChildren(nodes, report)
+  validateLoopChildren(nodes, edges, report)
   // 检查边是否遵守前面建立的作用域边界，不能跨作用域连接
   validateEdgeScopes(edges, nodeById, report)
 }

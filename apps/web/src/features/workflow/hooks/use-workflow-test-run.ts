@@ -90,7 +90,9 @@ export function useWorkflowTestRun(appId: string) {
                 ...current,
                 nodeRuns: event.data.nodeRuns ?? current.nodeRuns,
                 nodeStates: event.data.nodeStates,
+                loopIterations: event.data.loopIterations,
                 traceNodeDurations: event.data.traceNodeDurations ?? current.traceNodeDurations,
+                traceExecutions: event.data.traceExecutions,
                 ...(traceNodeIds
                   ? {
                       traceNodeIds: reconcileTraceNodeIds(traceNodeIds, event.data.node.nodeId),

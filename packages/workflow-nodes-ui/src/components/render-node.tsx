@@ -3,6 +3,7 @@ import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/co
 import type {
   ModelReferenceDisplayResolver,
   NodeEditorCapabilities,
+  NodeExecutionProgress,
   NodeExecutionStatus,
   NodePortRender,
   VariableReferenceDisplayResolver,
@@ -27,6 +28,7 @@ export interface RenderNodeProps {
   // 可拖拽区域类名，给react flow使用（给完整自定义节点使用，非base-node基础组件）
   dragHandleClassName?: string
   executionStatus?: NodeExecutionStatus
+  executionProgress?: NodeExecutionProgress
 }
 
 const EMPTY_PORTS = {
@@ -48,6 +50,7 @@ export const RenderNode = ({
   editorCapabilities,
   dragHandleClassName,
   executionStatus,
+  executionProgress,
 }: RenderNodeProps) => {
   const nodeType = nodeRegistry.get(node.type)
 
@@ -115,6 +118,7 @@ export const RenderNode = ({
         editorCapabilities={editorCapabilities}
         dragHandleClassName={dragHandleClassName}
         executionStatus={executionStatus}
+        executionProgress={executionProgress}
       />
     )
   }

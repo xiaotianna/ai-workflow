@@ -1,4 +1,4 @@
-import type { StudioWorkflowNodeRunDto, StudioWorkflowTestRunDto } from '@/api/studio'
+import type { StudioWorkflowTestRunDto, StudioWorkflowTraceExecutionDto } from '@/api/studio'
 import { BuiltinNodeType, nodeRegistry, type WorkflowNode } from '@ai-workflow/core'
 import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
 import { Tabs, TabsContent } from '@ai-workflow/ui/components/tabs'
@@ -179,27 +179,37 @@ function RunTraceContent({
   nodes: readonly WorkflowNode[]
   run: StudioWorkflowTestRunDto
 }) {
-  const traceNodes = resolveTraceNodes(nodes, run)
+  const traceExecutions = resolveTraceExecutions(nodes, run)
 
   return (
     <MotionConfig reducedMotion="user" transition={{ duration: 0.16, ease: 'easeOut' }}>
       <div className="space-y-1">
-        {traceNodes.map((node) => (
-          <TraceNodeItem key={node.id} node={node} run={run} />
+        {traceExecutions.map(({ execution, node }) => (
+          <TraceNodeItem key={execution.executionKey} execution={execution} node={node} run={run} />
         ))}
       </div>
     </MotionConfig>
   )
 }
 
-function TraceNodeItem({ node, run }: { node: WorkflowNode; run: StudioWorkflowTestRunDto }) {
+function TraceNodeItem({
+  execution,
+  node,
+  run,
+}: {
+  execution: StudioWorkflowTraceExecutionDto
+  node: WorkflowNode
+  run: StudioWorkflowTestRunDto
+}) {
   const [expanded, setExpanded] = useState(false)
-  const nodeRun = findLatestNodeRun(run.nodeRuns, node.id)
-  const status = resolveTraceNodeStatus(run, node.id, nodeRun)
+  const status = execution.status
   const definition = nodeRegistry.get(node.type)?.definition
-  const nodeLabel = node.label || definition?.label || node.type
-  const contentId = `workflow-run-trace-${run.id}-${node.id}`
-  const durationMs = run.traceNodeDurations?.[node.id] ?? nodeRun?.durationMs ?? 0
+  const baseNodeLabel = node.label || definition?.label || node.type
+  const nodeLabel = execution.iteration
+    ? `${baseNodeLabel} · 第 ${execution.iteration} 次`
+    : baseNodeLabel
+  const contentId = `workflow-run-trace-${run.id}-${execution.sequence}`
+  const durationMs = execution.durationMs ?? 0
 
   return (
     <section className="border-border/60 bg-background overflow-hidden rounded-lg border-[0.5px] shadow-xs transition-shadow duration-200 ease-out hover:shadow-md motion-reduce:transition-none">
@@ -245,8 +255,16 @@ function TraceNodeItem({ node, run }: { node: WorkflowNode; run: StudioWorkflowT
             className="overflow-hidden"
           >
             <div className="space-y-1.5 px-2.5 py-2">
-              <JsonDataCard title="输入" value={getTraceNodeInput(node, nodeRun, run)} compact />
-              <JsonDataCard title="输出" value={getTraceNodeOutput(node, nodeRun, run)} compact />
+              <JsonDataCard
+                title="输入"
+                value={getTraceExecutionInput(node, execution, run)}
+                compact
+              />
+              <JsonDataCard
+                title="输出"
+                value={getTraceExecutionOutput(node, execution, run)}
+                compact
+              />
             </div>
           </motion.div>
         ) : null}
@@ -356,34 +374,24 @@ function RunPendingState() {
   )
 }
 
-function findLatestNodeRun(
-  nodeRuns: readonly StudioWorkflowNodeRunDto[],
-  nodeId: string,
-): StudioWorkflowNodeRunDto | undefined {
-  for (let index = nodeRuns.length - 1; index >= 0; index -= 1) {
-    const nodeRun = nodeRuns[index]
-    if (nodeRun?.nodeId === nodeId) return nodeRun
-  }
-  return undefined
-}
-
-function resolveTraceNodes(
+function resolveTraceExecutions(
   nodes: readonly WorkflowNode[],
   run: StudioWorkflowTestRunDto,
-): WorkflowNode[] {
+): Array<{ execution: StudioWorkflowTraceExecutionDto; node: WorkflowNode }> {
   const nodeById = new Map(nodes.map((node) => [node.id, node]))
-  const traceNodeIds = run.traceNodeIds ?? resolveLegacyTraceNodeIds(nodes, run)
+  const executions =
+    run.traceExecutions.length > 0 ? run.traceExecutions : resolveLegacyTraceExecutions(nodes, run)
 
-  return traceNodeIds.flatMap((nodeId) => {
-    const node = nodeById.get(nodeId)
-    return node ? [node] : []
+  return executions.flatMap((execution) => {
+    const node = nodeById.get(execution.nodeId)
+    return node ? [{ execution, node }] : []
   })
 }
 
-function resolveLegacyTraceNodeIds(
+function resolveLegacyTraceExecutions(
   nodes: readonly WorkflowNode[],
   run: StudioWorkflowTestRunDto,
-): string[] {
+): StudioWorkflowTraceExecutionDto[] {
   const enteredNodeIds = new Set([
     ...run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
     ...run.nodeStates.map((nodeState) => nodeState.nodeId),
@@ -401,39 +409,43 @@ function resolveLegacyTraceNodeIds(
   for (const nodeRun of run.nodeRuns) addNodeId(nodeRun.nodeId)
   for (const nodeState of run.nodeStates) addNodeId(nodeState.nodeId)
 
-  return orderedNodeIds
+  return orderedNodeIds.map((nodeId, sequence) => {
+    const nodeRun = run.nodeRuns.toReversed().find((candidate) => candidate.nodeId === nodeId)
+    return {
+      executionKey: nodeRun?.executionKey ?? `legacy:${nodeId}`,
+      nodeId,
+      scopeKey: 'root',
+      sequence,
+      status:
+        run.nodeStates.find((nodeState) => nodeState.nodeId === nodeId)?.status ??
+        nodeRun?.status ??
+        'PENDING',
+      input: nodeRun?.input ?? {},
+      ...(nodeRun?.output !== undefined ? { output: nodeRun.output } : {}),
+      ...(nodeRun?.durationMs !== undefined ? { durationMs: nodeRun.durationMs } : {}),
+      ...(nodeRun?.error ? { error: nodeRun.error } : {}),
+    }
+  })
 }
 
-function resolveTraceNodeStatus(
-  run: StudioWorkflowTestRunDto,
-  nodeId: string,
-  nodeRun?: StudioWorkflowNodeRunDto,
-) {
-  return (
-    run.nodeStates.find((nodeState) => nodeState.nodeId === nodeId)?.status ??
-    nodeRun?.status ??
-    'PENDING'
-  )
-}
-
-function getTraceNodeInput(
+function getTraceExecutionInput(
   node: WorkflowNode,
-  nodeRun: StudioWorkflowNodeRunDto | undefined,
+  execution: StudioWorkflowTraceExecutionDto,
   run: StudioWorkflowTestRunDto,
 ) {
   if (node.type === BuiltinNodeType.START) return run.input
-  return nodeRun?.input ?? {}
+  return execution.input
 }
 
-function getTraceNodeOutput(
+function getTraceExecutionOutput(
   node: WorkflowNode,
-  nodeRun: StudioWorkflowNodeRunDto | undefined,
+  execution: StudioWorkflowTraceExecutionDto,
   run: StudioWorkflowTestRunDto,
 ) {
   if (node.type === BuiltinNodeType.START) return run.input
   if (node.type === BuiltinNodeType.END) return run.error ? { error: run.error } : run.output
-  if (nodeRun?.error) return { error: nodeRun.error }
-  return nodeRun?.output ?? {}
+  if (execution.error) return { error: execution.error }
+  return execution.output ?? {}
 }
 
 function getStatusPresentation(status: string) {

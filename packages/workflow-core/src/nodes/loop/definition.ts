@@ -11,12 +11,21 @@ export const loopNodeDefinition = createNodeDefinition({
     id: 'input',
     label: '循环输入',
     dataType: DATA_TYPE_KINDS.JSON,
-    required: true
+    required: true,
   },
   outputPort: {
     id: 'result',
     label: '循环结果',
     dataType: DATA_TYPE_KINDS.JSON,
-    multiple: true
-  }
+    multiple: true,
+  },
 })
+
+export const LOOP_FIXED_OUTPUTS = [
+  {
+    key: 'result',
+    label: '循环结果',
+    dataType: DATA_TYPE_KINDS.JSON,
+    description: '最后一轮 Loop Exit 收集到的输入',
+  },
+] as const

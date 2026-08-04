@@ -222,7 +222,7 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
       const outputs = resolveNodeOutputs(result.outputs, node, {
         workflow: this.plan.workflow,
         state: restoredState,
-        scopeKey: 'root',
+        scopeKey: execution.scopeKey,
       })
       recordBusinessNodeSuccess(restoredState, execution.executionKey, outputs)
       settleOutgoingEdges(this.plan, restoredState, node.id, new Set(result.activatedHandles))

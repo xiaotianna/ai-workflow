@@ -188,6 +188,7 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
         }
         dragHandleClassName="drag-handle"
         executionStatus={data.executionStatus}
+        executionProgress={data.executionProgress}
         editorCapabilities={
           disabled
             ? undefined

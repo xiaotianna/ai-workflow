@@ -70,6 +70,11 @@ export type NodePortRender = (props: NodePortRenderProps) => ReactNode
 
 export type NodeExecutionStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 
+export interface NodeExecutionProgress {
+  readonly current: number
+  readonly total: number
+}
+
 // 向容器中添加子节点的操作，目前是仅loop节点有子容器
 export interface AddChildNodeAction {
   // 允许添加的节点类型列表，用来渲染节点选择菜单
@@ -116,6 +121,7 @@ export interface NodeRendererProps<TConfig = unknown> extends NodeContentProps<T
   readonly editorCapabilities?: NodeEditorCapabilities
   readonly dragHandleClassName?: string
   readonly executionStatus?: NodeExecutionStatus
+  readonly executionProgress?: NodeExecutionProgress
 }
 
 export type NodeRendererComponent<TConfig = unknown> = ComponentType<NodeRendererProps<TConfig>>

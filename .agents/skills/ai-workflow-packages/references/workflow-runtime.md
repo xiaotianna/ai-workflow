@@ -38,6 +38,9 @@
 - `node.inputs` 统一解析直接值、节点引用、系统变量和非 Secret 环境变量；Config 不做递归形状猜测，
   含变量的节点必须注册显式 projector。系统变量和环境变量只作为引用解析上下文，不会自动展开为
   `sys.<key>` 或 `env.<name>` 输入；声明输入引用上下文变量时，解析后的真实值保留声明输入的 key。
+  Loop 作用域内允许读取当前作用域和任意祖先作用域中已成功执行的合法上游节点；禁止根或祖先
+  作用域反向读取 Loop 后代结果，也禁止读取兄弟 Loop 作用域，Execution 自身的 `scopeKey` 必须与
+  被引用节点的静态所属作用域一致。
 - `applyNodeResult()` 只接受已由 `@ai-workflow/protocol` parser 校验的 `ExecuteNodeResult`。Command 的
   commandId、nodeRunId、leaseToken、deadline 和 Inbox/Outbox 幂等仍由 Server 负责。
 - 成功 Result 的原始 `outputs` 可以包含节点内置结果字段；Runtime 只按可选的 `node.outputs` 声明
@@ -49,23 +52,27 @@
 - Runtime 内部异常使用 `RuntimeError`；进入 State、Effect、数据库、MQ 或 API 前转换成只含 JSON 的
   `RuntimeErrorData`。
 
-## 根 DAG v1 语义
+## DAG 与 Loop 语义
 
 - Start 注入归一化输入并激活全部已连接输出 Handle；End 仅结束当前路径，最终结果统一解析
   `Workflow.outputs`。
 - Edge 使用 `WAITING`、`ACTIVE`、`INACTIVE` 三态。节点等待全部入边收敛；至少一条 ACTIVE 时执行，
   全部 INACTIVE 时 SKIPPED，并继续传播未激活路径。
 - 每次业务节点派发都会创建显式 Execution，State 保存 executionKey、nodeId、scopeKey、sequence、
-  attempt、输入、配置、输出或标准错误；Start/End 等同步本地控制 Execution 额外持久化整数毫秒
+  attempt、输入、配置、输出或标准错误；Loop 作用域内的 Execution 额外保存从 1 开始的
+  `iteration`，供运行追踪区分同一节点的多轮执行。Start/End 等同步本地控制 Execution 额外持久化整数毫秒
   `durationMs`，即使在 1 ms 内完成也记录为 `1`；业务节点实际耗时继续由宿主 NodeRun 记录。
   禁止拆解 executionKey 推断执行位置。
 - 状态迁移返回新 revision、可持久化 RuntimeState 和 `DISPATCH_NODE`、`COMPLETE_RUN` 或 `FAIL_RUN`
   Effect，不访问 NestJS、Prisma、RabbitMQ、Redis、HTTP 或 React。
+- Loop、Loop Start 和 Loop Exit 由 Runtime 本地推进，不派发给 Executor。Loop Exit 结束当前轮，
+  Runtime 按 `terminationCondition` 和 `maxIterations` 决定终止或重置该作用域进入下一轮。
+- RuntimeState v2 的 `loopStates` 保存活跃 Loop 的迭代与父作用域，Execution `scopeKey`
+  保存 `root` 或 Loop ID；调度器可从最内层活跃作用域恢复，支持嵌套 Loop。
 
 ## 当前阶段限制
 
-- v1 只实现根作用域 DAG。Loop、嵌套 Scope、Sub Workflow、Secret Gateway、取消、业务重试和流式事件
-  必须由 Server 能力检查在创建 Run 前拒绝；新增这些能力时升级 State Schema 版本和 Effect/Protocol
-  判别联合，不改变 v1 的持久化语义。
+- Sub Workflow、Secret Gateway 和业务重试等未实现能力必须由 Server 在创建 Run 前拒绝；
+  新增持久化能力时继续升级 State Schema 版本和 Effect/Protocol 判别联合。
 - Core 仍是 Workflow 静态正确性的唯一所有者；Runtime 的 `RUN_STALLED` 只处理动态状态无法推进，
   不能把静态图校验搬进 Compiler。

@@ -32,6 +32,7 @@ export {
   runtimeStateSchema,
   type RuntimeEdgeStatus,
   type RuntimeExecution,
+  type RuntimeLoopState,
   type RuntimeNodeState,
   type RuntimeNodeStatus,
   type RuntimeRunStatus,

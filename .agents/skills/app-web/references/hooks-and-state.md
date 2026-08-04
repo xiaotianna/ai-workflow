@@ -177,7 +177,7 @@ function ExampleForm() {
   `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和
   `workflow_finished`，不得恢复为原生 `EventSource` 或状态 GET 轮询。初始快照和每个
   `node_finished` 事件都携带最新 `nodeStates`、`nodeRuns`、终态耗时 `traceNodeDurations` 与后端
-  执行顺序 `traceNodeIds`；Hook 可以在事件节点尚未进入返回快照时乐观追加该节点，但后续服务端
+  执行顺序 `traceNodeIds`、逐条执行 `traceExecutions` 与活跃循环 `loopIterations`；Hook 可以在事件节点尚未进入返回快照时乐观追加该节点，但后续服务端
   快照必须覆盖校正顺序和耗时。运行态
   不写入编辑器快照、历史或自动保存；POST 流已取得 runId 后意外中断时，只允许
   通过 GET SSE 自动恢复一次，恢复仍失败必须清除残留 `RUNNING` 状态并抛出错误。页面只注入 appId，
@@ -185,6 +185,9 @@ function ExampleForm() {
   入口以及测试运行快捷键都不得再次提交；顶部运行按钮、画布/节点右键入口和 `Alt+R` 在取得
   runId 后统一切换为一次性暂停，调用取消接口成功后清除运行中节点状态并结束当前 SSE。暂停结果
   使用信息 Toast，不按运行失败提示；请求尚未取得 runId 或正在暂停时入口必须禁用。
+- 测试运行追踪优先按 `traceExecutions` 渲染，每个 `executionKey` 对应一行，禁止按 `nodeId`
+  去重或只取最新 NodeRun。Loop 内条目使用服务端返回的 `iteration` 展示“节点·第 n 次”；
+  旧响应缺少 Execution 投影时才回退到节点级追踪。
 - 测试运行镜头由 `WorkflowExecutionCamera`（挂在 `ReactFlow` 子树内）调用
   `useWorkflowExecutionCamera`：节点首次进入 `RUNNING`，或 SSE 批处理跳过 RUNNING 后首次出现
   终态时，若节点完全位于视口外，则保持当前缩放并用 `setCenter` 动画居中；已在视口内不移动画布。

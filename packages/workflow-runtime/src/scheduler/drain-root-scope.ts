@@ -1,12 +1,20 @@
-import { BuiltinNodeType, type WorkflowNode } from '@ai-workflow/core'
+import {
+  BuiltinNodeType,
+  loopNodeSchema,
+  type JsonValue,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 
-import type { ExecutionPlan } from '../compiler/execution-plan'
+import type { ExecutionPlan, StaticScopeKey } from '../compiler/execution-plan'
 import type { RuntimeNodeConfigResolver } from '../config/runtime-node-config-resolver'
+import { evaluateConditionRules } from '../condition/evaluate-condition-rules'
 import { RUNTIME_ERROR_CODES, RuntimeError } from '../runtime/runtime-error'
 import {
   beginNodeExecution,
   markNodeSkipped,
+  recordBusinessNodeSuccess,
   recordControlNodeSuccess,
+  resetScopeState,
 } from '../runtime/runtime-state-operations'
 import {
   RUNTIME_EDGE_STATUSES,
@@ -26,21 +34,19 @@ import { settleOutgoingEdges } from './settle-outgoing-edges'
 function createVariableContext(
   plan: ExecutionPlan,
   state: RuntimeState,
+  scopeKey: StaticScopeKey,
 ): VariableResolutionContext {
-  return {
-    workflow: plan.workflow,
-    state,
-    scopeKey: 'root',
-  }
+  return { workflow: plan.workflow, state, scopeKey }
 }
 
 function dispatchBusinessNode(
   plan: ExecutionPlan,
   state: RuntimeState,
   node: WorkflowNode,
+  scopeKey: StaticScopeKey,
   configResolver: RuntimeNodeConfigResolver,
 ): DispatchNodeEffect {
-  const variableContext = createVariableContext(plan, state)
+  const variableContext = createVariableContext(plan, state, scopeKey)
   const inputs = resolveNodeInputs(node, variableContext)
   const config = configResolver.resolve(node, (value) =>
     resolveVariableValue(value, variableContext),
@@ -59,11 +65,7 @@ function dispatchBusinessNode(
   }
 }
 
-function areAllIncomingEdgesSettled(
-  plan: ExecutionPlan,
-  state: RuntimeState,
-  nodeId: string,
-): boolean {
+function incomingEdgesSettled(plan: ExecutionPlan, state: RuntimeState, nodeId: string): boolean {
   const incomingEdges = plan.incomingEdges.get(nodeId) ?? []
   return (
     incomingEdges.length > 0 &&
@@ -77,95 +79,126 @@ function hasActiveIncomingEdge(plan: ExecutionPlan, state: RuntimeState, nodeId:
   )
 }
 
-function hasRunningNode(state: RuntimeState): boolean {
-  return Object.values(state.nodeStates).some(
-    (nodeState) => nodeState.status === RUNTIME_NODE_STATUSES.RUNNING,
-  )
+function activateAllHandles(plan: ExecutionPlan, nodeId: string): Set<string> {
+  return new Set((plan.outgoingEdges.get(nodeId) ?? []).map((edge) => edge.sourceHandle))
 }
 
-function hasWaitingNode(state: RuntimeState): boolean {
-  return Object.values(state.nodeStates).some(
-    (nodeState) => nodeState.status === RUNTIME_NODE_STATUSES.WAITING,
-  )
-}
-
-/**
- * dag核心调度逻辑
- * 不会真正执行业务节点，只会修改状态并返回 RuntimeEffect[]
- * 该方法不是控制整个dag执行，而是控制整个根 DAG 的一次调度推进，但不执行具体 Node。
- * 一次调用可能同时调度零个、一个或多个 Node。
- * 具体调用分为两种情况：1、初始调用，2、node执行完成调用（不断重复调用）
-  start()
-    ↓
-  drainRootScope()
-    ↓
-  派发 Node
-    ↓
-  Node 执行完成
-    ↓
-  applyNodeResult()
-    ↓
-  drainRootScope()
-    ↓
-  派发下一批 Node
-    ↓
-  ……
-    ↓
-  COMPLETE_RUN / FAIL_RUN
- */
-export function drainRootScope(
-  // node、入边、出边查询索引
+function startLoopIteration(
   plan: ExecutionPlan,
-  // 当前运行的node、edge、Execution状态
   state: RuntimeState,
-  /**
-   * 把节点的node.config转换为本次执行可以直接发送给go executor的纯json配置
-   * 因为有些节点中包含了变量，这些变量可以解析后，统一给go一个静态json
-   * 解析主要是根据：createRuntimeNodeConfigResolver
-   */
+  loopNode: WorkflowNode,
+): void {
+  const loopState = state.loopStates[loopNode.id]!
+  const children = plan.childrenByScope.get(loopNode.id) ?? []
+  const edges = plan.edgesByScope.get(loopNode.id) ?? []
+  resetScopeState(
+    state,
+    children,
+    edges.map((edge) => edge.id),
+  )
+
+  const loopStart = children
+    .map((nodeId) => plan.nodeById.get(nodeId)!)
+    .find((node) => node.type === BuiltinNodeType.LOOP_START)!
+  const loopExecution = state.executions[loopState.executionKey]!
+  const outputs: Record<string, JsonValue> = {
+    input: loopExecution.inputs,
+    iteration: loopState.iteration,
+  }
+  recordControlNodeSuccess(state, loopStart, outputs, loopNode.id)
+  settleOutgoingEdges(plan, state, loopStart.id, activateAllHandles(plan, loopStart.id))
+}
+
+function beginLoop(
+  plan: ExecutionPlan,
+  state: RuntimeState,
+  node: WorkflowNode,
+  scopeKey: StaticScopeKey,
+): void {
+  const context = createVariableContext(plan, state, scopeKey)
+  const config = loopNodeSchema.parse(node.config)
+  const inputs = resolveNodeInputs(node, context)
+  const { execution } = beginNodeExecution(state, node, inputs, {
+    maxIterations: config.maxIterations,
+  })
+  state.loopStates[node.id] = {
+    loopNodeId: node.id,
+    parentScopeKey: scopeKey,
+    executionKey: execution.executionKey,
+    iteration: 1,
+    maxIterations: config.maxIterations,
+  }
+  startLoopIteration(plan, state, node)
+}
+
+function completeLoopIteration(
+  plan: ExecutionPlan,
+  state: RuntimeState,
+  exitNode: WorkflowNode,
+): boolean {
+  const loopNode = plan.nodeById.get(exitNode.parentId!)!
+  const loopState = state.loopStates[loopNode.id]!
+  const context = createVariableContext(plan, state, loopNode.id)
+  const exitInputs = resolveNodeInputs(exitNode, context)
+  recordControlNodeSuccess(state, exitNode, exitInputs, loopNode.id)
+
+  const config = loopNodeSchema.parse(loopNode.config)
+  const shouldStop =
+    loopState.iteration >= loopState.maxIterations ||
+    evaluateConditionRules(config.terminationCondition, context)
+
+  if (!shouldStop) {
+    loopState.iteration += 1
+    startLoopIteration(plan, state, loopNode)
+    return false
+  }
+
+  recordBusinessNodeSuccess(state, loopState.executionKey, {
+    result: exitInputs,
+  })
+  delete state.loopStates[loopNode.id]
+  settleOutgoingEdges(plan, state, loopNode.id, new Set(['result']))
+  return true
+}
+
+function hasStatusInScope(
+  plan: ExecutionPlan,
+  state: RuntimeState,
+  scopeKey: StaticScopeKey,
+  status: string,
+): boolean {
+  return (plan.childrenByScope.get(scopeKey) ?? []).some(
+    (nodeId) => state.nodeStates[nodeId]?.status === status,
+  )
+}
+
+function drainScope(
+  plan: ExecutionPlan,
+  state: RuntimeState,
+  scopeKey: StaticScopeKey,
   configResolver: RuntimeNodeConfigResolver,
-): RuntimeEffect[] {
-  // 初始化
-  // 收集需要派发的业务节点
-  const effects: RuntimeEffect[] = []
-  // 第一阶段只调度根scope节点
-  const rootNodeIds = plan.childrenByScope.get('root') ?? []
-  // 记录本轮是否有节点状态发生变化
+  effects: RuntimeEffect[],
+): void {
+  const nodeIds = plan.childrenByScope.get(scopeKey) ?? []
+
+  // 恢复后从最内层活跃 Loop 继续推进，不依赖调用方记住当前作用域。
+  for (const nodeId of nodeIds) {
+    if (state.loopStates[nodeId]) {
+      drainScope(plan, state, nodeId, configResolver, effects)
+    }
+  }
+
   let progressed = false
 
   do {
     progressed = false
-
-    // 扫描所有的根节点
-    for (const nodeId of rootNodeIds) {
+    for (const nodeId of nodeIds) {
       const node = plan.nodeById.get(nodeId)!
       const nodeState = state.nodeStates[nodeId]!
-      /**
-       * 如果当前节点不是WAITING就忽略，只有 WAITING 节点才可能在本轮被调度
-       * 如果节点已经是：RUNNING、SUCCEEDED、FAILED、SKIPPED，就直接跳到下一个节点
-       */
-      if (nodeState.status !== RUNTIME_NODE_STATUSES.WAITING) {
-        continue
-      }
+      if (nodeState.status !== RUNTIME_NODE_STATUSES.WAITING) continue
+      if (node.type === BuiltinNodeType.LOOP_START) continue
+      if (!incomingEdgesSettled(plan, state, nodeId)) continue
 
-      /**
-       * 等待全部入边确定
-       * 判断条件：
-       * 1、当前节点至少有一条入边
-       * 2、全部入边都已经不是WAITING
-       * 因为下面这种情况：
-       *  A ─┐
-            ├→ C
-          B ─┘
-          当：A → C = ACTIVE，B → C = WAITING
-          那么C也不能立即执行
-       */
-      if (!areAllIncomingEdgesSettled(plan, state, nodeId)) {
-        continue
-      }
-
-      // 代码走到这里，证明入边已经确定，那么没有一条入边是ACTIVE，证明所有都是INACTIVE
-      // 表示当前节点所在的路径没有被激活的，索引不能执行
       if (!hasActiveIncomingEdge(plan, state, nodeId)) {
         markNodeSkipped(state, nodeId)
         settleOutgoingEdges(plan, state, nodeId, new Set())
@@ -180,34 +213,55 @@ export function drainRootScope(
         continue
       }
 
-      effects.push(dispatchBusinessNode(plan, state, node, configResolver))
+      if (node.type === BuiltinNodeType.LOOP_EXIT) {
+        progressed = completeLoopIteration(plan, state, node) || true
+        continue
+      }
+
+      if (node.type === BuiltinNodeType.LOOP) {
+        beginLoop(plan, state, node, scopeKey)
+        drainScope(plan, state, node.id, configResolver, effects)
+        progressed = true
+        continue
+      }
+
+      effects.push(dispatchBusinessNode(plan, state, node, scopeKey, configResolver))
       progressed = true
     }
   } while (progressed)
 
-  if (hasRunningNode(state)) {
+  if (hasStatusInScope(plan, state, scopeKey, RUNTIME_NODE_STATUSES.RUNNING)) return
+  if (scopeKey !== 'root' && state.loopStates[scopeKey]) return
+
+  if (hasStatusInScope(plan, state, scopeKey, RUNTIME_NODE_STATUSES.WAITING)) {
+    throw new RuntimeError(RUNTIME_ERROR_CODES.RUN_STALLED, `Scope ${scopeKey} 没有可推进节点`, {
+      scopeKey,
+      waitingNodeIds: nodeIds.filter(
+        (nodeId) => state.nodeStates[nodeId]?.status === RUNTIME_NODE_STATUSES.WAITING,
+      ),
+    })
+  }
+}
+
+export function drainRootScope(
+  plan: ExecutionPlan,
+  state: RuntimeState,
+  configResolver: RuntimeNodeConfigResolver,
+): RuntimeEffect[] {
+  const effects: RuntimeEffect[] = []
+  drainScope(plan, state, 'root', configResolver, effects)
+  if (effects.length > 0) return effects
+
+  if (
+    Object.values(state.nodeStates).some(
+      (nodeState) => nodeState.status === RUNTIME_NODE_STATUSES.RUNNING,
+    )
+  ) {
     return effects
   }
 
-  if (hasWaitingNode(state)) {
-    throw new RuntimeError(
-      RUNTIME_ERROR_CODES.RUN_STALLED,
-      '根 DAG 没有可推进节点且仍存在 WAITING 节点',
-      {
-        waitingNodeIds: Object.entries(state.nodeStates)
-          .filter(([, nodeState]) => nodeState.status === RUNTIME_NODE_STATUSES.WAITING)
-          .map(([nodeId]) => nodeId),
-      },
-    )
-  }
-
-  const outputs = resolveWorkflowOutputs(createVariableContext(plan, state))
+  const outputs = resolveWorkflowOutputs(createVariableContext(plan, state, 'root'))
   state.status = RUNTIME_RUN_STATUSES.SUCCEEDED
-  effects.push({
-    type: 'COMPLETE_RUN',
-    runId: state.runId,
-    outputs,
-  })
-
+  effects.push({ type: 'COMPLETE_RUN', runId: state.runId, outputs })
   return effects
 }

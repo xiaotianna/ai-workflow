@@ -677,6 +677,7 @@ const workflowRunSummarySelect = {
     orderBy: [{ createdAt: 'asc' }, { attempt: 'asc' }],
     select: {
       id: true,
+      executionKey: true,
       nodeId: true,
       nodeType: true,
       status: true,

@@ -43,13 +43,15 @@ function createExecution(
   config: Record<string, JsonValue>,
   outputs?: Record<string, JsonValue>,
   durationMs?: number,
+  scopeKey: string = node.parentId ?? 'root',
 ): RuntimeExecution {
   const nodeState = getWaitingNodeState(state, node.id)
   const executionKey = createExecutionKey(state)
   const execution: RuntimeExecution = {
     executionKey,
     nodeId: node.id,
-    scopeKey: 'root',
+    scopeKey,
+    ...(state.loopStates[scopeKey] ? { iteration: state.loopStates[scopeKey].iteration } : {}),
     sequence: state.nextExecutionSequence,
     attempt: 1,
     status,
@@ -92,6 +94,7 @@ export function createInitialRuntimeState(
       workflow.edges.map((edge) => [edge.id, RUNTIME_EDGE_STATUSES.WAITING]),
     ),
     executions: {},
+    loopStates: {},
     nextExecutionSequence: 0,
   }
 }
@@ -111,6 +114,7 @@ export function recordControlNodeSuccess(
   state: RuntimeState,
   node: WorkflowNode,
   outputs: Record<string, JsonValue>,
+  scopeKey: string = node.parentId ?? 'root',
 ): RuntimeExecution {
   return createExecution(
     state,
@@ -120,7 +124,21 @@ export function recordControlNodeSuccess(
     {},
     outputs,
     MIN_RECORDED_DURATION_MS,
+    scopeKey,
   )
+}
+
+export function resetScopeState(
+  state: RuntimeState,
+  nodeIds: readonly string[],
+  edgeIds: readonly string[],
+): void {
+  for (const nodeId of nodeIds) {
+    state.nodeStates[nodeId] = { status: RUNTIME_NODE_STATUSES.WAITING }
+  }
+  for (const edgeId of edgeIds) {
+    state.edgeStates[edgeId] = RUNTIME_EDGE_STATUSES.WAITING
+  }
 }
 
 export function recordBusinessNodeSuccess(

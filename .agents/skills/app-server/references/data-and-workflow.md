@@ -153,6 +153,8 @@ Runtime Execution 已归一化的输出，因此 `node.outputs` 中声明的直�
 引用与运行追踪展示，节点内置但未声明的结果字段不会导致运行失败。单节点运行没有 Runtime 上下文，
 NodeRun 继续保存 Executor 原始成功输出，并复用相同 Config projector；节点输入或 Config 存在引用
 变量时在创建 Command 前明确拒绝，避免把引用对象误当成业务值发送给 Go。
+Loop 完整运行由 Runtime 本地管理作用域与迭代，Loop、Loop Start 和 Loop Exit 不创建 MQ Command；
+其内部普通业务节点继续使用相同 Outbox/Inbox 链路。Loop 系统节点与 Loop 容器不支持单节点测试。
 Executor 返回成功但 Runtime 在输出归一化阶段拒绝结果时，NodeRun 必须按对应 Execution 的最终失败
 状态落库；不能再次按原始 Executor `SUCCEEDED` 强读 outputs，否则会掩盖真实 Runtime 错误并触发
 Result Consumer 重试。
@@ -170,9 +172,11 @@ NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stal
 
 测试运行进度通过 Server SSE 推送：Controller 建连后先读取持久化快照以覆盖建连竞态，Result
 事务提交成功后才发布 `node_finished`，并携带最新 `nodeStates`、`nodeRuns`、
-`traceNodeDurations` 与 `traceNodeIds`；Run 进入终态后发布 `workflow_finished`。追踪顺序从
+`loopIterations`、`traceExecutions`、`traceNodeDurations` 与 `traceNodeIds`；Run 进入终态后发布 `workflow_finished`。
+`loopIterations` 只投影 RuntimeState 中活跃 Loop 的当前次数和上限，不进入工作流快照。追踪顺序从
 RuntimeState 已持久化的 Execution `sequence` 生成，Start/End 等本地控制节点也以其 Execution
-为准，只返回真正进入执行链路的节点；终态耗时由本地控制 Execution 与 NodeRun 合并投影。当前事件
+为准。`traceExecutions` 按 `executionKey` 逐条投影，不按 `nodeId` 去重；业务执行与 NodeRun
+按 `executionKey` 精确合并状态、输入、输出和耗时，Loop 内 Execution 同时返回所在迭代次数。当前事件
 订阅器是 Server 进程内边界；部署多个 Server 实例前必须替换为 Redis Pub/Sub 等跨实例事件协调，
 但数据库仍是恢复快照、追踪顺序和最终状态的事实来源。
 
@@ -183,7 +187,8 @@ RuntimeState 已持久化的 Execution `sequence` 生成，Start/End 等本地�
 `startedAt` 等自定义键替代 Core 系统变量键。系统变量与环境变量只参与 Runtime 引用解析，不直接
 进入 Run 顶层输入、Start 输出、NodeRun 输入或 MQ Command 输入；当声明输入（例如 `user_id`）引用
 系统变量或环境变量时，只在该声明 key 下写入解析后的真实值。单节点测试同样不得自动展开上下文变量。
-`executionKey`、`attempt` 继续作为结果关联、幂等和重试所需的服务端内部数据，不进入用户侧运行追踪响应。
+`executionKey` 作为用户侧追踪条目的稳定身份与 NodeRun 关联键，不要拆解其字符串推断节点或迭代；
+`attempt` 继续作为幂等和重试内部数据，不进入用户侧运行追踪响应。
 
 ## LangGraph
 

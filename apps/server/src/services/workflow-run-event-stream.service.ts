@@ -31,7 +31,12 @@ export class WorkflowRunEventStreamService {
     node: WorkflowNodeExecutionStateVo,
     snapshot: Pick<
       WorkflowTestRunVo,
-      'nodeRuns' | 'nodeStates' | 'traceNodeDurations' | 'traceNodeIds'
+      | 'nodeRuns'
+      | 'nodeStates'
+      | 'loopIterations'
+      | 'traceNodeDurations'
+      | 'traceNodeIds'
+      | 'traceExecutions'
     >,
   ): void {
     this.publish(runId, {

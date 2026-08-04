@@ -193,7 +193,8 @@ Nodes UI 保持 schema 和组件类型关联。
   不完整时保留最后一次有效定义，返回 Key 变化后删除旧执行器输出并增加新输出。用户显式配置了
   `value` 的附加输出映射不受源码同步影响。
 - 每个 Loop 必须恰好直接包含一个 `loop_start` 和一个 `loop_exit`；两者不能脱离 Loop，
-  边也不能跨越 Loop 作用域。
+  边也不能跨越 Loop 作用域。每个直接子节点必须从 Loop Start 可达且能到达 Loop Exit。
+  Loop Start 固定公开 `input` 和从 1 开始的 `iteration`；Loop 固定公开最后一轮的 `result`。
 
 ## 新增节点
 

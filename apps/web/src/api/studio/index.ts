@@ -107,6 +107,7 @@ export interface CreateStudioWorkflowTestRunParams {
 
 export interface StudioWorkflowNodeRunDto {
   id: string
+  executionKey: string
   nodeId: string
   nodeType: string
   status: string
@@ -122,11 +123,33 @@ export interface StudioWorkflowNodeRunDto {
   }
 }
 
+export interface StudioWorkflowTraceExecutionDto {
+  executionKey: string
+  nodeId: string
+  scopeKey: string
+  sequence: number
+  iteration?: number
+  status: string
+  input: unknown
+  output?: unknown
+  durationMs?: number
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+}
+
 export type StudioWorkflowNodeExecutionStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 
 export interface StudioWorkflowNodeExecutionStateDto {
   nodeId: string
   status: StudioWorkflowNodeExecutionStatus
+}
+
+export interface StudioWorkflowLoopIterationDto {
+  iteration: number
+  maxIterations: number
 }
 
 export interface StudioWorkflowTestRunDto {
@@ -153,8 +176,10 @@ export interface StudioWorkflowTestRunDto {
   }
   nodeRuns: StudioWorkflowNodeRunDto[]
   nodeStates: StudioWorkflowNodeExecutionStateDto[]
+  loopIterations: Record<string, StudioWorkflowLoopIterationDto>
   traceNodeDurations?: Record<string, number>
   traceNodeIds?: string[]
+  traceExecutions: StudioWorkflowTraceExecutionDto[]
 }
 
 export interface StudioWorkflowRunListItemDto {
@@ -198,8 +223,10 @@ export type StudioWorkflowTestRunSseEvent =
         node: StudioWorkflowNodeExecutionStateDto
         nodeRuns?: StudioWorkflowNodeRunDto[]
         nodeStates: StudioWorkflowNodeExecutionStateDto[]
+        loopIterations: Record<string, StudioWorkflowLoopIterationDto>
         traceNodeDurations?: Record<string, number>
         traceNodeIds?: string[]
+        traceExecutions: StudioWorkflowTraceExecutionDto[]
       }
     }
   | {

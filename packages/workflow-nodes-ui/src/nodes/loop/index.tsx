@@ -17,6 +17,7 @@ export function LoopNode({
   dragHandleClassName,
   renderPort,
   executionStatus,
+  executionProgress,
 }: NodeRendererProps<LoopNodeConfig>) {
   const nodeCapabilities = editorCapabilities?.[node.type]
   const addChildNodeAction = nodeCapabilities?.addChildNode
@@ -37,6 +38,13 @@ export function LoopNode({
           definition={definition}
           onDelete={onDelete}
           executionStatus={executionStatus}
+          executionDetail={
+            executionStatus === 'RUNNING' && executionProgress ? (
+              <span className="text-muted-foreground text-xs leading-4 font-medium tabular-nums">
+                第 {executionProgress.current} / {executionProgress.total} 次
+              </span>
+            ) : null
+          }
           className={cn('shrink-0', dragHandleClassName)}
           actions={
             addChildNodeAction && addChildNodeAction.nodeTypes.length > 0 ? (

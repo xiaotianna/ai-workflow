@@ -14,6 +14,7 @@ export interface NodeHeaderProps {
   onDelete?: () => void
   className?: string
   executionStatus?: NodeExecutionStatus
+  executionDetail?: ReactNode
 }
 
 // 统一渲染节点头部，完整节点渲染器可以通过className适配自身布局
@@ -24,6 +25,7 @@ export function NodeHeader({
   onDelete,
   className,
   executionStatus,
+  executionDetail,
 }: NodeHeaderProps) {
   return (
     <header className={cn('flex items-center justify-between p-3', className)}>
@@ -42,8 +44,9 @@ export function NodeHeader({
         </div>
       </div>
 
-      {executionStatus || actions || onDelete ? (
+      {executionStatus || executionDetail || actions || onDelete ? (
         <div className="ml-3 flex shrink-0 items-center gap-2">
+          {executionDetail}
           {executionStatus ? <NodeExecutionStatusIcon status={executionStatus} /> : null}
           {actions}
           {onDelete ? (

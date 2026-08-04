@@ -74,8 +74,10 @@ export const runtimeExecutionSchema = z.object({
   executionKey: z.string().min(1),
   // 当前 Execution 对应的 Workflow 节点 ID
   nodeId: z.string().min(1),
-  // 当前 Execution 所在的 Runtime Scope；第一阶段只支持根作用域
-  scopeKey: z.literal('root'),
+  // 当前 Execution 所在的 Runtime Scope；root 或所属 Loop 节点 ID
+  scopeKey: z.string().min(1),
+  // 所在 Loop 作用域的当前迭代次数；根作用域不记录
+  iteration: z.number().int().positive().optional(),
   // 节点执行位置的逻辑序号，用于确定性恢复和生成下一次 Execution
   sequence: z.number().int().nonnegative(),
   // 当前节点逻辑执行的尝试次数，首次执行为 1
@@ -94,7 +96,15 @@ export const runtimeExecutionSchema = z.object({
   error: runtimeErrorDataSchema.optional(),
 })
 
-export const RUNTIME_STATE_SCHEMA_VERSION = 1 as const
+export const runtimeLoopStateSchema = z.object({
+  loopNodeId: z.string().min(1),
+  parentScopeKey: z.string().min(1),
+  executionKey: z.string().min(1),
+  iteration: z.number().int().positive(),
+  maxIterations: z.number().int().positive(),
+})
+
+export const RUNTIME_STATE_SCHEMA_VERSION = 2 as const
 
 export const runtimeStateSchema = z.object({
   // 持久化 State 的结构版本，用于恢复时选择兼容的解析或迁移逻辑
@@ -119,6 +129,8 @@ export const runtimeStateSchema = z.object({
   edgeStates: z.record(z.string(), runtimeEdgeStatusSchema),
   // 按 executionKey 保存每次节点逻辑执行的输入、配置、输出和错误
   executions: z.record(z.string(), runtimeExecutionSchema),
+  // 只保存正在运行的 Loop 作用域；完成后由 Execution 保留历史
+  loopStates: z.record(z.string(), runtimeLoopStateSchema),
   // 下一次创建 Execution 时使用的逻辑序号
   nextExecutionSequence: z.number().int().nonnegative(),
 })
@@ -126,6 +138,7 @@ export const runtimeStateSchema = z.object({
 export type RuntimeState = z.output<typeof runtimeStateSchema>
 export type RuntimeNodeState = z.output<typeof runtimeNodeStateSchema>
 export type RuntimeExecution = z.output<typeof runtimeExecutionSchema>
+export type RuntimeLoopState = z.output<typeof runtimeLoopStateSchema>
 export type RuntimeRunStatus = z.output<typeof runtimeRunStatusSchema>
 export type RuntimeNodeStatus = z.output<typeof runtimeNodeStatusSchema>
 export type RuntimeEdgeStatus = z.output<typeof runtimeEdgeStatusSchema>
