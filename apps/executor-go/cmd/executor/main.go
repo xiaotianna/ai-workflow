@@ -14,13 +14,18 @@ import (
 )
 
 const defaultRabbitMQURL = "amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow"
+const defaultModelResolverURL = "http://127.0.0.1:3000/internal/executor/models/resolve"
 
 func main() {
 	logger := log.New(os.Stdout, "executor-go ", log.LstdFlags|log.LUTC)
 	// 实例化注册方法（类似new NewRegistry()）
 	registry := executor.NewRegistry()
+	modelResolverURL := os.Getenv("MODEL_RUNTIME_RESOLVER_URL")
+	if modelResolverURL == "" {
+		modelResolverURL = defaultModelResolverURL
+	}
 	// 调用注册所有node
-	executors.RegisterBuiltins(registry, logger)
+	executors.RegisterBuiltins(registry, logger, modelResolverURL)
 	rabbitMQURL := os.Getenv("RABBITMQ_URL")
 	if rabbitMQURL == "" {
 		rabbitMQURL = defaultRabbitMQURL

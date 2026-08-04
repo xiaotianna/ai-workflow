@@ -1,8 +1,6 @@
 import {
   ENVIRONMENT_VARIABLE_NAMESPACE,
   getEnvironmentVariableDataType,
-  getNodePorts,
-  nodeRegistry,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
   type WorkflowEdge,
@@ -91,9 +89,6 @@ export function getAvailableVariables({
   for (const node of nodes) {
     if (!upstreamNodeIds.has(node.id)) continue
 
-    const nodeType = nodeRegistry.get(node.type)
-    if (!nodeType) continue
-
     const nodeLabel = getWorkflowNodeDisplayLabel(node)
     const outputs = new Map(
       node.outputs.map((output) => [
@@ -103,20 +98,6 @@ export function getAvailableVariables({
         },
       ]),
     )
-    const parsedConfig = nodeType.schema.safeParse(node.config)
-
-    if (parsedConfig.success) {
-      const ports = getNodePorts(nodeType, parsedConfig.data)
-
-      for (const [outputKey, port] of Object.entries(ports.outputs)) {
-        if (!outputs.has(outputKey)) {
-          outputs.set(outputKey, {
-            dataType: port.dataType,
-          })
-        }
-      }
-    }
-
     for (const [outputKey, output] of outputs) {
       const optionId = JSON.stringify(['node', node.id, outputKey])
       if (optionIds.has(optionId)) continue

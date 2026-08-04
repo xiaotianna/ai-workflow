@@ -315,8 +315,8 @@ Runtime 会：
 
 Runtime 会：
 
-1. 根据节点 `outputs` 定义校验结果
-2. 拒绝多余字段
+1. 根据节点 `outputs` 定义投影可引用变量
+2. 忽略未声明字段；原始 Executor 输出仍由 Server 保存到 NodeRun
 3. 检查必填字段
 4. 应用默认值
 5. 检查 JSON 和 dataType

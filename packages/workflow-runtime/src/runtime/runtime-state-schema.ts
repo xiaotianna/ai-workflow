@@ -88,7 +88,7 @@ export const runtimeExecutionSchema = z.object({
   inputs: z.record(z.string(), jsonValueSchema),
   // 已通过节点 Schema 校验并完成变量解析，可以安全派发给 Executor 的节点配置
   config: z.record(z.string(), jsonValueSchema),
-  // Executor 成功返回的 JSON 输出，按节点输出字段保存
+  // Executor 成功返回后，按节点已声明输出投影出的可引用 JSON 变量
   outputs: z.record(z.string(), jsonValueSchema).optional(),
   // Executor 或 Runtime 产生的标准化错误数据，只在执行失败时保存
   error: runtimeErrorDataSchema.optional(),

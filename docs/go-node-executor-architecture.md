@@ -1,7 +1,7 @@
 # Go 节点执行器架构
 
 > 状态：根作用域 Runtime、Workflow Protocol、Server Outbox/Inbox、RabbitMQ Publisher/Consumer 和
-> Go Worker 已接入；当前只有节点业务 Executor 仍为 mock。
+> Go Worker 已接入；LLM 已实现真实供应商调用，其余节点业务 Executor 仍为最小实现。
 >
 > 本文只定义职责、边界、关键契约和实施顺序，不提供可直接复制的逐文件伪实现。实际实现始终以
 > `@ai-workflow/core`、`@ai-workflow/runtime`、`@ai-workflow/protocol` 和 `apps/server` 的源码为准。
@@ -37,13 +37,13 @@
 
 本文不能把规划写成已经落地的能力。当前真实状态是：
 
-| 范围                    | 已有内容                                                                  | 仍缺少的内容                                  |
-| ----------------------- | ------------------------------------------------------------------------- | --------------------------------------------- |
-| `@ai-workflow/core`     | Workflow、节点、Edge、变量、节点注册表、配置 Schema、保存校验和执行前校验 | Workflow outputs 与 Config 引用等后续静态规则 |
-| `@ai-workflow/runtime`  | 根作用域 ExecutionPlan、状态机、变量解析、DAG 调度、恢复和公开入口        | Loop、Sub Workflow、取消、业务重试和流式事件  |
-| `@ai-workflow/protocol` | v1 Schema、TypeScript/Go codec，并已用于 RabbitMQ Command/Result 边界     | 后续协议版本和流式事件                        |
-| `apps/server`           | 测试运行、RuntimeState revision、Outbox/Result、CAS 与运行状态 SSE        | 取消、超时扫描和 Secret Gateway               |
-| Go Executor             | RabbitMQ Worker、Publisher Confirm、Registry 与分节点 mock Executor       | 幂等副作用存储和真实业务节点 Executor         |
+| 范围                    | 已有内容                                                                          | 仍缺少的内容                                  |
+| ----------------------- | --------------------------------------------------------------------------------- | --------------------------------------------- |
+| `@ai-workflow/core`     | Workflow、节点、Edge、变量、节点注册表、配置 Schema、保存校验和执行前校验         | Workflow outputs 与 Config 引用等后续静态规则 |
+| `@ai-workflow/runtime`  | 根作用域 ExecutionPlan、状态机、变量解析、DAG 调度、恢复和公开入口                | Loop、Sub Workflow、取消、业务重试和流式事件  |
+| `@ai-workflow/protocol` | v1 Schema、TypeScript/Go codec，并已用于 RabbitMQ Command/Result 边界             | 后续协议版本和流式事件                        |
+| `apps/server`           | 测试运行、RuntimeState revision、Outbox/Result、CAS、运行状态 SSE 与 LLM 模型解析 | 通用 Secret Gateway                           |
+| Go Executor             | RabbitMQ Worker、Publisher Confirm、Registry、真实 LLM 与其他节点最小实现         | 幂等副作用存储和其余真实业务节点 Executor     |
 
 `packages/workflow-runtime/src` 已按本文第一阶段边界形成可用公共 API；`packages/workflow-protocol`
 的 JSON Schema 是 TypeScript 与 Go 消息校验的唯一来源。后续能力仍需遵守 State Schema 和协议版本策略。
@@ -457,8 +457,10 @@ type Worker struct {
 ```
 
 当前 `apps/executor-go` 已提供 RabbitMQ Worker、无 fallback 的 Registry 和 `internal/executors`
-分节点 Mock。各节点只打印安全命令身份并返回协议结果；Worker 只有在 Result 获得 Publisher Confirm
-后才 Ack Command。
+分节点实现。LLM 按 Core Config 解析模型引用、上下文、参数和异常处理，通过受租约保护的 Server
+解析接口获取真实模型配置，再从独立 Provider Registry 选择 OpenAI、DeepSeek 或 Ollama 适配器；
+展示快照不参与执行，API Key 不进入 MQ。其余节点仍为最小实现。Worker 只有在 Result 获得
+Publisher Confirm 后才 Ack Command。
 
 处理流程固定为：
 
@@ -524,10 +526,10 @@ Go 不接收子 Workflow 的完整 DAG。Sub Workflow 需要专门的宿主 Effe
 4. 建立最小 Protocol Schema，并生成 TypeScript 与 Go 类型。
 5. Server 已增加 RuntimeState、revision、Outbox、Inbox 和 lease 持久化。
 6. Server 已通过 RabbitMQ Publisher/Consumer 跑通启动、Outbox、结果事务和进程重启后的派发恢复。
-7. Go 已提供 Worker、Publisher Confirm、Registry 与分节点 mock Executor；下一步逐个替换真实业务逻辑。
+7. Go 已提供 Worker、Publisher Confirm、Registry 与真实 LLM Executor；下一步逐个替换其余节点业务逻辑。
 8. 验证并行结果乱序、重复消息、进程重启、租约过期和超时恢复。
-9. 基础链路稳定后再实现 Loop、Secret Gateway、节点内容/token 级流式事件和 Sub Workflow；运行状态
-   SSE 已由 Server 宿主实现。
+9. 基础链路稳定后再实现 Loop、通用 Secret Gateway、节点内容/token 级流式事件和 Sub Workflow；
+   LLM 当前已有受 NodeRun 租约保护的专用模型解析接口，运行状态 SSE 已由 Server 宿主实现。
 
 每一步只公开已经可用的 API，不让文档中的未来文件名反向绑死实现目录。
 

@@ -33,11 +33,13 @@ apps/server/
 │   ├── main.ts
 │   ├── controllers/
 │   │   ├── auth.controller.ts
+│   │   ├── executor-model.controller.ts
 │   │   ├── model.controller.ts
 │   │   ├── studio-app.controller.ts
 │   │   └── workflow-run.controller.ts
 │   ├── dto/
 │   │   ├── auth.dto.ts
+│   │   ├── executor-model.dto.ts
 │   │   ├── model.dto.ts
 │   │   └── studio.dto.ts
 │   ├── generated/prisma/
@@ -48,14 +50,17 @@ apps/server/
 │   ├── infra/workflow-mq/
 │   ├── modules/
 │   │   ├── auth.module.ts
+│   │   ├── executor-model.module.ts
 │   │   ├── models.module.ts
 │   │   └── studio.module.ts
 │   ├── repositories/
+│   │   ├── executor-model.repository.ts
 │   │   ├── model-group.repository.ts
 │   │   ├── studio-app.repository.ts
 │   │   └── workflow-run.repository.ts
 │   └── services/
 │       ├── auth.service.ts
+│       ├── executor-model.service.ts
 │       ├── model-connection-test.service.ts
 │       ├── model-group.service.ts
 │       ├── studio-app.service.ts

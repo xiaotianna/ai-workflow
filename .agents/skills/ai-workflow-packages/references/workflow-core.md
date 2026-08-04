@@ -132,6 +132,10 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeType.createInitialInputs()` 与 `createInitialOutputs()` 为需要预置变量的节点分别生成
   独立的输入绑定和输出定义；`createInitialConfig(variables)` 可以读取同一批初始变量，
   让配置模板与变量名保持一致。未声明变量工厂的节点继续使用空输入和空输出。
+- `NodeType.fixedOutputs` 声明节点实例不可删除或修改的固定输出定义，统一通过
+  `normalizeNodeOutputs` 合并到 `node.outputs`。输出端口只负责 Edge Handle 与执行分支，
+  `node.outputs` 才是节点公开的变量集合；即使两者当前使用相同字符串，也不得从端口推导变量，
+  或用端口存在性放宽变量引用校验。LLM 固定公开 `result`，同时允许实例追加其他输出定义。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `NodeType.variableForm` 以可选的 `input` / `output` 区域声明节点变量表单；每个区域只保存
   标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
@@ -146,6 +150,7 @@ Nodes UI 保持 schema 和组件类型关联。
 - `getNodePorts(nodeType, rawConfig)` 先解析配置，再返回动态端口或静态端口。
 - `VariableValue` 只区分直接值和引用值；节点引用通过
   `nodeId + outputKey + path` 定位，`path: []` 读取整个输出变量，非空 `path` 读取嵌套字段。
+  节点变量引用只允许使用上游实例 `node.outputs` 已声明的 Key，不把静态或动态输出端口视为变量。
 - 内置系统变量由 `SYSTEM_VARIABLE_DEFINITIONS` 统一声明稳定 Key、`DataType` 和说明，文本
   命名空间统一使用 `SYSTEM_VARIABLE_NAMESPACE`（当前为 `sys`）。系统引用持久化为
   `scope: 'system' + key`，`key` 只保存 `user_id` 等裸 Key，不重复保存 `sys.`；

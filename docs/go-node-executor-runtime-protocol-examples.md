@@ -909,7 +909,7 @@ export const RUNTIME_ERROR_CODES = {
   UNSUPPORTED_SECRET_VARIABLE: 'UNSUPPORTED_SECRET_VARIABLE',
   // 当前节点类型没有注册显式 Runtime Config projector。
   UNSUPPORTED_NODE_CONFIG: 'UNSUPPORTED_NODE_CONFIG',
-  // Executor 返回的输出字段缺失、多余，或结果不符合节点输出声明。
+  // Executor 缺少节点声明的必填输出，或已声明输出不符合约束。
   INVALID_NODE_RESULT: 'INVALID_NODE_RESULT',
   // 节点 Executor 执行失败，Runtime 将其归一化为工作流失败原因。
   NODE_EXECUTION_FAILED: 'NODE_EXECUTION_FAILED',
@@ -1250,8 +1250,8 @@ export function parseSystemVariables(
 
 ### 5.12 `packages/workflow-runtime/src/input/normalize-declared-values.ts`
 
-**作用**：按 Core `NodeOutputDefinition` 归一化 Start 输入或业务节点输出，统一处理未知字段、必填、
-默认值、JSON 边界和 DataType。
+**作用**：按 Core `NodeOutputDefinition` 归一化 Start 输入或业务节点输出，统一处理未知字段策略、
+必填、默认值、JSON 边界和 DataType。
 
 ```ts
 import type { JsonValue, NodeOutputDefinition } from '@ai-workflow/core'
@@ -1264,6 +1264,7 @@ import { matchesDataType } from '../utils/matches-data-type'
 export interface NormalizeDeclaredValuesOptions {
   boundary: 'startInput' | 'nodeOutput'
   ownerId: string
+  unknownValuePolicy: 'reject' | 'omit'
 }
 
 export function normalizeDeclaredValues(
@@ -1274,7 +1275,7 @@ export function normalizeDeclaredValues(
   const definitionByKey = new Map(definitions.map((definition) => [definition.key, definition]))
   const unknownKeys = Object.keys(rawValues).filter((key) => !definitionByKey.has(key))
 
-  if (unknownKeys.length > 0) {
+  if (options.unknownValuePolicy === 'reject' && unknownKeys.length > 0) {
     throw new RuntimeError(
       options.boundary === 'startInput'
         ? RUNTIME_ERROR_CODES.INVALID_START_INPUT
@@ -2370,6 +2371,7 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
     const startInput = normalizeDeclaredValues(input.input, startNode.outputs, {
       boundary: 'startInput',
       ownerId: startNode.id,
+      unknownValuePolicy: 'reject',
     })
     const state = createInitialRuntimeState(
       this.plan.workflow,
@@ -2437,6 +2439,7 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
       const outputs = normalizeDeclaredValues(result.outputs, node.outputs, {
         boundary: 'nodeOutput',
         ownerId: node.id,
+        unknownValuePolicy: 'omit',
       })
       recordBusinessNodeSuccess(restoredState, execution.executionKey, outputs)
       settleOutgoingEdges(this.plan, restoredState, node.id, new Set(result.activatedHandles))

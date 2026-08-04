@@ -144,6 +144,7 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
     const startInput = normalizeDeclaredValues(input.input, startNode.outputs, {
       boundary: 'startInput',
       ownerId: startNode.id,
+      unknownValuePolicy: 'reject',
     })
     const state = createInitialRuntimeState(
       this.plan.workflow,
@@ -220,6 +221,7 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
       const outputs = normalizeDeclaredValues(result.outputs, node.outputs, {
         boundary: 'nodeOutput',
         ownerId: node.id,
+        unknownValuePolicy: 'omit',
       })
       recordBusinessNodeSuccess(restoredState, execution.executionKey, outputs)
       settleOutgoingEdges(this.plan, restoredState, node.id, new Set(result.activatedHandles))

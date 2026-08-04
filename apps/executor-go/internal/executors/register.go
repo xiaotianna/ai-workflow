@@ -12,8 +12,8 @@ import (
 )
 
 // 注册所有的node executor
-func RegisterBuiltins(registry *executor.Registry, logger *log.Logger) {
-	registry.Register(llmexecutor.NodeType, llmexecutor.New(logger))
+func RegisterBuiltins(registry *executor.Registry, logger *log.Logger, modelResolverURL string) {
+	registry.Register(llmexecutor.NodeType, llmexecutor.New(logger, modelResolverURL))
 	registry.Register(ragexecutor.NodeType, ragexecutor.New(logger))
 	registry.Register(codeexecutor.NodeType, codeexecutor.New(logger))
 	registry.Register(httpexecutor.NodeType, httpexecutor.New(logger))

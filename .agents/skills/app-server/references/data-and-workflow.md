@@ -73,6 +73,13 @@
 - 用户配置的模型 Base URL 只允许 HTTP/HTTPS，不得包含 URL 凭证、查询参数或片段。服务端默认
   阻止私有、回环和保留地址；通过 `MODEL_CONNECTION_PRIVATE_HOSTS` 显式放行需要访问的 Ollama
   或可信内网端点，探测请求禁止自动跟随重定向并限制超时与响应体大小。
+- Go LLM Executor 不使用工作流中的模型展示快照，也不从 MQ 接收 API Key。它使用 Command 自带的
+  NodeRun 身份和 Lease Token 调用 `ExecutorModelModule`；Server 校验运行状态和 deadline，从不可变
+  WorkflowVersion 读取稳定模型引用，再按应用 Owner 解析启用状态、真实模型 ID、Base URL 和凭证。
+  该专用解析接口是当前已落地的最小模型凭证边界，不代表通用 Secret Gateway 已完成。
+- LLM 上下文正文来自 Core `config.messages`；完整运行注册 Runtime 的 `projectLlmNodeConfig`，在派发前
+  解析正文中的节点、环境与系统变量引用。节点 `inputs` 是独立且可选的通用输入绑定，Server 与 Go
+  均不得假设存在名为 `input` 的字段，也不得把它自动追加成一条模型消息。
 
 ## 知识库持久化
 
@@ -136,9 +143,12 @@
 idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId/NodeRun/leaseToken，再用
 revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING → PUBLISHED/FAILED`
 和 `FOR UPDATE SKIP LOCKED` claim 派发；stale claim 可恢复。Go 只有在 Result 获得 Publisher Confirm
-后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。当前节点业务 Executor 仍为
-最小占位实现，但其 Result 与后续完整实现使用同一协议链路；Server 不识别执行器实现类型，
-不从版本快照改写或补齐输出。后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
+后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM Executor 已按 Core
+Config、运行时模型解析接口和供应商 Registry 执行真实请求，其余节点业务 Executor 仍为最小实现；
+所有 Result 与后续完整实现使用同一协议链路，Server 不识别执行器实现类型，
+不从版本快照改写或补齐输出。Server 将 Executor 原始成功输出保存到 NodeRun；完整运行的 Runtime
+只把 `node.outputs` 已声明字段投影为下游可引用变量，节点内置但未声明的结果字段不会导致运行失败。
+后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布
 `workflow_finished`。业务副作用幂等存储和真实节点不得假装已经实现。

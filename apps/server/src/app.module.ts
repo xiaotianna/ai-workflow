@@ -8,6 +8,7 @@ import { AuthenticationModule } from './modules/authentication.module'
 import { StudioModule } from './modules/studio.module'
 import { ModelsModule } from './modules/models.module'
 import { KnowledgeBaseModule } from './modules/knowledge-base.module'
+import { ExecutorModelModule } from './modules/executor-model.module'
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { KnowledgeBaseModule } from './modules/knowledge-base.module'
     StudioModule,
     ModelsModule,
     KnowledgeBaseModule,
+    ExecutorModelModule,
   ],
   controllers: [],
 })

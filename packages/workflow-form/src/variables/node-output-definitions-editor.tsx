@@ -23,10 +23,13 @@ import { createUniqueKey } from '../utils/create-unique-key'
 export function NodeOutputDefinitionsEditor({
   section,
   outputs,
+  fixedOutputs = [],
   outputErrors,
   disabled,
   onOutputsChange,
 }: NodeVariableSectionRendererProps) {
+  const fixedOutputKeys = new Set(fixedOutputs.map((output) => output.key))
+
   function addOutput() {
     const key = createUniqueKey(
       'output',
@@ -44,6 +47,8 @@ export function NodeOutputDefinitionsEditor({
   }
 
   function updateOutput(index: number, values: Partial<NodeOutputDefinition>) {
+    if (fixedOutputKeys.has(outputs[index]?.key ?? '')) return
+
     onOutputsChange(
       outputs.map((output, outputIndex) =>
         outputIndex === index
@@ -77,6 +82,7 @@ export function NodeOutputDefinitionsEditor({
       {outputs.length > 0 ? (
         <div className="space-y-2">
           {outputs.map((output, index) => {
+            const isFixed = fixedOutputKeys.has(output.key)
             const keyError = getFieldError(outputErrors, `${index}.key`)
             const labelError = getFieldError(outputErrors, `${index}.label`)
             const dataTypeError = getFieldError(outputErrors, `${index}.dataType`)
@@ -89,7 +95,7 @@ export function NodeOutputDefinitionsEditor({
                   <Input
                     className="h-8 text-[13px] md:text-[13px]"
                     value={output.key}
-                    disabled={disabled}
+                    disabled={disabled || isFixed}
                     aria-label={`${section.label}名称`}
                     aria-invalid={Boolean(keyError ?? labelError)}
                     placeholder="变量名"
@@ -114,7 +120,7 @@ export function NodeOutputDefinitionsEditor({
                             'hover:border-input-focus hover:bg-background focus-visible:border-input-focus focus-visible:bg-background dark:hover:bg-background dark:focus-visible:bg-background h-8 w-9 shrink-0 rounded-r-none bg-transparent hover:z-10 focus-visible:z-10',
                             output.description ? 'text-primary' : 'text-muted-foreground',
                           )}
-                          disabled={disabled}
+                          disabled={disabled || isFixed}
                           aria-label={`编辑变量 ${output.key || index + 1} 的说明`}
                           aria-invalid={Boolean(descriptionError)}
                         >
@@ -130,7 +136,7 @@ export function NodeOutputDefinitionsEditor({
                         <Form.Field label="变量说明" error={descriptionError}>
                           <Textarea
                             value={output.description ?? ''}
-                            disabled={disabled}
+                            disabled={disabled || isFixed}
                             aria-label={`${section.label}说明`}
                             aria-invalid={Boolean(descriptionError)}
                             placeholder="填写该变量的用途或返回内容"
@@ -155,7 +161,7 @@ export function NodeOutputDefinitionsEditor({
 
                     <DataTypeSelect
                       value={output.dataType}
-                      disabled={disabled}
+                      disabled={disabled || isFixed}
                       size="sm"
                       className="min-w-0 flex-1 rounded-l-none bg-transparent text-[13px] hover:z-10 focus-visible:z-10"
                       contentAlign="end"
@@ -176,7 +182,7 @@ export function NodeOutputDefinitionsEditor({
                     variant="ghost"
                     size="icon-xs"
                     className="text-muted-foreground hover:text-destructive focus-visible:text-destructive"
-                    disabled={disabled}
+                    disabled={disabled || isFixed}
                     aria-label={`删除变量 ${output.key || index + 1}`}
                     onClick={() =>
                       onOutputsChange(

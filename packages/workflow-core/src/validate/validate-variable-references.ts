@@ -1,7 +1,7 @@
 import type { WorkflowEdge } from '../edge/workflow-edge-schema'
 import type { WorkflowNode } from '../node/workflow-node-schema'
 import type { WorkflowEnvironmentVariable } from '../variable/environment-variable'
-import type { NodeValidationResult, ReportValidationIssueFn } from './validate-types'
+import type { ReportValidationIssueFn } from './validate-types'
 
 // 根据执行连线收集当前节点的全部上游节点，变量可见性不依赖画布坐标或nodes数组顺序
 const collectUpstreamNodeIds = (
@@ -27,7 +27,6 @@ export const validateVariableReferences = (
   workflowNodes: readonly WorkflowNode[],
   environmentVariables: readonly WorkflowEnvironmentVariable[],
   resolvedEdges: readonly WorkflowEdge[],
-  nodes: NodeValidationResult,
   report: ReportValidationIssueFn,
 ): void => {
   const nodeById = new Map(workflowNodes.map((node) => [node.id, node]))
@@ -86,12 +85,9 @@ export const validateVariableReferences = (
         continue
       }
 
-      const dynamicOutputExists = referencedNode.outputs.some((output) => output.key === outputKey)
-      const staticOutputExists = Boolean(
-        nodes.portsByNodeId.get(referencedNodeId)?.outputs[outputKey],
-      )
+      const outputExists = referencedNode.outputs.some((output) => output.key === outputKey)
 
-      if (!dynamicOutputExists && !staticOutputExists) {
+      if (!outputExists) {
         report({
           scope: 'node',
           nodeId: node.id,

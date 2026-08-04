@@ -15,6 +15,7 @@ export interface NodeVariableSectionRendererProps {
   section: NodeVariableFormSection
   inputs: NodeInputBindingsFormValue
   outputs: readonly NodeOutputDefinition[]
+  fixedOutputs?: readonly NodeOutputDefinition[]
   availableVariables?: readonly AvailableVariableOption[]
   inputErrors?: NodeVariableFieldErrors
   outputErrors?: NodeVariableFieldErrors

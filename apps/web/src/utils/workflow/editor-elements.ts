@@ -6,6 +6,7 @@ import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import {
   BuiltinNodeType,
   getNodePorts,
+  normalizeNodeOutputs,
   nodeRegistry,
   type WorkflowEdge,
   type WorkflowNode,
@@ -100,7 +101,10 @@ const createCanvasNode = (
   const nodeType = nodeRegistry.getOrThrow(type)
   const label = getNextNodeLabel(type, existingNodes)
   const inputs = nodeType.createInitialInputs?.() ?? {}
-  const outputs = nodeType.createInitialOutputs?.() ?? []
+  const outputs = normalizeNodeOutputs(
+    nodeType.createInitialOutputs?.() ?? [],
+    nodeType.fixedOutputs,
+  )
 
   return {
     id: generateUuid(),

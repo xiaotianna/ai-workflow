@@ -29,7 +29,7 @@ export const RUNTIME_ERROR_CODES = {
   UNSUPPORTED_SECRET_VARIABLE: 'UNSUPPORTED_SECRET_VARIABLE',
   // 当前节点类型没有注册显式 Runtime Config projector
   UNSUPPORTED_NODE_CONFIG: 'UNSUPPORTED_NODE_CONFIG',
-  // Executor 返回的输出字段缺失、多余，或结果不符合节点输出声明
+  // Executor 缺少节点声明的必填输出，或已声明输出不符合约束
   INVALID_NODE_RESULT: 'INVALID_NODE_RESULT',
   // 节点 Executor 执行失败，Runtime 将其归一化为工作流失败原因
   NODE_EXECUTION_FAILED: 'NODE_EXECUTION_FAILED',

@@ -313,7 +313,9 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
 - `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
   `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
-  默认值元数据。默认输入与默认输出变量区都使用 UI `Form.Field` 统一标题、说明、内容间距
+  默认值元数据。Core `NodeType.fixedOutputs` 经 Web 透传后，匹配的输出行禁用变量名、说明、
+  数据类型和删除操作，新增的普通输出仍可编辑。默认输入与默认输出变量区都使用 UI
+  `Form.Field` 统一标题、说明、内容间距
   和纯图标新增操作；输出项使用“变量名与说明入口、紧凑数据类型、删除按钮”的单行 32px
   三列布局，不展示独立 label 输入框。变量名列与输入变量区一样使用 96–120px，第二列占据
   剩余宽度；修改变量名时同步更新 `key` 与 `label`。说明按钮和数据类型下拉组成同一个

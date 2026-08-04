@@ -26,6 +26,7 @@ import {
   createRuntimeContextInputs,
   createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
+  projectLlmNodeConfig,
   projectStaticJsonNodeConfig,
   RUNTIME_EXECUTION_STATUSES,
   RUNTIME_NODE_STATUSES,
@@ -499,7 +500,10 @@ export class WorkflowRunService {
 
     return createRuntimeNodeConfigResolver(
       Object.fromEntries(
-        [...businessNodeTypes].map((nodeType) => [nodeType, projectStaticJsonNodeConfig]),
+        [...businessNodeTypes].map((nodeType) => [
+          nodeType,
+          nodeType === BuiltinNodeType.LLM ? projectLlmNodeConfig : projectStaticJsonNodeConfig,
+        ]),
       ),
     )
   }

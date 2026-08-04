@@ -164,6 +164,18 @@ Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修�
 `authentication=not_required` 表示 Ollama 等供应商无需 Key；支持 Key 但未携带时才返回
 `not_checked`，不得把“无需认证”展示成“未验证 Key”。
 
+## 当前 Executor 内部接口
+
+- `POST /internal/executor/models/resolve`：只供 Go LLM Executor 使用，不接受用户 Bearer Token；请求必须携带
+  `commandId`、`runId`、`nodeRunId`、`nodeId`、`executionKey` 和 `leaseToken`。Server 同时校验
+  NodeRun、Run 状态与 deadline，从绑定的不可变 WorkflowVersion 重新解析 LLM Config，再按所属应用
+  `ownerId` 解析启用的模型组与模型。
+- 运行时只信任 Core Config 中的 `groupId` 与 `configuredModelId`；`groupName`、`modelId`、
+  `modelName`、`providerType` 是展示快照，不得作为真实供应商配置。
+- 成功响应带本次执行所需的真实 `providerType`、`modelId`、`baseUrl` 和可选明文 `apiKey`，并设置
+  `Cache-Control: no-store`。该路由只能位于 Server 与 Executor 的受控内部网络并使用 TLS，不得经公网
+  网关、缓存或记录响应正文；错误日志不得包含 Lease Token、API Key 或完整请求/响应。
+
 ## 依赖方向
 
 - 传输层依赖应用服务，应用服务依赖抽象的数据访问或运行时接口。

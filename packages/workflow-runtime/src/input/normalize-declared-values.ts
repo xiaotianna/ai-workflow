@@ -8,6 +8,7 @@ import { matchesDataType } from '../utils/matches-data-type'
 export interface NormalizeDeclaredValuesOptions {
   boundary: 'startInput' | 'nodeOutput'
   ownerId: string
+  unknownValuePolicy: 'reject' | 'omit'
 }
 
 export function normalizeDeclaredValues(
@@ -18,7 +19,7 @@ export function normalizeDeclaredValues(
   const definitionByKey = new Map(definitions.map((definition) => [definition.key, definition]))
   const unknownKeys = Object.keys(rawValues).filter((key) => !definitionByKey.has(key))
 
-  if (unknownKeys.length > 0) {
+  if (options.unknownValuePolicy === 'reject' && unknownKeys.length > 0) {
     throw new RuntimeError(
       options.boundary === 'startInput'
         ? RUNTIME_ERROR_CODES.INVALID_START_INPUT

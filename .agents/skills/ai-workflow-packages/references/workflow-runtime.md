@@ -12,6 +12,9 @@
   和静态 Scope 索引，不重复校验节点、端口、环、Loop 或变量引用。
 - `createRuntimeNodeConfigResolver(projectors)`：按 nodeType 注册显式 Config projector；
   `projectStaticJsonNodeConfig` 只用于确认不含运行时变量位置的纯 JSON Config。
+- `projectLlmNodeConfig`：解析 LLM `config.messages[].content` 中由上下文编辑器写入的
+  `{{#nodeId.outputKey.path#}}`、`{{#env.variableId.path#}}` 与 `{{#sys.key.path#}}` 引用，派发前将
+  string 直接插入、其他 JSON 值序列化为文本；Go Executor 只接收解析后的消息列表。
 - `createRuntimeContextInputs(workflow, systemVariables)`：把非 Secret 环境变量和系统变量分别展开为
   `env.<name>`、`sys.<key>` 输入；Secret 不得进入 RuntimeState、Execution 或 MQ。
 - `createWorkflowRuntime(workflow, { workflowVersionId, configResolver })`：创建绑定不可变 WorkflowVersion
@@ -35,6 +38,9 @@
   `env.<name>` 与 `sys.<key>` 上下文输入，命名空间上下文值在同名键冲突时保持权威。
 - `applyNodeResult()` 只接受已由 `@ai-workflow/protocol` parser 校验的 `ExecuteNodeResult`。Command 的
   commandId、nodeRunId、leaseToken、deadline 和 Inbox/Outbox 幂等仍由 Server 负责。
+- 成功 Result 的原始 `outputs` 可以包含节点内置结果字段；Runtime 只按可选的 `node.outputs` 声明
+  投影进入 Execution 的可引用变量，未声明字段不进入 RuntimeState，但不会导致工作流失败。已声明
+  字段仍校验必填、默认值、JSON 边界与 dataType；Start 输入继续拒绝未声明字段。
 - Runtime 内部异常使用 `RuntimeError`；进入 State、Effect、数据库、MQ 或 API 前转换成只含 JSON 的
   `RuntimeErrorData`。
 

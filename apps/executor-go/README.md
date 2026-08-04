@@ -16,6 +16,10 @@
 
 Registry 不提供 fallback；未注册的 `nodeType` 返回 `NODE_EXECUTOR_NOT_REGISTERED`。内置注册入口 `internal/executors.RegisterBuiltins` 当前注册 `llm`、`rag`、`code`、`http`、`condition`，每个目录自行实现 `NodeExecutor`、打印不含输入、配置或凭证的命令身份并组装协议 Result。
 
-Server 对所有 Executor Result 统一按 Protocol 处理，不识别临时实现标识，也不从版本快照改写或补齐输出。后续实现完整节点时只替换对应目录的 `NodeExecutor`，MQ Worker、Protocol、Runtime 和持久化链路无需改动。
+LLM 已接入真实执行逻辑：`config.go` 对齐 Core 的模型引用、上下文、参数和异常处理契约；Provider Registry 动态注册 OpenAI、DeepSeek 与 Ollama 适配器。运行时只信任 `groupId` 和 `configuredModelId`，Go 使用当前 Command 的 NodeRun 身份与租约向 Server 解析真实模型、Base URL 和凭证，不使用 `modelId`、`providerType` 展示快照。API Key 不进入 RabbitMQ Command，也不会写入日志。
+
+模型解析地址通过 `MODEL_RUNTIME_RESOLVER_URL` 配置，默认是 `http://127.0.0.1:3000/internal/executor/models/resolve`。该接口会返回本次调用需要的明文凭证，部署时只能暴露在 Server 与 Executor 的受控内部网络中，并应使用 TLS；不得经过公网网关、缓存或访问日志正文。
+
+RAG、Code、HTTP、Condition 仍是最小实现。Server 对所有 Executor Result 统一按 Protocol 处理，不识别临时实现标识，也不从版本快照改写或补齐输出。后续实现其他节点时只替换对应目录的 `NodeExecutor`，MQ Worker、Protocol、Runtime 和持久化链路无需改动。
 
 Start/End 仍由 TypeScript Runtime 本地推进，不产生无业务价值的 MQ 往返。

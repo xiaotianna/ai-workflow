@@ -3,6 +3,7 @@ import type { NodeType } from '../../node/node-definition'
 import { resolveErrorHandlingPorts } from '../../node/node-error-handling'
 import { llmNodeDefinition } from './definition'
 import { llmNodeForm } from './form'
+import { LLM_FIXED_OUTPUTS } from './outputs'
 import { llmNodeSchema } from './schema'
 
 export {
@@ -16,12 +17,15 @@ export {
   llmModelSchema,
   llmNodeSchema,
 } from './schema'
+export { LLM_FIXED_OUTPUTS, LLM_RESULT_OUTPUT_KEY } from './outputs'
 
 export const llmNode = {
   schema: llmNodeSchema,
   definition: llmNodeDefinition,
   form: llmNodeForm,
+  fixedOutputs: LLM_FIXED_OUTPUTS,
   createInitialConfig: () => createInitialConfig(llmNodeSchema),
+  createInitialOutputs: () => LLM_FIXED_OUTPUTS.map((output) => ({ ...output })),
   resolvePorts: (config) =>
     resolveErrorHandlingPorts(llmNodeDefinition.ports, config.errorHandling),
 } satisfies NodeType<typeof llmNodeSchema>

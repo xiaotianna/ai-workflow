@@ -36,7 +36,6 @@ const collectWorkflowValidationResult = (
     workflow.nodes,
     workflow.environmentVariables,
     edges.resolvedEdges,
-    nodes,
     report,
   )
 

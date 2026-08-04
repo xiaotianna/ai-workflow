@@ -37,6 +37,8 @@ export interface NodeType<TSchema extends z.ZodType = z.ZodType<any, any>> {
   configRenderer?: NodeConfigRendererType
   // 节点输入、输出变量区域的声明配置。具体使用在web中
   variableForm?: NodeVariableForm
+  // 节点必须公开的固定输出变量；独立于画布输出端口，不允许由实例删除或修改。
+  fixedOutputs?: readonly NodeOutputDefinition[]
   /**
    * 每次创建节点时生成一份独立的初始配置（根据zod类型自动创建，采用工厂函数）。
    * 需要让代码等配置引用节点初始变量时，可以读取variables。

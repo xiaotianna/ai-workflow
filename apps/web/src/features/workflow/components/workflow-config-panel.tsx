@@ -4,6 +4,7 @@ import {
   nodeInputBindingsSchema,
   nodeOutputDefinitionsSchema,
   nodeRegistry,
+  normalizeNodeOutputs,
   resolveNodeVariableForm,
   type NodeType,
   type WorkflowNode,
@@ -120,7 +121,7 @@ export const WorkflowConfigPanel = ({
     label: node.label ?? resolvedDefaultLabel,
     description: node.description ?? nodeType?.definition.description ?? '',
     inputs: { ...node.inputs },
-    outputs: [...node.outputs],
+    outputs: normalizeNodeOutputs(node.outputs, nodeType?.fixedOutputs),
     config: resolveInitialNodeConfig(nodeType, node.config),
   })
 
@@ -318,9 +319,11 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleOutputsChange(nextOutputs: WorkflowNode['outputs']) {
-    updateFormField('outputs', nextOutputs)
-    reportDraftValidationIssues({ outputs: nextOutputs })
-    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+    const normalizedOutputs = normalizeNodeOutputs(nextOutputs, nodeType!.fixedOutputs)
+
+    updateFormField('outputs', normalizedOutputs)
+    reportDraftValidationIssues({ outputs: normalizedOutputs })
+    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, normalizedOutputs)
 
     if (!parsedOutputs.success) return
 
@@ -388,6 +391,7 @@ export const WorkflowConfigPanel = ({
         section={outputVariableSection}
         inputs={inputs}
         outputs={outputs}
+        fixedOutputs={nodeType.fixedOutputs}
         availableVariables={availableVariables}
         inputErrors={inputErrors}
         outputErrors={outputErrors}
