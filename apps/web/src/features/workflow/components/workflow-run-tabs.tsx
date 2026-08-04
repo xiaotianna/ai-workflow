@@ -210,6 +210,7 @@ function TraceNodeItem({
     : baseNodeLabel
   const contentId = `workflow-run-trace-${run.id}-${execution.sequence}`
   const durationMs = execution.durationMs ?? 0
+  const inProgress = status === 'PENDING' || status === 'QUEUED' || status === 'RUNNING'
 
   return (
     <section className="border-border/60 bg-background overflow-hidden rounded-lg border-[0.5px] shadow-xs transition-shadow duration-200 ease-out hover:shadow-md motion-reduce:transition-none">
@@ -237,12 +238,12 @@ function TraceNodeItem({
         <span className="text-foreground min-w-0 flex-1 truncate text-[13px] font-semibold">
           {nodeLabel}
         </span>
-        {status === 'RUNNING' ? null : (
+        {inProgress ? null : (
           <span className="text-muted-foreground shrink-0 text-xs">
             {formatDuration(durationMs)}
           </span>
         )}
-        <WorkflowRunStatusIcon status={status} />
+        <WorkflowRunStatusIcon status={inProgress ? 'RUNNING' : status} />
       </button>
 
       <AnimatePresence initial={false}>

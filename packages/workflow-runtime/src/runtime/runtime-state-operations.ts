@@ -115,12 +115,13 @@ export function recordControlNodeSuccess(
   node: WorkflowNode,
   outputs: Record<string, JsonValue>,
   scopeKey: string = node.parentId ?? 'root',
+  inputs: Record<string, JsonValue> = {},
 ): RuntimeExecution {
   return createExecution(
     state,
     node,
     RUNTIME_EXECUTION_STATUSES.SUCCEEDED,
-    {},
+    inputs,
     {},
     outputs,
     MIN_RECORDED_DURATION_MS,

@@ -207,7 +207,9 @@ function drainScope(
       }
 
       if (node.type === BuiltinNodeType.END) {
-        recordControlNodeSuccess(state, node, {})
+        const inputs = resolveNodeInputs(node, createVariableContext(plan, state, scopeKey))
+        // End 的“输出变量”持久化在 node.inputs；追踪中的输入与节点输出都应展示解析后的值。
+        recordControlNodeSuccess(state, node, inputs, scopeKey, inputs)
         settleOutgoingEdges(plan, state, nodeId, new Set())
         progressed = true
         continue
