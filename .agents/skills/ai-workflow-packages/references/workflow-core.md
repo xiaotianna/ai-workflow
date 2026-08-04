@@ -61,9 +61,10 @@ Nodes UI 保持 schema 和组件类型关联。
   `inputs` 变量绑定和实例动态 `outputs`；实例名称和描述覆盖 `NodeDefinition` 的默认展示
   文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
 - `NodeOutputDefinition` 除 `key`、`label`、`dataType`、`description` 外，可选保存
-  `defaultValue` 与 `required`；默认值必须是可序列化 JSON 值，并与 string、number、
-  boolean 类型声明一致，json 类型接受任意 JSON 值。两项保持可选以兼容旧工作流和不需要
-  输入元数据的普通节点输出。
+  `defaultValue`、`required` 与 `value`；默认值和直接输出值必须是可序列化 JSON 值，并与
+  string、number、boolean 类型声明一致，json 类型接受任意 JSON 值。`value` 使用统一
+  `VariableValue`，缺省时由执行器返回同名字段，存在时由 Runtime 解析直接值或上游变量并覆盖
+  该输出；字段保持可选以兼容旧工作流、Start 输入和执行器原生输出。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
@@ -132,8 +133,8 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeType.createInitialInputs()` 与 `createInitialOutputs()` 为需要预置变量的节点分别生成
   独立的输入绑定和输出定义；`createInitialConfig(variables)` 可以读取同一批初始变量，
   让配置模板与变量名保持一致。未声明变量工厂的节点继续使用空输入和空输出。
-- `NodeType.fixedOutputs` 声明节点实例不可删除或修改的固定输出定义，统一通过
-  `normalizeNodeOutputs` 合并到 `node.outputs`。输出端口只负责 Edge Handle 与执行分支，
+- `NodeType.fixedOutputs` 声明节点实例不可删除、修改或配置取值映射的固定输出定义，统一通过
+  `normalizeNodeOutputs` 合并到 `node.outputs`，并始终以类型定义中的固定元数据为准。输出端口只负责 Edge Handle 与执行分支，
   `node.outputs` 才是节点公开的变量集合；即使两者当前使用相同字符串，也不得从端口推导变量，
   或用端口存在性放宽变量引用校验。LLM 固定公开 `result`，同时允许实例追加其他输出定义。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
@@ -174,7 +175,8 @@ Nodes UI 保持 schema 和组件类型关联。
   通过 `CONDITION_RULES` 字段编辑；空 `rules` 表示不设置循环终止条件，历史 Loop 配置缺少该
   字段时自动补为空条件，此时循环仅受 `maxIterations` 限制。
 - Edge 只表达执行依赖与分支 Handle，不按 `dataType` 阻止节点连线；`dataType` 属于变量定义。
-- 节点输入引用只能读取执行连线可达的上游节点输出，不能引用自身、下游或无关节点。
+- 节点输入引用和输出 `value` 映射只能读取执行连线可达的上游节点输出，不能引用自身、下游或
+  无关节点；环境变量引用同样校验稳定 ID 是否存在。
 - 输出设计提案由 `Workflow.outputs` 同时保存公开字段描述和内部 `value` 取值来源；
   End 配置保持为空，子工作流节点只复用 `key`、`label`、`dataType` 等公开字段写入
   `node.outputs`，不保存目标输出的内部 `value`。

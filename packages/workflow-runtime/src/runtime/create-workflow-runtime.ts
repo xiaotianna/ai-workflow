@@ -9,6 +9,7 @@ import { drainRootScope } from '../scheduler/drain-root-scope'
 import { settleOutgoingEdges } from '../scheduler/settle-outgoing-edges'
 import { parseSystemVariables } from '../system/parse-system-variables'
 import { parseJsonObject } from '../utils/json-value'
+import { resolveNodeOutputs } from '../variable/resolve-node-outputs'
 import { RUNTIME_ERROR_CODES, RuntimeError, toRuntimeError } from './runtime-error'
 import {
   createInitialRuntimeState,
@@ -218,10 +219,10 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
     }
 
     try {
-      const outputs = normalizeDeclaredValues(result.outputs, node.outputs, {
-        boundary: 'nodeOutput',
-        ownerId: node.id,
-        unknownValuePolicy: 'omit',
+      const outputs = resolveNodeOutputs(result.outputs, node, {
+        workflow: this.plan.workflow,
+        state: restoredState,
+        scopeKey: 'root',
       })
       recordBusinessNodeSuccess(restoredState, execution.executionKey, outputs)
       settleOutgoingEdges(this.plan, restoredState, node.id, new Set(result.activatedHandles))

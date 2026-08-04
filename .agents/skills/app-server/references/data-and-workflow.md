@@ -146,8 +146,10 @@ revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING
 后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM Executor 已按 Core
 Config、运行时模型解析接口和供应商 Registry 执行真实请求，其余节点业务 Executor 仍为最小实现；
 所有 Result 与后续完整实现使用同一协议链路，Server 不识别执行器实现类型，
-不从版本快照改写或补齐输出。Server 将 Executor 原始成功输出保存到 NodeRun；完整运行的 Runtime
-只把 `node.outputs` 已声明字段投影为下游可引用变量，节点内置但未声明的结果字段不会导致运行失败。
+不从版本快照改写或补齐输出。Result Inbox 始终保留 Executor 原始结果；完整运行的 NodeRun 保存
+Runtime Execution 已归一化的输出，因此 `node.outputs` 中声明的直接值和上游变量映射会同时用于下游
+引用与运行追踪展示，节点内置但未声明的结果字段不会导致运行失败。单节点运行没有 Runtime 上下文，
+NodeRun 继续保存 Executor 原始成功输出。
 后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布

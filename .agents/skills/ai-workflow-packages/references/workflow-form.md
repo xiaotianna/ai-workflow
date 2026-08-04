@@ -311,16 +311,13 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   token 使用 `ENVIRONMENT_VARIABLE_NAMESPACE` 与稳定 `variableId` 生成；Form 不维护另一份命名空间
   常量或变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
-- `NodeOutputDefinitionsEditor` 直接编辑 Core `NodeOutputDefinition`，数据类型选项复用
-  `DataTypeSelect`，不复制类型名称、图标或输出 schema；切换类型时清除可能不再匹配的
-  默认值元数据。Core `NodeType.fixedOutputs` 经 Web 透传后，匹配的输出行禁用变量名、说明、
-  数据类型和删除操作，新增的普通输出仍可编辑。默认输入与默认输出变量区都使用 UI
-  `Form.Field` 统一标题、说明、内容间距
-  和纯图标新增操作；输出项使用“变量名与说明入口、紧凑数据类型、删除按钮”的单行 32px
-  三列布局，不展示独立 label 输入框。变量名列与输入变量区一样使用 96–120px，第二列占据
-  剩余宽度；修改变量名时同步更新 `key` 与 `label`。说明按钮和数据类型下拉组成同一个
-  控件，说明按钮打开 Dialog 编辑 description，有说明时图标使用主色提示；数据类型菜单
-  右对齐并在 Trigger 宽度上增加说明按钮的 36px，与外部组合控件保持等宽。
+- `NodeOutputDefinitionsEditor` 使用与 End 输出区相同的三列行内交互：左侧编辑变量 Key，
+  中间复用 `VariableValueEditor` 填写直接值或选择上游、系统、环境变量，右侧删除。Key 修改时
+  同步 `label`；未填写值时不写 `NodeOutputDefinition.value`，继续使用执行器返回的同名字段；
+  直接填写时将普通输出类型归一为 string，选择引用时从 `AvailableVariableOption.dataType`
+  同步类型。Core `NodeType.fixedOutputs` 经 Web 透传后只显示单个禁用的变量名字段，不渲染
+  取值表单和删除入口，避免把执行器内置结果误解为可配置映射。默认输入与默认输出变量区都使用
+  UI `Form.Field` 统一标题、说明、内容间距和纯图标新增操作。
 - `StartInputVariablesEditor` 使用 `useFormData` 管理 Dialog 临时表单，通过
   Core 字段 schema 派生的本地草稿 schema 转换各类型默认值，再通过
   `nodeOutputDefinitionsSchema` 校验新增或编辑后的完整数组；Dialog 关闭、取消和提交后均

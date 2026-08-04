@@ -1,29 +1,38 @@
-import type { NodeOutputDefinition } from '@ai-workflow/core'
+import type { NodeOutputDefinition, VariableValueInput } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@ai-workflow/ui/components/dialog'
 import { Form } from '@ai-workflow/ui/components/form'
 import { Input } from '@ai-workflow/ui/components/input'
-import { Textarea } from '@ai-workflow/ui/components/textarea'
-import { cn } from '@ai-workflow/ui/lib/utils'
-import { MessageSquareText, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 
-import { DataTypeSelect } from '../components/data-type-select'
+import type { AvailableVariableOption } from '../contracts/available-variable-option'
 import type { NodeVariableSectionRendererProps } from '../components/node-variable-section'
+import { VariableValueEditor } from '../components/variable-value-editor'
 import { getFieldError } from '../utils/get-field-error'
 import { createUniqueKey } from '../utils/create-unique-key'
+
+const EMPTY_OUTPUT_VALUE = {
+  type: 'value',
+  value: '',
+} as const satisfies VariableValueInput
+
+function referencesEqual(left: unknown, right: unknown) {
+  return JSON.stringify(left) === JSON.stringify(right)
+}
+
+function getReferencedVariable(
+  value: VariableValueInput,
+  availableVariables: readonly AvailableVariableOption[],
+) {
+  if (value.type !== 'reference') return undefined
+
+  return availableVariables.find((option) => referencesEqual(option.reference, value.reference))
+}
 
 export function NodeOutputDefinitionsEditor({
   section,
   outputs,
   fixedOutputs = [],
+  availableVariables = [],
   outputErrors,
   disabled,
   onOutputsChange,
@@ -46,7 +55,7 @@ export function NodeOutputDefinitionsEditor({
     ])
   }
 
-  function updateOutput(index: number, values: Partial<NodeOutputDefinition>) {
+  function updateOutputDefinition(index: number, values: Partial<NodeOutputDefinition>) {
     if (fixedOutputKeys.has(outputs[index]?.key ?? '')) return
 
     onOutputsChange(
@@ -61,10 +70,37 @@ export function NodeOutputDefinitionsEditor({
     )
   }
 
+  function updateOutputValue(index: number, value: VariableValueInput) {
+    const output = outputs[index]
+    if (!output) return
+
+    const isFixed = fixedOutputKeys.has(output.key)
+    const isEmptyDirectValue = value.type === 'value' && value.value === ''
+    const referencedVariable = getReferencedVariable(value, availableVariables)
+    const nextOutput: NodeOutputDefinition = {
+      ...output,
+      ...(!isFixed
+        ? {
+            dataType: referencedVariable?.dataType ?? 'string',
+            defaultValue: undefined,
+          }
+        : {}),
+      ...(isEmptyDirectValue ? {} : { value }),
+    }
+
+    if (isEmptyDirectValue) delete nextOutput.value
+
+    onOutputsChange(
+      outputs.map((currentOutput, outputIndex) =>
+        outputIndex === index ? nextOutput : currentOutput,
+      ),
+    )
+  }
+
   return (
     <Form.Field
       label={section.label}
-      description={section.description}
+      description={section.description ?? '新增输出可直接填写或引用上游变量；内置输出由节点返回'}
       actions={
         <Button
           type="button"
@@ -86,8 +122,24 @@ export function NodeOutputDefinitionsEditor({
             const keyError = getFieldError(outputErrors, `${index}.key`)
             const labelError = getFieldError(outputErrors, `${index}.label`)
             const dataTypeError = getFieldError(outputErrors, `${index}.dataType`)
-            const descriptionError = getFieldError(outputErrors, `${index}.description`)
-            const error = keyError ?? labelError ?? dataTypeError ?? descriptionError
+            const valueError = getFieldError(outputErrors, `${index}.value`)
+            const error = keyError ?? labelError ?? dataTypeError ?? valueError
+
+            if (isFixed) {
+              return (
+                <div key={index} className="space-y-1">
+                  <Input
+                    className="h-8 w-full max-w-30 text-[13px] md:text-[13px]"
+                    value={output.key}
+                    disabled
+                    aria-label={`${section.label}名称（内置）`}
+                    aria-invalid={Boolean(error)}
+                  />
+
+                  {error ? <p className="text-destructive text-xs leading-4">{error}</p> : null}
+                </div>
+              )
+            }
 
             return (
               <div key={index} className="space-y-1">
@@ -102,87 +154,29 @@ export function NodeOutputDefinitionsEditor({
                     onChange={(event) => {
                       const key = event.currentTarget.value
 
-                      updateOutput(index, {
+                      updateOutputDefinition(index, {
                         key,
                         label: key,
                       })
                     }}
                   />
 
-                  <div className="bg-input flex min-w-0 rounded-md">
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          className={cn(
-                            'hover:border-input-focus hover:bg-background focus-visible:border-input-focus focus-visible:bg-background dark:hover:bg-background dark:focus-visible:bg-background h-8 w-9 shrink-0 rounded-r-none bg-transparent hover:z-10 focus-visible:z-10',
-                            output.description ? 'text-primary' : 'text-muted-foreground',
-                          )}
-                          disabled={disabled || isFixed}
-                          aria-label={`编辑变量 ${output.key || index + 1} 的说明`}
-                          aria-invalid={Boolean(descriptionError)}
-                        >
-                          <MessageSquareText className="size-4" aria-hidden />
-                        </Button>
-                      </DialogTrigger>
-
-                      <DialogContent aria-describedby={undefined}>
-                        <DialogHeader>
-                          <DialogTitle>编辑变量说明</DialogTitle>
-                        </DialogHeader>
-
-                        <Form.Field label="变量说明" error={descriptionError}>
-                          <Textarea
-                            value={output.description ?? ''}
-                            disabled={disabled || isFixed}
-                            aria-label={`${section.label}说明`}
-                            aria-invalid={Boolean(descriptionError)}
-                            placeholder="填写该变量的用途或返回内容"
-                            className="min-h-24 resize-none"
-                            onChange={(event) =>
-                              updateOutput(index, {
-                                description: event.currentTarget.value || undefined,
-                              })
-                            }
-                          />
-                        </Form.Field>
-
-                        <DialogFooter>
-                          <DialogClose asChild>
-                            <Button type="button" variant="secondary">
-                              完成
-                            </Button>
-                          </DialogClose>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-
-                    <DataTypeSelect
-                      value={output.dataType}
-                      disabled={disabled || isFixed}
-                      size="sm"
-                      className="min-w-0 flex-1 rounded-l-none bg-transparent text-[13px] hover:z-10 focus-visible:z-10"
-                      contentAlign="end"
-                      contentClassName="w-[calc(var(--radix-select-trigger-width)+2.25rem)]"
-                      aria-label={`${section.label}数据类型`}
-                      aria-invalid={Boolean(dataTypeError)}
-                      onValueChange={(dataType) => {
-                        updateOutput(index, {
-                          dataType,
-                          defaultValue: undefined,
-                        })
-                      }}
-                    />
-                  </div>
+                  <VariableValueEditor
+                    value={output.value ?? EMPTY_OUTPUT_VALUE}
+                    availableVariables={availableVariables}
+                    disabled={disabled}
+                    error={valueError ?? dataTypeError}
+                    label={`输出变量 ${output.key || index + 1} 的值`}
+                    placeholder="设置输出值"
+                    onChange={(value) => updateOutputValue(index, value)}
+                  />
 
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-xs"
                     className="text-muted-foreground hover:text-destructive focus-visible:text-destructive"
-                    disabled={disabled || isFixed}
+                    disabled={disabled}
                     aria-label={`删除变量 ${output.key || index + 1}`}
                     onClick={() =>
                       onOutputsChange(

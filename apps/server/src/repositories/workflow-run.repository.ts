@@ -13,7 +13,12 @@ import {
   WorkflowVersionSource,
 } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
-import { RUNTIME_RUN_STATUSES, type RuntimeState } from '@ai-workflow/runtime'
+import type { JsonValue } from '@ai-workflow/core'
+import {
+  RUNTIME_EXECUTION_STATUSES,
+  RUNTIME_RUN_STATUSES,
+  type RuntimeState,
+} from '@ai-workflow/runtime'
 import { Injectable } from '@nestjs/common'
 
 interface CreateTestRunOptions {
@@ -428,7 +433,7 @@ export class WorkflowRunRepository {
 
       await transaction.workflowNodeRun.update({
         where: { id: transition.result.nodeRunId },
-        data: createNodeResultUpdate(transition.result, nodeRun.startedAt, now),
+        data: createRuntimeNodeResultUpdate(transition, nodeRun.startedAt, now),
       })
 
       await transaction.workflowCommandOutbox.update({
@@ -581,7 +586,10 @@ export class WorkflowRunRepository {
           ? {
               OR: [
                 { queuedAt: { lt: options.cursor.queuedAt } },
-                { queuedAt: options.cursor.queuedAt, id: { lt: options.cursor.id } },
+                {
+                  queuedAt: options.cursor.queuedAt,
+                  id: { lt: options.cursor.id },
+                },
               ],
             }
           : {}),
@@ -799,11 +807,12 @@ function createNodeResultUpdate(
   result: RuntimeTransitionPersistence['result'],
   startedAt: Date | null,
   now: Date,
+  succeededOutput?: Record<string, JsonValue>,
 ) {
   return result.status === 'SUCCEEDED'
     ? {
         status: WorkflowNodeRunStatus.SUCCEEDED,
-        output: toJsonInput(result.outputs),
+        output: toJsonInput(succeededOutput ?? result.outputs),
         finishedAt: now,
         durationMs: durationFrom(startedAt, now),
       }
@@ -815,6 +824,29 @@ function createNodeResultUpdate(
         finishedAt: now,
         durationMs: durationFrom(startedAt, now),
       }
+}
+
+function createRuntimeNodeResultUpdate(
+  transition: RuntimeTransitionPersistence,
+  startedAt: Date | null,
+  now: Date,
+) {
+  if (transition.result.status !== 'SUCCEEDED') {
+    return createNodeResultUpdate(transition.result, startedAt, now)
+  }
+
+  const execution = transition.state.executions[transition.result.executionKey]
+  if (
+    !execution ||
+    execution.status !== RUNTIME_EXECUTION_STATUSES.SUCCEEDED ||
+    execution.outputs === undefined
+  ) {
+    throw new Error(
+      `Runtime 成功结果缺少已归一化的 Execution 输出: ${transition.result.executionKey}`,
+    )
+  }
+
+  return createNodeResultUpdate(transition.result, startedAt, now, execution.outputs)
 }
 
 function durationFrom(startedAt: Date | null, finishedAt: Date) {

@@ -31,7 +31,7 @@ const collectWorkflowValidationResult = (
 
   // 校验loop是否合法
   validateLoopStructure(workflow.nodes, workflow.edges, report)
-  // 校验节点输入只能引用执行路径中的上游输出变量
+  // 校验节点输入与输出映射只能引用执行路径中的上游输出变量
   validateVariableReferences(
     workflow.nodes,
     workflow.environmentVariables,

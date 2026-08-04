@@ -22,7 +22,7 @@ const collectUpstreamNodeIds = (
   return upstreamNodeIds
 }
 
-// 校验节点输入引用只能读取上游节点已经公开的输出变量
+// 校验节点输入与输出映射只能读取上游节点已经公开的输出变量
 export const validateVariableReferences = (
   workflowNodes: readonly WorkflowNode[],
   environmentVariables: readonly WorkflowEnvironmentVariable[],
@@ -41,36 +41,56 @@ export const validateVariableReferences = (
 
   for (const node of workflowNodes) {
     const upstreamNodeIds = collectUpstreamNodeIds(node.id, incomingNodeIds)
+    const variableReferences = [
+      ...Object.entries(node.inputs).map(([key, value]) => ({
+        field: 'inputs' as const,
+        key,
+        label: '输入变量',
+        value,
+      })),
+      ...node.outputs.flatMap((output) =>
+        output.value
+          ? [
+              {
+                field: 'outputs' as const,
+                key: output.key,
+                label: '输出变量',
+                value: output.value,
+              },
+            ]
+          : [],
+      ),
+    ]
 
-    for (const [inputKey, inputValue] of Object.entries(node.inputs)) {
-      if (inputValue.type !== 'reference') {
+    for (const variable of variableReferences) {
+      if (variable.value.type !== 'reference') {
         continue
       }
 
-      if (inputValue.reference.scope === 'env') {
-        if (!environmentVariableIds.has(inputValue.reference.variableId)) {
+      if (variable.value.reference.scope === 'env') {
+        if (!environmentVariableIds.has(variable.value.reference.variableId)) {
           report({
             scope: 'node',
             nodeId: node.id,
-            field: 'inputs',
-            message: `输入变量 ${inputKey} 引用了不存在的环境变量：${inputValue.reference.variableId}`,
+            field: variable.field,
+            message: `${variable.label} ${variable.key} 引用了不存在的环境变量：${variable.value.reference.variableId}`,
           })
         }
 
         continue
       }
 
-      if (inputValue.reference.scope !== 'node') continue
+      if (variable.value.reference.scope !== 'node') continue
 
-      const { nodeId: referencedNodeId, outputKey } = inputValue.reference
+      const { nodeId: referencedNodeId, outputKey } = variable.value.reference
       const referencedNode = nodeById.get(referencedNodeId)
 
       if (!referencedNode) {
         report({
           scope: 'node',
           nodeId: node.id,
-          field: 'inputs',
-          message: `输入变量 ${inputKey} 引用了不存在的节点：${referencedNodeId}`,
+          field: variable.field,
+          message: `${variable.label} ${variable.key} 引用了不存在的节点：${referencedNodeId}`,
         })
         continue
       }
@@ -79,8 +99,8 @@ export const validateVariableReferences = (
         report({
           scope: 'node',
           nodeId: node.id,
-          field: 'inputs',
-          message: `输入变量 ${inputKey} 只能引用上游节点：${referencedNodeId}`,
+          field: variable.field,
+          message: `${variable.label} ${variable.key} 只能引用上游节点：${referencedNodeId}`,
         })
         continue
       }
@@ -91,8 +111,8 @@ export const validateVariableReferences = (
         report({
           scope: 'node',
           nodeId: node.id,
-          field: 'inputs',
-          message: `输入变量 ${inputKey} 引用了不存在的输出变量：${referencedNodeId}.${outputKey}`,
+          field: variable.field,
+          message: `${variable.label} ${variable.key} 引用了不存在的输出变量：${referencedNodeId}.${outputKey}`,
         })
       }
     }

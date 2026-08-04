@@ -39,22 +39,40 @@ export const nodeOutputDefinitionSchema = z
     description: z.string().trim().optional(),
     defaultValue: jsonValueSchema.optional(),
     required: z.boolean().optional(),
+    // 缺省时由节点执行器返回同名字段；配置后使用直接值或上游变量覆盖该输出。
+    value: variableValueSchema.optional(),
   })
   .superRefine((output, context) => {
-    if (output.defaultValue === undefined) return
+    if (output.defaultValue !== undefined) {
+      const matchesDefaultValueDataType =
+        (output.dataType === 'string' && typeof output.defaultValue === 'string') ||
+        (output.dataType === 'number' && typeof output.defaultValue === 'number') ||
+        (output.dataType === 'boolean' && typeof output.defaultValue === 'boolean') ||
+        output.dataType === 'json'
 
-    const matchesDataType =
-      (output.dataType === 'string' && typeof output.defaultValue === 'string') ||
-      (output.dataType === 'number' && typeof output.defaultValue === 'number') ||
-      (output.dataType === 'boolean' && typeof output.defaultValue === 'boolean') ||
-      output.dataType === 'json'
+      if (!matchesDefaultValueDataType) {
+        context.addIssue({
+          code: 'custom',
+          path: ['defaultValue'],
+          message: '默认值与变量类型不匹配',
+        })
+      }
+    }
 
-    if (!matchesDataType) {
-      context.addIssue({
-        code: 'custom',
-        path: ['defaultValue'],
-        message: '默认值与变量类型不匹配',
-      })
+    if (output.value?.type === 'value') {
+      const matchesMappedValueDataType =
+        (output.dataType === 'string' && typeof output.value.value === 'string') ||
+        (output.dataType === 'number' && typeof output.value.value === 'number') ||
+        (output.dataType === 'boolean' && typeof output.value.value === 'boolean') ||
+        output.dataType === 'json'
+
+      if (!matchesMappedValueDataType) {
+        context.addIssue({
+          code: 'custom',
+          path: ['value'],
+          message: '输出变量值与变量类型不匹配',
+        })
+      }
     }
   })
 
