@@ -679,8 +679,6 @@ const workflowRunSummarySelect = {
       id: true,
       nodeId: true,
       nodeType: true,
-      executionKey: true,
-      attempt: true,
       status: true,
       input: true,
       output: true,

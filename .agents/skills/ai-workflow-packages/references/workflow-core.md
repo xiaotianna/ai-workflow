@@ -13,8 +13,10 @@ import {
   codeNode,
   endNode,
   HTTP_BODY_TYPES,
+  HTTP_FIXED_OUTPUTS,
   HTTP_FORM_DATA_VALUE_TYPES,
   HTTP_METHODS,
+  HTTP_RESPONSE_OUTPUT_KEY,
   workflowSchema,
   nodeRegistry,
   CONDITION_LOGICAL_OPERATOR_KINDS,
@@ -136,7 +138,8 @@ Nodes UI 保持 schema 和组件类型关联。
 - `NodeType.fixedOutputs` 声明节点实例不可删除、修改或配置取值映射的固定输出定义，统一通过
   `normalizeNodeOutputs` 合并到 `node.outputs`，并始终以类型定义中的固定元数据为准。输出端口只负责 Edge Handle 与执行分支，
   `node.outputs` 才是节点公开的变量集合；即使两者当前使用相同字符串，也不得从端口推导变量，
-  或用端口存在性放宽变量引用校验。LLM 固定公开 `result`，同时允许实例追加其他输出定义。
+  或用端口存在性放宽变量引用校验。LLM 固定公开字符串 `result`；HTTP 固定公开 JSON `response`，
+  内容包含 `status`、`headers`、`data` 和 `durationMs`；两者都允许实例追加其他输出定义。
   Code 的源码派生输出不写入 `NodeType.fixedOutputs`；它们由 `deriveCodeNodeOutputs()` 按节点配置
   动态生成，并在配置面板中以相同的不可编辑语义展示。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。

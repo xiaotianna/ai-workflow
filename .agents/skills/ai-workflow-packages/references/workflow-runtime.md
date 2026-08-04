@@ -19,8 +19,6 @@
   `VariableValue`；Go Executor 只接收静态键值与 Body。
 - `projectConditionNodeConfig`：按 Condition Schema 解析分支，并在派发前解析每条规则的左右值；Go
   Executor 只负责对本次静态值进行比较与选路。
-- `createRuntimeContextInputs(workflow, systemVariables)`：把非 Secret 环境变量和系统变量分别展开为
-  `env.<name>`、`sys.<key>` 输入；Secret 不得进入 RuntimeState、Execution 或 MQ。
 - `createWorkflowRuntime(workflow, { workflowVersionId, configResolver })`：创建绑定不可变 WorkflowVersion
   的 Runtime，提供 `start()` 与 `applyNodeResult()`。
 - `runtimeStateSchema` / `restoreRuntimeState()`：解析持久化 State，并校验 Run、Workflow、Version、
@@ -38,8 +36,8 @@
 - `StartRuntimeInput.input` 是 `Record<string, unknown>`，启动时按 Start 节点 `outputs` 的 key、
   dataType、required 和 defaultValue 归一化；系统变量必须使用 Core 的完整键集合并匹配 Run 身份。
 - `node.inputs` 统一解析直接值、节点引用、系统变量和非 Secret 环境变量；Config 不做递归形状猜测，
-  含变量的节点必须注册显式 projector。每个业务节点派发前在已解析声明输入之后注入全部
-  `env.<name>` 与 `sys.<key>` 上下文输入，命名空间上下文值在同名键冲突时保持权威。
+  含变量的节点必须注册显式 projector。系统变量和环境变量只作为引用解析上下文，不会自动展开为
+  `sys.<key>` 或 `env.<name>` 输入；声明输入引用上下文变量时，解析后的真实值保留声明输入的 key。
 - `applyNodeResult()` 只接受已由 `@ai-workflow/protocol` parser 校验的 `ExecuteNodeResult`。Command 的
   commandId、nodeRunId、leaseToken、deadline 和 Inbox/Outbox 幂等仍由 Server 负责。
 - 成功 Result 的原始 `outputs` 可以包含节点内置结果字段；Runtime 只按可选的 `node.outputs` 声明

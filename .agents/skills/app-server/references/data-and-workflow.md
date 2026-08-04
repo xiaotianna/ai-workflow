@@ -180,10 +180,10 @@ RuntimeState 已持久化的 Execution `sequence` 生成，Start/End 等本地�
 类型、必填项和默认值。应用服务使用 `SYSTEM_VARIABLE_KEYS` 组装
 `Record<SystemVariableKey, JsonValue>` 系统上下文，其中 `app_id` 来自 Workflow 的数据库关联，
 `workflow_id` 来自已校验快照，`workflow_run_id` 来自新建 Run；不得使用 `ownerId`、`workflowId`、
-`startedAt` 等自定义键替代 Core 系统变量键。完整运行由 Runtime、单节点测试由应用服务共同复用
-`createRuntimeContextInputs`，在节点声明输入之后注入非 Secret `env.<name>` 与全部 `sys.<key>`，
-保证 NodeRun、MQ Command 和运行追踪展示同一份实际执行输入。Run 顶层 `input` 持久化归一化后的
-用户输入与相同上下文变量的合并结果，使结果/详情面板的“输入”与后端实际运行上下文一致。
+`startedAt` 等自定义键替代 Core 系统变量键。系统变量与环境变量只参与 Runtime 引用解析，不直接
+进入 Run 顶层输入、Start 输出、NodeRun 输入或 MQ Command 输入；当声明输入（例如 `user_id`）引用
+系统变量或环境变量时，只在该声明 key 下写入解析后的真实值。单节点测试同样不得自动展开上下文变量。
+`executionKey`、`attempt` 继续作为结果关联、幂等和重试所需的服务端内部数据，不进入用户侧运行追踪响应。
 
 ## LangGraph
 

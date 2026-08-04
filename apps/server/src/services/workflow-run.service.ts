@@ -25,7 +25,6 @@ import {
   type ExecuteNodeCommand,
 } from '@ai-workflow/protocol'
 import {
-  createRuntimeContextInputs,
   createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
   projectConditionNodeConfig,
@@ -396,10 +395,6 @@ export class WorkflowRunService {
       throw new BadRequestException(getErrorMessage(error, '工作流无法启动'))
     }
 
-    const effectiveInput = {
-      ...transition.state.startInput,
-      ...createRuntimeContextInputs(workflow, systemVariables),
-    }
     const initialDispatches = this.prepareRuntimeDispatches(transition, runId)
     const created = await this.workflowRunRepository.createTestRun({
       ownerId,
@@ -411,7 +406,7 @@ export class WorkflowRunService {
       mode: TEST_RUN_MODES.FULL,
       definition: workflow,
       layout,
-      input: effectiveInput,
+      input: transition.state.startInput,
       runtimeState: transition.state,
       terminal: getRuntimeTerminal(transition),
       dispatches: initialDispatches,
@@ -449,11 +444,7 @@ export class WorkflowRunService {
 
     const runId = randomUUID()
     const versionId = randomUUID()
-    const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
-    const effectiveInput = {
-      ...resolveSingleNodeInputs(node),
-      ...createRuntimeContextInputs(workflow, systemVariables),
-    }
+    const effectiveInput = resolveSingleNodeInputs(node)
     let projectedConfig: Record<string, JsonValue>
     try {
       projectedConfig = this.createRuntimeConfigResolver(workflow).resolve(
@@ -653,8 +644,6 @@ function toWorkflowTestRunVo(run: WorkflowRunSummary): WorkflowTestRunVo {
       id: nodeRun.id,
       nodeId: nodeRun.nodeId,
       nodeType: nodeRun.nodeType,
-      executionKey: nodeRun.executionKey,
-      attempt: nodeRun.attempt,
       status: nodeRun.status,
       ...(nodeRun.input !== null ? { input: nodeRun.input } : {}),
       ...(nodeRun.output !== null ? { output: nodeRun.output } : {}),

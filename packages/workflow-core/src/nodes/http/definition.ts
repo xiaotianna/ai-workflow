@@ -1,6 +1,7 @@
 import { createNodeDefinition } from '../../node/create-node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import { BuiltinNodeType } from '../builtin-node-types'
+import { HTTP_RESPONSE_OUTPUT_KEY } from './outputs'
 
 export const httpNodeDefinition = createNodeDefinition({
   type: BuiltinNodeType.HTTP,
@@ -15,7 +16,7 @@ export const httpNodeDefinition = createNodeDefinition({
     required: true,
   },
   outputPort: {
-    id: 'response',
+    id: HTTP_RESPONSE_OUTPUT_KEY,
     label: '响应',
     description: '包含状态码、响应头、响应数据和耗时',
     dataType: DATA_TYPE_KINDS.JSON,

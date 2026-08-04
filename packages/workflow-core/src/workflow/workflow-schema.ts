@@ -4,6 +4,7 @@ import { workflowEdgeSchema } from '../edge/workflow-edge-schema'
 import { workflowEnvironmentVariablesSchema } from '../variable/environment-variable'
 import { BuiltinNodeType } from '../nodes/builtin-node-types'
 import { synchronizeCodeNodeOutputs } from '../nodes/code/outputs'
+import { HTTP_FIXED_OUTPUTS } from '../nodes/http/outputs'
 import { LLM_FIXED_OUTPUTS } from '../nodes/llm/outputs'
 import { normalizeNodeOutputs } from '../node/normalize-node-outputs'
 import { workflowOutputsSchema } from './workflow-output-schema'
@@ -26,6 +27,13 @@ export const workflowSchema = z
         return {
           ...node,
           outputs: normalizeNodeOutputs(node.outputs, LLM_FIXED_OUTPUTS),
+        }
+      }
+
+      if (node.type === BuiltinNodeType.HTTP) {
+        return {
+          ...node,
+          outputs: normalizeNodeOutputs(node.outputs, HTTP_FIXED_OUTPUTS),
         }
       }
 

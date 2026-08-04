@@ -109,8 +109,6 @@ export interface StudioWorkflowNodeRunDto {
   id: string
   nodeId: string
   nodeType: string
-  executionKey: string
-  attempt: number
   status: string
   input?: unknown
   output?: unknown

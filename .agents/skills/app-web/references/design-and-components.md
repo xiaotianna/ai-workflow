@@ -205,8 +205,8 @@
   持久化字段形成的元数据，不模拟 token 等尚未记录的数据；追踪使用浅灰底衬，不展示独立的整体
   运行状态卡，节点严格按后端 `traceNodeIds` 排列，不按画布拓扑补齐未执行节点，并在行尾分别展示
   耗时与状态。节点列表复用 Core 节点定义与 Nodes UI 图标/主题色，默认全部折叠，每个节点展开后
-  固定展示“输入 / 数据处理 / 输出”
-  三块。展开按钮使用 `aria-expanded` / `aria-controls` 保留披露语义，内容通过 Motion 做高度与
+  固定展示“输入 / 输出”两块；`executionKey`、`attempt` 等服务端调度与重试字段不作为业务数据
+  展示。展开按钮使用 `aria-expanded` / `aria-controls` 保留披露语义，内容通过 Motion 做高度与
   透明度动画，箭头同步旋转并遵循系统 reduced motion。追踪项保持背景色不变，默认使用
   `shadow-xs`，Hover 只通过 `shadow-md` 提升层级，并使用 ease-out 阴影过渡与 reduced motion。
   节点状态与耗时来自 Run 的 `nodeStates`、NodeRun 和 `traceNodeDurations`；`RUNNING` 节点只展示
@@ -264,7 +264,8 @@
   同步 `node.outputs`，并把这些输出作为禁用行传给 Form，禁止手动修改或删除。源码暂时存在
   语法错误时保留最后一次有效输出，Key 变化后再替换，Web 不运行代码或判断实际返回值类型。
   HTTP 已按字段级 form 组合 URL、Method、Headers、Params、Body 和连接超时，不再使用整节点
-  renderer。Condition 也通过 `conditionNodeForm` 和 Form 内置的 `ConditionBranchesField` 编辑
+  renderer；Core 固定输出的完整响应变量 `response` 在输出区显示为不可修改、映射或删除的禁用行，
+  普通附加输出仍可新增。Condition 也通过 `conditionNodeForm` 和 Form 内置的 `ConditionBranchesField` 编辑
   IF / ELIF / ELSE 分支，不再使用整节点 renderer；条件两侧复用 Form 的
   `VariableValueEditor`，支持直接值、完整上游变量引用、系统变量和环境变量引用，比较运算符和同一分支统一使用的
   AND/OR 逻辑关系都来自 Core 公共契约。合法字段值写回节点后，Web 通用 `applyNode` 链路

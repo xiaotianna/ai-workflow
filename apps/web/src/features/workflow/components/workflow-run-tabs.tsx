@@ -246,18 +246,6 @@ function TraceNodeItem({ node, run }: { node: WorkflowNode; run: StudioWorkflowT
           >
             <div className="space-y-1.5 px-2.5 py-2">
               <JsonDataCard title="输入" value={getTraceNodeInput(node, nodeRun, run)} compact />
-              <JsonDataCard
-                title="数据处理"
-                value={
-                  nodeRun
-                    ? {
-                        executionKey: nodeRun.executionKey,
-                        attempt: nodeRun.attempt,
-                      }
-                    : {}
-                }
-                compact
-              />
               <JsonDataCard title="输出" value={getTraceNodeOutput(node, nodeRun, run)} compact />
             </div>
           </motion.div>

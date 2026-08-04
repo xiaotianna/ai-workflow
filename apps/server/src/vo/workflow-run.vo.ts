@@ -16,8 +16,6 @@ export interface WorkflowNodeRunVo {
   id: string
   nodeId: string
   nodeType: string
-  executionKey: string
-  attempt: number
   status: WorkflowNodeRunStatus
   input?: unknown
   output?: unknown

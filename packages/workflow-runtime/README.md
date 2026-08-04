@@ -87,7 +87,9 @@ Runtime 统一解析四种值：
 
 Runtime 会找到某一个最近一次成功的 Execution，从 outputs.result.data.name 中读取值。
 
-相当于就是把动态的变量，换为具体运行后的结果
+相当于就是把动态的变量，换为具体运行后的结果。系统变量和环境变量只作为引用解析上下文，
+不会自动展开并追加到节点输入；例如声明输入 `user_id` 引用了系统变量，Executor 收到的是
+`user_id: <真实值>`，而不是额外的 `sys.user_id` 字段。
 
 ### 4. 解析节点 Config
 
