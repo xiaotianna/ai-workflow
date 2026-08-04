@@ -11,8 +11,10 @@ import {
   SYSTEM_VARIABLE_KEYS,
   type JsonValue,
   type SystemVariableKey,
+  type VariableValue,
   type Workflow,
   type WorkflowNode,
+  jsonValueSchema,
   nodeRegistry,
   validateExecutorWorkflow,
   workflowSchema,
@@ -26,6 +28,8 @@ import {
   createRuntimeContextInputs,
   createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
+  projectConditionNodeConfig,
+  projectHttpNodeConfig,
   projectLlmNodeConfig,
   projectStaticJsonNodeConfig,
   RUNTIME_EXECUTION_STATUSES,
@@ -33,6 +37,7 @@ import {
   runtimeStateSchema,
   type DispatchNodeEffect,
   type RuntimeErrorData,
+  type RuntimeNodeConfigProjector,
   type RuntimeState,
   type RuntimeTransition,
 } from '@ai-workflow/runtime'
@@ -76,6 +81,11 @@ const UNSUPPORTED_FULL_RUN_NODE_TYPES = new Set<string>([
   BuiltinNodeType.LOOP_EXIT,
   BuiltinNodeType.SUB_WORKFLOW,
 ])
+const RUNTIME_NODE_CONFIG_PROJECTORS: Readonly<Record<string, RuntimeNodeConfigProjector>> = {
+  [BuiltinNodeType.LLM]: projectLlmNodeConfig,
+  [BuiltinNodeType.HTTP]: projectHttpNodeConfig,
+  [BuiltinNodeType.CONDITION]: projectConditionNodeConfig,
+}
 
 @Injectable()
 export class WorkflowRunService {
@@ -444,13 +454,22 @@ export class WorkflowRunService {
       ...resolveSingleNodeInputs(node),
       ...createRuntimeContextInputs(workflow, systemVariables),
     }
+    let projectedConfig: Record<string, JsonValue>
+    try {
+      projectedConfig = this.createRuntimeConfigResolver(workflow).resolve(
+        node,
+        resolveSingleNodeVariableValue,
+      )
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error, '节点配置无法解析'))
+    }
     const command = this.createCommand({
       runId,
       node,
       executionKey: `${runId}:single:${node.id}`,
       attempt: 1,
       inputs: effectiveInput,
-      config: parsedConfig.data,
+      config: projectedConfig,
     })
     const dispatches = [{ command }]
 
@@ -502,7 +521,7 @@ export class WorkflowRunService {
       Object.fromEntries(
         [...businessNodeTypes].map((nodeType) => [
           nodeType,
-          nodeType === BuiltinNodeType.LLM ? projectLlmNodeConfig : projectStaticJsonNodeConfig,
+          RUNTIME_NODE_CONFIG_PROJECTORS[nodeType] ?? projectStaticJsonNodeConfig,
         ]),
       ),
     )
@@ -767,13 +786,23 @@ function getRuntimeTerminal(transition: RuntimeTransition): {
   }
 }
 
-function resolveSingleNodeInputs(node: WorkflowNode): Record<string, unknown> {
+function resolveSingleNodeInputs(node: WorkflowNode): Record<string, JsonValue> {
   return Object.fromEntries(
-    Object.entries(node.inputs).map(([key, value]) => [
-      key,
-      value.type === 'value' ? value.value : value,
-    ]),
+    Object.entries(node.inputs).map(([key, value]) => [key, resolveSingleNodeVariableValue(value)]),
   )
+}
+
+function resolveSingleNodeVariableValue(value: VariableValue): JsonValue {
+  if (value.type === 'reference') {
+    throw new BadRequestException('单节点测试无法解析引用变量，请改用直接值或完整运行')
+  }
+
+  const parsed = jsonValueSchema.safeParse(value.value)
+  if (!parsed.success) {
+    throw new BadRequestException('单节点测试输入必须是可序列化 JSON 值')
+  }
+
+  return parsed.data
 }
 
 function createRunSystemVariables(

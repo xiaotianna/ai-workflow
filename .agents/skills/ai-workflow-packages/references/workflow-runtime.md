@@ -15,6 +15,10 @@
 - `projectLlmNodeConfig`：解析 LLM `config.messages[].content` 中由上下文编辑器写入的
   `{{#nodeId.outputKey.path#}}`、`{{#env.variableId.path#}}` 与 `{{#sys.key.path#}}` 引用，派发前将
   string 直接插入、其他 JSON 值序列化为文本；Go Executor 只接收解析后的消息列表。
+- `projectHttpNodeConfig`：按 HTTP Schema 解析配置，并显式解析 Headers、Params 与各类 Body 中的
+  `VariableValue`；Go Executor 只接收静态键值与 Body。
+- `projectConditionNodeConfig`：按 Condition Schema 解析分支，并在派发前解析每条规则的左右值；Go
+  Executor 只负责对本次静态值进行比较与选路。
 - `createRuntimeContextInputs(workflow, systemVariables)`：把非 Secret 环境变量和系统变量分别展开为
   `env.<name>`、`sys.<key>` 输入；Secret 不得进入 RuntimeState、Execution 或 MQ。
 - `createWorkflowRuntime(workflow, { workflowVersionId, configResolver })`：创建绑定不可变 WorkflowVersion
@@ -42,7 +46,8 @@
   投影进入 Execution 的可引用变量，未声明字段不进入 RuntimeState，但不会导致工作流失败。
   `NodeOutputDefinition.value` 缺省时使用 Result 的同名字段，存在时在当前上游可见上下文中解析
   直接值或变量引用并覆盖同名结果；合并后统一校验必填、默认值、JSON 边界与 dataType。Start
-  输入继续拒绝未声明字段。
+  输入继续拒绝未声明字段。若输出投影失败，即使 Executor 原始 Result 为 `SUCCEEDED`，对应
+  Execution 也会归一化为 `FAILED`；宿主持久化必须以该最终状态为准。
 - Runtime 内部异常使用 `RuntimeError`；进入 State、Effect、数据库、MQ 或 API 前转换成只含 JSON 的
   `RuntimeErrorData`。
 

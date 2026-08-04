@@ -816,14 +816,22 @@ function createNodeResultUpdate(
         finishedAt: now,
         durationMs: durationFrom(startedAt, now),
       }
-    : {
-        status: WorkflowNodeRunStatus.FAILED,
-        errorCode: result.error.code,
-        errorMessage: result.error.message,
-        errorDetails: result.error.details ? toJsonInput(result.error.details) : undefined,
-        finishedAt: now,
-        durationMs: durationFrom(startedAt, now),
-      }
+    : createFailedNodeResultUpdate(result.error, startedAt, now)
+}
+
+function createFailedNodeResultUpdate(
+  error: { code: string; message: string; details?: Record<string, JsonValue> },
+  startedAt: Date | null,
+  now: Date,
+) {
+  return {
+    status: WorkflowNodeRunStatus.FAILED,
+    errorCode: error.code,
+    errorMessage: error.message,
+    errorDetails: error.details ? toJsonInput(error.details) : undefined,
+    finishedAt: now,
+    durationMs: durationFrom(startedAt, now),
+  }
 }
 
 function createRuntimeNodeResultUpdate(
@@ -836,14 +844,19 @@ function createRuntimeNodeResultUpdate(
   }
 
   const execution = transition.state.executions[transition.result.executionKey]
+  if (!execution) {
+    throw new Error(`Runtime 结果缺少对应的 Execution: ${transition.result.executionKey}`)
+  }
+
+  if (execution.status === RUNTIME_EXECUTION_STATUSES.FAILED && execution.error !== undefined) {
+    return createFailedNodeResultUpdate(execution.error, startedAt, now)
+  }
+
   if (
-    !execution ||
     execution.status !== RUNTIME_EXECUTION_STATUSES.SUCCEEDED ||
     execution.outputs === undefined
   ) {
-    throw new Error(
-      `Runtime 成功结果缺少已归一化的 Execution 输出: ${transition.result.executionKey}`,
-    )
+    throw new Error(`Runtime 结果缺少终态 Execution: ${transition.result.executionKey}`)
   }
 
   return createNodeResultUpdate(transition.result, startedAt, now, execution.outputs)

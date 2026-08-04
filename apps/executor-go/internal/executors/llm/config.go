@@ -4,20 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"node-executor-go/internal/executor"
 )
 
 const defaultContextMessage = "请根据输入生成回答"
 
-const (
-	errorHandlingNone         = "none"
-	errorHandlingDefaultValue = "default_value"
-	errorHandlingErrorBranch  = "error_branch"
-)
-
 type NodeConfig struct {
 	Model         ModelConfig
 	Messages      []ContextMessage
-	ErrorHandling ErrorHandling
+	ErrorHandling executor.ErrorHandling
 }
 
 type ModelConfig struct {
@@ -49,21 +45,11 @@ type ContextMessage struct {
 	Content string `json:"content"`
 }
 
-type ErrorHandling struct {
-	Mode         string
-	DefaultValue any
-}
-
 type rawNodeConfig struct {
 	Model         ModelConfig       `json:"model"`
 	Messages      *[]ContextMessage `json:"messages"`
 	Prompt        string            `json:"prompt"`
 	ErrorHandling json.RawMessage   `json:"errorHandling"`
-}
-
-type rawErrorHandling struct {
-	Mode         string          `json:"mode"`
-	DefaultValue json.RawMessage `json:"defaultValue"`
 }
 
 func ParseNodeConfig(raw map[string]any) (NodeConfig, *ExecutionFailure) {
@@ -82,9 +68,9 @@ func ParseNodeConfig(raw map[string]any) (NodeConfig, *ExecutionFailure) {
 		return NodeConfig{}, configFailure(err.Error())
 	}
 
-	errorHandling, err := parseErrorHandling(decoded.ErrorHandling)
+	errorHandling, err := executor.ParseErrorHandling(decoded.ErrorHandling)
 	if err != nil {
-		return NodeConfig{}, configFailure(err.Error())
+		return NodeConfig{}, configFailure(fmt.Sprintf("LLM %s", err))
 	}
 
 	decoded.Model.GroupID = strings.TrimSpace(decoded.Model.GroupID)
@@ -145,35 +131,6 @@ func normalizeMessages(messages *[]ContextMessage, legacyPrompt string) ([]Conte
 	}
 
 	return normalized, nil
-}
-
-func parseErrorHandling(raw json.RawMessage) (ErrorHandling, error) {
-	if len(raw) == 0 {
-		return ErrorHandling{Mode: errorHandlingNone}, nil
-	}
-
-	var decoded rawErrorHandling
-	if err := json.Unmarshal(raw, &decoded); err != nil {
-		return ErrorHandling{}, fmt.Errorf("LLM 异常处理配置无效")
-	}
-	if decoded.Mode == "" {
-		decoded.Mode = errorHandlingNone
-	}
-
-	switch decoded.Mode {
-	case errorHandlingNone, errorHandlingErrorBranch:
-		return ErrorHandling{Mode: decoded.Mode}, nil
-	case errorHandlingDefaultValue:
-		defaultValue := any(map[string]any{})
-		if len(decoded.DefaultValue) > 0 {
-			if err := json.Unmarshal(decoded.DefaultValue, &defaultValue); err != nil {
-				return ErrorHandling{}, fmt.Errorf("LLM 异常默认值不是合法 JSON")
-			}
-		}
-		return ErrorHandling{Mode: decoded.Mode, DefaultValue: defaultValue}, nil
-	default:
-		return ErrorHandling{}, fmt.Errorf("LLM 异常处理模式无效：%s", decoded.Mode)
-	}
 }
 
 func validateParameters(parameters *ModelParameters) error {

@@ -3,6 +3,7 @@ import { workflowNodeSchema } from '../node/workflow-node-schema'
 import { workflowEdgeSchema } from '../edge/workflow-edge-schema'
 import { workflowEnvironmentVariablesSchema } from '../variable/environment-variable'
 import { BuiltinNodeType } from '../nodes/builtin-node-types'
+import { synchronizeCodeNodeOutputs } from '../nodes/code/outputs'
 import { LLM_FIXED_OUTPUTS } from '../nodes/llm/outputs'
 import { normalizeNodeOutputs } from '../node/normalize-node-outputs'
 import { workflowOutputsSchema } from './workflow-output-schema'
@@ -20,14 +21,23 @@ export const workflowSchema = z
   })
   .transform((workflow) => ({
     ...workflow,
-    nodes: workflow.nodes.map((node) =>
-      node.type === BuiltinNodeType.LLM
-        ? {
-            ...node,
-            outputs: normalizeNodeOutputs(node.outputs, LLM_FIXED_OUTPUTS),
-          }
-        : node,
-    ),
+    nodes: workflow.nodes.map((node) => {
+      if (node.type === BuiltinNodeType.LLM) {
+        return {
+          ...node,
+          outputs: normalizeNodeOutputs(node.outputs, LLM_FIXED_OUTPUTS),
+        }
+      }
+
+      if (node.type === BuiltinNodeType.CODE && typeof node.config.code === 'string') {
+        return {
+          ...node,
+          outputs: synchronizeCodeNodeOutputs(node.config.code, node.outputs),
+        }
+      }
+
+      return node
+    }),
   }))
 
 export type Workflow = z.infer<typeof workflowSchema>

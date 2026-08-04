@@ -137,6 +137,8 @@ Nodes UI 保持 schema 和组件类型关联。
   `normalizeNodeOutputs` 合并到 `node.outputs`，并始终以类型定义中的固定元数据为准。输出端口只负责 Edge Handle 与执行分支，
   `node.outputs` 才是节点公开的变量集合；即使两者当前使用相同字符串，也不得从端口推导变量，
   或用端口存在性放宽变量引用校验。LLM 固定公开 `result`，同时允许实例追加其他输出定义。
+  Code 的源码派生输出不写入 `NodeType.fixedOutputs`；它们由 `deriveCodeNodeOutputs()` 按节点配置
+  动态生成，并在配置面板中以相同的不可编辑语义展示。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
 - `NodeType.variableForm` 以可选的 `input` / `output` 区域声明节点变量表单；每个区域只保存
   标题、说明和 renderer 字符串，不保存 React 组件。节点未配置 `variableForm` 时，
@@ -182,8 +184,11 @@ Nodes UI 保持 schema 和组件类型关联。
   `node.outputs`，不保存目标输出的内部 `value`。
 - 当前正式注册的内置节点包括 `start`、`end`、`llm`、`rag`、`code`、`http`、
   `loop`、`loop_start`、`loop_exit`、`condition` 和 `sub_workflow`。
-- Code 节点新增时默认创建直接值输入 `arg1`、`arg2` 和 string 输出 `result`，初始代码
-  通过这些变量生成 `main` 函数模板。
+- Code 节点新增时默认创建直接值输入 `arg1`、`arg2`，初始代码通过这些变量生成 `main` 函数模板。
+  `deriveCodeNodeOutputs()` 按 ESM 语法解析普通或 `export` 声明的 `main`，静态提取其直接返回的
+  对象字面量顶层 Key，并以 `json` 类型同步为不可手动修改或删除的执行器输出；代码语法暂时
+  不完整时保留最后一次有效定义，返回 Key 变化后删除旧执行器输出并增加新输出。用户显式配置了
+  `value` 的附加输出映射不受源码同步影响。
 - 每个 Loop 必须恰好直接包含一个 `loop_start` 和一个 `loop_exit`；两者不能脱离 Loop，
   边也不能跨越 Loop 作用域。
 

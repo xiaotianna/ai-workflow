@@ -22,7 +22,12 @@ func (nodeExecutor *Executor) Execute(
 	_ context.Context,
 	command protocol.ExecuteNodeCommand,
 ) (protocol.ExecuteNodeResult, error) {
-	activatedHandle := resolveBranch(command.Config)
+	config, failure := parseNodeConfig(command.Config)
+	if failure != nil {
+		return executor.FailedResult(command, failure), nil
+	}
+
+	activatedHandle := resolveBranch(config)
 	nodeExecutor.logger.Printf(
 		"condition execute commandId=%s runId=%s nodeRunId=%s nodeId=%s attempt=%d activatedHandle=%s",
 		command.CommandID,
@@ -43,28 +48,4 @@ func (nodeExecutor *Executor) Execute(
 		map[string]any{},
 		activatedHandles,
 	), nil
-}
-
-func resolveBranch(config map[string]any) string {
-	conditions, ok := config["conditions"].([]any)
-	if !ok {
-		return ""
-	}
-
-	firstPortID := ""
-	for _, value := range conditions {
-		condition, ok := value.(map[string]any)
-		if !ok {
-			continue
-		}
-		portID, _ := condition["portId"].(string)
-		if firstPortID == "" {
-			firstPortID = portID
-		}
-		if isFallback, _ := condition["isFallback"].(bool); isFallback {
-			return portID
-		}
-	}
-
-	return firstPortID
 }

@@ -260,6 +260,9 @@
   可通过同一 Dialog 编辑；Dialog 编辑字段类型、变量名称、显示名称、类型匹配的默认值与
   必填状态，不提供最大长度或隐藏预填，最终仍写入 `node.outputs`；End 的“输出变量”通过输入
   绑定 renderer 写入 `node.inputs`，Code 使用默认配置并按输入变量、代码配置、输出变量排列。
+  Code 的执行器输出由 Core 从 `main` 直接返回的对象字面量 Key 派生；配置面板在代码变更时
+  同步 `node.outputs`，并把这些输出作为禁用行传给 Form，禁止手动修改或删除。源码暂时存在
+  语法错误时保留最后一次有效输出，Key 变化后再替换，Web 不运行代码或判断实际返回值类型。
   HTTP 已按字段级 form 组合 URL、Method、Headers、Params、Body 和连接超时，不再使用整节点
   renderer。Condition 也通过 `conditionNodeForm` 和 Form 内置的 `ConditionBranchesField` 编辑
   IF / ELIF / ELSE 分支，不再使用整节点 renderer；条件两侧复用 Form 的

@@ -78,8 +78,10 @@
   WorkflowVersion 读取稳定模型引用，再按应用 Owner 解析启用状态、真实模型 ID、Base URL 和凭证。
   该专用解析接口是当前已落地的最小模型凭证边界，不代表通用 Secret Gateway 已完成。
 - LLM 上下文正文来自 Core `config.messages`；完整运行注册 Runtime 的 `projectLlmNodeConfig`，在派发前
-  解析正文中的节点、环境与系统变量引用。节点 `inputs` 是独立且可选的通用输入绑定，Server 与 Go
-  均不得假设存在名为 `input` 的字段，也不得把它自动追加成一条模型消息。
+  解析正文中的节点、环境与系统变量引用。HTTP 与 Condition 分别注册 `projectHttpNodeConfig` 和
+  `projectConditionNodeConfig`，显式解析其 Schema 声明的 VariableValue，禁止把 Core 引用结构交给
+  Go 猜测。节点 `inputs` 是独立且可选的通用输入绑定，Server 与 Go 均不得假设存在名为 `input` 的
+  字段，也不得把它自动追加成一条模型消息。
 
 ## 知识库持久化
 
@@ -143,13 +145,17 @@
 idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId/NodeRun/leaseToken，再用
 revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING → PUBLISHED/FAILED`
 和 `FOR UPDATE SKIP LOCKED` claim 派发；stale claim 可恢复。Go 只有在 Result 获得 Publisher Confirm
-后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM Executor 已按 Core
-Config、运行时模型解析接口和供应商 Registry 执行真实请求，其余节点业务 Executor 仍为最小实现；
+后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM、HTTP、Code 与
+Condition Executor 已按 Core Config 执行真实业务逻辑，RAG 仍为最小实现；
 所有 Result 与后续完整实现使用同一协议链路，Server 不识别执行器实现类型，
 不从版本快照改写或补齐输出。Result Inbox 始终保留 Executor 原始结果；完整运行的 NodeRun 保存
 Runtime Execution 已归一化的输出，因此 `node.outputs` 中声明的直接值和上游变量映射会同时用于下游
 引用与运行追踪展示，节点内置但未声明的结果字段不会导致运行失败。单节点运行没有 Runtime 上下文，
-NodeRun 继续保存 Executor 原始成功输出。
+NodeRun 继续保存 Executor 原始成功输出，并复用相同 Config projector；节点输入或 Config 存在引用
+变量时在创建 Command 前明确拒绝，避免把引用对象误当成业务值发送给 Go。
+Executor 返回成功但 Runtime 在输出归一化阶段拒绝结果时，NodeRun 必须按对应 Execution 的最终失败
+状态落库；不能再次按原始 Executor `SUCCEEDED` 强读 outputs，否则会掩盖真实 Runtime 错误并触发
+Result Consumer 重试。
 后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布

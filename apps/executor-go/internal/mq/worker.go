@@ -151,7 +151,7 @@ func (worker *Worker) handleDelivery(
 	if err := protocol.ValidateExecuteNodeResult(result); err != nil {
 		worker.logger.Printf("executor returned invalid result commandId=%s error=%v", command.CommandID, err)
 		result = protocol.NewFailedResult(
-			resultIdentity(command),
+			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "EXECUTOR_RESULT_INVALID",
 				Message:   "节点执行器返回了无效结果",
@@ -211,7 +211,7 @@ func (worker *Worker) executeCommand(
 	deadline, err := time.Parse(time.RFC3339Nano, command.DeadlineAt)
 	if err != nil {
 		return protocol.NewFailedResult(
-			resultIdentity(command),
+			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "COMMAND_DEADLINE_INVALID",
 				Message:   "节点执行命令的 deadlineAt 无效",
@@ -221,7 +221,7 @@ func (worker *Worker) executeCommand(
 	}
 	if !deadline.After(time.Now()) {
 		return protocol.NewFailedResult(
-			resultIdentity(command),
+			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "EXECUTION_DEADLINE_EXCEEDED",
 				Message:   "节点执行命令已超过 deadline",
@@ -235,7 +235,7 @@ func (worker *Worker) executeCommand(
 	nodeExecutor, ok := worker.registry.Resolve(command.NodeType)
 	if !ok {
 		return protocol.NewFailedResult(
-			resultIdentity(command),
+			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "NODE_EXECUTOR_NOT_REGISTERED",
 				Message:   fmt.Sprintf("节点类型 %s 没有注册执行器", command.NodeType),
@@ -256,7 +256,7 @@ func (worker *Worker) executeCommand(
 		err,
 	)
 	return protocol.NewFailedResult(
-		resultIdentity(command),
+		executor.ResultIdentity(command),
 		protocol.NodeExecutionError{
 			Code:      "NODE_EXECUTOR_FAILED",
 			Message:   err.Error(),
@@ -269,16 +269,6 @@ func (worker *Worker) requeue(delivery amqp.Delivery, commandID string, cause er
 	worker.logger.Printf("publish workflow result failed commandId=%s error=%v", commandID, cause)
 	if err := delivery.Nack(false, true); err != nil {
 		worker.logger.Printf("requeue workflow command failed commandId=%s error=%v", commandID, err)
-	}
-}
-
-func resultIdentity(command protocol.ExecuteNodeCommand) protocol.ResultIdentity {
-	return protocol.ResultIdentity{
-		ProtocolVersion: command.ProtocolVersion,
-		CommandID:       command.CommandID,
-		NodeRunID:       command.NodeRunID,
-		ExecutionKey:    command.ExecutionKey,
-		LeaseToken:      command.LeaseToken,
 	}
 }
 

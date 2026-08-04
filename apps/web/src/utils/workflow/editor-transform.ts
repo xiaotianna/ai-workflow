@@ -1,6 +1,7 @@
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import {
   BuiltinNodeType,
+  synchronizeCodeNodeOutputs,
   normalizeNodeOutputs,
   nodeRegistry,
   type Workflow,
@@ -51,6 +52,10 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
       .map((workflowNode, index) => {
         const size = snapshot.layout.sizes?.[workflowNode.id]
         const fixedOutputs = nodeRegistry.get(workflowNode.type)?.fixedOutputs
+        const outputs =
+          workflowNode.type === BuiltinNodeType.CODE && typeof workflowNode.config.code === 'string'
+            ? synchronizeCodeNodeOutputs(workflowNode.config.code, workflowNode.outputs)
+            : normalizeNodeOutputs(workflowNode.outputs, fixedOutputs)
 
         return {
           id: workflowNode.id,
@@ -63,7 +68,7 @@ export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasN
               : {}),
             config: workflowNode.config,
             inputs: workflowNode.inputs,
-            outputs: normalizeNodeOutputs(workflowNode.outputs, fixedOutputs),
+            outputs,
           },
           parentId: workflowNode.parentId,
           // 子节点只能在父 Loop 的点阵背景区域内移动。

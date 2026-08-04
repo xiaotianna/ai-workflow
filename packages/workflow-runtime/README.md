@@ -98,10 +98,15 @@ node.inputs 的结构已经由 Core 明确为 VariableValue，所以 Runtime 可
 ```ts
 const configResolver = createRuntimeNodeConfigResolver({
   code: projectStaticJsonNodeConfig,
-  llm: projectStaticJsonNodeConfig,
+  llm: projectLlmNodeConfig,
   http: projectHttpNodeConfig,
+  condition: projectConditionNodeConfig,
 })
 ```
+
+HTTP projector 解析 Headers、Params 和 Body 中的 VariableValue，Condition projector 解析每条规则的
+左右值，LLM projector 解析上下文消息中的变量 Token。Go Executor 只接收投影后的静态 JSON，不理解
+Core 的变量引用结构。
 
 ### 5. 产生 Effect
 

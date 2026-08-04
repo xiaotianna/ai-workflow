@@ -12,6 +12,8 @@ import {
   createCodeNodeInitialCode,
 } from './schema'
 
+export { deriveCodeNodeOutputs, synchronizeCodeNodeOutputs } from './outputs'
+
 function createCodeNodeInitialInputs(): NodeInputBindings {
   return Object.fromEntries(
     CODE_NODE_DEFAULT_INPUT_KEYS.map((key) => [
@@ -29,7 +31,7 @@ function createCodeNodeInitialOutputs(): NodeOutputDefinition[] {
     {
       key: CODE_NODE_DEFAULT_OUTPUT_KEY,
       label: CODE_NODE_DEFAULT_OUTPUT_KEY,
-      dataType: DATA_TYPE_KINDS.STRING,
+      dataType: DATA_TYPE_KINDS.JSON,
     },
   ]
 }

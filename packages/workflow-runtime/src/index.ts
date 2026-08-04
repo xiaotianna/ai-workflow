@@ -10,6 +10,8 @@ export {
   type RuntimeNodeConfigResolver,
 } from './config/runtime-node-config-resolver'
 export { projectLlmNodeConfig } from './config/llm-node-config-projector'
+export { projectHttpNodeConfig } from './config/http-node-config-projector'
+export { projectConditionNodeConfig } from './config/condition-node-config-projector'
 
 export {
   createWorkflowRuntime,

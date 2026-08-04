@@ -1,0 +1,4 @@
+interface:
+  display_name: "Go 执行器（app-executor-go）"
+  short_description: "维护 Go 节点执行器、Node 代码沙箱与部署运行约束"
+  default_prompt: "使用 $app-executor-go 维护 AI Workflow 的 Go 节点执行器。"

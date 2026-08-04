@@ -8,18 +8,27 @@ import (
 	protocol "workflow-protocol"
 )
 
-const NodeType = "code"
+const (
+	NodeType          = "code"
+	resultOutputKey   = "result"
+	maxSourceBytes    = 256 * 1024
+	maxOutputJSONSize = 4 * 1024 * 1024
+)
 
 type Executor struct {
-	logger *log.Logger
+	logger  *log.Logger
+	sandbox javaScriptSandbox
 }
 
 func New(logger *log.Logger) *Executor {
-	return &Executor{logger: logger}
+	return &Executor{
+		logger:  logger,
+		sandbox: newJavaScriptSandbox(),
+	}
 }
 
 func (nodeExecutor *Executor) Execute(
-	_ context.Context,
+	ctx context.Context,
 	command protocol.ExecuteNodeCommand,
 ) (protocol.ExecuteNodeResult, error) {
 	nodeExecutor.logger.Printf(
@@ -31,9 +40,25 @@ func (nodeExecutor *Executor) Execute(
 		command.Attempt,
 	)
 
+	config, failure := parseNodeConfig(command.Config)
+	if failure != nil {
+		return executor.FailedResult(command, failure), nil
+	}
+
+	outputs, failure := nodeExecutor.sandbox.Execute(ctx, config.Code, command.Inputs)
+	if failure != nil {
+		return executor.ApplyFailure(
+			command,
+			config.ErrorHandling,
+			resultOutputKey,
+			resultOutputKey,
+			failure,
+		), nil
+	}
+
 	return protocol.NewSucceededResult(
 		executor.ResultIdentity(command),
-		map[string]any{"result": map[string]any{}},
-		[]string{"result"},
+		outputs,
+		[]string{resultOutputKey},
 	), nil
 }

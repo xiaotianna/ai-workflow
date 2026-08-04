@@ -1,11 +1,13 @@
 import {
   BuiltinNodeType,
   createSubWorkflowNodeVariables,
+  deriveCodeNodeOutputs,
   nodeInputBindingsSchema,
   nodeOutputDefinitionsSchema,
   nodeRegistry,
   normalizeNodeOutputs,
   resolveNodeVariableForm,
+  synchronizeCodeNodeOutputs,
   type NodeType,
   type WorkflowNode,
 } from '@ai-workflow/core'
@@ -78,6 +80,7 @@ const workflowConfigPanelFormSchema = z.object({
 })
 
 type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema>
+type NodeOutputDefinitionsFormValue = NonNullable<WorkflowConfigPanelFormInput['outputs']>
 
 function resolveInitialNodeConfig(
   nodeType: NodeType | undefined,
@@ -93,6 +96,22 @@ function resolveInitialNodeConfig(
     !Array.isArray(normalizedConfig)
     ? { ...normalizedConfig }
     : { ...config }
+}
+
+function normalizeConfigPanelOutputs(
+  node: WorkflowNode,
+  nodeType: NodeType | undefined,
+  config: Readonly<Record<string, unknown>>,
+  outputs: NodeOutputDefinitionsFormValue,
+): NodeOutputDefinitionsFormValue {
+  const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, outputs)
+  if (!parsedOutputs.success) return [...outputs]
+
+  const normalizedOutputs = normalizeNodeOutputs(parsedOutputs.data, nodeType?.fixedOutputs)
+
+  return node.type === BuiltinNodeType.CODE && typeof config.code === 'string'
+    ? synchronizeCodeNodeOutputs(config.code, normalizedOutputs)
+    : normalizedOutputs
 }
 
 export const WorkflowConfigPanel = ({
@@ -117,12 +136,13 @@ export const WorkflowConfigPanel = ({
 }: WorkflowConfigPanelProps) => {
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
+  const initialConfig = resolveInitialNodeConfig(nodeType, node.config)
   const { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
     label: node.label ?? resolvedDefaultLabel,
     description: node.description ?? nodeType?.definition.description ?? '',
     inputs: { ...node.inputs },
-    outputs: normalizeNodeOutputs(node.outputs, nodeType?.fixedOutputs),
-    config: resolveInitialNodeConfig(nodeType, node.config),
+    outputs: normalizeConfigPanelOutputs(node, nodeType, initialConfig, node.outputs),
+    config: initialConfig,
   })
 
   if (!nodeType) {
@@ -148,8 +168,19 @@ export const WorkflowConfigPanel = ({
   const errors: NodeConfigFieldErrors = configValidation.success ? {} : configValidation.errors
   const inputs = form.inputs ?? {}
   const outputs = form.outputs ?? []
-  const inputValidation = validateFormByZod(nodeInputBindingsSchema, inputs)
   const outputValidation = validateFormByZod(nodeOutputDefinitionsSchema, outputs)
+  const derivedCodeOutputs =
+    node.type === BuiltinNodeType.CODE && typeof form.config.code === 'string'
+      ? deriveCodeNodeOutputs(form.config.code)
+      : undefined
+  const lastValidCodeOutputs = outputValidation.success
+    ? outputValidation.data.filter((output) => output.value === undefined)
+    : []
+  const fixedOutputs =
+    node.type === BuiltinNodeType.CODE
+      ? (derivedCodeOutputs ?? lastValidCodeOutputs)
+      : nodeType.fixedOutputs
+  const inputValidation = validateFormByZod(nodeInputBindingsSchema, inputs)
   const inputErrors: NodeVariableFieldErrors = inputValidation.success ? {} : inputValidation.errors
   const outputErrors: NodeVariableFieldErrors = outputValidation.success
     ? {}
@@ -254,15 +285,19 @@ export const WorkflowConfigPanel = ({
 
   function handleConfigChange(nextConfig: Record<string, unknown>) {
     const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
+    const nextOutputs = normalizeConfigPanelOutputs(node, nodeType, nextConfig, outputs)
+    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     updateFormField('config', nextConfig)
-    reportDraftValidationIssues({ config: nextConfig })
+    updateFormField('outputs', nextOutputs)
+    reportDraftValidationIssues({ config: nextConfig, outputs: nextOutputs })
 
-    if (!parsedConfig.success) return
+    if (!parsedConfig.success || !parsedOutputs.success) return
 
     onApply({
       ...node,
       config: parsedConfig.data,
+      outputs: parsedOutputs.data,
     })
   }
 
@@ -319,7 +354,7 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleOutputsChange(nextOutputs: WorkflowNode['outputs']) {
-    const normalizedOutputs = normalizeNodeOutputs(nextOutputs, nodeType!.fixedOutputs)
+    const normalizedOutputs = normalizeNodeOutputs(nextOutputs, fixedOutputs)
 
     updateFormField('outputs', normalizedOutputs)
     reportDraftValidationIssues({ outputs: normalizedOutputs })
@@ -391,7 +426,7 @@ export const WorkflowConfigPanel = ({
         section={outputVariableSection}
         inputs={inputs}
         outputs={outputs}
-        fixedOutputs={nodeType.fixedOutputs}
+        fixedOutputs={fixedOutputs}
         availableVariables={availableVariables}
         inputErrors={inputErrors}
         outputErrors={outputErrors}

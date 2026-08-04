@@ -15,6 +15,7 @@
 | ----------------------------------------------------------------- | ----------------------- | ---------------------------------------------- |
 | `apps/web` 前端页面、路由、布局、业务功能、组件、Hooks 与设计规范 | `$app-web`              | `.agents/skills/app-web/SKILL.md`              |
 | `apps/server` 后端框架、接口、模块、数据访问与工作流接入          | `$app-server`           | `.agents/skills/app-server/SKILL.md`           |
+| `apps/executor-go` Go 节点执行器、Node 代码运行时与部署运行环境   | `$app-executor-go`      | `.agents/skills/app-executor-go/SKILL.md`      |
 | `packages/*` 所有子包的职责、公开 API、用法、依赖与注意事项       | `$ai-workflow-packages` | `.agents/skills/ai-workflow-packages/SKILL.md` |
 
 ### 读取规则
