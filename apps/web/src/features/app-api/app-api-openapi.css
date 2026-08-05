@@ -1,0 +1,245 @@
+/* Color tokens mapped to this app's design system */
+@import 'fumadocs-ui/css/shadcn.css';
+/* Class source for fumadocs-ui components (Tabs, CodeBlock, …) — no @apply */
+@import 'fumadocs-ui/css/generated/shared.css';
+@import 'fumadocs-openapi/css/preset.css';
+
+/* Headings / markdown / lists — same plugin as fumadocs-ui preset */
+@plugin '@fumadocs/tailwind/typography';
+
+/*
+ * Avoid `fumadocs-ui/css/preset.css` / `lib/base.css`:
+ * they `@apply sm:ms-4` inside `@utility`, which breaks under this Tailwind v4 setup.
+ * Keep only the OpenAPI-needed animations, utilities, and shiki styles below.
+ */
+
+@theme {
+  --animate-fd-fade-in: fd-fade-in 300ms ease;
+  --animate-fd-fade-out: fd-fade-out 300ms ease;
+  --animate-fd-dialog-in: fd-dialog-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fd-dialog-out: fd-dialog-out 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fd-popover-in: fd-popover-in 100ms ease;
+  --animate-fd-popover-out: fd-popover-out 100ms ease;
+  --animate-fd-collapsible-down: fd-collapsible-down 150ms cubic-bezier(0.45, 0, 0.55, 1);
+  --animate-fd-collapsible-up: fd-collapsible-up 150ms cubic-bezier(0.45, 0, 0.55, 1);
+  --animate-fd-accordion-down: fd-accordion-down 200ms ease-out;
+  --animate-fd-accordion-up: fd-accordion-up 200ms ease-out;
+
+  @keyframes fd-fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes fd-fade-out {
+    from {
+      opacity: 1;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-dialog-in {
+    from {
+      transform: scale(1.06);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes fd-dialog-out {
+    from {
+      transform: scale(1);
+    }
+    to {
+      transform: scale(1.04);
+      opacity: 0;
+    }
+  }
+
+  @keyframes fd-popover-in {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes fd-popover-out {
+    to {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+  }
+
+  @keyframes fd-collapsible-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-collapsible-content-height, auto);
+    }
+  }
+
+  @keyframes fd-collapsible-up {
+    from {
+      height: var(--radix-collapsible-content-height, auto);
+    }
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes fd-accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height, auto);
+    }
+  }
+
+  @keyframes fd-accordion-up {
+    from {
+      height: var(--radix-accordion-content-height, auto);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+@utility prose-no-margin {
+  & > :first-child {
+    margin-top: 0;
+  }
+
+  & > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* Shiki code blocks — raw CSS instead of @apply */
+.shiki:not(.not-fumadocs-codeblock *) {
+  --padding-left: calc(var(--spacing) * 4);
+  --padding-right: calc(var(--spacing) * 4);
+
+  code span {
+    color: var(--shiki-light);
+    font-style: var(--shiki-light-font-style);
+  }
+
+  .line {
+    position: relative;
+    padding-left: var(--padding-left);
+    padding-right: var(--padding-right);
+  }
+
+  .line:empty {
+    height: 1lh;
+  }
+}
+
+.dark .shiki:not(.not-fumadocs-codeblock *) {
+  code span {
+    color: var(--shiki-dark);
+    font-style: var(--shiki-dark-font-style);
+  }
+}
+
+code.shiki:not(.not-fumadocs-code *) span {
+  color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style);
+}
+
+.dark code.shiki:not(.not-fumadocs-code *) span {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style);
+}
+
+/*
+ * Project `--secondary` is a dark button color; fumadocs expects a light panel
+ * surface. Set on :root/.dark so portaled Schema popovers inherit them too
+ * (Popover Content renders outside `.app-api-openapi`).
+ */
+:root,
+.dark {
+  --color-fd-secondary: var(--muted);
+  --color-fd-secondary-foreground: var(--foreground);
+  --color-fd-muted: var(--muted);
+  --color-fd-muted-foreground: var(--muted-foreground);
+  --color-fd-accent: var(--accent);
+  --color-fd-accent-foreground: var(--accent-foreground);
+  --color-fd-card: var(--card);
+  --color-fd-card-foreground: var(--card-foreground);
+  --color-fd-border: var(--border);
+  --color-fd-background: var(--background);
+  --color-fd-foreground: var(--foreground);
+  --color-fd-primary: var(--primary);
+  --color-fd-primary-foreground: var(--primary-foreground);
+  --color-fd-popover: var(--popover);
+  --color-fd-popover-foreground: var(--popover-foreground);
+  --color-fd-ring: var(--ring);
+}
+
+/* Operation title: match fumadocs DocsTitle weight when rendered as h2/h3 */
+.app-api-openapi .prose :is(h1, h2, h3, h4) {
+  scroll-margin-top: 7rem;
+}
+
+.app-api-openapi .prose h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+}
+
+.app-api-openapi .prose h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+}
+
+/*
+ * Operation titles use `my-0!` (margin-block: 0 !important). The title row
+ * and method/path bar are adjacent siblings with no gap, so space the
+ * header row instead of fighting the utility's margin-block.
+ */
+.app-api-openapi .prose .min-w-0.flex-1 > .flex.items-center.justify-between:first-child {
+  margin-bottom: 1rem;
+}
+
+/* Schema property filter — no official disable flag; hide in page + portaled popovers */
+:has(> [data-object-search-input]) {
+  display: none;
+}
+
+/* Single auth scheme label — mirror SelectTrigger badge look */
+.app-api-openapi .prose .not-prose > .flex.flex-col.text-xs > code.truncate {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  max-width: 100%;
+  gap: 0.5rem;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid var(--color-fd-border);
+  background: var(--color-fd-secondary);
+  color: var(--color-fd-secondary-foreground);
+  padding: 0.5rem 0.625rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+/* Enum "Value in" list: restore bullets after preflight reset */
+.app-api-openapi ul:has(> li.list-disc) {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.app-api-openapi li.list-disc {
+  list-style-type: disc;
+  list-style-position: inside;
+}

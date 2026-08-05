@@ -1,7 +1,10 @@
 @import '@ai-workflow/ui/globals.css';
+@import './features/app-api/app-api-openapi.css';
 
 /* @source 是 Tailwind v4 的“扫描路径声明” */
 @source './';
+@source '../node_modules/fumadocs-ui/dist/**/*.js';
+@source '../node_modules/fumadocs-openapi/dist/**/*.js';
 
 .workflow-editor .react-flow__panel {
   /* 1rem -> 16px -> m-4 */
