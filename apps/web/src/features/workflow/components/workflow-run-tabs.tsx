@@ -435,7 +435,10 @@ function getTraceExecutionInput(
   run: StudioWorkflowTestRunDto,
 ) {
   if (node.type === BuiltinNodeType.START) return run.input
-  return execution.input
+  const nodeRun = run.nodeRuns.find(
+    (candidate) => candidate.executionKey === execution.executionKey,
+  )
+  return nodeRun?.input ?? execution.input
 }
 
 function getTraceExecutionOutput(

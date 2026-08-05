@@ -8,11 +8,16 @@
 
 1. 从 `ai-workflow.node.execute.v1` 持久队列手动消费 Command；
 2. 使用 `workflow-protocol` JSON Schema 解码和校验消息；
-3. 校验 `deadlineAt`，按 `nodeType` 从 Registry 解析 Executor；
+3. 校验 `deadlineAt` 与 Server Command 租约，按 `nodeType` 从 Registry 解析 Executor；
 4. 调用节点 Executor 并校验 Result；
 5. 将 Result 持久发布到 `ai-workflow.result.v1`，收到 Publisher Confirm 后才 Ack Command。
 
 非法 Command 会进入 Command DLQ；Result 失败时原 Command 会重新入队。Worker 断线后每 2 秒重连，RabbitMQ URL 通过 `RABBITMQ_URL` 配置，默认连接根目录 `compose.dev.yaml` 创建的开发 vhost。
+
+Command 租约地址通过 `COMMAND_RUNTIME_LEASE_URL` 配置，默认是
+`http://127.0.0.1:3000/internal/executor/commands/lease`。Worker 消费前先检查，执行期间每 500ms
+复查；Run 因前端 SSE 断开或主动暂停进入终态后，排队消息会直接 Ack 丢弃，执行中的 Command context
+会被取消。租约服务暂时不可用时新命令不会盲目执行，而是重新入队等待。
 
 Registry 不提供 fallback；未注册的 `nodeType` 返回 `NODE_EXECUTOR_NOT_REGISTERED`。内置注册入口 `internal/executors.RegisterBuiltins` 当前注册 `llm`、`rag`、`code`、`http`、`condition`，每个目录自行实现 `NodeExecutor`、打印不含输入、配置或凭证的命令身份并组装协议 Result。
 

@@ -9,6 +9,7 @@ import { StudioModule } from './modules/studio.module'
 import { ModelsModule } from './modules/models.module'
 import { KnowledgeBaseModule } from './modules/knowledge-base.module'
 import { ExecutorModelModule } from './modules/executor-model.module'
+import { ExecutorCommandModule } from './modules/executor-command.module'
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ExecutorModelModule } from './modules/executor-model.module'
     StudioModule,
     ModelsModule,
     KnowledgeBaseModule,
+    ExecutorCommandModule,
     ExecutorModelModule,
   ],
   controllers: [],

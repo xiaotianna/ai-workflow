@@ -140,6 +140,10 @@
 7. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
 8. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
+应用调用日志以 `WorkflowRun` 为统一事实来源，从而同时覆盖 API 和子工作流调用；`ApiCallLog` 只
+记录 HTTP API 请求审计，不能代替运行日志。日志查询通过版本来源 `PUBLISH` 与触发方式
+`API` / `SUB_WORKFLOW` 共同限定正式调用，禁止把 `TEST_RUN` 或其他编辑器运行混入发布日志。
+
 测试运行通过同一个应用服务与持久化链路处理 `FULL` 和 `SINGLE_NODE`：每次运行创建不可变
 `WorkflowVersion`，并保存 Run、NodeRun、RuntimeState revision、Command Outbox、Result Inbox、
 idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId/NodeRun/leaseToken，再用
@@ -167,18 +171,26 @@ NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stal
 
 编辑器暂停测试运行使用一次性取消语义：Repository 只允许当前用户、当前应用的 `RUNNING` Run
 原子切换为 `CANCELLED`，同事务取消 `PENDING` / `RUNNING` NodeRun 和尚未发布的 Outbox。已经
-发布给 Worker 的命令可以完成传输，但 Result 因 Run 已终态必须按 stale 忽略；当前不提供恢复
-执行，不得把该能力描述为可续跑的 `PAUSED`。NodeRun 在进入执行链路并创建派发记录时写入
+启动的子工作流 Run 必须沿 `parentRunId` 递归进入 `CANCELLED`，并取消整棵运行树的 NodeRun 与
+Outbox，禁止父 Run 结束后子 Run 继续占用 Executor。已经发布给 RabbitMQ 的命令由 Worker 在消费
+前通过 Server 租约接口识别并 Ack 丢弃；已经执行中的命令
+每 500ms 复查租约，失效后取消 Command context，HTTP、LLM 与 Code 等外部工作随 context 停止。
+极端竞态产生的 Result 仍因 Run 已终态按 stale 忽略；当前不提供恢复执行，不得把该能力描述为可续跑
+的 `PAUSED`。NodeRun 在进入执行链路并创建派发记录时写入
 `startedAt`，派发器领取时不得重置；取消事务按该时间到取消时刻固化每条未完成 NodeRun 的耗时，
 不足 `1 ms` 的已开始记录按 `1 ms` 保存。
 
 测试运行进度通过 Server SSE 推送：Controller 建连后先读取持久化快照以覆盖建连竞态，Result
 事务提交成功后才发布 `node_finished`，并携带最新 `nodeStates`、`nodeRuns`、
 `loopIterations`、`traceExecutions`、`traceNodeDurations` 与 `traceNodeIds`；Run 进入终态后发布 `workflow_finished`。
+最后一个 SSE 客户端异常断开时，Controller 先清理心跳与订阅，再复用相同取消事务终止 Run；正常
+终态关闭不能被误判为客户端断开。多个订阅者仍存在时，单个连接关闭不得取消共享 Run。
 `loopIterations` 只投影 RuntimeState 中活跃 Loop 的当前次数和上限，不进入工作流快照。追踪顺序从
 RuntimeState 已持久化的 Execution `sequence` 生成，Start/End 等本地控制节点也以其 Execution
 为准。`traceExecutions` 按 `executionKey` 逐条投影，不按 `nodeId` 去重；业务执行与 NodeRun
-按 `executionKey` 精确合并状态、输入、输出和耗时，Loop 内 Execution 同时返回所在迭代次数。当前事件
+按 `executionKey` 精确合并状态、输入、输出和耗时，其中输入优先使用持久化的 `NodeRun.input`，
+以保持和下发给 Executor 的 `Command.inputs` 完全一致；没有 NodeRun 的本地控制节点才回退到
+Runtime Execution 输入。Loop 内 Execution 同时返回所在迭代次数。当前事件
 订阅器是 Server 进程内边界；部署多个 Server 实例前必须替换为 Redis Pub/Sub 等跨实例事件协调，
 但数据库仍是恢复快照、追踪顺序和最终状态的事实来源。
 

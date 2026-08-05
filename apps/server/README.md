@@ -182,12 +182,19 @@ NodeRun、Command Outbox 与 Result Inbox。
 `node_finished` 和 `workflow_finished`。事件流建连后先发送数据库当前快照，避免创建 Run 与订阅
 之间漏掉已完成节点；初始快照和节点完成增量均携带包含 `RUNNING`、`SUCCEEDED`、`FAILED` 的最新
 节点状态，其中尚未被 Publisher 领取的 `PENDING` 节点按 `RUNNING` 展示，执行超时按 `FAILED`
-展示。POST 事件流在取得 runId 后意外中断时，Web 只使用 GET SSE 自动恢复一次；恢复仍失败则清除
-残留的运行中状态。普通 Run GET 只保留给详情与最终快照恢复，不用于轮询。
+展示。POST 事件流在取得 runId 后意外中断时，Web 只使用 GET SSE 自动恢复一次；Server 检测到
+最后一个 SSE 客户端断开时会自动取消仍在运行的测试 Run。普通 Run GET 只保留给详情与最终快照
+恢复，不用于轮询。
 
 运行中可调用 `POST /studio/apps/:appId/workflow-runs/:runId/cancel` 执行一次性暂停：Run 原子进入
 `CANCELLED`，尚未完成的 NodeRun 与待派发 Outbox 同事务取消，并通过 `workflow_finished` 通知
-前端。已经发送给 Worker 的命令不强制中断，但其迟到 Result 会按 stale 忽略，不再推进工作流。
+前端；已经启动的子工作流 Run 会沿父子关系递归取消。已经发送到 RabbitMQ 的命令由 Worker 通过
+内部租约接口识别：尚未执行的消息直接 Ack 丢弃，执行中的节点取消 Command context；极端竞态
+产生的迟到 Result 继续按 stale 忽略。
+
+Go Worker 使用 `POST /internal/executor/commands/lease` 校验 Command、Run、NodeRun、Execution 与
+Lease Token 身份。消费前校验失败时不执行节点，执行期间每 500ms 复查，以便 SSE 断开或主动暂停
+能够终止 HTTP、LLM 和 Code 等外部工作。该接口只允许 Server 与 Executor 的受控内部网络访问。
 
 两种测试模式都按异步链路执行：创建 Run 时将 RuntimeState、NodeRun 和 Command Outbox 同事务提交；
 后台 Publisher 领取 Outbox，经 RabbitMQ Publisher Confirm 后标记已发布；Go Worker 消费命令并在 Result

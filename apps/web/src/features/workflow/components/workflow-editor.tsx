@@ -108,6 +108,7 @@ export function WorkflowEditor({
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>()
   const [singleNodeTestRunOpen, setSingleNodeTestRunOpen] = useState(false)
+  const [singleNodeTestRunActive, setSingleNodeTestRunActive] = useState(false)
   const [lastRunRefreshKey, setLastRunRefreshKey] = useState(0)
   const [focusLastRunTabKey, setFocusLastRunTabKey] = useState(0)
   const wasTestRunPendingRef = useRef(false)
@@ -200,6 +201,7 @@ export function WorkflowEditor({
   }
 
   async function handleSubmitSingleNodeTestRun(nodeId: string, input: Record<string, unknown>) {
+    setSingleNodeTestRunActive(true)
     try {
       const result = await operations.runNode(nodeId, input)
       if (!result || result.status === 'CANCELLED') return
@@ -207,6 +209,8 @@ export function WorkflowEditor({
       setFocusLastRunTabKey((current) => current + 1)
     } catch {
       // Toast 已在 operations.runNode 中处理
+    } finally {
+      setSingleNodeTestRunActive(false)
     }
   }
 
@@ -266,7 +270,10 @@ export function WorkflowEditor({
           nodeExecutionStatuses[edge.source],
           nodeExecutionStatuses[edge.target],
         )
-        const executionClassName = getWorkflowEdgeExecutionClassName(executionStatus)
+        const executionClassName =
+          singleNodeTestRunActive && executionStatus === 'RUNNING'
+            ? undefined
+            : getWorkflowEdgeExecutionClassName(executionStatus)
         const hovered =
           Boolean(hoveredNodeId) && (edge.source === hoveredNodeId || edge.target === hoveredNodeId)
         const className =
@@ -279,7 +286,7 @@ export function WorkflowEditor({
           className,
         }
       }),
-    [editor.edges, hoveredNodeId, nodeExecutionStatuses],
+    [editor.edges, hoveredNodeId, nodeExecutionStatuses, singleNodeTestRunActive],
   )
   const renderedNodes = useMemo(
     () =>

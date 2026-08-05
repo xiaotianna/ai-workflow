@@ -129,6 +129,15 @@ function ExampleForm() {
 - 列表虚拟化只负责可见行与触底信号，不持有请求数据；加载失败后停止自动续载，由页面提供
   明确的重试入口，避免虚拟列表在失败位置循环请求。
 
+## 应用调用日志
+
+- `features/app-logs/hooks/use-app-logs.ts` 负责应用调用日志的 300ms 搜索防抖、状态/时间过滤、
+  opaque cursor、首屏与续载状态；固定请求 `scope=published_calls`，页面和表格不再做客户端过滤。
+- 搜索、状态或时间范围变化时取消旧请求、清空旧游标并重新加载；续载沿用本轮查询的固定时间
+  下界，通过查询版本隔离过期响应，并按 Run ID 去重。
+- TanStack Virtual 只管理可见行与触底信号。续载失败后 Hook 阻止重复自动请求，用户显式重试后
+  才继续加载。
+
 ## 知识库列表与工作流目录
 
 - `features/knowledge-base/hooks/use-knowledge-bases.ts` 负责知识库列表的 300ms 搜索防抖、排序、
@@ -189,10 +198,14 @@ function ExampleForm() {
   `useWorkflowNodeLastRun` 懒加载 `GET .../workflow-runs/latest-by-node/:nodeId`（当前应用内该
   节点最近一次 NodeRun，含完整运行 / 单节点 / 子工作流调用）；单节点成功后关闭浮层并切到该 Tab，
   任意测试运行结束后刷新记录。任一模式运行期间入口不得再次提交；取得 runId 后统一切换为一次性
-  暂停。暂停结果使用信息 Toast；请求尚未取得 runId 或正在暂停时入口必须禁用。
+  暂停。暂停结果使用信息 Toast；请求尚未取得 runId 或正在暂停时入口必须禁用。测试运行所在页面
+  卸载时必须静默调用后端暂停接口；若尚未取得 runId，则在 `workflow_started` 到达后立即补发暂停，
+  暂停完成后再中止本地 SSE，禁止直接 abort 事件流并把主动切页显示成运行错误。
 - 测试运行追踪优先按 `traceExecutions` 渲染，每个 `executionKey` 对应一行，禁止按 `nodeId`
   去重或只取最新 NodeRun。Loop 内条目使用服务端返回的 `iteration` 展示“节点·第 n 次”；
-  旧响应缺少 Execution 投影时才回退到节点级追踪。
+  业务节点输入优先按 `executionKey` 读取对应 `NodeRun.input`，确保与该次下发给 Executor 的参数
+  完全一致；旧响应缺少 Execution 投影时才回退到节点级追踪。运行详情始终展示本次 Run 的
+  `input`，应用日志不得隐藏该输入。
 - 测试运行镜头由 `WorkflowExecutionCamera`（挂在 `ReactFlow` 子树内）调用
   `useWorkflowExecutionCamera`：节点首次进入 `RUNNING`，或 SSE 批处理跳过 RUNNING 后首次出现
   终态时，若节点完全位于视口外，则保持当前缩放并用 `setCenter` 动画居中；已在视口内不移动画布。

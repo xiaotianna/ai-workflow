@@ -131,6 +131,7 @@ export interface WorkflowRunListVo {
 
 export interface WorkflowRunDetailVo extends WorkflowTestRunVo {
   definition: unknown
+  layout: unknown
 }
 
 export interface WorkflowRunNodeFinishedEventVo {

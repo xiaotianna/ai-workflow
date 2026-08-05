@@ -3,7 +3,7 @@ import type {
   RuntimeTerminalData,
   RuntimeTransitionPersistence,
 } from '@/common/interfaces/workflow-run-persistence.interface'
-import type { TestRunMode } from '@/dto/workflow-run.dto'
+import type { TestRunMode, WorkflowRunListScope } from '@/dto/workflow-run.dto'
 import {
   Prisma,
   WorkflowCommandOutboxStatus,
@@ -90,6 +90,11 @@ interface ListOwnedRunsOptions {
   appId: string
   limit: number
   cursor?: WorkflowRunCursor
+  scope: WorkflowRunListScope
+  status?: WorkflowRunStatus
+  trigger?: WorkflowRunTrigger
+  from?: Date
+  search?: string
 }
 
 export interface ClaimedWorkflowCommand {
@@ -512,7 +517,8 @@ export class WorkflowRunRepository {
       })
       if (updated.count !== 1) return 'unchanged'
 
-      await cancelPendingDispatches(transaction, runId, now)
+      const descendantRunIds = await cancelRunningDescendantRuns(transaction, runId, now)
+      await cancelPendingDispatches(transaction, [runId, ...descendantRunIds], now)
       return 'cancelled'
     })
   }
@@ -747,6 +753,39 @@ export class WorkflowRunRepository {
   }
 
   listOwnedRuns(options: ListOwnedRunsOptions) {
+    const conditions: Prisma.WorkflowRunWhereInput[] = []
+    const publishedCallTriggers = options.trigger
+      ? options.trigger === WorkflowRunTrigger.API ||
+        options.trigger === WorkflowRunTrigger.SUB_WORKFLOW
+        ? [options.trigger]
+        : []
+      : [WorkflowRunTrigger.API, WorkflowRunTrigger.SUB_WORKFLOW]
+
+    if (options.cursor) {
+      conditions.push({
+        OR: [
+          { queuedAt: { lt: options.cursor.queuedAt } },
+          {
+            queuedAt: options.cursor.queuedAt,
+            id: { lt: options.cursor.id },
+          },
+        ],
+      })
+    }
+
+    if (options.search) {
+      conditions.push({
+        OR: [
+          { traceId: { contains: options.search, mode: 'insensitive' } },
+          {
+            triggeredBy: {
+              username: { contains: options.search, mode: 'insensitive' },
+            },
+          },
+        ],
+      })
+    }
+
     return this.prisma.workflowRun.findMany({
       where: {
         workflow: {
@@ -756,17 +795,17 @@ export class WorkflowRunRepository {
             deletedAt: null,
           },
         },
-        ...(options.cursor
+        ...(options.scope === 'published_calls'
           ? {
-              OR: [
-                { queuedAt: { lt: options.cursor.queuedAt } },
-                {
-                  queuedAt: options.cursor.queuedAt,
-                  id: { lt: options.cursor.id },
-                },
-              ],
+              version: { source: WorkflowVersionSource.PUBLISH },
+              trigger: { in: publishedCallTriggers },
             }
-          : {}),
+          : options.trigger
+            ? { trigger: options.trigger }
+            : {}),
+        ...(options.status ? { status: options.status } : {}),
+        ...(options.from ? { queuedAt: { gte: options.from } } : {}),
+        ...(conditions.length > 0 ? { AND: conditions } : {}),
       },
       orderBy: [{ queuedAt: 'desc' }, { id: 'desc' }],
       take: options.limit + 1,
@@ -919,6 +958,7 @@ const workflowRunDetailSelect = {
   version: {
     select: {
       definition: true,
+      layout: true,
     },
   },
 } satisfies Prisma.WorkflowRunSelect
@@ -983,12 +1023,13 @@ function createRuntimeRunUpdate(
 
 async function cancelPendingDispatches(
   transaction: Prisma.TransactionClient,
-  runId: string,
+  runIds: string | readonly string[],
   now: Date,
 ) {
+  const normalizedRunIds = typeof runIds === 'string' ? [runIds] : [...runIds]
   const nodeRuns = await transaction.workflowNodeRun.findMany({
     where: {
-      runId,
+      runId: { in: normalizedRunIds },
       status: {
         in: [WorkflowNodeRunStatus.PENDING, WorkflowNodeRunStatus.RUNNING],
       },
@@ -1010,7 +1051,7 @@ async function cancelPendingDispatches(
 
   await transaction.workflowCommandOutbox.updateMany({
     where: {
-      runId,
+      runId: { in: normalizedRunIds },
       status: {
         in: [WorkflowCommandOutboxStatus.PENDING, WorkflowCommandOutboxStatus.PUBLISHING],
       },
@@ -1021,6 +1062,46 @@ async function cancelPendingDispatches(
       lastError: '工作流已进入终态，派发已取消',
     },
   })
+}
+
+async function cancelRunningDescendantRuns(
+  transaction: Prisma.TransactionClient,
+  rootRunId: string,
+  now: Date,
+): Promise<string[]> {
+  const childRuns = await transaction.$queryRaw<Array<{ id: string; startedAt: Date | null }>>(
+    Prisma.sql`
+      WITH RECURSIVE run_tree AS (
+        SELECT "id", "status", "startedAt"
+        FROM "workflow_runs"
+        WHERE "parentRunId" = ${rootRunId}::uuid
+
+        UNION ALL
+
+        SELECT child."id", child."status", child."startedAt"
+        FROM "workflow_runs" AS child
+        INNER JOIN run_tree AS parent ON child."parentRunId" = parent."id"
+      )
+      SELECT "id", "startedAt"
+      FROM run_tree
+      WHERE "status" = 'RUNNING'::"WorkflowRunStatus"
+    `,
+  )
+
+  await Promise.all(
+    childRuns.map((childRun) =>
+      transaction.workflowRun.updateMany({
+        where: { id: childRun.id, status: WorkflowRunStatus.RUNNING },
+        data: {
+          status: WorkflowRunStatus.CANCELLED,
+          finishedAt: now,
+          durationMs: durationFrom(childRun.startedAt, now),
+        },
+      }),
+    ),
+  )
+
+  return childRuns.map((childRun) => childRun.id)
 }
 
 function createNodeResultUpdate(

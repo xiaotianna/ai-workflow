@@ -87,7 +87,10 @@
   供运行详情与追踪展示，不把 Prisma model 直接作为响应。
 - `GET /studio/apps/:appId/workflow-runs`：按 `queuedAt`、`id` 倒序游标分页读取当前用户和应用的
   测试与正式运行记录；`limit` 范围为 1–50，响应返回轻量 `items` 和 opaque `nextCursor`，列表
-  不携带输入、输出、节点运行或工作流版本快照。
+  不携带输入、输出、节点运行或工作流版本快照。可选 `scope=published_calls` 只保留绑定
+  `PUBLISH` 版本且触发方式为 `API` / `SUB_WORKFLOW` 的正式调用；同时支持 `status`、`trigger`、
+  ISO 时间下界 `from`，以及按触发用户昵称或追踪 ID 的 `search`。日志页必须使用该服务端范围，
+  不在浏览器从全量运行记录中过滤。
 - `GET /studio/apps/:appId/workflow-runs/latest-by-node/:nodeId`：返回当前用户、当前应用内该
   `nodeId` 最近一次 `WorkflowNodeRun`（按 `createdAt`/`id` 倒序），覆盖完整运行、单节点运行与
   作为子工作流被调用时产生的记录；无记录时返回 `null`。响应包含 NodeRun 输入/输出/状态/耗时，
@@ -100,6 +103,8 @@
 - `GET /studio/apps/:appId/workflow-runs/:runId/events`：为详情和恢复场景保留的事件流接口；事件
   顺序与 POST 测试接口一致，使用注释心跳防止代理空闲断开，鉴权仍使用 Bearer Token。Web 新建
   测试运行不得先创建再调用此接口；只有 POST 流已返回 runId 后意外中断，才允许自动恢复一次。
+  POST/GET SSE 的最后一个客户端异常断开时，Server 必须复用一次性取消事务终止仍在运行的测试
+  Run；服务端正常发送 `workflow_finished` 并关闭响应时不得再次触发取消。
 - `POST /studio/apps/:appId/workflow-runs/:runId/cancel`：对当前用户、当前应用内仍为 `RUNNING` 的
   测试 Run 执行一次性暂停。服务端把 Run 写为 `CANCELLED`，取消未完成 NodeRun 与待派发
   Outbox；NodeRun 从进入执行链路时开始计时，耗时按 `startedAt` 到暂停时刻计算且已开始记录
@@ -173,6 +178,10 @@ Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修�
 
 ## 当前 Executor 内部接口
 
+- `POST /internal/executor/commands/lease`：只供 Go Worker 使用；请求携带 Command、Run、NodeRun、节点、
+  Execution 与 Lease Token 身份，响应 `{ active }`。只有 NodeRun、Run 均为 `RUNNING` 且 deadline
+  未到期时返回 `active=true`。Worker 消费命令前必须检查，执行期间按短间隔复查；失效命令直接 Ack
+  丢弃且不发布 Result，正在执行的命令通过取消 context 停止。
 - `POST /internal/executor/models/resolve`：只供 Go LLM Executor 使用，不接受用户 Bearer Token；请求必须携带
   `commandId`、`runId`、`nodeRunId`、`nodeId`、`executionKey` 和 `leaseToken`。Server 同时校验
   NodeRun、Run 状态与 deadline，从绑定的不可变 WorkflowVersion 重新解析 LLM Config，再按所属应用

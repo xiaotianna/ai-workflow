@@ -38,4 +38,13 @@
 7. 配置容器级 CPU、内存和 PID 限制
 8. 配置最小网络权限且不向用户代码暴露 Server、数据库或模型凭证
 
+## Command 租约
+
+- Executor 通过 `COMMAND_RUNTIME_LEASE_URL` 访问 Server 的命令租约接口，默认地址为
+  `http://127.0.0.1:3000/internal/executor/commands/lease`
+- Worker 领取 RabbitMQ Command 后先校验租约，执行期间每 500ms 复查；Run、NodeRun、Lease Token
+  或 deadline 任一失效时取消 Command context
+- 失效的排队消息直接 Ack 且不发布 Result；租约服务暂时不可用时不得盲目执行新命令，原消息重新入队
+- 部署网络必须允许 Executor 访问该内部接口，但不能把接口暴露到公网
+
 修改具体执行流程前，继续读取 [`apps/executor-go/internal/executors/code/README.md`](../../../../apps/executor-go/internal/executors/code/README.md)

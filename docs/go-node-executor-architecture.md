@@ -371,6 +371,8 @@ RabbitMQ 链路按 at-least-once 设计：
 - 相同 `idempotencyKey` 的重复 Command 不能产生重复业务副作用；
 - 每次有效派发使用新的 `leaseToken`；
 - NestJS 只接受与当前 NodeRun 租约一致的结果；
+- Go 在执行前和执行期间通过 Server 内部接口验证当前租约；失效的排队 Command 直接 Ack，执行中的
+  Command 取消 context，不发布无意义的迟到 Result；
 - `commandId` 用于消息追踪，不代替业务幂等键；
 - Ack 必须发生在结果已经可靠发布或持久化之后。
 

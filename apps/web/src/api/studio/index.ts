@@ -96,6 +96,15 @@ export interface RenameStudioWorkflowVersionParams {
 }
 
 export type StudioWorkflowTestRunMode = 'FULL' | 'SINGLE_NODE'
+export type StudioWorkflowRunTrigger = 'API' | 'MANUAL' | 'TEST_RUN' | 'SUB_WORKFLOW'
+export type StudioWorkflowRunStatus =
+  | 'QUEUED'
+  | 'RUNNING'
+  | 'SUCCEEDED'
+  | 'FAILED'
+  | 'CANCELLED'
+  | 'TIMED_OUT'
+export type StudioWorkflowRunListScope = 'all' | 'published_calls'
 
 export interface CreateStudioWorkflowTestRunParams {
   mode: StudioWorkflowTestRunMode
@@ -184,9 +193,9 @@ export interface StudioWorkflowTestRunDto {
 
 export interface StudioWorkflowRunListItemDto {
   id: string
-  trigger: string
+  trigger: StudioWorkflowRunTrigger
   mode: StudioWorkflowTestRunMode
-  status: string
+  status: StudioWorkflowRunStatus
   queuedAt: string
   startedAt?: string
   finishedAt?: string
@@ -205,10 +214,16 @@ export interface StudioWorkflowRunListResult {
 export interface ListStudioWorkflowRunsParams {
   cursor?: string
   limit?: number
+  scope?: StudioWorkflowRunListScope
+  status?: StudioWorkflowRunStatus
+  trigger?: StudioWorkflowRunTrigger
+  from?: string
+  search?: string
 }
 
 export interface StudioWorkflowRunDetailDto extends StudioWorkflowTestRunDto {
   definition: WorkflowEditorSnapshot['workflow']
+  layout: WorkflowEditorSnapshot['layout']
 }
 
 export interface StudioWorkflowNodeLastRunDto {

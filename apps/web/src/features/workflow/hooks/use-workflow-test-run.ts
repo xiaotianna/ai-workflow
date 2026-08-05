@@ -36,6 +36,7 @@ export function useWorkflowTestRun(appId: string) {
   const pauseInFlightRef = useRef(false)
   const pauseRequestedRef = useRef(false)
   const pausedResultRef = useRef<StudioWorkflowTestRunDto | undefined>(undefined)
+  const lifecyclePauseRequestedRef = useRef(false)
   const [activeRunId, setActiveRunId] = useState<string>()
   const [pending, setPending] = useState(false)
   const [pausing, setPausing] = useState(false)
@@ -44,9 +45,37 @@ export function useWorkflowTestRun(appId: string) {
     {},
   )
 
-  useEffect(
-    () => () => {
-      abortControllerRef.current?.abort()
+  const pauseActiveRun = useCallback(
+    async (silent: boolean): Promise<void> => {
+      const runId = activeRunIdRef.current
+      const abortController = abortControllerRef.current
+      if (!inFlightRef.current || !runId || !abortController || pauseInFlightRef.current) return
+
+      pauseInFlightRef.current = true
+      pauseRequestedRef.current = true
+      if (!silent) setPausing(true)
+
+      try {
+        const pausedResult = await cancelStudioWorkflowTestRun(appId, runId)
+        if (abortControllerRef.current !== abortController) return
+        if (pausedResult.status !== 'CANCELLED') {
+          pauseRequestedRef.current = false
+          return
+        }
+
+        pausedResultRef.current = pausedResult
+        if (!silent) {
+          setRunResult(pausedResult)
+          applyNodeStates(pausedResult.nodeStates, setNodeExecutionStatuses)
+        }
+        abortController.abort()
+      } catch (error) {
+        if (abortControllerRef.current === abortController) pauseRequestedRef.current = false
+        if (!silent) throw error
+      } finally {
+        pauseInFlightRef.current = false
+        if (!silent && abortControllerRef.current === abortController) setPausing(false)
+      }
     },
     [appId],
   )
@@ -58,6 +87,7 @@ export function useWorkflowTestRun(appId: string) {
       }
 
       inFlightRef.current = true
+      lifecyclePauseRequestedRef.current = false
       pauseRequestedRef.current = false
       pausedResultRef.current = undefined
       activeRunIdRef.current = undefined
@@ -81,6 +111,7 @@ export function useWorkflowTestRun(appId: string) {
             activeRunIdRef.current = event.data.id
             setActiveRunId(event.data.id)
             setRunResult(event.data)
+            if (lifecyclePauseRequestedRef.current) void pauseActiveRun(true)
           }
           if (event.event === 'node_finished') {
             setRunResult((current) => {
@@ -174,38 +205,18 @@ export function useWorkflowTestRun(appId: string) {
         setPending(false)
       }
     },
-    [appId],
+    [appId, pauseActiveRun],
   )
 
-  const pause = useCallback(async (): Promise<void> => {
-    const runId = activeRunIdRef.current
-    const abortController = abortControllerRef.current
-    if (!inFlightRef.current || !runId || !abortController || pauseInFlightRef.current) return
+  const pause = useCallback(() => pauseActiveRun(false), [pauseActiveRun])
 
-    pauseInFlightRef.current = true
-    pauseRequestedRef.current = true
-    setPausing(true)
-
-    try {
-      const pausedResult = await cancelStudioWorkflowTestRun(appId, runId)
-      if (abortControllerRef.current !== abortController) return
-      if (pausedResult.status !== 'CANCELLED') {
-        pauseRequestedRef.current = false
-        return
-      }
-
-      pausedResultRef.current = pausedResult
-      setRunResult(pausedResult)
-      applyNodeStates(pausedResult.nodeStates, setNodeExecutionStatuses)
-      abortController.abort()
-    } catch (error) {
-      if (abortControllerRef.current === abortController) pauseRequestedRef.current = false
-      throw error
-    } finally {
-      pauseInFlightRef.current = false
-      if (abortControllerRef.current === abortController) setPausing(false)
-    }
-  }, [appId])
+  useEffect(
+    () => () => {
+      lifecyclePauseRequestedRef.current = true
+      void pauseActiveRun(true)
+    },
+    [pauseActiveRun],
+  )
 
   return {
     canPause: pending && Boolean(activeRunId) && !pausing,

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"node-executor-go/internal/executor"
+	"node-executor-go/internal/executorlease"
 	protocol "workflow-protocol"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -17,12 +18,21 @@ import (
 const (
 	reconnectDelay       = 2 * time.Second
 	resultPublishTimeout = 10 * time.Second
+	leaseCheckTimeout    = 3 * time.Second
+	leasePollInterval    = 500 * time.Millisecond
 )
 
 type Worker struct {
-	rabbitMQURL string
-	registry    *executor.Registry
-	logger      *log.Logger
+	rabbitMQURL  string
+	registry     *executor.Registry
+	leaseChecker executorlease.Checker
+	logger       *log.Logger
+}
+
+type commandExecutionOutcome struct {
+	result  protocol.ExecuteNodeResult
+	discard bool
+	retry   error
 }
 
 /*
@@ -36,11 +46,17 @@ type Worker struct {
 → RabbitMQ 确认结果已收到
 → Ack 原始命令
 */
-func NewWorker(rabbitMQURL string, registry *executor.Registry, logger *log.Logger) *Worker {
+func NewWorker(
+	rabbitMQURL string,
+	registry *executor.Registry,
+	leaseChecker executorlease.Checker,
+	logger *log.Logger,
+) *Worker {
 	return &Worker{
-		rabbitMQURL: rabbitMQURL,
-		registry:    registry,
-		logger:      logger,
+		rabbitMQURL:  rabbitMQURL,
+		registry:     registry,
+		leaseChecker: leaseChecker,
+		logger:       logger,
 	}
 }
 
@@ -147,7 +163,25 @@ func (worker *Worker) handleDelivery(
 		return
 	}
 
-	result := worker.executeCommand(workerContext, command)
+	outcome := worker.executeCommand(workerContext, command)
+	if outcome.retry != nil {
+		worker.requeue(delivery, command.CommandID, outcome.retry)
+		return
+	}
+	if outcome.discard {
+		worker.logger.Printf(
+			"discard inactive workflow command commandId=%s runId=%s nodeRunId=%s",
+			command.CommandID,
+			command.RunID,
+			command.NodeRunID,
+		)
+		if err := delivery.Ack(false); err != nil {
+			worker.logger.Printf("ack inactive workflow command failed commandId=%s error=%v", command.CommandID, err)
+		}
+		return
+	}
+
+	result := outcome.result
 	if err := protocol.ValidateExecuteNodeResult(result); err != nil {
 		worker.logger.Printf("executor returned invalid result commandId=%s error=%v", command.CommandID, err)
 		result = protocol.NewFailedResult(
@@ -207,46 +241,65 @@ func (worker *Worker) handleDelivery(
 func (worker *Worker) executeCommand(
 	workerContext context.Context,
 	command protocol.ExecuteNodeCommand,
-) protocol.ExecuteNodeResult {
+) commandExecutionOutcome {
 	deadline, err := time.Parse(time.RFC3339Nano, command.DeadlineAt)
 	if err != nil {
-		return protocol.NewFailedResult(
+		return commandExecutionOutcome{result: protocol.NewFailedResult(
 			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "COMMAND_DEADLINE_INVALID",
 				Message:   "节点执行命令的 deadlineAt 无效",
 				Retryable: false,
 			},
-		)
+		)}
 	}
 	if !deadline.After(time.Now()) {
-		return protocol.NewFailedResult(
+		return commandExecutionOutcome{result: protocol.NewFailedResult(
 			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "EXECUTION_DEADLINE_EXCEEDED",
 				Message:   "节点执行命令已超过 deadline",
 				Retryable: false,
 			},
-		)
+		)}
 	}
 
 	executionContext, cancel := context.WithDeadline(workerContext, deadline)
 	defer cancel()
+	active, err := worker.checkCommandLease(executionContext, command)
+	if err != nil {
+		return commandExecutionOutcome{retry: err}
+	}
+	if !active {
+		return commandExecutionOutcome{discard: true}
+	}
+
 	nodeExecutor, ok := worker.registry.Resolve(command.NodeType)
 	if !ok {
-		return protocol.NewFailedResult(
+		return commandExecutionOutcome{result: protocol.NewFailedResult(
 			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
 				Code:      "NODE_EXECUTOR_NOT_REGISTERED",
 				Message:   fmt.Sprintf("节点类型 %s 没有注册执行器", command.NodeType),
 				Retryable: false,
 			},
-		)
+		)}
 	}
 
+	leaseInvalidated := make(chan struct{}, 1)
+	watchContext, stopWatching := context.WithCancel(executionContext)
+	defer stopWatching()
+	go worker.watchCommandLease(watchContext, command, cancel, leaseInvalidated)
+
 	result, err := nodeExecutor.Execute(executionContext, command)
+	stopWatching()
+	select {
+	case <-leaseInvalidated:
+		return commandExecutionOutcome{discard: true}
+	default:
+	}
 	if err == nil {
-		return result
+		return commandExecutionOutcome{result: result}
 	}
 
 	worker.logger.Printf(
@@ -255,18 +308,64 @@ func (worker *Worker) executeCommand(
 		command.NodeRunID,
 		err,
 	)
-	return protocol.NewFailedResult(
+	return commandExecutionOutcome{result: protocol.NewFailedResult(
 		executor.ResultIdentity(command),
 		protocol.NodeExecutionError{
 			Code:      "NODE_EXECUTOR_FAILED",
 			Message:   err.Error(),
 			Retryable: false,
 		},
-	)
+	)}
+}
+
+func (worker *Worker) checkCommandLease(
+	ctx context.Context,
+	command protocol.ExecuteNodeCommand,
+) (bool, error) {
+	checkContext, cancel := context.WithTimeout(ctx, leaseCheckTimeout)
+	defer cancel()
+
+	active, err := worker.leaseChecker.IsActive(checkContext, command)
+	if err != nil {
+		return false, fmt.Errorf("check command lease: %w", err)
+	}
+	return active, nil
+}
+
+func (worker *Worker) watchCommandLease(
+	ctx context.Context,
+	command protocol.ExecuteNodeCommand,
+	cancelExecution context.CancelFunc,
+	invalidated chan<- struct{},
+) {
+	ticker := time.NewTicker(leasePollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			active, err := worker.checkCommandLease(ctx, command)
+			if err != nil {
+				if ctx.Err() == nil {
+					worker.logger.Printf("poll command lease failed commandId=%s error=%v", command.CommandID, err)
+				}
+				continue
+			}
+			if active {
+				continue
+			}
+
+			invalidated <- struct{}{}
+			cancelExecution()
+			return
+		}
+	}
 }
 
 func (worker *Worker) requeue(delivery amqp.Delivery, commandID string, cause error) {
-	worker.logger.Printf("publish workflow result failed commandId=%s error=%v", commandID, cause)
+	worker.logger.Printf("requeue workflow command commandId=%s error=%v", commandID, cause)
 	if err := delivery.Nack(false, true); err != nil {
 		worker.logger.Printf("requeue workflow command failed commandId=%s error=%v", commandID, err)
 	}

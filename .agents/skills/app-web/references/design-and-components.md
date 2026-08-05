@@ -139,6 +139,24 @@
 
 - 分页器使用 `@ai-workflow/ui/components/pagination`，独立于表格滚动容器，位于 `DocumentTable` 底部；支持页码与每页条数切换。
 
+## 应用调用日志表格
+
+- 应用详情的 `/logs` 页面只负责标题与资源可用性编排；筛选区、数据状态和表格统一放在
+  `features/app-logs`，不得复用知识库的 `DocumentTable` 或在页面内复制表格结构。
+- 筛选区复用 UI `Select` 和 `Input`，提供运行状态、时间范围和用户/追踪 ID 搜索；默认查询过去
+  7 天。日志只展示已发布版本产生的 API 与子工作流调用，不混入编辑器测试运行。
+- `AppLogTable` 复用 UI `Table` 与 TanStack Virtual。表格容器最大高度为 560px，表头固定，主体
+  在单一容器内滚动并在最后一个虚拟行可见时按 opaque cursor 自动续载；加载失败后停止自动续载，
+  由表格内重试按钮恢复。
+- 表格不使用外边框或卡片边框，仅保留数据行之间的细分隔线；表头使用 `bg-muted` 与正文区分。
+  列固定为开始时间、状态、运行时间、用户和触发方式，用户显示 `UserAvatar` 与昵称，触发方式区分
+  “API 调用”和“子工作流调用”。
+- 状态使用 8px、`rounded-[3px]` 的语义色方形指示器，带语义色细边框、40% 语义色背景和项目标准 `shadow-xs`；
+  指示器与文字使用 `gap-1.5`，后接 `text-xs font-semibold uppercase` 英文状态文字。Success 使用 success，Running 使用 primary，
+  Queued 使用 warning，Failed / Timed out 使用 destructive，Cancelled 使用 muted 语义色。
+- 日志详情浮层头部不使用下边线；“按此参数运行”入口紧跟标题，使用弱化文字色的 Ghost 线框
+  Play 图标，不显示主色实心底板；关闭按钮保持在头部最右侧。
+
 ## 详情页布局
 
 - 应用与知识库详情页复用 `components/detail-layout`，统一提供返回链接、左侧 `LayoutSidebar` 与右侧内容容器；页面通过 `backTo`/`backLabel` 设置返回目标，通过 `resourceIdentity` 插槽注入各 feature 的资源标识组件。

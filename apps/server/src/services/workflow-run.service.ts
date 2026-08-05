@@ -165,6 +165,11 @@ export class WorkflowRunService {
       appId,
       limit: query.limit,
       cursor,
+      scope: query.scope,
+      status: query.status,
+      trigger: query.trigger,
+      from: query.from ? new Date(query.from) : undefined,
+      search: query.search || undefined,
     })
     const hasMore = runs.length > query.limit
     const page = hasMore ? runs.slice(0, query.limit) : runs
@@ -187,10 +192,13 @@ export class WorkflowRunService {
     if (!run) throw new NotFoundException('运行记录不存在')
     const definition = parseWorkflowDefinition(run.version.definition)
     if (!definition) throw new InternalServerErrorException('运行绑定的工作流版本快照格式无效')
+    const layout = parseWorkflowLayout(run.version.layout)
+    if (!layout) throw new InternalServerErrorException('运行绑定的工作流布局快照格式无效')
 
     return {
       ...toWorkflowTestRunVo(run),
       definition: redactWorkflowDefinitionSecrets(definition),
+      layout,
     }
   }
 
@@ -919,7 +927,7 @@ function collectRunTrace(run: WorkflowRunSummary): {
       sequence: execution.sequence,
       ...(execution.iteration ? { iteration: execution.iteration } : {}),
       status: nodeRun?.status ?? execution.status,
-      input: execution.inputs,
+      input: nodeRun?.input ?? execution.inputs,
       ...(nodeRun?.output !== null && nodeRun?.output !== undefined
         ? { output: nodeRun.output }
         : execution.outputs

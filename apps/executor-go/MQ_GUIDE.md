@@ -417,6 +417,9 @@ Ack 原始命令
 | 命令字段不符合协议           | `Reject(false)`，进入命令死信队列    |
 | `deadlineAt` 格式错误        | 生成失败结果并发布给 NestJS          |
 | 命令已经超过 deadline        | 生成失败结果并发布给 NestJS          |
+| Command 租约已经失效         | 不执行节点，直接 `Ack` 丢弃原命令    |
+| 首次租约检查暂时失败         | `Nack(false, true)`，原命令重新入队  |
+| 执行期间租约失效             | 取消 Command context 后 `Ack` 原命令 |
 | 找不到对应节点执行器         | 生成失败结果并发布给 NestJS          |
 | 节点执行器返回错误           | 生成失败结果并发布给 NestJS          |
 | 执行器返回的结果格式不合法   | 替换成标准失败结果并发布给 NestJS    |

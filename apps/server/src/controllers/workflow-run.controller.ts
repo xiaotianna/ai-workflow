@@ -16,6 +16,7 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   ParseUUIDPipe,
   Post,
@@ -31,6 +32,8 @@ const NOOP = () => undefined
 @JwtAuth()
 @Controller('studio/apps/:appId/workflow-runs')
 export class WorkflowRunController {
+  private readonly logger = new Logger(WorkflowRunController.name)
+
   constructor(
     private readonly workflowRunService: WorkflowRunService,
     private readonly workflowRunEventStream: WorkflowRunEventStreamService,
@@ -175,7 +178,17 @@ export class WorkflowRunController {
       if (event.event === 'workflow_finished') close()
     }
 
-    response.on('close', close)
+    response.on('close', () => {
+      if (closed) return
+      close()
+      if (this.workflowRunEventStream.hasSubscribers(runId)) return
+
+      void this.workflowRunService.cancelTestRun(userId, appId, runId).catch((error) => {
+        this.logger.warn(
+          `Workflow SSE 客户端断开后取消失败 runId=${runId}：${getErrorMessage(error)}`,
+        )
+      })
+    })
     unsubscribe = this.workflowRunEventStream.subscribe(runId, (event) => {
       if (initialized) {
         sendEvent(event)
@@ -218,6 +231,10 @@ export class WorkflowRunController {
       close()
     }
   }
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error && error.message ? error.message : '未知错误'
 }
 
 function writeSseEvent(
