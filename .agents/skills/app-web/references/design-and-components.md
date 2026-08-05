@@ -139,6 +139,34 @@
 
 - 分页器使用 `@ai-workflow/ui/components/pagination`，独立于表格滚动容器，位于 `DocumentTable` 底部；支持页码与每页条数切换。
 
+## 应用 API 文档与密钥
+
+- 应用详情的 `/api` 页面由 `features/app-api` 组合接口文档、发布状态、分享和 API 密钥管理；
+  页面只负责传入应用 ID 与资源可用性，不在页面文件中维护请求状态或复制弹窗逻辑。
+- 文档头部固定在详情页主内容滚动容器顶部，使用不透明背景和明确层级遮挡滚动正文；头部展示
+  API 服务地址和发布状态。存在已发布版本时使用 success 语义色显示“运行中”；尚未发布时使用
+  primary 主题色显示“未发布”，不得用错误态或警告态表达未发布。
+- API 密钥列表使用 `@ai-workflow/ui/components/table`。服务端只返回 `app-`、固定星号和末五位
+  组成的掩码，列表不得提供复制入口，也不得通过 Tooltip、DOM 属性或本地状态保留完整密钥。
+  创建按钮在请求期间先展示 loading，请求成功后才打开一次性密钥弹窗；完整密钥仅在该弹窗
+  中允许复制，关闭后立即清理前端状态，后续无法再次查看。创建结果弹窗叠加在密钥列表 Dialog
+  之上，打开或关闭时不得联动关闭列表 Dialog。删除入口必须先在列表 Dialog 之上叠加确认
+  Dialog，确认成功后才移除列表项；删除失败时保留确认 Dialog，关闭确认 Dialog 也不得关闭列表。
+- 分享设置通过独立 Dialog 开关。启用后生成 `/share/api/:shareToken` 地址并允许复制；公开页面
+  只渲染接口文档正文，不渲染应用详情页的 API 地址、状态、分享和密钥头部。
+- 工作流执行接口的 OpenAPI Request Body 必须根据服务端返回的发布版本 Start 输入契约动态生成：
+  每个输入变量直接作为 JSON 顶层字段，展示真实 Key、string / number / boolean / json 类型、
+  必填项、说明和默认值，禁止重新引入固定 `input` 包装。当前执行接口使用当前部署版本契约；
+  指定版本接口以 `oneOf` 列出各历史发布版本契约，并明确版本 ID 与 schema 的对应关系。公开分享
+  页面复用同一动态文档生成逻辑。Authentication 必须说明 API Key 与应用绑定；指定版本接口前
+  使用 UI Table 独立展示版本号、名称、UUID、当前版本标记与复制入口，Path Parameter 只展示
+  当前版本 UUID 示例，不再把全部 UUID 作为 enum 重复渲染成长列表。Request Body 不展示或复制
+  TypeScript Definitions；每个 Start 输入字段在 Key 后直接显示契约中的 `dataType`，字段说明区域
+  展示变量显示名称及描述，不得使用显示名称覆盖类型位置。执行接口文档必须说明首个
+  `workflow_started` SSE 事件的 `data.id` 即 `runId`；获取执行情况的 Path Parameter 同时说明
+  该值也可从运行日志接口响应的 `data.items[].id` 获取。上述事件名、字段路径、`runId` 和接口
+  路径在可见说明中统一使用 Markdown 行内代码样式。
+
 ## 应用调用日志表格
 
 - 应用详情的 `/logs` 页面只负责标题与资源可用性编排；筛选区、数据状态和表格统一放在

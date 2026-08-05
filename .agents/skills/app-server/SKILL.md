@@ -26,6 +26,9 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml` 已提供 PostgreSQL 与 Redis 开发基础设施。
 - Prisma 7 的 schema、migration、Client generator 和 PostgreSQL driver adapter 依赖已配置；NestJS 已通过全局 `PrismaModule`/`PrismaService` 接入数据库，认证与 Studio 模块已使用 Repository 封装数据访问。Redis 已接入认证会话，LangGraph 尚未接入应用。
 - 模型管理已通过 `ModelsModule` 接入：按用户持久化对话/嵌入模型组，API Key 使用 AES-256-GCM 加密，并由服务端供应商适配器执行模型列表连通性与单模型流式对话测试。`ExecutorModelModule` 另提供受 NodeRun 租约保护的内部解析接口，只按不可变版本中的稳定模型 ID 向 Go LLM Executor 提供本次运行所需配置。
+- 应用 Service API 已通过 `StudioModule` 接入：应用级 `app-` API Key 只保存 SHA-256 哈希和末尾
+  展示字符，正式调用直接绑定发布版本并复用 Runtime/MQ/SSE 链路；API 文档可通过独立分享令牌
+  开放只读正文，公开读取不经过用户 JWT。
 - 知识库已落地最小 `KnowledgeBase` Prisma 模型和迁移，并通过 `KnowledgeBaseModule` 提供按用户
   隔离的空白知识库创建、列表、详情、编辑和删除接口；删除会阻止仍被工作流草稿或版本引用的
   知识库。文档、索引代际、向量和异步任务尚未实现。

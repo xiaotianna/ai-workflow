@@ -11,6 +11,7 @@ registerDefault(codeUsages)
  */
 export const OpenAPIPage = createOpenAPIPage({
   codeUsages,
+  generateTypeScriptDefinitions: false,
   playground: {
     enabled: false,
   },

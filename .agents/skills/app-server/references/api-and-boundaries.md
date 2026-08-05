@@ -125,6 +125,46 @@
 Studio 的 UUID 路径参数通过 `ParseUUIDPipe` 校验；所有读取与修改都同时检查资源归属，不允许
 仅凭应用 ID 跨用户访问。
 
+## 当前应用 API 接口
+
+Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
+
+- `GET /studio/apps/:appId/app-api`：返回发布状态和 API 文档分享状态；存在当前部署时状态为
+  `RUNNING`，否则为 `UNPUBLISHED`。同时只投影当前及历史 `PUBLISH` 版本的版本身份和 Start
+  输入变量元数据，供前端动态生成请求文档，不返回完整工作流定义。
+- `PATCH /studio/apps/:appId/app-api/share`：开启或关闭 API 文档公开分享。首次开启生成不可预测的
+  分享令牌；关闭后公开链接立即失效，重新开启可继续使用原令牌。
+- `GET /studio/apps/:appId/app-api/keys`：只返回 `app-`、固定星号与末尾 5 位组成的掩码、创建时间
+  和最后使用时间，不返回明文，也不提供列表复制能力。
+- `POST /studio/apps/:appId/app-api/keys`：创建应用 API Key；明文只在本次响应返回一次，数据库只
+  保存 SHA-256 哈希、前缀和末尾 5 位，并设置 `Cache-Control: no-store`。
+- `DELETE /studio/apps/:appId/app-api/keys/:apiKeyId`：撤销当前用户和应用内的 Key；撤销后不再
+  出现在列表，也不能继续鉴权。
+- `GET /public/app-api/:shareToken`：只在分享开启时返回公开文档所需的应用元数据、发布状态和各
+  发布版本的 Start 输入变量元数据，不使用用户 JWT，不返回完整工作流定义、环境变量或 API Key。
+
+外部 Service API 统一位于 `/v1`，使用 `Authorization: Bearer app-...` 鉴权；Key 只允许访问其
+所属应用，成功认证会更新 `lastUsedAt`，请求审计写入 `ApiCallLog`：
+
+- `POST /v1/workflows/run`：执行当前部署版本；JSON 请求体直接以 Start 节点输入变量 Key 作为
+  顶层字段，不增加固定 `input` 包装，例如 Start 声明 `username` 时提交 `{ "username": "..." }`。
+  Runtime 按当前部署版本的变量类型、必填项和默认值校验后，以 SSE 依次返回
+  `workflow_started`、`node_finished`、`workflow_finished`。
+- `POST /v1/workflows/versions/:versionId/run`：执行所属应用指定的 `PUBLISH` 历史版本；请求体同样
+  使用顶层动态字段，并严格按 URL 中 `versionId` 对应版本的 Start 输入定义校验，事件格式与当前
+  版本执行一致。版本不存在或不属于当前 API Key 所绑定应用时统一返回 `404`，错误信息须同时说明
+  这两种可能，避免把跨应用 Key 误判为文档版本失效。
+- `GET /v1/workflows/runs/:runId`：读取所属应用由 API 或子工作流触发的发布版本 Run 最新快照和
+  节点执行详情。
+- `GET /v1/workflows/logs`：与应用日志页的 `published_calls` 范围一致，游标分页读取所属应用由
+  API 或子工作流触发的发布版本 Run，支持状态、时间下界，以及按触发用户昵称或追踪 ID 搜索。
+- `GET /v1/info`：返回应用名称、图标、描述和作者。
+- `GET /v1/parameters`：返回系统变量和当前发布版本（未发布时回退草稿）的环境变量；Secret 环境
+  变量只返回元数据与 `sensitive=true`，不得返回 `value`。
+
+正式 API SSE 客户端断开不取消已经创建的 Run，调用方通过执行情况接口继续查询；编辑器测试 SSE
+仍保留最后一个订阅者断开时取消测试 Run 的语义。
+
 ## 当前知识库接口
 
 以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离知识库：

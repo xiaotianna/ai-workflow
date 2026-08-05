@@ -111,6 +111,7 @@ export interface WorkflowTestRunVo {
 
 export interface WorkflowRunListItemVo {
   id: string
+  traceId: string
   trigger: WorkflowRunTrigger
   mode: TestRunMode
   status: WorkflowRunStatus

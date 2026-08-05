@@ -1,12 +1,14 @@
 model App {
-  id          String    @id @default(uuid()) @db.Uuid
-  ownerId     String    @db.Uuid // 所属用户id，指向User.id
-  name        String
-  description String?
-  icon        String?
-  deletedAt   DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id              String    @id @default(uuid()) @db.Uuid
+  ownerId         String    @db.Uuid // 所属用户id，指向User.id
+  name            String
+  description     String?
+  icon            String?
+  apiShareEnabled Boolean @default(false)
+  apiShareToken   String? @unique
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   /**
    * @relation表示两个model之间的数据库关联

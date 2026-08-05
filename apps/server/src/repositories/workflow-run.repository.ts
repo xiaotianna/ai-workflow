@@ -39,6 +39,19 @@ interface CreateTestRunOptions {
   dispatches: readonly PreparedNodeDispatch[]
 }
 
+interface CreateApiRunOptions {
+  appId: string
+  ownerId: string
+  workflowId: string
+  versionId: string
+  runId: string
+  traceId: string
+  input: Record<string, unknown>
+  runtimeState: RuntimeState
+  terminal: RuntimeTerminalData
+  dispatches: readonly PreparedNodeDispatch[]
+}
+
 interface CreateSubWorkflowRunOptions {
   parentCommand: ExecuteNodeCommand
   childRunId: string
@@ -96,6 +109,20 @@ interface ListOwnedRunsOptions {
   from?: Date
   search?: string
 }
+
+interface ListApiRunsOptions {
+  appId: string
+  limit: number
+  cursor?: WorkflowRunCursor
+  status?: WorkflowRunStatus
+  from?: Date
+  search?: string
+}
+
+const PUBLISHED_CALL_TRIGGERS: WorkflowRunTrigger[] = [
+  WorkflowRunTrigger.API,
+  WorkflowRunTrigger.SUB_WORKFLOW,
+]
 
 export interface ClaimedWorkflowCommand {
   id: string
@@ -176,6 +203,53 @@ export class WorkflowRunRepository {
         },
       })
 
+      await createDispatchRecords(transaction, options.runId, options.dispatches, now)
+      return 'created'
+    })
+  }
+
+  createApiRun(options: CreateApiRunOptions): Promise<'created' | 'not-found'> {
+    return this.prisma.$transaction(async (transaction) => {
+      const version = await transaction.workflowVersion.findFirst({
+        where: {
+          id: options.versionId,
+          workflowId: options.workflowId,
+          source: WorkflowVersionSource.PUBLISH,
+          workflow: {
+            appId: options.appId,
+            app: { deletedAt: null },
+          },
+        },
+        select: { id: true },
+      })
+      if (!version) return 'not-found'
+
+      const now = new Date()
+      const status = toWorkflowRunStatus(options.terminal.status)
+      const terminal = status !== WorkflowRunStatus.RUNNING
+      await transaction.workflowRun.create({
+        data: {
+          id: options.runId,
+          workflowId: options.workflowId,
+          workflowVersionId: version.id,
+          triggeredById: options.ownerId,
+          traceId: options.traceId,
+          trigger: WorkflowRunTrigger.API,
+          status,
+          runtimeState: toJsonInput(options.runtimeState),
+          runtimeRevision: options.runtimeState.revision,
+          input: toJsonInput(options.input),
+          output: options.terminal.output ? toJsonInput(options.terminal.output) : undefined,
+          errorCode: options.terminal.error?.code,
+          errorMessage: options.terminal.error?.message,
+          errorDetails: options.terminal.error?.details
+            ? toJsonInput(options.terminal.error.details)
+            : undefined,
+          startedAt: now,
+          finishedAt: terminal ? now : undefined,
+          durationMs: terminal ? durationFrom(now, now) : undefined,
+        },
+      })
       await createDispatchRecords(transaction, options.runId, options.dispatches, now)
       return 'created'
     })
@@ -759,7 +833,7 @@ export class WorkflowRunRepository {
         options.trigger === WorkflowRunTrigger.SUB_WORKFLOW
         ? [options.trigger]
         : []
-      : [WorkflowRunTrigger.API, WorkflowRunTrigger.SUB_WORKFLOW]
+      : PUBLISHED_CALL_TRIGGERS
 
     if (options.cursor) {
       conditions.push({
@@ -813,6 +887,44 @@ export class WorkflowRunRepository {
     })
   }
 
+  listApiRuns(options: ListApiRunsOptions) {
+    const conditions: Prisma.WorkflowRunWhereInput[] = []
+    if (options.cursor) {
+      conditions.push({
+        OR: [
+          { queuedAt: { lt: options.cursor.queuedAt } },
+          { queuedAt: options.cursor.queuedAt, id: { lt: options.cursor.id } },
+        ],
+      })
+    }
+    if (options.search) {
+      conditions.push({
+        OR: [
+          { traceId: { contains: options.search, mode: 'insensitive' } },
+          {
+            triggeredBy: {
+              username: { contains: options.search, mode: 'insensitive' },
+            },
+          },
+        ],
+      })
+    }
+
+    return this.prisma.workflowRun.findMany({
+      where: {
+        trigger: { in: PUBLISHED_CALL_TRIGGERS },
+        version: { source: WorkflowVersionSource.PUBLISH },
+        workflow: { appId: options.appId, app: { deletedAt: null } },
+        ...(options.status ? { status: options.status } : {}),
+        ...(options.from ? { queuedAt: { gte: options.from } } : {}),
+        ...(conditions.length > 0 ? { AND: conditions } : {}),
+      },
+      orderBy: [{ queuedAt: 'desc' }, { id: 'desc' }],
+      take: options.limit + 1,
+      select: workflowRunListItemSelect,
+    })
+  }
+
   findOwnedRunSummary(ownerId: string, appId: string, runId: string) {
     return this.prisma.workflowRun.findFirst({
       where: {
@@ -824,6 +936,18 @@ export class WorkflowRunRepository {
             deletedAt: null,
           },
         },
+      },
+      select: workflowRunSummarySelect,
+    })
+  }
+
+  findApiRunSummary(appId: string, runId: string) {
+    return this.prisma.workflowRun.findFirst({
+      where: {
+        id: runId,
+        trigger: { in: PUBLISHED_CALL_TRIGGERS },
+        version: { source: WorkflowVersionSource.PUBLISH },
+        workflow: { appId, app: { deletedAt: null } },
       },
       select: workflowRunSummarySelect,
     })
@@ -895,6 +1019,7 @@ export class WorkflowRunRepository {
 
 const workflowRunListItemSelect = {
   id: true,
+  traceId: true,
   trigger: true,
   mode: true,
   status: true,

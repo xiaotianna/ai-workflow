@@ -3,6 +3,7 @@ model ApiKey {
   appId       String    @db.Uuid // 关联app
   name        String
   prefix      String // 密钥前缀，例如：sk_abc[密钥]，那么给前端展示sk_abc••••••••
+  suffix      String? // 仅保存末尾 5 位，用于不可逆掩码展示；旧数据允许为空
   keyHash     String    @unique // 不保存明文key，并且需要保证key不重复
   createdById String?   @db.Uuid
   lastUsedAt  DateTime? // 最近使用时间

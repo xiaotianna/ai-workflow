@@ -28,6 +28,7 @@ const AppLogsPage = lazy(() => import('../pages/app/logs'))
 const KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base'))
 const KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents'))
 const KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test'))
+const SharedAppApiPage = lazy(() => import('../pages/shared/app-api'))
 
 export const routes = [
   {
@@ -269,6 +270,21 @@ export const routes = [
         ],
       },
     ],
+  },
+  {
+    id: 'shared-app-api',
+    path: '/share/api/:shareToken',
+    element: (
+      <LazyLoad>
+        <SharedAppApiPage />
+      </LazyLoad>
+    ),
+    handle: {
+      meta: {
+        title: 'API 文档',
+        requiresAuth: false,
+      },
+    },
   },
   {
     id: 'auth',

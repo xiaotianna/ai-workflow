@@ -1,1 +1,1 @@
-export { AppApiDocs } from './components/app-api-docs'
+export { AppApiDocs, AppApiReference } from './components/app-api-docs'

@@ -1,4 +1,5 @@
 import type { PreparedNodeDispatch } from '@/common/interfaces/workflow-run-persistence.interface'
+import { ListAppApiWorkflowRunsDto } from '@/dto/app-api.dto'
 import {
   CreateWorkflowTestRunDto,
   ListWorkflowRunsDto,
@@ -41,6 +42,7 @@ import {
   type RuntimeState,
   type RuntimeTransition,
 } from '@ai-workflow/runtime'
+import { AppApiRepository } from '@/repositories/app-api.repository'
 import { WorkflowDraftRepository } from '@/repositories/workflow-draft.repository'
 import { WorkflowRunRepository } from '@/repositories/workflow-run.repository'
 import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-stream.service'
@@ -68,6 +70,7 @@ import {
 import { randomUUID } from 'node:crypto'
 import { isUUID } from 'class-validator'
 
+const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用'
 const EXECUTION_DEADLINE_MS = 30_000
 const SUB_WORKFLOW_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000
 const RESULT_APPLY_MAX_ATTEMPTS = 5
@@ -88,6 +91,7 @@ export class WorkflowRunService {
   private readonly logger = new Logger(WorkflowRunService.name)
 
   constructor(
+    private readonly appApiRepository: AppApiRepository,
     private readonly workflowDraftRepository: WorkflowDraftRepository,
     private readonly workflowRunRepository: WorkflowRunRepository,
     private readonly workflowRunEventStream: WorkflowRunEventStreamService,
@@ -110,6 +114,62 @@ export class WorkflowRunService {
           dto.targetNodeId,
           dto.input,
         )
+  }
+
+  async createApiRun(
+    appId: string,
+    versionId: string | undefined,
+    input: Record<string, unknown>,
+  ): Promise<WorkflowTestRunVo> {
+    const target = await this.appApiRepository.findPublishedVersion(appId, versionId)
+    if (!target) {
+      if (versionId) throw new NotFoundException(APP_API_VERSION_NOT_FOUND_MESSAGE)
+      throw new BadRequestException('工作流尚未发布')
+    }
+
+    const parsedWorkflow = workflowSchema.safeParse(target.definition)
+    if (!parsedWorkflow.success) {
+      throw new InternalServerErrorException('发布版本工作流定义格式无效')
+    }
+    const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
+    if (issues.length > 0) {
+      throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
+    }
+
+    const runId = randomUUID()
+    const runtime = createWorkflowRuntime(parsedWorkflow.data, {
+      workflowVersionId: target.id,
+      configResolver: this.createRuntimeConfigResolver(parsedWorkflow.data),
+    })
+    let transition: RuntimeTransition
+    try {
+      transition = runtime.start({
+        runId,
+        input,
+        systemVariables: createRunSystemVariables(
+          target.workflow.app.ownerId,
+          appId,
+          target.workflow.id,
+          runId,
+        ),
+      })
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error, '工作流无法启动'))
+    }
+    const created = await this.workflowRunRepository.createApiRun({
+      appId,
+      ownerId: target.workflow.app.ownerId,
+      workflowId: target.workflow.id,
+      versionId: target.id,
+      runId,
+      traceId: randomUUID(),
+      input: transition.state.startInput,
+      runtimeState: transition.state,
+      terminal: getRuntimeTerminal(transition),
+      dispatches: this.prepareRuntimeDispatches(transition, runId),
+    })
+    if (created === 'not-found') throw new NotFoundException(APP_API_VERSION_NOT_FOUND_MESSAGE)
+    return this.getApiRun(appId, runId)
   }
 
   async getLatestNodeRun(
@@ -187,6 +247,32 @@ export class WorkflowRunService {
     }
   }
 
+  async listApiRuns(appId: string, query: ListAppApiWorkflowRunsDto): Promise<WorkflowRunListVo> {
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
+    const runs = await this.workflowRunRepository.listApiRuns({
+      appId,
+      limit: query.limit,
+      cursor,
+      status: query.status,
+      from: query.from ? new Date(query.from) : undefined,
+      search: query.search || undefined,
+    })
+    const hasMore = runs.length > query.limit
+    const page = hasMore ? runs.slice(0, query.limit) : runs
+    const lastRun = page.at(-1)
+
+    return {
+      items: page.map(toWorkflowRunListItemVo),
+      nextCursor:
+        hasMore && lastRun
+          ? this.encodeCursor({
+              id: lastRun.id,
+              queuedAt: lastRun.queuedAt,
+            })
+          : null,
+    }
+  }
+
   async getRunDetail(ownerId: string, appId: string, runId: string): Promise<WorkflowRunDetailVo> {
     const run = await this.workflowRunRepository.findOwnedRunDetail(ownerId, appId, runId)
     if (!run) throw new NotFoundException('运行记录不存在')
@@ -200,6 +286,12 @@ export class WorkflowRunService {
       definition: redactWorkflowDefinitionSecrets(definition),
       layout,
     }
+  }
+
+  async getApiRun(appId: string, runId: string): Promise<WorkflowTestRunVo> {
+    const run = await this.workflowRunRepository.findApiRunSummary(appId, runId)
+    if (!run) throw new NotFoundException('运行记录不存在')
+    return toWorkflowTestRunVo(run)
   }
 
   async processNodeResult(
@@ -793,6 +885,7 @@ export class WorkflowRunService {
 function toWorkflowRunListItemVo(run: WorkflowRunListItem): WorkflowRunListItemVo {
   return {
     id: run.id,
+    traceId: run.traceId,
     trigger: run.trigger,
     mode: run.mode,
     status: run.status,

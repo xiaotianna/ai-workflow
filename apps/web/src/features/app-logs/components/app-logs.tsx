@@ -125,7 +125,7 @@ export function AppLogs({ appId }: AppLogsProps) {
                         })
                       }}
                     >
-                      <Play className="size-5" aria-hidden />
+                      <Play className="size-4" aria-hidden />
                     </Button>
                   </Tooltip>
                 ) : null}

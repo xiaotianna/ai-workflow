@@ -193,6 +193,7 @@ export interface StudioWorkflowTestRunDto {
 
 export interface StudioWorkflowRunListItemDto {
   id: string
+  traceId: string
   trigger: StudioWorkflowRunTrigger
   mode: StudioWorkflowTestRunMode
   status: StudioWorkflowRunStatus

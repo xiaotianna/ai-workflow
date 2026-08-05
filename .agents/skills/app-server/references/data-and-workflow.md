@@ -55,6 +55,19 @@
   API Key、节点运行、工作流运行、部署、版本、草稿、Workflow、App 的顺序清理，避免版本
   和运行之间的限制型外键阻止级联；只有当前 `ownerId` 的未删除应用可以进入删除事务。
 - 不把数据库连接或 Prisma client 暴露给 Controller。
+- `App.apiShareEnabled` 与唯一 `apiShareToken` 管理 API 文档公开分享；分享令牌不替代应用 API Key，
+  不能调用 `/v1`。`ApiKey` 的 `keyHash` 保存完整 Key 的 SHA-256，`prefix` 与可选 `suffix` 只用于
+  生成掩码；新 Key 固定为 `app-` 前缀并保留末尾 5 位，明文不落库。
+- Service API 正式执行直接引用既有 `PUBLISH` WorkflowVersion，不生成 `TEST_RUN` 版本，Run 的
+  `trigger` 固定为 `API`，并保留应用 Owner 作为 `triggeredBy`，以便按同一所有者权限解析子工作流；
+  Runtime 系统用户上下文同样使用应用 Owner，数据库运行与节点执行链路继续作为 SSE、状态查询
+  和日志的统一事实来源。执行请求体直接传入 Runtime，并由实际选中的发布版本 Start `outputs`
+  动态校验顶层字段、数据类型、必填项和默认值，不在 Service API 层维护固定输入 DTO。
+- API 文档契约从各 `PUBLISH` 版本定义中只投影版本 ID、版本号、名称和 Start 输入变量的
+  `key`、`label`、`dataType`、`required`、`description`、`defaultValue`；不得把完整版本定义或
+  其他节点配置返回给管理页或公开分享页。
+- 有效 API Key 请求写入 `ApiCallLog`，记录应用、Key、可选 Run、请求 ID、方法、路径、状态、耗时
+  和客户端审计字段，不记录 Authorization、请求正文、环境变量或完整错误载荷。
 
 ## 模型配置持久化
 

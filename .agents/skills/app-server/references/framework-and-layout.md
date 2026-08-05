@@ -32,6 +32,9 @@ apps/server/
 │   ├── app.module.ts
 │   ├── main.ts
 │   ├── controllers/
+│   │   ├── app-api.controller.ts
+│   │   ├── app-api-management.controller.ts
+│   │   ├── public-app-api.controller.ts
 │   │   ├── auth.controller.ts
 │   │   ├── executor-model.controller.ts
 │   │   ├── model.controller.ts
@@ -54,16 +57,19 @@ apps/server/
 │   │   ├── models.module.ts
 │   │   └── studio.module.ts
 │   ├── repositories/
+│   │   ├── app-api.repository.ts
 │   │   ├── executor-model.repository.ts
 │   │   ├── model-group.repository.ts
 │   │   ├── studio-app.repository.ts
 │   │   └── workflow-run.repository.ts
 │   └── services/
+│       ├── app-api.service.ts
 │       ├── auth.service.ts
 │       ├── executor-model.service.ts
 │       ├── model-connection-test.service.ts
 │       ├── model-group.service.ts
 │       ├── studio-app.service.ts
+│       ├── workflow-run-sse.service.ts
 │       ├── workflow-run-timeout-scanner.service.ts
 │       └── workflow-run.service.ts
 ├── .oxlintrc.json
