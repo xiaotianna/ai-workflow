@@ -107,6 +107,10 @@ export function WorkflowEditor({
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
   const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
   const [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>()
+  const [singleNodeTestRunOpen, setSingleNodeTestRunOpen] = useState(false)
+  const [lastRunRefreshKey, setLastRunRefreshKey] = useState(0)
+  const [focusLastRunTabKey, setFocusLastRunTabKey] = useState(0)
+  const wasTestRunPendingRef = useRef(false)
   const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
   const persistedCheckListIssues = useMemo(
     () => createWorkflowCheckListIssues(editor.workflow),
@@ -136,6 +140,10 @@ export function WorkflowEditor({
     checkListIssues,
     editor,
     onCheckListRequired: () => setActiveAuxiliaryPanel('check-list'),
+    onOpenSingleNodeTestRun: (nodeId) => {
+      editor.openNodeConfig(nodeId)
+      setSingleNodeTestRunOpen(true)
+    },
     onPauseTestRun,
     onPublish,
     onTestRun,
@@ -187,8 +195,27 @@ export function WorkflowEditor({
   }
 
   function handleOpenNodeConfig(nodeId: string) {
+    setSingleNodeTestRunOpen(false)
     editor.openNodeConfig(nodeId)
   }
+
+  async function handleSubmitSingleNodeTestRun(nodeId: string, input: Record<string, unknown>) {
+    try {
+      const result = await operations.runNode(nodeId, input)
+      if (!result || result.status === 'CANCELLED') return
+      setSingleNodeTestRunOpen(false)
+      setFocusLastRunTabKey((current) => current + 1)
+    } catch {
+      // Toast 已在 operations.runNode 中处理
+    }
+  }
+
+  useEffect(() => {
+    if (wasTestRunPendingRef.current && !testRunPending) {
+      setLastRunRefreshKey((current) => current + 1)
+    }
+    wasTestRunPendingRef.current = testRunPending
+  }, [testRunPending])
 
   useEffect(() => {
     if (!disabled) return
@@ -198,6 +225,7 @@ export function WorkflowEditor({
     operations.setImportDialogOpen(false)
     setShortcutHelpOpen(false)
     setActiveAuxiliaryPanel(undefined)
+    setSingleNodeTestRunOpen(false)
     editor.clearSelection()
   }, [disabled])
 
@@ -368,7 +396,10 @@ export function WorkflowEditor({
                             currentNodeId === node.id ? undefined : currentNodeId,
                           )
                         }
-                        onPaneClick={() => editor.clearSelection()}
+                        onPaneClick={() => {
+                          setSingleNodeTestRunOpen(false)
+                          editor.clearSelection()
+                        }}
                         onPaneContextMenu={contextMenu.handlePaneContextMenu}
                         aria-disabled={disabled}
                         className="bg-muted/30 workflow-editor"
@@ -394,8 +425,14 @@ export function WorkflowEditor({
                               : false
                           }
                           selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
+                          selectedNodeCanRun={
+                            editor.selectedNode ? editor.canRunNode(editor.selectedNode.id) : false
+                          }
                           selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
+                          focusLastRunTabKey={focusLastRunTabKey}
+                          lastRunRefreshKey={lastRunRefreshKey}
                           lastSavedAt={save.lastSavedAt}
+                          singleNodeTestRunOpen={singleNodeTestRunOpen}
                           publishedAt={publishedAt}
                           publishLoadError={publishLoadError}
                           publishLoading={publishLoading}
@@ -430,7 +467,11 @@ export function WorkflowEditor({
                               : false
                           }
                           canDeleteNextStepNode={editor.canDeleteNode}
-                          onCloseNodeConfig={() => editor.clearSelection()}
+                          onCloseNodeConfig={() => {
+                            setSingleNodeTestRunOpen(false)
+                            editor.clearSelection()
+                          }}
+                          onCloseSingleNodeTestRun={() => setSingleNodeTestRunOpen(false)}
                           onCheckListIssueSelect={handleOpenNodeConfig}
                           onNodeDraftValidationIssuesChange={editor.setNodeDraftValidationIssues}
                           onChangeNextStepNode={(nodeId, anchorPosition, sourceHandle) =>
@@ -449,12 +490,16 @@ export function WorkflowEditor({
                           onNextStepOpenChange={handleNextStepOpenChange}
                           onNextStepNodeSelect={handleOpenNodeConfig}
                           onRedo={editor.redo}
+                          onOpenSingleNodeTestRun={(nodeId) =>
+                            operations.openSingleNodeTestRun(nodeId)
+                          }
                           onPauseTestRun={() => void operations.pauseTestRun()}
                           onPublish={() => void operations.publish()}
                           onRestoreVersion={onRestoreVersion}
                           onSelectCurrentDraft={() => void onSelectCurrentDraft?.()}
                           onShortcutHelpOpenChange={setShortcutHelpOpen}
                           onStartTestRun={(input) => void operations.testRun(input)}
+                          onSubmitSingleNodeTestRun={handleSubmitSingleNodeTestRun}
                           onTestRun={handleTestRunAction}
                           testRunCanPause={operations.testRunCanPause}
                           testRunPausing={operations.testRunPausing}

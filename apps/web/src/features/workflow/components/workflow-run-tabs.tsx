@@ -148,10 +148,10 @@ function RunMetadata({ run }: { run: StudioWorkflowTestRunDto }) {
     ['执行人', run.triggeredBy?.username ?? '—'],
     ['触发方式', getWorkflowRunTriggerLabel(run.trigger)],
     ['运行模式', run.mode === 'FULL' ? '完整工作流' : '单节点'],
-    ['排队时间', formatDateTime(run.queuedAt)],
-    ['开始时间', formatDateTime(run.startedAt)],
-    ['结束时间', formatDateTime(run.finishedAt)],
-    ['运行耗时', formatDuration(run.durationMs)],
+    ['排队时间', formatWorkflowRunDateTime(run.queuedAt)],
+    ['开始时间', formatWorkflowRunDateTime(run.startedAt)],
+    ['结束时间', formatWorkflowRunDateTime(run.finishedAt)],
+    ['运行耗时', formatWorkflowRunDuration(run.durationMs)],
     ['运行步骤', `${run.nodeStates.length}`],
     ['追踪 ID', run.traceId],
     ['运行 ID', run.id],
@@ -240,7 +240,7 @@ function TraceNodeItem({
         </span>
         {inProgress ? null : (
           <span className="text-muted-foreground shrink-0 text-xs">
-            {formatDuration(durationMs)}
+            {formatWorkflowRunDuration(durationMs)}
           </span>
         )}
         <WorkflowRunStatusIcon status={inProgress ? 'RUNNING' : status} />
@@ -300,7 +300,7 @@ function RunStatusSummary({ run }: { run: StudioWorkflowTestRunDto }) {
       <div className="text-right">
         <p className="text-muted-foreground text-[11px] leading-4">运行耗时</p>
         <p className="text-foreground mt-0.5 text-[13px] leading-4 font-medium">
-          {formatDuration(run.durationMs)}
+          {formatWorkflowRunDuration(run.durationMs)}
         </p>
       </div>
     </section>
@@ -484,13 +484,13 @@ function formatJson(value: unknown) {
   return JSON.stringify(value ?? {}, null, 2)
 }
 
-function formatDuration(durationMs?: number) {
+export function formatWorkflowRunDuration(durationMs?: number) {
   if (durationMs === undefined) return '—'
   if (durationMs < 1000) return `${durationMs} ms`
   return `${(durationMs / 1000).toFixed(3).replace(/0+$/, '').replace(/\.$/, '')} s`
 }
 
-function formatDateTime(value?: string) {
+export function formatWorkflowRunDateTime(value?: string) {
   if (!value) return '—'
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value

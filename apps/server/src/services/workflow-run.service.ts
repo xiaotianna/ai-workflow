@@ -16,6 +16,7 @@ import {
   type WorkflowNode,
   jsonValueSchema,
   nodeRegistry,
+  supportsSingleNodeTestRun,
   validateExecutorWorkflow,
   workflowSchema,
 } from '@ai-workflow/core'
@@ -51,6 +52,7 @@ import {
 } from '@/utils/workflow-draft'
 import type {
   WorkflowNodeExecutionStateVo,
+  WorkflowNodeLastRunVo,
   WorkflowRunDetailVo,
   WorkflowRunListItemVo,
   WorkflowRunListVo,
@@ -100,7 +102,53 @@ export class WorkflowRunService {
 
     return dto.mode === TEST_RUN_MODES.FULL
       ? this.runFullWorkflow(ownerId, appId, snapshot.workflow, snapshot.layout, dto.input ?? {})
-      : this.runSingleNode(ownerId, appId, snapshot.workflow, snapshot.layout, dto.targetNodeId)
+      : this.runSingleNode(
+          ownerId,
+          appId,
+          snapshot.workflow,
+          snapshot.layout,
+          dto.targetNodeId,
+          dto.input,
+        )
+  }
+
+  async getLatestNodeRun(
+    ownerId: string,
+    appId: string,
+    nodeId: string,
+  ): Promise<WorkflowNodeLastRunVo | null> {
+    const workflow = await this.workflowRunRepository.findOwnedWorkflow(ownerId, appId)
+    if (!workflow) throw new NotFoundException('应用不存在')
+
+    const nodeRun = await this.workflowRunRepository.findLatestOwnedNodeRun(ownerId, appId, nodeId)
+    if (!nodeRun) return null
+
+    return {
+      id: nodeRun.id,
+      runId: nodeRun.runId,
+      executionKey: nodeRun.executionKey,
+      nodeId: nodeRun.nodeId,
+      nodeType: nodeRun.nodeType,
+      status: nodeRun.status,
+      ...(nodeRun.input !== null ? { input: nodeRun.input } : {}),
+      ...(nodeRun.output !== null ? { output: nodeRun.output } : {}),
+      ...(nodeRun.startedAt ? { startedAt: nodeRun.startedAt } : {}),
+      ...(nodeRun.finishedAt ? { finishedAt: nodeRun.finishedAt } : {}),
+      ...(nodeRun.durationMs !== null ? { durationMs: nodeRun.durationMs } : {}),
+      ...(nodeRun.errorCode && nodeRun.errorMessage
+        ? {
+            error: {
+              code: nodeRun.errorCode,
+              message: nodeRun.errorMessage,
+              ...(nodeRun.errorDetails !== null ? { details: nodeRun.errorDetails } : {}),
+            },
+          }
+        : {}),
+      runMode: nodeRun.run.mode,
+      runTrigger: nodeRun.run.trigger,
+      runStatus: nodeRun.run.status,
+      ...(nodeRun.run.triggeredBy ? { triggeredBy: nodeRun.run.triggeredBy } : {}),
+    }
   }
 
   async listRuns(
@@ -559,20 +607,14 @@ export class WorkflowRunService {
     workflow: Workflow,
     layout: unknown,
     targetNodeId?: string,
+    input?: Record<string, unknown>,
   ): Promise<WorkflowTestRunVo> {
     if (!targetNodeId) throw new BadRequestException('单节点测试运行缺少目标节点')
 
     const node = workflow.nodes.find((candidate) => candidate.id === targetNodeId)
     if (!node) throw new BadRequestException('目标节点不存在')
 
-    if (
-      node.type === BuiltinNodeType.START ||
-      node.type === BuiltinNodeType.END ||
-      node.type === BuiltinNodeType.LOOP ||
-      node.type === BuiltinNodeType.LOOP_START ||
-      node.type === BuiltinNodeType.LOOP_EXIT ||
-      node.type === BuiltinNodeType.SUB_WORKFLOW
-    ) {
+    if (!supportsSingleNodeTestRun(node.type)) {
       throw new BadRequestException('当前节点不支持单独测试运行')
     }
 
@@ -584,7 +626,7 @@ export class WorkflowRunService {
 
     const runId = randomUUID()
     const versionId = randomUUID()
-    const effectiveInput = resolveSingleNodeInputs(node)
+    const effectiveInput = resolveSingleNodeRunInput(node, input)
     let projectedConfig: Record<string, JsonValue>
     try {
       projectedConfig = this.createRuntimeConfigResolver(workflow).resolve(
@@ -1003,15 +1045,62 @@ function getRuntimeTerminal(transition: RuntimeTransition): {
   }
 }
 
-function resolveSingleNodeInputs(node: WorkflowNode): Record<string, JsonValue> {
+function resolveSingleNodeRunInput(
+  node: WorkflowNode,
+  providedInput?: Record<string, unknown>,
+): Record<string, JsonValue> {
+  const inputKeys = Object.keys(node.inputs)
+
+  if (providedInput) {
+    if (inputKeys.length === 0) return parseProvidedSingleNodeInput(providedInput, [])
+
+    return parseProvidedSingleNodeInput(providedInput, inputKeys)
+  }
+
   return Object.fromEntries(
     Object.entries(node.inputs).map(([key, value]) => [key, resolveSingleNodeVariableValue(value)]),
   )
 }
 
+function parseProvidedSingleNodeInput(
+  providedInput: Record<string, unknown>,
+  requiredKeys: readonly string[],
+): Record<string, JsonValue> {
+  const result: Record<string, JsonValue> = {}
+
+  for (const key of requiredKeys) {
+    const value = providedInput[key]
+    if (value === undefined || value === null || value === '') {
+      throw new BadRequestException(`输入变量 ${key} 不能为空`)
+    }
+
+    const parsed = jsonValueSchema.safeParse(value)
+    if (!parsed.success) {
+      throw new BadRequestException(`输入变量 ${key} 必须是可序列化 JSON 值`)
+    }
+
+    result[key] = parsed.data
+  }
+
+  if (requiredKeys.length > 0) return result
+
+  for (const [key, value] of Object.entries(providedInput)) {
+    if (value === undefined || value === null || value === '') continue
+    const parsed = jsonValueSchema.safeParse(value)
+    if (!parsed.success) {
+      throw new BadRequestException(`输入变量 ${key} 必须是可序列化 JSON 值`)
+    }
+    result[key] = parsed.data
+  }
+
+  return result
+}
+
 function resolveSingleNodeVariableValue(value: VariableValue): JsonValue {
   if (value.type === 'reference') {
-    throw new BadRequestException('单节点测试无法解析引用变量，请改用直接值或完整运行')
+    throw new BadRequestException(
+      '单节点测试无法解析引用变量，请在运行面板填写直接值或改用完整运行',
+    )
   }
 
   const parsed = jsonValueSchema.safeParse(value.value)

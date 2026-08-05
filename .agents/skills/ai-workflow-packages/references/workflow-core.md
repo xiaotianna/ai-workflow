@@ -69,6 +69,9 @@ Nodes UI 保持 schema 和组件类型关联。
   该输出；字段保持可选以兼容旧工作流、Start 输入和执行器原生输出。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
 - `NodeRegistry` 管理节点类型，重复注册会抛错。
+- `supportsSingleNodeTestRun(nodeType)` 判定节点是否允许 `SINGLE_NODE` 测试运行；Start、End、
+  Loop、Loop Start、Loop Exit、Sub Workflow 返回 `false`。Web `canRunNode` 与 Server 单节点入口
+  必须复用该函数，不得各自维护拒绝列表。
 - `FIELD_UI_TYPES` 使用 `text`、`number`、`textarea`、`select`、`switch`、`slider`、
   `code_editor`、`key_value_table`、`request_body`、`condition_rules`、`condition_branches`、
   `llm_model`、`knowledge_base`、`sub_workflow`、`context_messages` 和 `error_handling` 作为

@@ -805,6 +805,53 @@ export class WorkflowRunRepository {
       select: workflowRunDetailSelect,
     })
   }
+
+  findLatestOwnedNodeRun(ownerId: string, appId: string, nodeId: string) {
+    return this.prisma.workflowNodeRun.findFirst({
+      where: {
+        nodeId,
+        run: {
+          workflow: {
+            appId,
+            app: {
+              ownerId,
+              deletedAt: null,
+            },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      select: {
+        id: true,
+        runId: true,
+        executionKey: true,
+        nodeId: true,
+        nodeType: true,
+        status: true,
+        input: true,
+        output: true,
+        startedAt: true,
+        finishedAt: true,
+        durationMs: true,
+        errorCode: true,
+        errorMessage: true,
+        errorDetails: true,
+        run: {
+          select: {
+            mode: true,
+            trigger: true,
+            status: true,
+            triggeredBy: {
+              select: {
+                id: true,
+                username: true,
+              },
+            },
+          },
+        },
+      },
+    })
+  }
 }
 
 const workflowRunListItemSelect = {

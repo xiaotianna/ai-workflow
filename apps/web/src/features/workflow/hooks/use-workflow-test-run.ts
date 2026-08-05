@@ -23,6 +23,7 @@ export type WorkflowTestRunRequest =
   | {
       mode: 'SINGLE_NODE'
       targetNodeId: string
+      input?: Record<string, unknown>
       snapshot: WorkflowEditorSnapshot
     }
 
@@ -113,7 +114,10 @@ export function useWorkflowTestRun(appId: string) {
             {
               mode: request.mode,
               ...(request.mode === 'SINGLE_NODE'
-                ? { targetNodeId: request.targetNodeId }
+                ? {
+                    targetNodeId: request.targetNodeId,
+                    ...(request.input ? { input: request.input } : {}),
+                  }
                 : { input: request.input }),
               definition: request.snapshot.workflow,
               layout: request.snapshot.layout,

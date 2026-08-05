@@ -172,7 +172,7 @@ function ExampleForm() {
   顶部乐观插入“发布中”占位，成功后替换为部署响应中的版本 ID，失败则移除占位。恢复请求由页面
   更新草稿修订号并用返回快照重建编辑器，同时保持该版本选中；恢复后的编辑与自动保存仍写入
   当前草稿，直到用户显式切回「当前草稿」。当前选中版本的删除入口保持禁用。
-- 顶部“测试运行”和节点右键“运行该节点”统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
+- 顶部“测试运行”和单节点运行统一调用 `useWorkflowTestRun`；Hook 用 `FULL` /
   `SINGLE_NODE` 判别请求并共享同一个 pending 与防重复锁；该 Hook 使用带 Bearer Token 的
   `fetch` 以 POST 提交快照并直接消费响应 SSE 的 `workflow_started`、`node_finished` 和
   `workflow_finished`，不得恢复为原生 `EventSource` 或状态 GET 轮询。初始快照和每个
@@ -181,10 +181,15 @@ function ExampleForm() {
   快照必须覆盖校正顺序和耗时。运行态
   不写入编辑器快照、历史或自动保存；POST 流已取得 runId 后意外中断时，只允许
   通过 GET SSE 自动恢复一次，恢复仍失败必须清除残留 `RUNNING` 状态并抛出错误。页面只注入 appId，
-  `useWorkflowOperations` 继续负责运行前 Core 校验、节点配置校验和 Toast。任一模式运行期间，两处
-  入口以及测试运行快捷键都不得再次提交；顶部运行按钮、画布/节点右键入口和 `Alt+R` 在取得
-  runId 后统一切换为一次性暂停，调用取消接口成功后清除运行中节点状态并结束当前 SSE。暂停结果
-  使用信息 Toast，不按运行失败提示；请求尚未取得 runId 或正在暂停时入口必须禁用。
+  单节点运行入口（节点右键、节点 hover ellipsis、配置面板 Header Play）统一调用
+  `useWorkflowOperations.openSingleNodeTestRun`：打开该节点配置面板并覆盖「测试运行 {节点名}」
+  输入浮层，不得直接发请求，也不得打开完整测试运行辅助面板。浮层有输入变量时一律必填非空，
+  点击「开始运行」后才调用 `runNode(nodeId, input)` → `useWorkflowTestRun` 的 `SINGLE_NODE`；
+  `canRunNode` 与 Core `supportsSingleNodeTestRun` 对齐。配置面板另有「上次运行」Tab，通过
+  `useWorkflowNodeLastRun` 懒加载 `GET .../workflow-runs/latest-by-node/:nodeId`（当前应用内该
+  节点最近一次 NodeRun，含完整运行 / 单节点 / 子工作流调用）；单节点成功后关闭浮层并切到该 Tab，
+  任意测试运行结束后刷新记录。任一模式运行期间入口不得再次提交；取得 runId 后统一切换为一次性
+  暂停。暂停结果使用信息 Toast；请求尚未取得 runId 或正在暂停时入口必须禁用。
 - 测试运行追踪优先按 `traceExecutions` 渲染，每个 `executionKey` 对应一行，禁止按 `nodeId`
   去重或只取最新 NodeRun。Loop 内条目使用服务端返回的 `iteration` 展示“节点·第 n 次”；
   旧响应缺少 Execution 投影时才回退到节点级追踪。

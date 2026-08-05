@@ -3,6 +3,7 @@ import {
   ERROR_HANDLING_PORT_ID,
   getNodePorts,
   nodeRegistry,
+  supportsSingleNodeTestRun,
   type NodeType,
   type Workflow,
   type WorkflowEdge,
@@ -1404,7 +1405,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     canReplaceNode,
     canRunNode: (nodeId: string) => {
       const node = nodes.find((candidate) => candidate.id === nodeId)
-      return Boolean(node && !isLoopSystemNodeType(node.type))
+      return Boolean(node && supportsSingleNodeTestRun(node.type))
     },
     copyNode,
     copySelection,

@@ -211,6 +211,32 @@ export interface StudioWorkflowRunDetailDto extends StudioWorkflowTestRunDto {
   definition: WorkflowEditorSnapshot['workflow']
 }
 
+export interface StudioWorkflowNodeLastRunDto {
+  id: string
+  runId: string
+  executionKey: string
+  nodeId: string
+  nodeType: string
+  status: string
+  input?: unknown
+  output?: unknown
+  startedAt?: string
+  finishedAt?: string
+  durationMs?: number
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+  runMode: StudioWorkflowTestRunMode
+  runTrigger: string
+  runStatus: string
+  triggeredBy?: {
+    id: string
+    username: string
+  }
+}
+
 export type StudioWorkflowTestRunSseEvent =
   | {
       event: 'workflow_started'
@@ -382,6 +408,17 @@ export function getStudioWorkflowRun(
 ): Promise<StudioWorkflowRunDetailDto> {
   return apiClient.get<StudioWorkflowRunDetailDto>(
     `/studio/apps/${encodeURIComponent(appId)}/workflow-runs/${encodeURIComponent(runId)}`,
+    { signal },
+  )
+}
+
+export function getStudioWorkflowNodeLastRun(
+  appId: string,
+  nodeId: string,
+  signal?: AbortSignal,
+): Promise<StudioWorkflowNodeLastRunDto | null> {
+  return apiClient.get<StudioWorkflowNodeLastRunDto | null>(
+    `/studio/apps/${encodeURIComponent(appId)}/workflow-runs/latest-by-node/${encodeURIComponent(nodeId)}`,
     { signal },
   )
 }

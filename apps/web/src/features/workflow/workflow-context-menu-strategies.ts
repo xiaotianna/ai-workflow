@@ -84,7 +84,7 @@ const runNodeStrategy: WorkflowContextMenuActionStrategy = {
   },
   execute: (context) => {
     const nodeId = getNodeId(context)
-    if (nodeId) void context.operations.runNode(nodeId)
+    if (nodeId) context.operations.openSingleNodeTestRun(nodeId)
   },
 }
 

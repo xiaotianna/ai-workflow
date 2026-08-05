@@ -68,23 +68,30 @@
 - `DELETE /studio/apps/:appId/workflow-versions/:versionId`：删除当前用户和应用内未被部署或运行记录
   引用的发布版本；仍被引用时返回 `409`，不得绕过关联约束删除。
 - `POST /studio/apps/:appId/workflow-runs/test`：测试当前提交的编辑器快照。`mode=FULL` 运行完整根
-  DAG；`mode=SINGLE_NODE` 必须携带 `targetNodeId`。前端使用 `fetch` 以 POST 提交请求体并读取
-  `text/event-stream` 响应，不使用仅支持 GET 的原生 `EventSource`。事件依次为当前数据库快照的
-  `workflow_started`、状态推进时的 `node_finished` 和终态的 `workflow_finished`。初始快照与
-  每个增量事件都提供最新 `nodeStates`、`nodeRuns`、`traceNodeDurations` 和 `traceNodeIds`：
-  `traceNodeIds` 必须从持久化 RuntimeState 的 Execution `sequence` 生成，只包含真正进入执行链路
-  的节点，禁止按画布拓扑补齐未执行节点；`traceNodeDurations` 合并 Runtime 本地控制 Execution 与
-  持久化 NodeRun 的终态耗时，运行中节点不返回临时递增耗时。状态包含 `RUNNING` / `SUCCEEDED` /
-  `FAILED`，供前端准确标记当前执行节点；尚未领取
-  的 `PENDING` 节点投影为 `RUNNING`，`TIMED_OUT` 节点投影为 `FAILED`。两种模式共用
-  Runtime/Protocol、运行记录、Outbox/Inbox 和 Go Executor 链路；请求中的
-  Secret 占位值按当前用户持久化草稿恢复。运行快照显式返回持久化 Run 的 `traceId`、`trigger`、
-  `input`、触发用户、排队/开始/结束时间和耗时；Run `input` 是归一化用户输入与非 Secret
-  `env.<name>`、全部 `sys.<key>` 的合并结果。每条 NodeRun 返回实际派发的 `input`、`output`、
-  开始/结束时间和耗时，供运行详情与追踪展示，不把 Prisma model 直接作为响应。
+  DAG；`mode=SINGLE_NODE` 必须携带 `targetNodeId`，且目标类型须通过 Core
+  `supportsSingleNodeTestRun`（拒绝 Start、End、Loop、Loop Start、Loop Exit、Sub Workflow）。
+  `SINGLE_NODE` 可携带 `input`：若节点声明了输入变量，则每个 key 必须非空且为可序列化 JSON；
+  未携带 `input` 时回退解析快照中的字面量绑定（引用变量仍拒绝）。前端使用 `fetch` 以 POST
+  提交请求体并读取 `text/event-stream` 响应，不使用仅支持 GET 的原生 `EventSource`。事件依次为
+  当前数据库快照的 `workflow_started`、状态推进时的 `node_finished` 和终态的
+  `workflow_finished`。初始快照与每个增量事件都提供最新 `nodeStates`、`nodeRuns`、
+  `traceNodeDurations` 和 `traceNodeIds`：`traceNodeIds` 必须从持久化 RuntimeState 的
+  Execution `sequence` 生成，只包含真正进入执行链路的节点，禁止按画布拓扑补齐未执行节点；
+  `traceNodeDurations` 合并 Runtime 本地控制 Execution 与持久化 NodeRun 的终态耗时，运行中节点
+  不返回临时递增耗时。状态包含 `RUNNING` / `SUCCEEDED` / `FAILED`，供前端准确标记当前执行
+  节点；尚未领取的 `PENDING` 节点投影为 `RUNNING`，`TIMED_OUT` 节点投影为 `FAILED`。两种模式
+  共用 Runtime/Protocol、运行记录、Outbox/Inbox 和 Go Executor 链路；请求中的 Secret 占位值按
+  当前用户持久化草稿恢复。运行快照显式返回持久化 Run 的 `traceId`、`trigger`、`input`、触发
+  用户、排队/开始/结束时间和耗时；Run `input` 是归一化用户输入与非 Secret `env.<name>`、全部
+  `sys.<key>` 的合并结果。每条 NodeRun 返回实际派发的 `input`、`output`、开始/结束时间和耗时，
+  供运行详情与追踪展示，不把 Prisma model 直接作为响应。
 - `GET /studio/apps/:appId/workflow-runs`：按 `queuedAt`、`id` 倒序游标分页读取当前用户和应用的
   测试与正式运行记录；`limit` 范围为 1–50，响应返回轻量 `items` 和 opaque `nextCursor`，列表
   不携带输入、输出、节点运行或工作流版本快照。
+- `GET /studio/apps/:appId/workflow-runs/latest-by-node/:nodeId`：返回当前用户、当前应用内该
+  `nodeId` 最近一次 `WorkflowNodeRun`（按 `createdAt`/`id` 倒序），覆盖完整运行、单节点运行与
+  作为子工作流被调用时产生的记录；无记录时返回 `null`。响应包含 NodeRun 输入/输出/状态/耗时，
+  以及所属 Run 的 `runMode`、`runTrigger`、`runStatus` 与执行人，不返回完整工作流定义。
 - `GET /studio/apps/:appId/workflow-runs/:runId`：按当前用户和应用读取异步测试 Run、节点状态、输出
   或错误，并返回该 Run 绑定版本的 `definition` 供历史追踪还原节点；不得仅凭 runId 跨应用读取，
   `definition` 中的 Secret 环境变量必须清空，不得把版本快照中的真实密钥返回浏览器；也不得由

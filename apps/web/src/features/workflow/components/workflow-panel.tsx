@@ -39,7 +39,10 @@ interface WorkflowPanelProps {
   selectedNodeCanAddErrorBranch?: boolean
   selectedNodeCanAddNextNode?: boolean
   selectedNodeAvailableVariables?: readonly AvailableVariableOption[]
+  selectedNodeCanRun?: boolean
   selectedNodeDefaultLabel?: string
+  focusLastRunTabKey?: number
+  lastRunRefreshKey?: number
   lastSavedAt?: Date
   publishedAt?: string
   publishLoadError?: boolean
@@ -47,6 +50,7 @@ interface WorkflowPanelProps {
   publishPending?: boolean
   publishSync?: WorkflowVersionHistoryPublishSync
   saveStatus: WorkflowSaveStatus
+  singleNodeTestRunOpen?: boolean
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
@@ -60,6 +64,7 @@ interface WorkflowPanelProps {
   canChangeNextStepNode: (nodeId: string, sourceHandle?: string) => boolean
   canDeleteNextStepNode: (nodeId: string) => boolean
   onCloseNodeConfig: () => void
+  onCloseSingleNodeTestRun: () => void
   onCheckListIssueSelect: (nodeId: string) => void
   onNodeDraftValidationIssuesChange: (nodeId: string, messages: readonly string[]) => void
   onChangeNextStepNode: (
@@ -81,6 +86,7 @@ interface WorkflowPanelProps {
     sourceHandle?: string,
   ) => void
   onNextStepNodeSelect: (nodeId: string) => void
+  onOpenSingleNodeTestRun: (nodeId: string) => void
   onRedo: () => void
   onPauseTestRun: () => void
   onPublish: () => void
@@ -88,6 +94,10 @@ interface WorkflowPanelProps {
   onSelectCurrentDraft?: () => void
   onShortcutHelpOpenChange: (open: boolean) => void
   onStartTestRun: (input: Record<string, unknown>) => void
+  onSubmitSingleNodeTestRun: (
+    nodeId: string,
+    input: Record<string, unknown>,
+  ) => void | Promise<void>
   onTestRun: () => void
   onUndo: () => void
   onUpdateEnvironmentVariable: (variable: WorkflowEnvironmentVariable) => void
@@ -112,7 +122,10 @@ export const WorkflowPanel = ({
   selectedNodeCanAddErrorBranch = false,
   selectedNodeCanAddNextNode = false,
   selectedNodeAvailableVariables,
+  selectedNodeCanRun = false,
   selectedNodeDefaultLabel,
+  focusLastRunTabKey = 0,
+  lastRunRefreshKey = 0,
   lastSavedAt,
   publishedAt,
   publishLoadError = false,
@@ -120,6 +133,7 @@ export const WorkflowPanel = ({
   publishPending = false,
   publishSync,
   saveStatus,
+  singleNodeTestRunOpen = false,
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
@@ -133,6 +147,7 @@ export const WorkflowPanel = ({
   canChangeNextStepNode,
   canDeleteNextStepNode,
   onCloseNodeConfig,
+  onCloseSingleNodeTestRun,
   onCheckListIssueSelect,
   onNodeDraftValidationIssuesChange,
   onChangeNextStepNode,
@@ -141,6 +156,7 @@ export const WorkflowPanel = ({
   onDisconnectNextStepNode,
   onNextStepOpenChange,
   onNextStepNodeSelect,
+  onOpenSingleNodeTestRun,
   onRedo,
   onPauseTestRun,
   onPublish,
@@ -148,6 +164,7 @@ export const WorkflowPanel = ({
   onSelectCurrentDraft,
   onShortcutHelpOpenChange,
   onStartTestRun,
+  onSubmitSingleNodeTestRun,
   onTestRun,
   onUndo,
   onUpdateEnvironmentVariable,
@@ -253,6 +270,7 @@ export const WorkflowPanel = ({
                 >
                   <WorkflowConfigPanel
                     key={selectedNode.id}
+                    appId={appId}
                     node={selectedNode}
                     configRenderers={configRenderers}
                     defaultLabel={selectedNodeDefaultLabel}
@@ -266,8 +284,16 @@ export const WorkflowPanel = ({
                       nextStepSourceNodeId === selectedNode.id &&
                       nextStepSourceHandle === ERROR_HANDLING_PORT_ID
                     }
+                    canRunNode={selectedNodeCanRun}
+                    focusLastRunTabKey={focusLastRunTabKey}
+                    lastRunRefreshKey={lastRunRefreshKey}
+                    singleNodeTestRunOpen={singleNodeTestRunOpen}
+                    testRunCanPause={testRunCanPause}
+                    testRunPausing={testRunPausing}
+                    testRunPending={testRunPending}
                     onApply={onApplyNode}
                     onClose={onCloseNodeConfig}
+                    onCloseSingleNodeTestRun={onCloseSingleNodeTestRun}
                     onDraftValidationIssuesChange={onNodeDraftValidationIssuesChange}
                     canChangeNextStepNode={canChangeNextStepNode}
                     canDeleteNextStepNode={canDeleteNextStepNode}
@@ -280,6 +306,11 @@ export const WorkflowPanel = ({
                       onNextStepOpenChange(selectedNode.id, open, trigger, sourceHandle)
                     }
                     onNextStepNodeSelect={onNextStepNodeSelect}
+                    onOpenSingleNodeTestRun={() => onOpenSingleNodeTestRun(selectedNode.id)}
+                    onPauseTestRun={onPauseTestRun}
+                    onSubmitSingleNodeTestRun={(input) =>
+                      onSubmitSingleNodeTestRun(selectedNode.id, input)
+                    }
                   />
                 </motion.div>
               </motion.div>

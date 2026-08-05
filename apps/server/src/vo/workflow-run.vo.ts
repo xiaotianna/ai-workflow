@@ -35,6 +35,33 @@ export interface WorkflowNodeRunVo {
   }
 }
 
+/** 当前应用内某节点最近一次 NodeRun（完整运行 / 单节点 / 子工作流调用均计入） */
+export interface WorkflowNodeLastRunVo {
+  id: string
+  runId: string
+  executionKey: string
+  nodeId: string
+  nodeType: string
+  status: WorkflowNodeRunStatus
+  input?: unknown
+  output?: unknown
+  startedAt?: Date
+  finishedAt?: Date
+  durationMs?: number
+  error?: {
+    code: string
+    message: string
+    details?: unknown
+  }
+  runMode: TestRunMode
+  runTrigger: WorkflowRunTrigger
+  runStatus: WorkflowRunStatus
+  triggeredBy?: {
+    id: string
+    username: string
+  }
+}
+
 export interface WorkflowTraceExecutionVo {
   executionKey: string
   nodeId: string

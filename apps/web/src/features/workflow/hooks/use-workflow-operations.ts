@@ -25,6 +25,7 @@ interface UseWorkflowOperationsOptions {
   checkListIssues?: readonly WorkflowCheckListIssue[]
   editor: WorkflowEditor
   onCheckListRequired?: () => void
+  onOpenSingleNodeTestRun?: (nodeId: string) => void
   onPauseTestRun?: () => Promise<void>
   onPublish?: (snapshot: ReturnType<WorkflowEditor['createSnapshot']>) => Promise<unknown>
   onTestRun?: (request: WorkflowTestRunRequest) => Promise<WorkflowTestRunResult>
@@ -44,6 +45,7 @@ export function useWorkflowOperations({
   checkListIssues = [],
   editor,
   onCheckListRequired,
+  onOpenSingleNodeTestRun,
   onPauseTestRun,
   onPublish,
   onTestRun,
@@ -54,6 +56,22 @@ export function useWorkflowOperations({
   testRunPending = false,
 }: UseWorkflowOperationsOptions) {
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+
+  function openSingleNodeTestRun(nodeId: string) {
+    if (testRunPending) return
+
+    if (!editor.canRunNode(nodeId)) {
+      showToast('error', '当前节点不可单独运行')
+      return
+    }
+
+    if (!onOpenSingleNodeTestRun) {
+      showToast('info', '节点运行服务尚未接入')
+      return
+    }
+
+    onOpenSingleNodeTestRun(nodeId)
+  }
 
   async function testRun(input: Record<string, unknown> = {}) {
     if (testRunPending) return
@@ -96,7 +114,7 @@ export function useWorkflowOperations({
     }
   }
 
-  async function runNode(nodeId: string) {
+  async function runNode(nodeId: string, input: Record<string, unknown> = {}) {
     if (testRunPending) return
 
     if (!editor.canRunNode(nodeId)) {
@@ -130,21 +148,22 @@ export function useWorkflowOperations({
       config: parsedConfig.data,
     }
 
-    onTestRunStart?.()
-
     try {
       const result = await onTestRun({
         mode: 'SINGLE_NODE',
         targetNodeId: node.id,
+        input,
         snapshot,
       })
       if (result.status === 'CANCELLED') {
         showToast('info', `“${node.label ?? nodeType.definition.label}”运行已暂停`)
-        return
+        return result
       }
       showToast('success', `“${node.label ?? nodeType.definition.label}”运行成功`)
+      return result
     } catch (error) {
       showToast('error', getErrorMessage(error, '节点运行失败'))
+      throw error
     }
   }
 
@@ -225,6 +244,7 @@ export function useWorkflowOperations({
     importDialogOpen,
     importDsl,
     openImportDialog: () => setImportDialogOpen(true),
+    openSingleNodeTestRun,
     pauseTestRun,
     publish,
     publishPending,

@@ -5,6 +5,7 @@ import { WorkflowRunStatus } from '@/generated/prisma/client'
 import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-stream.service'
 import { WorkflowRunService } from '@/services/workflow-run.service'
 import type {
+  WorkflowNodeLastRunVo,
   WorkflowRunDetailVo,
   WorkflowRunListVo,
   WorkflowRunStreamEvent,
@@ -67,6 +68,23 @@ export class WorkflowRunController {
   ): Promise<void> {
     const created = await this.workflowRunService.createTestRun(request.auth.userId, appId, dto)
     await this.writeTestRunStream(request.auth.userId, appId, created.id, response)
+  }
+
+  @Get('latest-by-node/:nodeId')
+  getLatestNodeRun(
+    @Req() request: AuthenticatedRequest,
+    @Param(
+      'appId',
+      new ParseUUIDPipe({
+        version: '4',
+        exceptionFactory: () => new BadRequestException('应用不存在'),
+      }),
+    )
+    appId: string,
+    @Param('nodeId') nodeId: string,
+  ): Promise<WorkflowNodeLastRunVo | null> {
+    if (!nodeId.trim()) throw new BadRequestException('节点 ID 不能为空')
+    return this.workflowRunService.getLatestNodeRun(request.auth.userId, appId, nodeId.trim())
   }
 
   @Get(':runId')
