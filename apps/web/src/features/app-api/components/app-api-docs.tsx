@@ -117,7 +117,7 @@ export function AppApiDocs() {
         </Button>
       </div>
       <div className="relative">
-        <aside className="pointer-events-none absolute inset-y-0 left-3 z-10 hidden w-8 lg:block">
+        <aside className="pointer-events-none absolute inset-y-0 left-3 z-10 hidden w-8 [overflow-anchor:none] lg:block">
           <div className="pointer-events-auto sticky top-1/2 w-fit -translate-y-1/2">
             <ApiDocsAnchorNav items={apiDocsAnchorItems} />
           </div>

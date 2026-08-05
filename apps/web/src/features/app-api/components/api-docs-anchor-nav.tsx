@@ -123,7 +123,7 @@ export function ApiDocsAnchorNav({ items, className }: ApiDocsAnchorNavProps) {
               type="button"
               aria-label={item.title}
               aria-current={isActive ? 'location' : undefined}
-              className="flex cursor-pointer items-center py-0.5 outline-none"
+              className="flex h-2 cursor-pointer items-center outline-none"
               onClick={() => scrollToSection(item.id)}
             >
               <span
