@@ -25,10 +25,10 @@
 - 知识库创建和编辑复用 `KnowledgeBaseFormDialog`；编辑时回填名称、图标和描述，请求期间禁止
   关闭或重复提交。删除统一使用 `DeleteKnowledgeBaseDialog` 二次确认；请求期间禁止关闭，失败
   时保留弹窗，列表成功后刷新当前查询，详情成功后返回知识库列表。
-- 空白知识库阶段的文档页（`/knowledge-base/:id/documents`）只展示“暂无文档”和后续能力说明，
-  不挂载上传、启停、重命名、重新索引或删除交互，也不在浏览器模拟文档记录。后续接入真实文档
-  接口时再启用 `DocumentToolbar`、`DocumentTable`、`DocumentPagination` 与添加文件弹窗，并遵守
-  下方「知识库文档表格」约定。
+- 文档页（`/knowledge-base/:id/documents`）在真实文档接口接入前，使用 `createMockDocuments`
+  按当前知识库 ID 生成前端预览数据，并挂载 `DocumentToolbar`、`DocumentTable`、
+  `DocumentPagination` 与添加文件弹窗；启停、删除、本地添加仅更新页面状态，不请求后端。接入
+  真实接口后移除 mock，并遵守下方「知识库文档表格」约定。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。下拉操作项默认只显示文字，不提供通用 `icon` 配置；只有用户或业务规范明确要求时才单独实现图标。
@@ -137,7 +137,7 @@
 
 ### 分页
 
-- 分页器使用 `@ai-workflow/ui/components/pagination`，独立于表格滚动容器，位于 `DocumentTable` 底部；支持页码与每页条数切换。
+- 分页器使用 `@ai-workflow/ui/components/pagination`，独立于表格滚动容器，位于 `DocumentTable` 底部；支持上一页 / 下一页、点击「当前页 / 总页数」后整块替换为单个页码输入框跳转，以及每页条数切换，不展示数字页码列表。
 
 ## 应用 API 文档与密钥
 

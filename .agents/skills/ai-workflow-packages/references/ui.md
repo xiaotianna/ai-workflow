@@ -93,7 +93,9 @@ import '@ai-workflow/ui/globals.css'
 - 使用 `cn()` 合并类名，变体较多时使用 CVA，不在调用方重做基础状态。
 - 同级内容分类使用 `Tabs` 组合；业务层只传入受控值、标签与内容，不复制触发器的选中、
   Hover、Focus、Disabled 样式，也不使用普通按钮组替代 Tabs 键盘语义。
-- 表格或列表底部分页使用 `Pagination`；传入 `pageSizeOptions` 与 `onPageSizeChange` 时显示每页条数切换，否则只保留页码导航。分页器独立于表格容器，不带顶部分隔线。
+- 表格或列表底部分页使用 `Pagination`：左侧为上一页 / 当前页 / 下一页，右侧在传入
+  `pageSizeOptions` 与 `onPageSizeChange` 时显示每页条数切换。不展示数字页码列表；点击
+  「当前页 / 总页数」后整块替换为单个页码输入框，确认后跳转。分页器独立于表格容器，不带顶部分隔线。
 
 ## 新增组件
 

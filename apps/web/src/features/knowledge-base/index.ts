@@ -9,7 +9,7 @@ export { KnowledgeBaseDetailIdentity } from './components/knowledge-base-detail-
 export { getKnowledgeBaseActions } from './components/knowledge-base-actions'
 export { KnowledgeBaseGrid } from './components/knowledge-base-grid'
 export { KnowledgeBaseToolbar } from './components/knowledge-base-toolbar'
-export { formatDocumentCharacterCount, toKnowledgeBaseListItem } from './data'
+export { createMockDocuments, formatDocumentCharacterCount, toKnowledgeBaseListItem } from './data'
 export { useKnowledgeBases } from './hooks/use-knowledge-bases'
 export type { CreateKnowledgeBaseInput } from './schema'
 export type {
