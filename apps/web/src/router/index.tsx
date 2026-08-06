@@ -21,6 +21,7 @@ const KnowledgeBasePage = lazy(() => import('../pages/home-layout/knowledge-base
 const ModelsPage = lazy(() => import('../pages/home-layout/models'))
 const PluginPage = lazy(() => import('../pages/home-layout/plugin'))
 const StudioPage = lazy(() => import('../pages/home-layout/studio'))
+const PluginDetailPage = lazy(() => import('../pages/plugin-detail'))
 const AppPage = lazy(() => import('../pages/app'))
 const AppWorkflowPage = lazy(() => import('../pages/app/workflow'))
 const AppApiPage = lazy(() => import('../pages/app/api'))
@@ -132,6 +133,21 @@ export const routes = [
             },
           },
         ],
+      },
+      {
+        id: 'plugin-detail',
+        path: 'plugin/:author/:pluginId',
+        element: (
+          <LazyLoad>
+            <PluginDetailPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '插件详情',
+            requiresAuth: true,
+          },
+        },
       },
       {
         id: 'knowledge-base-detail',

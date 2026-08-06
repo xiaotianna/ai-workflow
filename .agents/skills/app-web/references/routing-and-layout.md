@@ -8,6 +8,10 @@
 - `/` 下的布局页面直接组合 `LayoutSidebar` 和主内容区域，并通过子路由渲染页面。
 - 首页布局当前包含 `/studio`、`/knowledge-base`、`/models` 和 `/plugin`；模型页导航位于
   知识库与插件之间，继续从 `models` 路由的 `handle.meta` 派生。
+- 插件详情使用 `/plugin/:author/:pluginId`，作者昵称和插件 ID 在生成链接时分别使用
+  `encodeURIComponent` 转义；详情路由与首页布局同级，作为独立的受保护全屏页面，不渲染首页
+  侧栏。详情页固定复用插件列表的 Marketplace Header，正文滚动时 Header 保持在页面顶部；Header
+  的 Logo Hover 或键盘 Focus 后切换为返回箭头，点击返回 `/plugin`。
 - `/models` 使用 `tab=chat|embedding` 保存“对话 / 嵌入”分类；缺失或无效值通过 replace
   规范化为 `tab=chat`，切换时保留其他查询参数。
 - `/app/:id` 与 `/knowledge-base/:id` 是与首页布局并列的根级详情布局，不渲染首页侧栏内容；两者复用 `components/detail-layout`，由内容区承载子路由。

@@ -1,12 +1,10 @@
-import { Button } from '@ai-workflow/ui/components/button'
-import { Input } from '@ai-workflow/ui/components/input'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { BookOpen, Search } from 'lucide-react'
 import { useRef } from 'react'
 
 import { pluginCategories, type PluginCategoryId } from '../constants'
 import { usePluginHeroCollapse } from '../hooks/use-plugin-hero-collapse'
 import { PluginHeroBackground } from './plugin-hero-background'
+import { PluginMarketplaceHeader } from './plugin-marketplace-header'
 
 export interface PluginMarketplaceHeroProps {
   search: string
@@ -79,69 +77,6 @@ function PluginCategoryTabs({
   )
 }
 
-function PluginHeroNavBar({
-  search,
-  onSearchChange,
-}: {
-  search: string
-  onSearchChange: (search: string) => void
-}) {
-  return (
-    <div className="border-border/50 bg-background/80 flex h-15 w-full items-center rounded-lg border-[0.5px] backdrop-blur-[6px]">
-      <div className="flex h-full min-w-0 flex-1 items-center px-5 py-2">
-        <div className="flex shrink-0 items-center gap-1.5">
-          <img
-            width={52}
-            height={24}
-            className="block h-6 w-13 -scale-x-100 object-contain dark:brightness-0 dark:invert"
-            alt=""
-            src="/plugin-logo.svg"
-          />
-          <span
-            className="text-foreground overflow-hidden text-[18px] leading-6 font-semibold whitespace-nowrap md:hidden"
-            style={{
-              maxWidth: 'calc(var(--hero-progress, 0) * 150px)',
-              opacity: 'clamp(0, (var(--hero-progress, 0) - 0.15) / 0.85, 1)',
-            }}
-          >
-            插件 Marketplace
-          </span>
-          <span className="text-foreground hidden overflow-hidden text-[18px] leading-6 font-semibold whitespace-nowrap md:inline md:max-w-37.5">
-            插件 Marketplace
-          </span>
-        </div>
-      </div>
-
-      <div className="relative z-10 w-64 shrink-0">
-        <Search className="text-input-placeholder pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-        <Input
-          type="search"
-          name="query"
-          autoComplete="off"
-          aria-label="搜索插件"
-          placeholder="搜索..."
-          value={search}
-          onChange={(event) => onSearchChange(event.target.value)}
-          className="bg-input focus-visible:bg-background h-9 rounded-[10px] border-transparent pr-2 pl-8 text-[14px] leading-5 shadow-none"
-        />
-      </div>
-
-      <div className="flex h-full shrink-0 items-center justify-end gap-4 pr-3.5 pl-4">
-        <div aria-hidden className="bg-muted-foreground/30 mx-0 h-4 w-px shrink-0" />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="申请或发布"
-          className="text-muted-foreground hover:text-foreground size-8"
-        >
-          <BookOpen className="size-4 shrink-0" />
-        </Button>
-      </div>
-    </div>
-  )
-}
-
 export function PluginMarketplaceHero({
   search,
   activeCategory,
@@ -179,7 +114,11 @@ export function PluginMarketplaceHero({
         </div>
 
         <div className="relative z-10 flex w-full flex-col items-start">
-          <PluginHeroNavBar search={search} onSearchChange={onSearchChange} />
+          <PluginMarketplaceHeader
+            search={search}
+            collapseMobileTitle
+            onSearchChange={onSearchChange}
+          />
 
           <div className="relative z-10 mx-5 w-[calc(100%-2.5rem)]">
             <div

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 
 import type { PluginCategoryId } from '../constants'
 import { filterMockPlugins } from '../data'
@@ -8,9 +9,11 @@ const pluginSearchDebounce = 300
 const mockLoadingDelay = 900
 
 export function usePlugins() {
+  const [searchParams] = useSearchParams()
+  const initialSearch = searchParams.get('query')?.trim() ?? ''
   const [plugins, setPlugins] = useState<PluginListItem[]>([])
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [search, setSearch] = useState(initialSearch)
+  const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
   const [categoryId, setCategoryId] = useState<PluginCategoryId>('all')
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)

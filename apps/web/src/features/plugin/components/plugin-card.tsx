@@ -1,8 +1,10 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { ExternalLink, Tag } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 import { formatPluginInstallCount } from '../data'
+import { getPluginDetailPath } from '../paths'
 import type { PluginListItem } from '../types'
 
 export interface PluginCardProps {
@@ -12,14 +14,21 @@ export interface PluginCardProps {
 
 export function PluginCard({ plugin, className }: PluginCardProps) {
   const Icon = plugin.icon
+  const detailPath = getPluginDetailPath(plugin)
 
   return (
     <article
       className={cn(
-        'group bg-card hover:bg-input/60 border-border/20 relative flex min-h-[176px] w-full cursor-pointer flex-col overflow-hidden rounded-xl border shadow-xs transition-[background-color,box-shadow] duration-200 hover:shadow-md',
+        'group bg-card hover:bg-input/60 focus-within:bg-input/60 border-border/20 relative flex min-h-[176px] w-full cursor-pointer flex-col overflow-hidden rounded-xl border shadow-xs transition-[background-color,box-shadow] duration-200 focus-within:shadow-md hover:shadow-md',
         className,
       )}
     >
+      <Link
+        to={detailPath}
+        aria-label={`查看 ${plugin.title} 插件详情`}
+        className="absolute inset-0 z-10 outline-none"
+      />
+
       <span className="bg-muted text-muted-foreground absolute top-0 right-0 rounded-bl-lg px-2 py-1 text-[11px] leading-4 font-medium">
         {plugin.categoryLabel}
       </span>
@@ -40,7 +49,13 @@ export function PluginCard({ plugin, className }: PluginCardProps) {
       </div>
 
       <div className="relative min-h-10 flex-1 px-4 pb-2">
-        <p className="text-muted-foreground line-clamp-2 [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)] text-[13px] leading-5">
+        <p className="text-muted-foreground line-clamp-2 text-[13px] leading-5 transition-opacity duration-200 group-focus-within:opacity-0 group-hover:opacity-0 motion-reduce:transition-none">
+          {plugin.description}
+        </p>
+        <p
+          aria-hidden
+          className="text-muted-foreground absolute inset-x-4 top-0 line-clamp-2 [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)] text-[13px] leading-5 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
+        >
           {plugin.description}
         </p>
       </div>
@@ -58,13 +73,15 @@ export function PluginCard({ plugin, className }: PluginCardProps) {
           ))}
         </div>
 
-        <div className="absolute inset-x-4 bottom-4 flex items-center gap-2 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
+        <div className="absolute inset-x-4 bottom-4 z-20 flex items-center gap-2 opacity-0 transition-opacity duration-200 group-focus-within:opacity-100 group-hover:opacity-100">
           <Button type="button" size="sm" className="h-8 flex-1 rounded-lg">
             安装
           </Button>
-          <Button type="button" variant="secondary" size="sm" className="h-8 rounded-lg px-3">
-            详情
-            <ExternalLink aria-hidden className="size-3.5" />
+          <Button asChild variant="secondary" size="sm" className="h-8 rounded-lg px-3">
+            <Link to={detailPath}>
+              详情
+              <ExternalLink aria-hidden className="size-3.5" />
+            </Link>
           </Button>
         </div>
       </div>

@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 
 import { pluginCategories } from './constants'
-import type { PluginListItem } from './types'
+import type { PluginDetail, PluginListItem, PluginVersionHistory } from './types'
 
 type PluginCategoryItemId = PluginListItem['categoryId']
 
@@ -58,8 +58,10 @@ const categoryIconMap: Record<PluginCategoryItemId, LucideIcon> = {
 const seedPlugins: Omit<PluginListItem, 'categoryLabel'>[] = [
   {
     id: 'github',
+    slug: 'github_datasource',
     title: 'GitHub',
     author: 'langgenius',
+    verified: true,
     installCount: 20_088,
     description: 'GitHub 仓库数据源 - 访问仓库、问题、拉取请求和 Wiki 页面',
     categoryId: 'data-sources',
@@ -273,6 +275,193 @@ function createMockPlugins(count: number): PluginListItem[] {
 }
 
 export const mockPlugins = createMockPlugins(100)
+
+const githubVersions: PluginVersionHistory = [
+  {
+    version: '0.4.7',
+    publishedAt: '2026-08-06T10:30:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 新增 GitHub Wiki 页面同步能力
+- 优化大型仓库的增量索引性能
+- 修复 OAuth 令牌刷新失败后无法重试的问题
+`,
+  },
+  {
+    version: '0.4.5',
+    publishedAt: '2026-05-06T09:20:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 支持拉取请求评论和 Review 内容
+- 增加私有仓库访问状态提示
+`,
+  },
+  {
+    version: '0.4.3',
+    publishedAt: '2026-04-02T15:45:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 新增 Issue 内容过滤选项
+- 改进 API 限流后的自动恢复策略
+`,
+  },
+  {
+    version: '0.4.2',
+    publishedAt: '2026-02-18T11:10:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 支持按分支读取仓库文件
+- 修复部分 Markdown 文件编码异常
+`,
+  },
+  {
+    version: '0.4.1',
+    publishedAt: '2026-02-03T14:00:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 增加 GitHub Enterprise 地址配置
+- 优化仓库连接校验反馈
+`,
+  },
+  {
+    version: '0.4.0',
+    publishedAt: '2025-12-06T11:20:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 新增仓库文件与 Issue 的统一数据源配置
+- 支持增量同步仓库内容
+`,
+  },
+  {
+    version: '0.3.3',
+    publishedAt: '2025-10-06T16:40:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 优化大型仓库的首次同步性能
+- 修复部分分支无法读取的问题
+`,
+  },
+  {
+    version: '0.3.2',
+    publishedAt: '2025-10-01T09:15:00+08:00',
+    publisher: 'langgenius',
+    changelog: `
+- 支持 GitHub 仓库基础内容同步
+- 增加连接状态检查
+`,
+  },
+]
+
+const githubContent = `
+# GitHub Datasource Plugin
+
+将 GitHub 仓库、Issue、Pull Request 和 Wiki 页面作为数据源接入 AI Workflow，并提供完整的身份验证支持。
+
+## 功能特性
+
+- **仓库访问：** 浏览并下载公开或私有仓库中的文件
+- **Issue 与 Pull Request：** 获取 Issue、PR 正文以及评论内容
+- **多种身份验证：** 支持 Personal Access Token 和 OAuth
+- **限流处理：** 自动检测 GitHub API 限流并在可用后恢复
+- **内容处理：** 自动处理 Markdown 内容并提取可索引文本
+- **多内容类型：** 支持代码、文档、Issue、PR 与 Wiki 页面
+
+## 支持的内容类型
+
+- 仓库文件（Markdown、代码与文档）
+- 包含评论的 GitHub Issue
+- Pull Request 正文、Review 与讨论
+- GitHub Wiki 页面
+
+## 使用方式
+
+1. 安装插件并创建 GitHub 连接。
+2. 选择需要同步的组织、仓库和分支。
+3. 配置内容范围后开始首次同步。
+
+> 私有仓库的可见范围由所使用的 GitHub 凭证决定。建议为生产环境使用最小权限令牌。
+`
+
+function createDefaultVersions(plugin: PluginListItem): PluginVersionHistory {
+  return [
+    {
+      version: '1.4.0',
+      publishedAt: '2026-07-28T16:30:00+08:00',
+      publisher: plugin.author,
+      changelog: `
+- 改进插件运行稳定性
+- 优化配置项说明和错误反馈
+- 更新运行时依赖
+`,
+    },
+    {
+      version: '1.3.1',
+      publishedAt: '2026-05-16T10:00:00+08:00',
+      publisher: plugin.author,
+      changelog: `
+- 修复边界场景下的连接失败问题
+- 优化请求重试策略
+`,
+    },
+    {
+      version: '1.2.0',
+      publishedAt: '2026-02-21T13:15:00+08:00',
+      publisher: plugin.author,
+      changelog: `
+- 新增批量处理能力
+- 补充配置示例与使用说明
+`,
+    },
+  ]
+}
+
+function createDefaultContent(plugin: PluginListItem) {
+  return `
+# ${plugin.title} Plugin
+
+${plugin.description}。
+
+## 功能特性
+
+- 提供与 AI Workflow 工作流一致的节点配置体验
+- 支持在运行时安全地读取连接配置
+- 为常见失败场景提供明确的错误反馈
+- 支持在工作流中与其他插件组合使用
+
+## 快速开始
+
+1. 安装 **${plugin.title}** 插件。
+2. 根据配置说明创建连接。
+3. 在工作流中添加对应节点并完成必要参数。
+4. 运行工作流并检查节点输出。
+
+## 注意事项
+
+请根据实际业务需要配置最小权限，并在生产环境中妥善管理访问凭证。
+`
+}
+
+function toPluginDetail(plugin: PluginListItem): PluginDetail {
+  if (plugin.id === 'github' && plugin.author === 'langgenius') {
+    return {
+      ...plugin,
+      content: githubContent,
+      versions: githubVersions,
+    }
+  }
+
+  return {
+    ...plugin,
+    content: createDefaultContent(plugin),
+    versions: createDefaultVersions(plugin),
+  }
+}
+
+export const mockPluginDetails = mockPlugins.map(toPluginDetail)
+
+export function findMockPluginDetail(author: string, pluginId: string) {
+  return mockPluginDetails.find((plugin) => plugin.author === author && plugin.id === pluginId)
+}
 
 export function formatPluginInstallCount(count: number) {
   return count.toLocaleString('zh-CN')
