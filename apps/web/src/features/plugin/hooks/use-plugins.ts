@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
-import type { PluginCategoryId } from '../constants'
+import type { PluginFilterId } from '../constants'
 import { filterMockPlugins } from '../data'
 import type { PluginListItem } from '../types'
 
@@ -14,7 +14,7 @@ export function usePlugins() {
   const [plugins, setPlugins] = useState<PluginListItem[]>([])
   const [search, setSearch] = useState(initialSearch)
   const [debouncedSearch, setDebouncedSearch] = useState(initialSearch)
-  const [categoryId, setCategoryId] = useState<PluginCategoryId>('all')
+  const [filterId, setFilterId] = useState<PluginFilterId>('all')
   const [loading, setLoading] = useState(true)
   const [initialLoading, setInitialLoading] = useState(true)
   const [error, setError] = useState(false)
@@ -38,7 +38,7 @@ export function usePlugins() {
       if (controller.signal.aborted) return
 
       try {
-        setPlugins(filterMockPlugins(debouncedSearch, categoryId))
+        setPlugins(filterMockPlugins(debouncedSearch, filterId))
       } catch {
         setError(true)
       } finally {
@@ -53,17 +53,17 @@ export function usePlugins() {
       controller.abort()
       globalThis.clearTimeout(timeout)
     }
-  }, [categoryId, debouncedSearch, refreshRevision])
+  }, [debouncedSearch, filterId, refreshRevision])
 
   return {
-    categoryId,
     error,
+    filterId,
     initialLoading,
     loading,
     plugins,
     refresh: () => setRefreshRevision((revision) => revision + 1),
     search,
-    setCategoryId,
+    setFilterId,
     setSearch,
   }
 }

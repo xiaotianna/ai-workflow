@@ -1,28 +1,28 @@
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { useRef } from 'react'
 
-import { pluginCategories, type PluginCategoryId } from '../constants'
+import { pluginFilters, type PluginFilterId } from '../constants'
 import { usePluginHeroCollapse } from '../hooks/use-plugin-hero-collapse'
 import { PluginHeroBackground } from './plugin-hero-background'
 import { PluginMarketplaceHeader } from './plugin-marketplace-header'
 
 export interface PluginMarketplaceHeroProps {
   search: string
-  activeCategory: PluginCategoryId
+  activeFilter: PluginFilterId
   onSearchChange: (search: string) => void
-  onCategoryChange: (category: PluginCategoryId) => void
+  onFilterChange: (filter: PluginFilterId) => void
 }
 
-function PluginCategoryTab({
-  category,
+function PluginFilterTab({
+  filter,
   isActive,
   onSelect,
 }: {
-  category: (typeof pluginCategories)[number]
+  filter: (typeof pluginFilters)[number]
   isActive: boolean
   onSelect: () => void
 }) {
-  const Icon = category.icon
+  const Icon = filter.icon
 
   return (
     <button
@@ -36,26 +36,26 @@ function PluginCategoryTab({
       )}
     >
       <Icon aria-hidden className="mr-1.5 size-4" />
-      {category.label}
+      {filter.label}
     </button>
   )
 }
 
-function PluginCategoryTabs({
-  activeCategory,
-  onCategoryChange,
+function PluginFilterTabs({
+  activeFilter,
+  onFilterChange,
 }: {
-  activeCategory: PluginCategoryId
-  onCategoryChange: (category: PluginCategoryId) => void
+  activeFilter: PluginFilterId
+  onFilterChange: (filter: PluginFilterId) => void
 }) {
-  const [firstCategory, ...restCategories] = pluginCategories
+  const [firstFilter, ...restFilters] = pluginFilters
 
   return (
     <div className="flex shrink-0 items-center gap-1 overflow-x-auto pb-0.5">
-      <PluginCategoryTab
-        category={firstCategory}
-        isActive={firstCategory.id === activeCategory}
-        onSelect={() => onCategoryChange(firstCategory.id)}
+      <PluginFilterTab
+        filter={firstFilter}
+        isActive={firstFilter.id === activeFilter}
+        onSelect={() => onFilterChange(firstFilter.id)}
       />
 
       <span
@@ -65,12 +65,12 @@ function PluginCategoryTabs({
         ·
       </span>
 
-      {restCategories.map((category) => (
-        <PluginCategoryTab
-          key={category.id}
-          category={category}
-          isActive={category.id === activeCategory}
-          onSelect={() => onCategoryChange(category.id)}
+      {restFilters.map((filter) => (
+        <PluginFilterTab
+          key={filter.id}
+          filter={filter}
+          isActive={filter.id === activeFilter}
+          onSelect={() => onFilterChange(filter.id)}
         />
       ))}
     </div>
@@ -79,9 +79,9 @@ function PluginCategoryTabs({
 
 export function PluginMarketplaceHero({
   search,
-  activeCategory,
+  activeFilter,
   onSearchChange,
-  onCategoryChange,
+  onFilterChange,
 }: PluginMarketplaceHeroProps) {
   const heroRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
@@ -140,10 +140,7 @@ export function PluginMarketplaceHero({
             </div>
 
             <div style={{ marginTop: 'calc(32px - 16px * var(--hero-progress))' }}>
-              <PluginCategoryTabs
-                activeCategory={activeCategory}
-                onCategoryChange={onCategoryChange}
-              />
+              <PluginFilterTabs activeFilter={activeFilter} onFilterChange={onFilterChange} />
             </div>
           </div>
         </div>

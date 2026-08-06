@@ -1,7 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
 
-import type { PluginCategoryId } from './constants'
-
 export interface PluginListItem {
   id: string
   slug?: string
@@ -10,8 +8,6 @@ export interface PluginListItem {
   verified?: boolean
   installCount: number
   description: string
-  categoryId: Exclude<PluginCategoryId, 'all'>
-  categoryLabel: string
   tags: string[]
   icon: LucideIcon
 }

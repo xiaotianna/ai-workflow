@@ -7,7 +7,7 @@ export { PluginMarketplaceHero } from './components/plugin-marketplace-hero'
 export { PluginMarketplaceHeader } from './components/plugin-marketplace-header'
 export { PluginMarketplaceHeroSkeleton } from './components/plugin-marketplace-hero-skeleton'
 export { PluginVersionHistoryDialog } from './components/plugin-version-history-dialog'
-export { pluginCategories } from './constants'
+export { pluginFilters } from './constants'
 export {
   findMockPluginDetail,
   formatPluginInstallCount,
@@ -16,5 +16,5 @@ export {
 } from './data'
 export { usePlugins } from './hooks/use-plugins'
 export { getPluginDetailPath } from './paths'
-export type { PluginCategory, PluginCategoryId } from './constants'
+export type { PluginFilter, PluginFilterId } from './constants'
 export type { PluginDetail, PluginListItem, PluginVersion, PluginVersionHistory } from './types'

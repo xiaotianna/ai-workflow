@@ -8,14 +8,14 @@ import {
 
 export default function PluginPage() {
   const {
-    categoryId,
     error,
+    filterId,
     initialLoading,
     loading,
     plugins,
     refresh,
     search,
-    setCategoryId,
+    setFilterId,
     setSearch,
   } = usePlugins()
 
@@ -28,9 +28,9 @@ export default function PluginPage() {
       ) : (
         <PluginMarketplaceHero
           search={search}
-          activeCategory={categoryId}
+          activeFilter={filterId}
           onSearchChange={setSearch}
-          onCategoryChange={setCategoryId}
+          onFilterChange={setFilterId}
         />
       )}
 

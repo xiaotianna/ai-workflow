@@ -1,38 +1,16 @@
-import {
-  Bot,
-  Brain,
-  Database,
-  Hammer,
-  MousePointerClick,
-  Package,
-  Puzzle,
-  ToyBrick,
-  type LucideIcon,
-} from 'lucide-react'
+import { History, PackageCheck, ToyBrick, UserRound, type LucideIcon } from 'lucide-react'
 
-export type PluginCategoryId =
-  | 'all'
-  | 'models'
-  | 'tools'
-  | 'data-sources'
-  | 'agent-strategies'
-  | 'triggers'
-  | 'extensions'
-  | 'bundles'
+export type PluginFilterId = 'all' | 'installed' | 'used' | 'mine'
 
-export interface PluginCategory {
-  id: PluginCategoryId
+export interface PluginFilter {
+  id: PluginFilterId
   label: string
   icon: LucideIcon
 }
 
-export const pluginCategories: PluginCategory[] = [
+export const pluginFilters: PluginFilter[] = [
   { id: 'all', label: '所有集成', icon: ToyBrick },
-  { id: 'models', label: '模型', icon: Brain },
-  { id: 'tools', label: '工具', icon: Hammer },
-  { id: 'data-sources', label: '数据源', icon: Database },
-  { id: 'agent-strategies', label: 'Agent 策略', icon: Bot },
-  { id: 'triggers', label: '触发器', icon: MousePointerClick },
-  { id: 'extensions', label: '扩展', icon: Puzzle },
-  { id: 'bundles', label: '集成包', icon: Package },
+  { id: 'installed', label: '已安装', icon: PackageCheck },
+  { id: 'used', label: '已使用', icon: History },
+  { id: 'mine', label: '我发布的插件', icon: UserRound },
 ]

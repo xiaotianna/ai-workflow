@@ -29,11 +29,7 @@ export function PluginCard({ plugin, className }: PluginCardProps) {
         className="absolute inset-0 z-10 outline-none"
       />
 
-      <span className="bg-muted text-muted-foreground absolute top-0 right-0 rounded-bl-lg px-2 py-1 text-[11px] leading-4 font-medium">
-        {plugin.categoryLabel}
-      </span>
-
-      <div className="flex shrink-0 items-start gap-3 px-4 pt-4 pr-16 pb-2">
+      <div className="flex shrink-0 items-start gap-3 px-4 pt-4 pb-2">
         <span className="border-border/80 bg-background text-foreground flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border-[0.5px]">
           <Icon aria-hidden className="size-5" />
         </span>
