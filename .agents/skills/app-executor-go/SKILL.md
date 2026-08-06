@@ -26,6 +26,7 @@ description: '维护 AI Workflow 的 Go 节点执行器。修改 apps/executor-g
 
 - 修改 `internal/executors/code/runtime.go`、`runner.mjs`、Node 版本、npm 包解析、容器镜像或服务器部署：读取 [references/code-runtime-and-deployment.md](references/code-runtime-and-deployment.md)
 - 只需要理解 Code Executor 文件协议和调用顺序：读取 [`apps/executor-go/internal/executors/code/README.md`](../../../apps/executor-go/internal/executors/code/README.md)
+- 实施 Executor Profile、分级队列、Code 强沙箱、Worker 网络或凭证隔离：读取 [`docs/node-execution-isolation-implementation.md`](../../../docs/node-execution-isolation-implementation.md)
 
 ## 维护本技能
 

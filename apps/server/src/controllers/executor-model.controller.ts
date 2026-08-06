@@ -1,9 +1,11 @@
 import { ResolveExecutorModelDto } from '@/dto/executor-model.dto'
 import { ExecutorModelService } from '@/services/executor-model.service'
+import { ExecutorInternalAuthGuard } from '@/guards/executor-internal-auth.guard'
 import type { ExecutorModelResolutionVo } from '@/vo/executor-model.vo'
-import { Body, Controller, Header, Post } from '@nestjs/common'
+import { Body, Controller, Header, Post, UseGuards } from '@nestjs/common'
 
 @Controller('internal/executor/models')
+@UseGuards(ExecutorInternalAuthGuard)
 export class ExecutorModelController {
   constructor(private readonly executorModelService: ExecutorModelService) {}
 

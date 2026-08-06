@@ -1,6 +1,12 @@
 package mq
 
-import amqp "github.com/rabbitmq/amqp091-go"
+import (
+	"fmt"
+
+	"node-executor-go/internal/executorprofile"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+)
 
 const (
 	CommandExchange              = "ai-workflow.command.v1"
@@ -13,10 +19,75 @@ const (
 	DeadLetterExchange           = "ai-workflow.dead-letter.v1"
 	CommandDeadLetterRoutingKey  = "node.execute.dead"
 	CommandDeadLetterQueue       = "ai-workflow.node.execute.dlq.v1"
+	ComputeCommandRoutingKey     = "node.execute.compute"
+	ComputeCommandQueue          = "ai-workflow.node.execute.compute.v1"
+	ComputeCommandDeadRoutingKey = "node.execute.compute.dead"
+	ComputeCommandDeadQueue      = "ai-workflow.node.execute.compute.dlq.v1"
+	ModelCommandRoutingKey       = "node.execute.model"
+	ModelCommandQueue            = "ai-workflow.node.execute.model.v1"
+	ModelCommandDeadRoutingKey   = "node.execute.model.dead"
+	ModelCommandDeadQueue        = "ai-workflow.node.execute.model.dlq.v1"
+	HTTPCommandRoutingKey        = "node.execute.http"
+	HTTPCommandQueue             = "ai-workflow.node.execute.http.v1"
+	HTTPCommandDeadRoutingKey    = "node.execute.http.dead"
+	HTTPCommandDeadQueue         = "ai-workflow.node.execute.http.dlq.v1"
+	SandboxCommandRoutingKey     = "node.execute.sandbox"
+	SandboxCommandQueue          = "ai-workflow.node.execute.sandbox.v1"
+	SandboxCommandDeadRoutingKey = "node.execute.sandbox.dead"
+	SandboxCommandDeadQueue      = "ai-workflow.node.execute.sandbox.dlq.v1"
 	ResultDeadLetterRoutingKey   = "node.result.dead"
 	ResultDeadLetterQueue        = "ai-workflow.node.result.dlq.v1"
 	resultRetryDelayMilliseconds = int32(1000)
 )
+
+type CommandRoute struct {
+	RoutingKey           string
+	Queue                string
+	DeadLetterRoutingKey string
+	DeadLetterQueue      string
+}
+
+func CommandRouteForProfile(profile executorprofile.Profile) (CommandRoute, error) {
+	switch profile {
+	case executorprofile.Legacy:
+		return CommandRoute{
+			RoutingKey:           CommandRoutingKey,
+			Queue:                CommandQueue,
+			DeadLetterRoutingKey: CommandDeadLetterRoutingKey,
+			DeadLetterQueue:      CommandDeadLetterQueue,
+		}, nil
+	case executorprofile.Compute:
+		return CommandRoute{
+			RoutingKey:           ComputeCommandRoutingKey,
+			Queue:                ComputeCommandQueue,
+			DeadLetterRoutingKey: ComputeCommandDeadRoutingKey,
+			DeadLetterQueue:      ComputeCommandDeadQueue,
+		}, nil
+	case executorprofile.Model:
+		return CommandRoute{
+			RoutingKey:           ModelCommandRoutingKey,
+			Queue:                ModelCommandQueue,
+			DeadLetterRoutingKey: ModelCommandDeadRoutingKey,
+			DeadLetterQueue:      ModelCommandDeadQueue,
+		}, nil
+	case executorprofile.HTTP:
+		return CommandRoute{
+			RoutingKey:           HTTPCommandRoutingKey,
+			Queue:                HTTPCommandQueue,
+			DeadLetterRoutingKey: HTTPCommandDeadRoutingKey,
+			DeadLetterQueue:      HTTPCommandDeadQueue,
+		}, nil
+	case executorprofile.Sandbox:
+		return CommandRoute{
+			RoutingKey:           SandboxCommandRoutingKey,
+			Queue:                SandboxCommandQueue,
+			DeadLetterRoutingKey: SandboxCommandDeadRoutingKey,
+			DeadLetterQueue:      SandboxCommandDeadQueue,
+		}, nil
+	default:
+		return CommandRoute{}, fmt.Errorf("Executor Profile 没有 Command Route：%s", profile)
+	}
+}
 
 /*
 *
@@ -25,7 +96,7 @@ mq三个核心概念：
 2、RoutingKey：路由标识，告诉交换机应该走哪条路线。
 3、Queue：队列，真正保存消息，等待消费者处理。
 */
-func declareTopology(channel *amqp.Channel) error {
+func declareTopology(channel *amqp.Channel, commandRoute CommandRoute) error {
 	/**
 	创建三个交换机（Exchange）
 	1、CommandExchange：发送节点执行命令。
@@ -47,10 +118,10 @@ func declareTopology(channel *amqp.Channel) error {
 	}{
 		{
 			// 保存等待 Go Worker 执行的命令（也就是nestjs要执行节点的mq信息）
-			name: CommandQueue,
+			name: commandRoute.Queue,
 			arguments: amqp.Table{
 				"x-dead-letter-exchange":    DeadLetterExchange,
-				"x-dead-letter-routing-key": CommandDeadLetterRoutingKey,
+				"x-dead-letter-routing-key": commandRoute.DeadLetterRoutingKey,
 			},
 		},
 		{
@@ -71,7 +142,7 @@ func declareTopology(channel *amqp.Channel) error {
 			},
 		},
 		// 不能被go worker合法解析的节点（例如：不是合法json、缺少必填字段）
-		{name: CommandDeadLetterQueue},
+		{name: commandRoute.DeadLetterQueue},
 		// 结果消息格式不合法
 		{name: ResultDeadLetterQueue},
 	}
@@ -89,9 +160,9 @@ func declareTopology(channel *amqp.Channel) error {
 		routingKey string
 		exchange   string
 	}{
-		{CommandQueue, CommandRoutingKey, CommandExchange},
+		{commandRoute.Queue, commandRoute.RoutingKey, CommandExchange},
 		{ResultQueue, ResultRoutingKey, ResultExchange},
-		{CommandDeadLetterQueue, CommandDeadLetterRoutingKey, DeadLetterExchange},
+		{commandRoute.DeadLetterQueue, commandRoute.DeadLetterRoutingKey, DeadLetterExchange},
 		{ResultDeadLetterQueue, ResultDeadLetterRoutingKey, DeadLetterExchange},
 	}
 	for _, binding := range bindings {

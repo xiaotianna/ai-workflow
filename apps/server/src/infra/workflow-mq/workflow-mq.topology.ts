@@ -1,10 +1,7 @@
 import type { Channel } from 'amqplib'
 import {
-  WORKFLOW_COMMAND_DEAD_LETTER_QUEUE,
-  WORKFLOW_COMMAND_DEAD_LETTER_ROUTING_KEY,
   WORKFLOW_COMMAND_EXCHANGE,
-  WORKFLOW_COMMAND_QUEUE,
-  WORKFLOW_COMMAND_ROUTING_KEY,
+  WORKFLOW_COMMAND_ROUTES,
   WORKFLOW_DEAD_LETTER_EXCHANGE,
   WORKFLOW_RESULT_DEAD_LETTER_QUEUE,
   WORKFLOW_RESULT_DEAD_LETTER_ROUTING_KEY,
@@ -23,13 +20,15 @@ export async function assertWorkflowMqTopology(channel: Channel): Promise<void> 
   ])
 
   await Promise.all([
-    channel.assertQueue(WORKFLOW_COMMAND_QUEUE, {
-      durable: true,
-      arguments: {
-        'x-dead-letter-exchange': WORKFLOW_DEAD_LETTER_EXCHANGE,
-        'x-dead-letter-routing-key': WORKFLOW_COMMAND_DEAD_LETTER_ROUTING_KEY,
-      },
-    }),
+    ...WORKFLOW_COMMAND_ROUTES.map((route) =>
+      channel.assertQueue(route.queue, {
+        durable: true,
+        arguments: {
+          'x-dead-letter-exchange': WORKFLOW_DEAD_LETTER_EXCHANGE,
+          'x-dead-letter-routing-key': route.deadLetterRoutingKey,
+        },
+      }),
+    ),
     channel.assertQueue(WORKFLOW_RESULT_QUEUE, {
       durable: true,
       arguments: {
@@ -45,21 +44,23 @@ export async function assertWorkflowMqTopology(channel: Channel): Promise<void> 
         'x-dead-letter-routing-key': WORKFLOW_RESULT_ROUTING_KEY,
       },
     }),
-    channel.assertQueue(WORKFLOW_COMMAND_DEAD_LETTER_QUEUE, { durable: true }),
+    ...WORKFLOW_COMMAND_ROUTES.map((route) =>
+      channel.assertQueue(route.deadLetterQueue, { durable: true }),
+    ),
     channel.assertQueue(WORKFLOW_RESULT_DEAD_LETTER_QUEUE, { durable: true }),
   ])
 
   await Promise.all([
-    channel.bindQueue(
-      WORKFLOW_COMMAND_QUEUE,
-      WORKFLOW_COMMAND_EXCHANGE,
-      WORKFLOW_COMMAND_ROUTING_KEY,
+    ...WORKFLOW_COMMAND_ROUTES.map((route) =>
+      channel.bindQueue(route.queue, WORKFLOW_COMMAND_EXCHANGE, route.routingKey),
     ),
     channel.bindQueue(WORKFLOW_RESULT_QUEUE, WORKFLOW_RESULT_EXCHANGE, WORKFLOW_RESULT_ROUTING_KEY),
-    channel.bindQueue(
-      WORKFLOW_COMMAND_DEAD_LETTER_QUEUE,
-      WORKFLOW_DEAD_LETTER_EXCHANGE,
-      WORKFLOW_COMMAND_DEAD_LETTER_ROUTING_KEY,
+    ...WORKFLOW_COMMAND_ROUTES.map((route) =>
+      channel.bindQueue(
+        route.deadLetterQueue,
+        WORKFLOW_DEAD_LETTER_EXCHANGE,
+        route.deadLetterRoutingKey,
+      ),
     ),
     channel.bindQueue(
       WORKFLOW_RESULT_DEAD_LETTER_QUEUE,

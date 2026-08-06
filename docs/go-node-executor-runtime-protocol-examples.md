@@ -2634,8 +2634,9 @@ Schema 版本和恢复迁移，而不是修改已持久化的 v1 含义。
 4. 落地变量解析、显式 Config resolver 和根 DAG Scheduler。
 5. 落地 `createWorkflowRuntime()` 与根入口导出。
 6. Server 已用静态 Config projector、State revision、Outbox、Inbox 和 lease 跑通测试运行。
-7. 当前 Go Worker 通过 `internal/executors.RegisterBuiltins` 注册各节点 Mock；Registry 无 fallback，
-   未注册类型返回稳定失败结果，真实实现逐个替换对应节点目录。
+7. 当前 Go Worker 通过 `internal/executors.RegisterProfile` 按 `EXECUTOR_PROFILE` 注册允许的真实节点
+   Executor；默认 `legacy` 保留原来的全量 Registry 与单队列。分类 Profile 无 fallback，收到不属于
+   当前 Profile 的节点返回 `EXECUTOR_PROFILE_MISMATCH`。
 8. 根 DAG 的乱序、重复消息和恢复语义稳定后，再设计 State Schema v2 的 Loop Scope。
 
 ## 10. 代码审查检查表

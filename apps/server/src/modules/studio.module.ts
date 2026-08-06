@@ -8,6 +8,7 @@ import { WorkflowRunController } from '@/controllers/workflow-run.controller'
 import { WorkflowVersionController } from '@/controllers/workflow-version.controller'
 import { AppApiKeyGuard } from '@/guards/app-api-key.guard'
 import { WorkflowMqService } from '@/infra/workflow-mq/workflow-mq.service'
+import { WorkflowExecutionRoutingService } from '@/infra/workflow-mq/workflow-execution-routing.service'
 import { WorkflowOutboxPublisher } from '@/infra/workflow-mq/workflow-outbox.publisher'
 import { WorkflowResultConsumer } from '@/infra/workflow-mq/workflow-result.consumer'
 import { AppApiCallLogInterceptor } from '@/interceptors/app-api-call-log.interceptor'
@@ -60,6 +61,7 @@ import { JwtModule } from './jwt.module'
     WorkflowVersionService,
     WorkflowVersionRepository,
     WorkflowMqService,
+    WorkflowExecutionRoutingService,
     WorkflowOutboxPublisher,
     WorkflowResultConsumer,
   ],

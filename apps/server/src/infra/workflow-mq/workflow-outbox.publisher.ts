@@ -9,7 +9,6 @@ import { BuiltinNodeType } from '@ai-workflow/core'
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 import {
   WORKFLOW_COMMAND_EXCHANGE,
-  WORKFLOW_COMMAND_ROUTING_KEY,
   WORKFLOW_OUTBOX_BATCH_SIZE,
   WORKFLOW_OUTBOX_CLAIM_TIMEOUT_MS,
   WORKFLOW_OUTBOX_MAX_PUBLISH_ATTEMPTS,
@@ -61,6 +60,8 @@ export class WorkflowOutboxPublisher implements OnApplicationBootstrap, OnModule
   private async publishCommand(claimed: {
     id: string
     payload: unknown
+    executionClass: string
+    routingKey: string
     publishAttempts: number
   }): Promise<void> {
     let command: ExecuteNodeCommand
@@ -83,7 +84,7 @@ export class WorkflowOutboxPublisher implements OnApplicationBootstrap, OnModule
       }
       await this.workflowMqService.publish(
         WORKFLOW_COMMAND_EXCHANGE,
-        WORKFLOW_COMMAND_ROUTING_KEY,
+        claimed.routingKey,
         Buffer.from(JSON.stringify(command)),
         {
           contentType: 'application/json',
@@ -93,6 +94,9 @@ export class WorkflowOutboxPublisher implements OnApplicationBootstrap, OnModule
           type: 'workflow.execute-node.command.v1',
           timestamp: Date.now(),
         },
+      )
+      this.logger.debug(
+        `Command 已发布 commandId=${command.commandId} nodeType=${command.nodeType} executionClass=${claimed.executionClass} routingKey=${claimed.routingKey}`,
       )
       await this.workflowRunRepository.markCommandPublished(command.commandId)
     } catch (error) {

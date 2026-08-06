@@ -4,6 +4,11 @@
 
 这篇文档不打算把 RabbitMQ 的所有功能都讲一遍，只讲看懂当前项目需要知道的内容。
 
+本文正文继续使用默认 `EXECUTOR_PROFILE=legacy` 的单队列作为入门示例。启用分类路由后，
+`condition`、`llm/rag`、`http`、`code` 会分别使用 `node.execute.compute`、`node.execute.model`、
+`node.execute.http`、`node.execute.sandbox` Routing Key 和独立队列；结果仍统一发布到
+`node.result`，Ack、租约、Protocol 和 Result 处理语义不变。
+
 ## 1. NestJS 和 Go 其实没有直接通信
 
 可以先把整个流程理解成：

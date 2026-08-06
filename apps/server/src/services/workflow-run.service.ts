@@ -46,6 +46,7 @@ import { AppApiRepository } from '@/repositories/app-api.repository'
 import { WorkflowDraftRepository } from '@/repositories/workflow-draft.repository'
 import { WorkflowRunRepository } from '@/repositories/workflow-run.repository'
 import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-stream.service'
+import { WorkflowExecutionRoutingService } from '@/infra/workflow-mq/workflow-execution-routing.service'
 import {
   parseWorkflowDefinition,
   parseWorkflowLayout,
@@ -95,6 +96,7 @@ export class WorkflowRunService {
     private readonly workflowDraftRepository: WorkflowDraftRepository,
     private readonly workflowRunRepository: WorkflowRunRepository,
     private readonly workflowRunEventStream: WorkflowRunEventStreamService,
+    private readonly workflowExecutionRouting: WorkflowExecutionRoutingService,
   ) {}
 
   async createTestRun(
@@ -744,7 +746,7 @@ export class WorkflowRunService {
       inputs: effectiveInput,
       config: projectedConfig,
     })
-    const dispatches = [{ command }]
+    const dispatches = [this.prepareDispatch(command)]
 
     const created = await this.workflowRunRepository.createTestRun({
       ownerId,
@@ -799,19 +801,32 @@ export class WorkflowRunService {
   ): PreparedNodeDispatch[] {
     return transition.effects
       .filter((effect): effect is DispatchNodeEffect => effect.type === 'DISPATCH_NODE')
-      .map((effect) => ({
-        command: this.createCommand({
-          runId,
-          node: {
-            id: effect.nodeId,
-            type: effect.nodeType,
-          },
-          executionKey: effect.executionKey,
-          attempt: effect.attempt,
-          inputs: effect.inputs,
-          config: effect.config,
-        }),
-      }))
+      .map((effect) =>
+        this.prepareDispatch(
+          this.createCommand({
+            runId,
+            node: {
+              id: effect.nodeId,
+              type: effect.nodeType,
+            },
+            executionKey: effect.executionKey,
+            attempt: effect.attempt,
+            inputs: effect.inputs,
+            config: effect.config,
+          }),
+        ),
+      )
+  }
+
+  private prepareDispatch(command: ExecuteNodeCommand): PreparedNodeDispatch {
+    try {
+      return {
+        command,
+        ...this.workflowExecutionRouting.resolve(command.nodeType),
+      }
+    } catch (error) {
+      throw new BadRequestException(getErrorMessage(error, '节点暂不支持执行'))
+    }
   }
 
   private createCommand(options: {

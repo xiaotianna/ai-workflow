@@ -127,6 +127,8 @@ const PUBLISHED_CALL_TRIGGERS: WorkflowRunTrigger[] = [
 export interface ClaimedWorkflowCommand {
   id: string
   payload: unknown
+  executionClass: string
+  routingKey: string
   publishAttempts: number
 }
 
@@ -444,7 +446,12 @@ export class WorkflowRunRepository {
           "updatedAt" = CURRENT_TIMESTAMP
         FROM candidates
         WHERE outbox."id" = candidates."id"
-        RETURNING outbox."id", outbox."payload", outbox."publishAttempts"
+        RETURNING
+          outbox."id",
+          outbox."payload",
+          outbox."executionClass",
+          outbox."routingKey",
+          outbox."publishAttempts"
       `)
 
       if (commands.length > 0) {
@@ -1114,11 +1121,13 @@ async function createDispatchRecords(
   })
 
   await transaction.workflowCommandOutbox.createMany({
-    data: dispatches.map(({ command }) => ({
+    data: dispatches.map(({ command, executionClass, routingKey }) => ({
       id: command.commandId,
       runId,
       nodeRunId: command.nodeRunId,
       payload: toJsonInput(command),
+      executionClass,
+      routingKey,
     })),
   })
 }

@@ -16,15 +16,15 @@ model WorkflowNodeRun {
   errorCode      String?
   errorMessage   String?
   errorDetails   Json?                 @db.JsonB
-  startedAt      DateTime?             // 节点进入执行链路的时间
+  startedAt      DateTime? // 节点进入执行链路的时间
   finishedAt     DateTime?
-  durationMs     Int?                  // 从进入执行链路到终态的时间
+  durationMs     Int? // 从进入执行链路到终态的时间
   createdAt      DateTime              @default(now())
 
   run           WorkflowRun            @relation(fields: [runId], references: [id], onDelete: Cascade)
   commandOutbox WorkflowCommandOutbox?
   resultInbox   WorkflowResultInbox?
-  childRun      WorkflowRun?            @relation("WorkflowRunParentNode")
+  childRun      WorkflowRun?           @relation("WorkflowRunParentNode")
 
   @@unique([runId, executionKey, attempt])
   @@index([runId, createdAt])

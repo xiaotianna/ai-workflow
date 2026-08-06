@@ -100,7 +100,7 @@ export function PluginVersionHistoryDialog({
               <Table
                 aria-label={`${plugin.title} 版本历史`}
                 containerClassName="overflow-visible"
-                className="min-w-[620px]"
+                className="min-w-155"
               >
                 <TableHeader className="bg-input sticky top-0 z-10 [&_tr]:border-0">
                   <TableRow className="bg-input hover:bg-input border-0">

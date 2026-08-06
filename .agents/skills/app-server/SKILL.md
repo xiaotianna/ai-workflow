@@ -19,6 +19,7 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 初始化服务端、调整目录或 NestJS 模块：读取 [references/framework-and-layout.md](references/framework-and-layout.md)。
 - 设计 Controller、DTO、错误、鉴权或配置：读取 [references/api-and-boundaries.md](references/api-and-boundaries.md)。
 - 接入 Prisma、PostgreSQL、Redis、LangGraph 或工作流 package：读取 [references/data-and-workflow.md](references/data-and-workflow.md)。
+- 实施节点执行类别、分级 Command Queue、Outbox 路由或 Worker 能力校验：读取 [`docs/node-execution-isolation-implementation.md`](../../../docs/node-execution-isolation-implementation.md)。
 
 ## 当前结论
 

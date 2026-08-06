@@ -25,6 +25,7 @@ type Checker interface {
 type ServerChecker struct {
 	client   HTTPClient
 	endpoint string
+	token    string
 }
 
 type leaseRequest struct {
@@ -43,8 +44,8 @@ type leaseResponse struct {
 	} `json:"data"`
 }
 
-func NewServerChecker(client HTTPClient, endpoint string) *ServerChecker {
-	return &ServerChecker{client: client, endpoint: endpoint}
+func NewServerChecker(client HTTPClient, endpoint string, token string) *ServerChecker {
+	return &ServerChecker{client: client, endpoint: endpoint, token: token}
 }
 
 func (checker *ServerChecker) IsActive(
@@ -69,6 +70,9 @@ func (checker *ServerChecker) IsActive(
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Content-Type", "application/json")
+	if checker.token != "" {
+		request.Header.Set("Authorization", "Bearer "+checker.token)
+	}
 
 	response, err := checker.client.Do(request)
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 	"node-executor-go/internal/executor"
 	"node-executor-go/internal/executorlease"
+	"node-executor-go/internal/executorprofile"
 	protocol "workflow-protocol"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -24,6 +25,8 @@ const (
 
 type Worker struct {
 	rabbitMQURL  string
+	profile      string
+	commandRoute CommandRoute
 	registry     *executor.Registry
 	leaseChecker executorlease.Checker
 	logger       *log.Logger
@@ -48,12 +51,16 @@ type commandExecutionOutcome struct {
 */
 func NewWorker(
 	rabbitMQURL string,
+	profile string,
+	commandRoute CommandRoute,
 	registry *executor.Registry,
 	leaseChecker executorlease.Checker,
 	logger *log.Logger,
 ) *Worker {
 	return &Worker{
 		rabbitMQURL:  rabbitMQURL,
+		profile:      profile,
+		commandRoute: commandRoute,
 		registry:     registry,
 		leaseChecker: leaseChecker,
 		logger:       logger,
@@ -92,7 +99,7 @@ func (worker *Worker) runSession(ctx context.Context) error {
 		return fmt.Errorf("create consumer channel: %w", err)
 	}
 	defer func() { _ = consumerChannel.Close() }()
-	if err := declareTopology(consumerChannel); err != nil {
+	if err := declareTopology(consumerChannel, worker.commandRoute); err != nil {
 		return fmt.Errorf("declare RabbitMQ topology: %w", err)
 	}
 	if err := consumerChannel.Qos(1, 0, false); err != nil {
@@ -110,8 +117,8 @@ func (worker *Worker) runSession(ctx context.Context) error {
 
 	// 监听节点执行命名（注册消费者）
 	deliveries, err := consumerChannel.Consume(
-		CommandQueue,
-		"executor-go",
+		worker.commandRoute.Queue,
+		"executor-go-"+worker.profile,
 		false,
 		false,
 		false,
@@ -122,7 +129,11 @@ func (worker *Worker) runSession(ctx context.Context) error {
 		return fmt.Errorf("consume workflow commands: %w", err)
 	}
 
-	worker.logger.Printf("rabbitmq worker ready queue=%s", CommandQueue)
+	worker.logger.Printf(
+		"rabbitmq worker ready profile=%s queue=%s",
+		worker.profile,
+		worker.commandRoute.Queue,
+	)
 	connectionClosed := connection.NotifyClose(make(chan *amqp.Error, 1))
 	consumerClosed := consumerChannel.NotifyClose(make(chan *amqp.Error, 1))
 	publisherClosed := publisherChannel.NotifyClose(make(chan *amqp.Error, 1))
@@ -276,11 +287,23 @@ func (worker *Worker) executeCommand(
 
 	nodeExecutor, ok := worker.registry.Resolve(command.NodeType)
 	if !ok {
+		code := "NODE_EXECUTOR_NOT_REGISTERED"
+		message := fmt.Sprintf("节点类型 %s 没有注册执行器", command.NodeType)
+		if worker.profile != executorprofile.Legacy.String() {
+			code = "EXECUTOR_PROFILE_MISMATCH"
+			message = fmt.Sprintf("节点类型 %s 不属于 Executor Profile %s", command.NodeType, worker.profile)
+			worker.logger.Printf(
+				"executor profile mismatch profile=%s commandId=%s nodeType=%s",
+				worker.profile,
+				command.CommandID,
+				command.NodeType,
+			)
+		}
 		return commandExecutionOutcome{result: protocol.NewFailedResult(
 			executor.ResultIdentity(command),
 			protocol.NodeExecutionError{
-				Code:      "NODE_EXECUTOR_NOT_REGISTERED",
-				Message:   fmt.Sprintf("节点类型 %s 没有注册执行器", command.NodeType),
+				Code:      code,
+				Message:   message,
 				Retryable: false,
 			},
 		)}

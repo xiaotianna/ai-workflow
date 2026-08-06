@@ -18,11 +18,11 @@ type Executor struct {
 	providers *ProviderRegistry
 }
 
-func New(logger *log.Logger, modelResolverURL string) *Executor {
+func New(logger *log.Logger, modelResolverURL string, internalAuthToken string) *Executor {
 	httpClient := &http.Client{}
 	return &Executor{
 		logger:    logger,
-		resolver:  NewServerModelResolver(httpClient, modelResolverURL),
+		resolver:  NewServerModelResolver(httpClient, modelResolverURL, internalAuthToken),
 		providers: NewBuiltinProviderRegistry(httpClient),
 	}
 }

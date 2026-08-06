@@ -24,6 +24,7 @@ type ModelResolver interface {
 type ServerModelResolver struct {
 	client   HTTPClient
 	endpoint string
+	token    string
 }
 
 type modelResolutionRequest struct {
@@ -41,8 +42,8 @@ type modelResolutionResponse struct {
 	Data    *ResolvedModel `json:"data"`
 }
 
-func NewServerModelResolver(client HTTPClient, endpoint string) *ServerModelResolver {
-	return &ServerModelResolver{client: client, endpoint: endpoint}
+func NewServerModelResolver(client HTTPClient, endpoint string, token string) *ServerModelResolver {
+	return &ServerModelResolver{client: client, endpoint: endpoint, token: token}
 }
 
 func (resolver *ServerModelResolver) Resolve(
@@ -68,6 +69,9 @@ func (resolver *ServerModelResolver) Resolve(
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("Content-Type", "application/json")
+	if resolver.token != "" {
+		request.Header.Set("Authorization", "Bearer "+resolver.token)
+	}
 
 	response, err := resolver.client.Do(request)
 	if err != nil {

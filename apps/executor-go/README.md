@@ -3,23 +3,105 @@
 如果你还不熟悉 RabbitMQ，可以先读 [MQ_GUIDE.md](./MQ_GUIDE.md)。这份文档会从 NestJS 和 Go 怎么通过 RabbitMQ 传递消息开始讲起，并说明 Ack、Nack、Reject、死信队列以及项目里的异常消息处理流程。
 
 该应用是 RabbitMQ 单节点 Worker。它只执行 Protocol Command，不读取完整 Workflow，也不负责 DAG 调度。
+Worker 支持 `legacy`、`compute`、`model`、`http` 和 `sandbox` Profile；未配置
+`EXECUTOR_PROFILE` 时默认 `legacy`，继续使用原来的单队列和全量 Registry，保证已有本地与滚动部署
+不受影响。
+
+## 分级隔离改动的核心逻辑与阅读入口
+
+这次改动不是把所有节点统一放进沙箱，而是让 Server 在派发节点时确定执行类别并把路由固化到
+Outbox，再由 RabbitMQ 把 Command 交给对应 Profile 的 Go Worker。Worker 只消费自己的 Queue，Registry
+也只注册该 Profile 允许的 Executor；Code 在 Sandbox Profile 中继续根据配置选择本地进程或远程强
+沙箱边界。
+
+```mermaid
+flowchart LR
+  Runtime["Runtime 产生 DISPATCH_NODE"] --> RunService["WorkflowRunService"]
+  RunService --> Routing["按 nodeType 确定执行类别"]
+  Routing --> Outbox["事务写入 NodeRun 和 Outbox"]
+  Outbox --> Publisher["Publisher 使用已保存的 routingKey"]
+  Publisher --> Queue["分类 RabbitMQ Queue"]
+  Queue --> Worker["对应 Profile Worker"]
+  Worker --> Registry["Profile Registry 白名单"]
+  Registry --> Executor["具体节点 Executor"]
+  Executor -->|Code| SandboxRunner["process 或 remote"]
+  Executor -->|HTTP| NetworkPolicy["legacy 或 public"]
+```
+
+这条链路有四个关键约束：
+
+1. 路由只在创建 Command 时解析一次，`executionClass` 和 `routingKey` 与 Command 一起写入 Outbox；
+   Publisher 重试只使用已保存的值，避免配置切换使同一 Command 漂移到不同 Worker。
+2. Queue 隔离和 Registry 白名单同时生效。分类 Worker 收到错误节点时返回
+   `EXECUTOR_PROFILE_MISMATCH`，不会回退到其他 Executor。
+3. Result Exchange、Result Queue 和 Protocol v1 保持不变，因此 Server 原有结果处理、租约和幂等链路
+   可以继续使用。
+4. Server 路由、Go Profile、Code 后端和 HTTP 网络策略默认都使用兼容模式；只有显式启用分类配置后才
+   改变实际执行位置。
+
+推荐按以下顺序阅读：
+
+1. 先看[节点分级隔离实现方案](../../docs/node-execution-isolation-implementation.md)，理解五种执行类别、
+   发布顺序和兼容边界。
+2. 看 Server 的
+   [`WorkflowExecutionRoutingService`](../server/src/infra/workflow-mq/workflow-execution-routing.service.ts)，
+   理解 `nodeType` 到执行类别和 Routing Key 的映射；调用入口是
+   [`WorkflowRunService.prepareDispatch()`](../server/src/services/workflow-run.service.ts)。
+3. 看 [`WorkflowCommandOutbox`](../server/prisma/models/workflow-command-outbox.prisma)、
+   [`WorkflowRunRepository`](../server/src/repositories/workflow-run.repository.ts) 和
+   [`WorkflowOutboxPublisher`](../server/src/infra/workflow-mq/workflow-outbox.publisher.ts)，理解路由如何与
+   Command 同事务持久化以及如何按固定 Routing Key 发布。
+4. 看 Server 的
+   [`workflow-mq.constants.ts`](../server/src/infra/workflow-mq/workflow-mq.constants.ts) 和 Go 的
+   [`topology.go`](./internal/mq/topology.go)，理解分类 Queue、Routing Key 和 DLQ 的对应关系。
+5. 看 [`profile.go`](./internal/executorprofile/profile.go)、
+   [`register.go`](./internal/executors/register.go) 和 [`worker.go`](./internal/mq/worker.go)，理解 Worker
+   如何选择 Queue、限制节点能力并拒绝错投节点。
+6. 最后看 Code 的 [`runner.go`](./internal/executors/code/runner.go) 与
+   [`remote_runner.go`](./internal/executors/code/remote_runner.go)，以及 HTTP 的
+   [`network_policy.go`](./internal/executors/http/network_policy.go)，理解两个高风险节点的额外边界。
+
+如果只想先抓住主干，优先阅读 `WorkflowExecutionRoutingService`、`WorkflowOutboxPublisher` 和
+`RegisterProfile`。这三个入口分别对应“决定去哪里”“按固定路由发布”和“Worker 实际允许执行什么”。
+
+## Worker 执行与配置
 
 处理顺序固定为：
 
-1. 从 `ai-workflow.node.execute.v1` 持久队列手动消费 Command；
+1. 从当前 Profile 对应的持久队列手动消费 Command；
 2. 使用 `workflow-protocol` JSON Schema 解码和校验消息；
 3. 校验 `deadlineAt` 与 Server Command 租约，按 `nodeType` 从 Registry 解析 Executor；
 4. 调用节点 Executor 并校验 Result；
 5. 将 Result 持久发布到 `ai-workflow.result.v1`，收到 Publisher Confirm 后才 Ack Command。
 
-非法 Command 会进入 Command DLQ；Result 失败时原 Command 会重新入队。Worker 断线后每 2 秒重连，RabbitMQ URL 通过 `RABBITMQ_URL` 配置，默认连接根目录 `compose.dev.yaml` 创建的开发 vhost。
+Profile 与队列对应关系：
+
+| Profile   | 节点                            | Command Queue                         |
+| --------- | ------------------------------- | ------------------------------------- |
+| `legacy`  | LLM、RAG、HTTP、Code、Condition | `ai-workflow.node.execute.v1`         |
+| `compute` | Condition                       | `ai-workflow.node.execute.compute.v1` |
+| `model`   | LLM、RAG                        | `ai-workflow.node.execute.model.v1`   |
+| `http`    | HTTP                            | `ai-workflow.node.execute.http.v1`    |
+| `sandbox` | Code                            | `ai-workflow.node.execute.sandbox.v1` |
+
+非法 Command 会进入当前 Profile 的 Command DLQ；Result 失败时原 Command 会重新入队。Worker
+断线后每 2 秒重连，RabbitMQ URL 通过 `RABBITMQ_URL` 配置，默认连接根目录 `compose.dev.yaml`
+创建的开发 vhost。分类 Profile 收到不属于自己的节点时返回 `EXECUTOR_PROFILE_MISMATCH`，不会回退到
+其他 Executor。
 
 Command 租约地址通过 `COMMAND_RUNTIME_LEASE_URL` 配置，默认是
 `http://127.0.0.1:3000/internal/executor/commands/lease`。Worker 消费前先检查，执行期间每 500ms
 复查；Run 因前端 SSE 断开或主动暂停进入终态后，排队消息会直接 Ack 丢弃，执行中的 Command context
 会被取消。租约服务暂时不可用时新命令不会盲目执行，而是重新入队等待。
+`EXECUTOR_INTERNAL_AUTH_TOKEN` 可为租约和模型解析请求增加 Bearer Token；Server 未配置时保持现有
+本地行为，生产环境应在两端配置相同且独立的内部令牌。
+两端设置 `EXECUTOR_REQUIRE_INTERNAL_AUTH=true` 后，缺少令牌会在启动阶段直接失败，避免生产环境
+静默运行在无认证模式。
 
-Registry 不提供 fallback；未注册的 `nodeType` 返回 `NODE_EXECUTOR_NOT_REGISTERED`。内置注册入口 `internal/executors.RegisterBuiltins` 当前注册 `llm`、`rag`、`code`、`http`、`condition`，每个目录自行实现 `NodeExecutor`、打印不含输入、配置或凭证的命令身份并组装协议 Result。
+Registry 不提供 fallback。`legacy` Profile 注册 `llm`、`rag`、`code`、`http`、`condition`；分类
+Profile 只注册自己的节点。legacy 未注册节点返回 `NODE_EXECUTOR_NOT_REGISTERED`，分类 Profile 错投
+返回 `EXECUTOR_PROFILE_MISMATCH`。每个目录自行实现 `NodeExecutor`、打印不含输入、配置或凭证的命令
+身份并组装协议 Result。
 
 LLM 已接入真实执行逻辑：`config.go` 对齐 Core 的模型引用、上下文、参数和异常处理契约；Provider Registry 动态注册 OpenAI、DeepSeek 与 Ollama 适配器。运行时只信任 `groupId` 和 `configuredModelId`，Go 使用当前 Command 的 NodeRun 身份与租约向 Server 解析真实模型、Base URL 和凭证，不使用 `modelId`、`providerType` 展示快照。API Key 不进入 RabbitMQ Command，也不会写入日志。
 
@@ -49,6 +131,20 @@ Code Executor 为每次执行创建独立临时目录和 Node.js 22+ ESM 子进�
 作为节点 outputs。Command context 到期或取消时会终止 Node 进程组，V8 Heap 限制为 64 MiB、
 调用栈限制为 1 MiB，外层继续限制 256 KiB 源码和 4 MiB 输出。
 
+Code 执行后端通过 `CODE_SANDBOX_BACKEND` 选择：
+
+- `process`：默认兼容模式，复用上述 Node 子进程，不构成强安全边界；
+- `remote`：把带 `commandId`、deadline、源码和输入的幂等任务发送给
+  `CODE_SANDBOX_CONTROLLER_URL`，由独立 Sandbox Controller 执行。
+
+`CODE_SANDBOX_REQUIRE_REMOTE=true` 会在配置不是 `remote` 时拒绝启动，用于防止生产环境静默降级。
+Controller 可使用 `CODE_SANDBOX_CONTROLLER_TOKEN` Bearer Token 认证。仓库当前实现的是 Worker 侧
+远程契约和结果/错误边界；真正的逐任务容器、gVisor 或 microVM 由部署的 Controller 提供。
+生产还应设置 `CODE_SANDBOX_REQUIRE_TLS=true` 和 `CODE_SANDBOX_REQUIRE_AUTH=true`，避免 Controller
+通信意外使用明文或无认证模式。
+调用端已经覆盖的能力、当前默认行为以及尚未实现的 Controller 职责，见
+[远程沙箱调用实现状态](../../docs/remote-sandbox-call-implementation-status.md)。
+
 第三方包从 `CODE_NODE_MODULES_PATH` 指定的目录加载；未配置时，Executor 会从自身启动目录逐级
 向上查找首个 `node_modules`。`CODE_NODE_BINARY` 可以覆盖默认的 `node` 命令。传给用户代码的
 环境变量经过最小化处理，不包含 RabbitMQ、模型凭证等 Executor 私密配置。
@@ -57,5 +153,10 @@ Code Executor 为每次执行创建独立临时目录和 Node.js 22+ ESM 子进�
 安全边界是专用 Executor 容器及其运行用户，而不是 Node 子进程本身。生产环境必须让 Executor
 使用最小权限非 root 用户、只读根文件系统、独立临时目录、网络策略和容器级 CPU/内存/PID 限制，
 不得与 Server 或数据库共享宿主文件系统和高权限凭证。
+
+HTTP Executor 通过 `HTTP_NETWORK_POLICY` 选择网络策略。默认 `legacy` 保持既有访问能力；`public`
+会在直接请求和重定向时拒绝私网、回环、链路本地、保留地址和 URL 凭证，并在直连时绑定已校验的
+DNS 结果。配置 `HTTP_REQUIRE_PUBLIC_POLICY=true` 可以禁止生产 HTTP Worker 使用兼容策略；
+`HTTP_EGRESS_PROXY_URL` 可把请求统一交给独立出站代理，生产仍需用网络策略阻止绕过代理直连内网。
 
 Start/End 仍由 TypeScript Runtime 本地推进，不产生无业务价值的 MQ 往返。

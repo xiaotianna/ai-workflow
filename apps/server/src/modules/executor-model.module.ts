@@ -5,6 +5,7 @@ import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.reg
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
 import { ExecutorModelService } from '@/services/executor-model.service'
+import { ExecutorInternalAuthGuard } from '@/guards/executor-internal-auth.guard'
 import { Module } from '@nestjs/common'
 
 @Module({
@@ -16,6 +17,7 @@ import { Module } from '@nestjs/common'
     ModelCredentialService,
     ModelEndpointPolicyService,
     ModelProviderRegistry,
+    ExecutorInternalAuthGuard,
   ],
 })
 export class ExecutorModelModule {}

@@ -48,6 +48,14 @@ const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) =>
         RABBITMQ_URL: Joi.string()
           .uri({ scheme: ['amqp', 'amqps'] })
           .default('amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow'),
+        WORKFLOW_EXECUTOR_ROUTING_MODE: Joi.string()
+          .valid('legacy', 'classified')
+          .default('legacy'),
+        EXECUTOR_INTERNAL_AUTH_TOKEN: Joi.string().min(32).allow('').default(''),
+        EXECUTOR_REQUIRE_INTERNAL_AUTH: Joi.boolean().default(false),
+        EXECUTOR_ENABLED_CLASSES: Joi.string().default(
+          'trusted-compute,controlled-model,controlled-http,untrusted-sandbox',
+        ),
       }),
       validationOptions: {
         // 一次显示全部配置错误

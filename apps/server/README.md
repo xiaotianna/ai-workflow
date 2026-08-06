@@ -110,21 +110,21 @@ apps/server/
 
 当前 Prisma schema 与 migration 包含用户、工作流和模型配置数据：
 
-| 表                        | 简要职责                             |
-| ------------------------- | ------------------------------------ |
-| `apps`                    | 应用名称、图标、描述、类型和用户归属 |
-| `workflows`               | 工作流稳定身份，与 App 一对一        |
-| `workflow_drafts`         | 当前画布定义、布局和乐观锁 revision  |
-| `workflow_versions`       | 发布、测试和手动保存的不可变快照     |
-| `workflow_deployments`    | 各环境当前激活的版本                 |
-| `api_keys`                | API Key 前缀、哈希、过期和吊销状态   |
-| `api_call_logs`           | HTTP/API 调用结果和耗时              |
-| `workflow_runs`           | 运行状态、RuntimeState 与 revision   |
-| `workflow_node_runs`      | 节点执行、幂等键、租约、输入输出     |
-| `workflow_command_outbox` | 待派发的节点协议命令                 |
-| `workflow_result_inbox`   | 已消费的节点结果与幂等记录           |
-| `model_groups`            | 用户的对话/嵌入供应商配置与加密凭证  |
-| `configured_models`       | 模型组内稳定模型 ID、顺序和启用状态  |
+| 表                        | 简要职责                                 |
+| ------------------------- | ---------------------------------------- |
+| `apps`                    | 应用名称、图标、描述、类型和用户归属     |
+| `workflows`               | 工作流稳定身份，与 App 一对一            |
+| `workflow_drafts`         | 当前画布定义、布局和乐观锁 revision      |
+| `workflow_versions`       | 发布、测试和手动保存的不可变快照         |
+| `workflow_deployments`    | 各环境当前激活的版本                     |
+| `api_keys`                | API Key 前缀、哈希、过期和吊销状态       |
+| `api_call_logs`           | HTTP/API 调用结果和耗时                  |
+| `workflow_runs`           | 运行状态、RuntimeState 与 revision       |
+| `workflow_node_runs`      | 节点执行、幂等键、租约、输入输出         |
+| `workflow_command_outbox` | 待派发的节点协议命令、执行类别和固定路由 |
+| `workflow_result_inbox`   | 已消费的节点结果与幂等记录               |
+| `model_groups`            | 用户的对话/嵌入供应商配置与加密凭证      |
+| `configured_models`       | 模型组内稳定模型 ID、顺序和启用状态      |
 
 工作流节点、连线和输出使用 JSONB 整体保存，React Flow 的位置、Loop 尺寸和 viewport
 使用独立 layout JSONB。API 调用日志和运行日志分离，因为 API 可能在启动工作流前失败，
@@ -148,10 +148,19 @@ apps/server/
 | `MODEL_CREDENTIAL_ENCRYPTION_KEY` | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
 | `MODEL_CONNECTION_PRIVATE_HOSTS`  | 允许模型探测访问的私有 `host[:port]`，逗号分隔        |
 | `RABBITMQ_URL`                    | AMQP 地址，默认连接 `compose.dev.yaml` 的开发 vhost   |
+| `WORKFLOW_EXECUTOR_ROUTING_MODE`  | `legacy` 或 `classified`；默认 `legacy` 保持旧队列    |
+| `EXECUTOR_ENABLED_CLASSES`        | 允许派发的执行类别，逗号分隔                          |
+| `EXECUTOR_INTERNAL_AUTH_TOKEN`    | Executor 内部接口 Bearer Token；为空时兼容旧部署      |
+| `EXECUTOR_REQUIRE_INTERNAL_AUTH`  | 为 `true` 时缺少内部认证令牌会拒绝启动                |
 
 开发和测试环境未配置模型凭证密钥时，会通过 HKDF 从 `JWT_SECRET` 派生用途隔离密钥；生产环境
 必须配置专用密钥。开发环境默认只放行 `localhost:11434`、`127.0.0.1:11434` 和
 `[::1]:11434` 访问本机 Ollama，其他私有端点需要显式加入白名单。
+
+节点执行路由支持兼容迁移：默认 `legacy` 仍把所有 Go 业务节点发布到
+`ai-workflow.node.execute.v1`；部署分类 Worker 后再将
+`WORKFLOW_EXECUTOR_ROUTING_MODE` 切换为 `classified`。Outbox 会在创建时固定保存执行类别和
+Routing Key，发布重试不会因运行期间的配置变化改投其他 Worker。
 
 ## 模型配置接口
 

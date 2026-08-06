@@ -69,7 +69,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
             <div className="flex shrink-0 overflow-hidden rounded-lg">
               <Button
                 type="button"
-                className="h-9 w-[135px] rounded-none rounded-l-lg px-3 font-semibold"
+                className="h-9 w-33.75 rounded-none rounded-l-lg px-3 font-semibold"
               >
                 安装
               </Button>

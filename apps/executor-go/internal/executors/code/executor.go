@@ -16,15 +16,16 @@ const (
 )
 
 type Executor struct {
-	logger  *log.Logger
-	sandbox javaScriptSandbox
+	logger *log.Logger
+	runner codeRunner
 }
 
-func New(logger *log.Logger) *Executor {
-	return &Executor{
-		logger:  logger,
-		sandbox: newJavaScriptSandbox(),
+func New(logger *log.Logger) (*Executor, error) {
+	runner, err := newCodeRunnerFromEnvironment()
+	if err != nil {
+		return nil, err
 	}
+	return &Executor{logger: logger, runner: runner}, nil
 }
 
 func (nodeExecutor *Executor) Execute(
@@ -45,7 +46,12 @@ func (nodeExecutor *Executor) Execute(
 		return executor.FailedResult(command, failure), nil
 	}
 
-	outputs, failure := nodeExecutor.sandbox.Execute(ctx, config.Code, command.Inputs)
+	outputs, failure := nodeExecutor.runner.Execute(ctx, codeExecutionRequest{
+		CommandID:  command.CommandID,
+		DeadlineAt: command.DeadlineAt,
+		Source:     config.Code,
+		Inputs:     command.Inputs,
+	})
 	if failure != nil {
 		return executor.ApplyFailure(
 			command,

@@ -33,16 +33,7 @@ const (
 //go:embed runner.mjs
 var nodeRunnerSource []byte
 
-// javaScriptSandbox 统一约束代码执行器的输入输出和错误模型
-type javaScriptSandbox interface {
-	Execute(
-		ctx context.Context,
-		source string,
-		inputs map[string]any,
-	) (map[string]any, *executor.ExecutionFailure)
-}
-
-type nodeJSSandbox struct {
+type nodeJSProcessRunner struct {
 	binary           string
 	nodeModulesPath  string
 	configurationErr error
@@ -82,7 +73,7 @@ func (buffer *cappedBuffer) String() string {
 	return buffer.buffer.String()
 }
 
-func newJavaScriptSandbox() javaScriptSandbox {
+func newNodeJSProcessRunner() (codeRunner, error) {
 	// 第三方包目录和 Node 命令只在执行器初始化时解析一次
 	nodeModulesPath, err := resolveNodeModulesPath()
 	binary := strings.TrimSpace(os.Getenv("CODE_NODE_BINARY"))
@@ -90,17 +81,16 @@ func newJavaScriptSandbox() javaScriptSandbox {
 		binary = nodeDefaultBinary
 	}
 
-	return &nodeJSSandbox{
+	return &nodeJSProcessRunner{
 		binary:           binary,
 		nodeModulesPath:  nodeModulesPath,
 		configurationErr: err,
-	}
+	}, nil
 }
 
-func (sandbox *nodeJSSandbox) Execute(
+func (runner *nodeJSProcessRunner) Execute(
 	ctx context.Context,
-	source string,
-	inputs map[string]any,
+	request codeExecutionRequest,
 ) (outputs map[string]any, failure *executor.ExecutionFailure) {
 	// 防止执行器自身异常越过协议边界导致 Worker 崩溃
 	defer func() {
@@ -113,10 +103,10 @@ func (sandbox *nodeJSSandbox) Execute(
 		}
 	}()
 
-	if sandbox.configurationErr != nil {
+	if runner.configurationErr != nil {
 		return nil, internalFailure(formatJavaScriptMessage(
 			"Node.js ESM 执行器配置无效",
-			sandbox.configurationErr.Error(),
+			runner.configurationErr.Error(),
 		))
 	}
 
@@ -131,9 +121,9 @@ func (sandbox *nodeJSSandbox) Execute(
 
 	paths, failure := prepareNodeExecutionFiles(
 		sandboxDirectory,
-		source,
-		inputs,
-		sandbox.nodeModulesPath,
+		request.Source,
+		request.Inputs,
+		runner.nodeModulesPath,
 	)
 	if failure != nil {
 		return nil, failure
@@ -142,7 +132,7 @@ func (sandbox *nodeJSSandbox) Execute(
 	// 使用真实 Node ESM 进程执行 runner 并通过 context 控制生命周期
 	command := exec.CommandContext(
 		ctx,
-		sandbox.binary,
+		runner.binary,
 		"--no-warnings",
 		fmt.Sprintf("--max-old-space-size=%d", nodeMaxHeapMegabytes),
 		fmt.Sprintf("--stack_size=%d", nodeMaxStackKilobytes),

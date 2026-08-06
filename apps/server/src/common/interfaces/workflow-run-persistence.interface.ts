@@ -4,6 +4,8 @@ import type { RuntimeErrorData, RuntimeState } from '@ai-workflow/runtime'
 
 export interface PreparedNodeDispatch {
   command: ExecuteNodeCommand
+  executionClass: string
+  routingKey: string
 }
 
 export interface RuntimeTerminalData {
