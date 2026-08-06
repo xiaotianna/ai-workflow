@@ -10,6 +10,8 @@ model WorkflowNodeRun {
   idempotencyKey String                @unique
   leaseToken     String
   deadlineAt     DateTime
+  hardDeadlineAt DateTime
+  progressSequence Int                 @default(0)
   status         WorkflowNodeRunStatus @default(PENDING) // 节点执行状态
   input          Json?                 @db.JsonB // 节点的输入数据
   output         Json?                 @db.JsonB // 节点的输出数据

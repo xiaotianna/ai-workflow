@@ -1115,6 +1115,7 @@ async function createDispatchRecords(
       idempotencyKey: command.idempotencyKey,
       leaseToken: command.leaseToken,
       deadlineAt: new Date(command.deadlineAt),
+      hardDeadlineAt: new Date(command.deadlineAt),
       input: toJsonInput(command.inputs),
       startedAt,
     })),

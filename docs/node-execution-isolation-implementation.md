@@ -14,7 +14,7 @@
 - 已实现 Go `legacy/compute/model/http/sandbox` Profile 和 Profile Registry 白名单；
 - 已实现 Code `process/remote` Runner、远程 Controller 请求/结果边界和生产拒绝降级开关，具体边界见
   [远程沙箱调用实现状态](./remote-sandbox-call-implementation-status.md)；
-- 已实现可选 Executor 内部 Bearer Token，以及 HTTP `legacy/public` 应用层目标策略；
+- 已实现可选 Executor 内部 Bearer Token；HTTP 应用层不再限制目标 URL，目标网络限制由部署层承担；
 - 尚未在仓库中提供具体 Sandbox Controller、gVisor/microVM、Egress Proxy、Network Policy 和生产部署
   模板；未部署这些基础设施前，不能宣称已经具备强沙箱或完整网络安全边界。
 
@@ -307,11 +307,9 @@ LLM/RAG Worker 与 Code、HTTP 分开部署，并遵守：
 
 HTTP 节点允许用户配置目标 URL，必须拥有独立于 Model Worker 的网络策略：
 
-- 只允许 HTTP/HTTPS；
-- 拒绝 URL 用户信息、非预期协议和畸形 Host；
-- DNS 解析后拒绝回环、私网、链路本地、组播、保留地址和云元数据地址；
-- 每次重定向重新执行完整校验，并限制重定向次数；
-- 通过 Egress Proxy 或等价网络层阻止绕过应用校验直连内网；
+- 应用层只校验完整的 HTTP/HTTPS 地址，不应用 URL 白名单或内网地址过滤；
+- 由部署层 Network Policy、Egress Proxy 或等价网络边界限制可访问的目标网络；
+- 部署层限制必须覆盖 DNS、重定向以及直连场景，不能依赖用户正确填写地址；
 - 限制连接、TLS、首字节和总执行时间；
 - 限制请求体、响应头和响应体大小；
 - 不自动注入 Server、模型或数据库凭证；
@@ -384,7 +382,6 @@ Controller 不拥有 Workflow 状态机，只接受短生命周期任务请求�
 | `SANDBOX_RESOURCE_LIMIT_EXCEEDED` | 超过 CPU、内存、PID 或临时磁盘限制        | `false`               |
 | `SANDBOX_EXECUTION_TIMEOUT`       | 达到 Command 或平台执行期限               | `false`               |
 | `SANDBOX_RESULT_INVALID`          | 沙箱没有返回合法结构化结果                | `false`               |
-| `HTTP_TARGET_FORBIDDEN`           | HTTP 目标属于禁止地址或网络               | `false`               |
 
 现有 `CODE_SYNTAX_ERROR`、`CODE_RUNTIME_ERROR`、`CODE_OUTPUT_INVALID`、`CODE_OUTPUT_TOO_LARGE` 等用户代码
 错误继续保留。不要把基础设施错误统一伪装为 `CODE_RUNTIME_ERROR`。
@@ -424,13 +421,10 @@ requests/limits 和明确的临时目录挂载。
 | `CODE_SANDBOX_IMAGE`             | 固定 digest 的执行镜像                              |
 | `CODE_SANDBOX_RESULT_TTL`        | Controller 幂等结果保留时间                         |
 | `CODE_EGRESS_PROXY_URL`          | Code 公网访问代理                                   |
-| `HTTP_EGRESS_PROXY_URL`          | HTTP 节点专用出站代理                               |
 | `EXECUTOR_ENABLED_CLASSES`       | Server 执行前能力白名单                             |
 | `WORKFLOW_EXECUTOR_ROUTING_MODE` | Server 使用 `legacy` 或 `classified` Command 路由   |
 | `EXECUTOR_INTERNAL_AUTH_TOKEN`   | Server/Executor 内部 Lease 与模型解析 Bearer Token  |
 | `EXECUTOR_REQUIRE_INTERNAL_AUTH` | 生产要求内部接口启用认证                            |
-| `HTTP_NETWORK_POLICY`            | `legacy` / `public`；默认兼容既有网络行为           |
-| `HTTP_REQUIRE_PUBLIC_POLICY`     | 为生产 HTTP Profile 禁止 legacy 网络策略            |
 
 敏感认证信息通过工作负载身份或 Secret 挂载提供，不放入普通环境变量清单、日志或 Protocol Command。
 
@@ -484,7 +478,7 @@ requests/limits 和明确的临时目录挂载。
 1. 已具备 Model、HTTP 独立 Profile；待部署独立网络策略和 RabbitMQ 身份；
 2. 模型解析与 Lease 接口已支持可选内部 Bearer Token；后续替换为部署级工作负载身份；
 3. HTTP 与 Code 分别接入专用 Egress Proxy；
-4. HTTP 已提供可选 `public` 应用层目标策略；网络层 Egress 防护待部署；
+4. HTTP 应用层不限制目标 URL；生产环境的目标网络限制和 Egress 防护待部署；
 5. 验证日志、错误、指标和 Trace 不泄露请求正文与凭证。
 
 ### 阶段四：默认最小权限和扩展治理

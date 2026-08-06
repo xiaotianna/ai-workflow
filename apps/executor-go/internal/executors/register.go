@@ -29,9 +29,7 @@ func RegisterProfile(
 		if err := registerCode(registry, logger); err != nil {
 			return err
 		}
-		if err := registerHTTP(registry, logger); err != nil {
-			return err
-		}
+		registerHTTP(registry, logger)
 		registry.Register(conditionexecutor.NodeType, conditionexecutor.New(logger))
 	case executorprofile.Compute:
 		registry.Register(conditionexecutor.NodeType, conditionexecutor.New(logger))
@@ -42,9 +40,7 @@ func RegisterProfile(
 		)
 		registry.Register(ragexecutor.NodeType, ragexecutor.New(logger))
 	case executorprofile.HTTP:
-		if err := registerHTTP(registry, logger); err != nil {
-			return err
-		}
+		registerHTTP(registry, logger)
 	case executorprofile.Sandbox:
 		if err := registerCode(registry, logger); err != nil {
 			return err
@@ -62,11 +58,6 @@ func registerCode(registry *executor.Registry, logger *log.Logger) error {
 	return nil
 }
 
-func registerHTTP(registry *executor.Registry, logger *log.Logger) error {
-	nodeExecutor, err := httpexecutor.New(logger)
-	if err != nil {
-		return err
-	}
-	registry.Register(httpexecutor.NodeType, nodeExecutor)
-	return nil
+func registerHTTP(registry *executor.Registry, logger *log.Logger) {
+	registry.Register(httpexecutor.NodeType, httpexecutor.New(logger))
 }

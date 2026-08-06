@@ -28,12 +28,8 @@ type Executor struct {
 	client HTTPClient
 }
 
-func New(logger *log.Logger) (*Executor, error) {
-	client, err := newHTTPClientFromEnvironment()
-	if err != nil {
-		return nil, err
-	}
-	return &Executor{logger: logger, client: client}, nil
+func New(logger *log.Logger) *Executor {
+	return &Executor{logger: logger, client: &stdhttp.Client{}}
 }
 
 func (nodeExecutor *Executor) Execute(
@@ -140,12 +136,6 @@ func requestFailure(ctx context.Context, err error) *executor.ExecutionFailure {
 		return &executor.ExecutionFailure{
 			Code:      "HTTP_REQUEST_CANCELLED",
 			Message:   "HTTP 请求已取消",
-			Retryable: false,
-		}
-	case errors.Is(err, errHTTPTargetForbidden):
-		return &executor.ExecutionFailure{
-			Code:      "HTTP_TARGET_FORBIDDEN",
-			Message:   "HTTP 请求目标属于受保护网络",
 			Retryable: false,
 		}
 	default:

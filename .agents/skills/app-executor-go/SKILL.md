@@ -19,6 +19,7 @@ description: '维护 AI Workflow 的 Go 节点执行器。修改 apps/executor-g
 - 保持节点实现通过 Registry 注册，不为未知 `nodeType` 提供 fallback
 - 不把凭证、输入正文或用户代码写入日志
 - 保持 Command context 的超时和取消语义能够传递到外部进程与网络请求
+- HTTP Executor 不应用 URL 白名单或内网地址过滤；目标网络限制由部署层网络策略或出站网关承担
 - 错误通过稳定错误码进入 Protocol Result，不把实现异常直接泄露成无结构文本
 - 遵守根目录约束，不自动运行 `dev`、`build` 或任何 git 命令
 

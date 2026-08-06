@@ -184,7 +184,9 @@ Result Queue 与 Protocol v1 不变。`EXECUTOR_ENABLED_CLASSES` 是 Server 的�
 迁移字段保留兼容默认值，使旧 Server 在滚动升级期间仍能创建 legacy Outbox。
 Command Lease 与模型解析 Controller 共用可选 `EXECUTOR_INTERNAL_AUTH_TOKEN` Bearer Guard；生产设置
 `EXECUTOR_REQUIRE_INTERNAL_AUTH=true`，缺少 Token 时 Server 必须在启动阶段失败。
-后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING` NodeRun，原子写入 Run `TIMED_OUT`、目标
+NodeRun 同时持久化当前 `deadlineAt`、绝对上限 `hardDeadlineAt` 和从 `0` 开始的
+`progressSequence`；当前创建时两个截止时间相同。后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING`
+NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布
 `workflow_finished`。业务副作用幂等存储和真实节点不得假装已经实现。

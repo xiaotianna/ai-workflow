@@ -25,7 +25,7 @@ flowchart LR
   Worker --> Registry["Profile Registry 白名单"]
   Registry --> Executor["具体节点 Executor"]
   Executor -->|Code| SandboxRunner["process 或 remote"]
-  Executor -->|HTTP| NetworkPolicy["legacy 或 public"]
+  Executor -->|HTTP| HttpClient["标准 HTTP Client"]
 ```
 
 这条链路有四个关键约束：
@@ -36,8 +36,7 @@ flowchart LR
    `EXECUTOR_PROFILE_MISMATCH`，不会回退到其他 Executor。
 3. Result Exchange、Result Queue 和 Protocol v1 保持不变，因此 Server 原有结果处理、租约和幂等链路
    可以继续使用。
-4. Server 路由、Go Profile、Code 后端和 HTTP 网络策略默认都使用兼容模式；只有显式启用分类配置后才
-   改变实际执行位置。
+4. Server 路由、Go Profile 和 Code 后端默认都使用兼容模式；只有显式启用分类配置后才改变实际执行位置。
 
 推荐按以下顺序阅读：
 
@@ -58,8 +57,7 @@ flowchart LR
    [`register.go`](./internal/executors/register.go) 和 [`worker.go`](./internal/mq/worker.go)，理解 Worker
    如何选择 Queue、限制节点能力并拒绝错投节点。
 6. 最后看 Code 的 [`runner.go`](./internal/executors/code/runner.go) 与
-   [`remote_runner.go`](./internal/executors/code/remote_runner.go)，以及 HTTP 的
-   [`network_policy.go`](./internal/executors/http/network_policy.go)，理解两个高风险节点的额外边界。
+   [`remote_runner.go`](./internal/executors/code/remote_runner.go)，理解 Code 节点的额外执行边界。
 
 如果只想先抓住主干，优先阅读 `WorkflowExecutionRoutingService`、`WorkflowOutboxPublisher` 和
 `RegisterProfile`。这三个入口分别对应“决定去哪里”“按固定路由发布”和“Worker 实际允许执行什么”。
@@ -154,9 +152,7 @@ Controller 可使用 `CODE_SANDBOX_CONTROLLER_TOKEN` Bearer Token 认证。仓�
 使用最小权限非 root 用户、只读根文件系统、独立临时目录、网络策略和容器级 CPU/内存/PID 限制，
 不得与 Server 或数据库共享宿主文件系统和高权限凭证。
 
-HTTP Executor 通过 `HTTP_NETWORK_POLICY` 选择网络策略。默认 `legacy` 保持既有访问能力；`public`
-会在直接请求和重定向时拒绝私网、回环、链路本地、保留地址和 URL 凭证，并在直连时绑定已校验的
-DNS 结果。配置 `HTTP_REQUIRE_PUBLIC_POLICY=true` 可以禁止生产 HTTP Worker 使用兼容策略；
-`HTTP_EGRESS_PROXY_URL` 可把请求统一交给独立出站代理，生产仍需用网络策略阻止绕过代理直连内网。
+HTTP Executor 不对目标 URL 应用白名单或内网地址过滤，所有合法的 HTTP/HTTPS 地址都使用标准
+HTTP Client 请求。生产环境如需限制目标网络，应在 HTTP Worker 的部署网络策略或独立出站网关中实现。
 
 Start/End 仍由 TypeScript Runtime 本地推进，不产生无业务价值的 MQ 往返。
