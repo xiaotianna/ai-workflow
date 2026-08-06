@@ -3,7 +3,6 @@ import { ConfigModule } from '@nestjs/config'
 import * as Joi from 'joi'
 
 const nodeEnv = process.env.NODE_ENV ?? 'development'
-const developmentPrivateModelHosts = 'localhost:11434,127.0.0.1:11434,[::1]:11434'
 
 const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) => {
   const decodedKey = Buffer.from(value, 'base64')
@@ -42,9 +41,6 @@ const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) =>
           nodeEnv === 'production'
             ? modelCredentialKeySchema.required()
             : modelCredentialKeySchema.optional(),
-        MODEL_CONNECTION_PRIVATE_HOSTS: Joi.string()
-          .allow('')
-          .default(nodeEnv === 'production' ? '' : developmentPrivateModelHosts),
         RABBITMQ_URL: Joi.string()
           .uri({ scheme: ['amqp', 'amqps'] })
           .default('amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow'),

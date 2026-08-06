@@ -1,6 +1,5 @@
 import { ModelType } from '@/generated/prisma/client'
 import { ModelCredentialService } from '@/infra/model-provider/model-credential.service'
-import { ModelEndpointPolicyService } from '@/infra/model-provider/model-endpoint-policy.service'
 import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
@@ -21,7 +20,6 @@ export class ExecutorModelService {
     private readonly executorModelRepository: ExecutorModelRepository,
     private readonly modelGroupRepository: ModelGroupRepository,
     private readonly credentialService: ModelCredentialService,
-    private readonly endpointPolicy: ModelEndpointPolicyService,
     private readonly providerRegistry: ModelProviderRegistry,
   ) {}
 
@@ -71,7 +69,6 @@ export class ExecutorModelService {
     }
     const provider = this.providerRegistry.get(group.providerType)
     const baseUrl = group.baseUrl || provider.defaultBaseUrl
-    await this.endpointPolicy.assertAllowed(provider.createProbeUrl(baseUrl))
 
     const apiKey = this.credentialService.decrypt(group, group.id)
     if (provider.supportsApiKey && !apiKey) {

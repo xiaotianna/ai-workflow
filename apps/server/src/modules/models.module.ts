@@ -1,6 +1,5 @@
 import { ModelController } from '@/controllers/model.controller'
 import { ModelCredentialService } from '@/infra/model-provider/model-credential.service'
-import { ModelEndpointPolicyService } from '@/infra/model-provider/model-endpoint-policy.service'
 import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
 import { ModelConnectionTestService } from '@/services/model-connection-test.service'
@@ -16,7 +15,6 @@ import { JwtModule } from './jwt.module'
     ModelConnectionTestService,
     ModelGroupRepository,
     ModelCredentialService,
-    ModelEndpointPolicyService,
     ModelProviderRegistry,
   ],
 })

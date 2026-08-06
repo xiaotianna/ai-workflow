@@ -12,7 +12,12 @@ type ProviderRequest struct {
 	Parameters ModelParameters
 }
 
+type ProviderResult struct {
+	Content  string
+	Thinking string
+}
+
 type Provider interface {
 	Type() string
-	Execute(context.Context, ResolvedModel, ProviderRequest) (string, *ExecutionFailure)
+	Execute(context.Context, ResolvedModel, ProviderRequest) (ProviderResult, *ExecutionFailure)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"node-executor-go/internal/executor"
 	protocol "workflow-protocol"
@@ -70,7 +71,11 @@ func (nodeExecutor *Executor) Execute(
 	if failure != nil {
 		return applyFailure(command, config, failure), nil
 	}
-	if config.Model.Parameters.ResponseFormat == "json" && !json.Valid([]byte(result)) {
+	resultText := result.Content
+	if strings.TrimSpace(resultText) == "" {
+		resultText = result.Thinking
+	}
+	if config.Model.Parameters.ResponseFormat == "json" && !json.Valid([]byte(resultText)) {
 		return applyFailure(command, config, &ExecutionFailure{
 			Code:    "LLM_JSON_OUTPUT_INVALID",
 			Message: "模型没有返回合法 JSON",
@@ -79,7 +84,7 @@ func (nodeExecutor *Executor) Execute(
 
 	return protocol.NewSucceededResult(
 		executor.ResultIdentity(command),
-		map[string]any{"result": result},
+		map[string]any{"result": resultText},
 		[]string{"result"},
 	), nil
 }

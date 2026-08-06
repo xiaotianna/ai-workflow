@@ -54,7 +54,7 @@ Executor 可访问的 Server 内部接口。
 1. Code 和未来第三方扩展按不可信代码处理，每次执行进入独立强沙箱。
 2. Code 执行边界不能访问模型凭证、数据库、Redis、RabbitMQ、Server 内部接口或其他任务文件。
 3. HTTP、LLM、RAG 使用与 Code 分离的 Worker、凭证和网络策略。
-4. HTTP 任意 URL 请求具备系统级 SSRF 防护，不依赖用户正确填写地址。
+4. HTTP 任意 URL 请求的目标网络限制由部署层出站边界承担，不依赖应用层 URL 白名单。
 5. Condition 等可信纯计算不承担逐任务沙箱启动成本。
 6. 复用现有 Protocol、租约、Outbox/Inbox 和 Result 链路，支持分阶段发布与快速回滚。
 7. 将安全策略转化为可部署、可观测、可验收的明确配置。

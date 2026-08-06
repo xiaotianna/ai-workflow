@@ -48,7 +48,6 @@ apps/server/
 │   ├── generated/prisma/
 │   ├── infra/model-provider/
 │   │   ├── model-credential.service.ts
-│   │   ├── model-endpoint-policy.service.ts
 │   │   └── *adapter.ts
 │   ├── infra/workflow-mq/
 │   ├── modules/

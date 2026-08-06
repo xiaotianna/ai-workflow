@@ -83,9 +83,9 @@
   密钥；开发/测试未配置时使用 HKDF 从 `JWT_SECRET` 派生用途隔离密钥。
 - 模型组响应中的 `maskedApiKey` 由服务端解密后即时生成，只保留 Key 前 4 位、`***` 和后 4 位；
   不持久化掩码，也不返回 Key 明文。
-- 用户配置的模型 Base URL 只允许 HTTP/HTTPS，不得包含 URL 凭证、查询参数或片段。服务端默认
-  阻止私有、回环和保留地址；通过 `MODEL_CONNECTION_PRIVATE_HOSTS` 显式放行需要访问的 Ollama
-  或可信内网端点，探测请求禁止自动跟随重定向并限制超时与响应体大小。
+- 用户配置的模型 Base URL 只校验为带协议的 HTTP/HTTPS URL。模型运行和连通性测试不应用目标
+  地址白名单或内网地址过滤；目标网络限制由部署层网络策略或出站网关承担。探测请求禁止自动
+  跟随重定向，并继续限制超时与响应体大小。
 - Go LLM Executor 不使用工作流中的模型展示快照，也不从 MQ 接收 API Key。它使用 Command 自带的
   NodeRun 身份和 Lease Token 调用 `ExecutorModelModule`；Server 校验运行状态和 deadline，从不可变
   WorkflowVersion 读取稳定模型引用，再按应用 Owner 解析启用状态、真实模型 ID、Base URL 和凭证。
@@ -185,7 +185,9 @@ Result Queue 与 Protocol v1 不变。`EXECUTOR_ENABLED_CLASSES` 是 Server 的�
 Command Lease 与模型解析 Controller 共用可选 `EXECUTOR_INTERNAL_AUTH_TOKEN` Bearer Guard；生产设置
 `EXECUTOR_REQUIRE_INTERNAL_AUTH=true`，缺少 Token 时 Server 必须在启动阶段失败。
 NodeRun 同时持久化当前 `deadlineAt`、绝对上限 `hardDeadlineAt` 和从 `0` 开始的
-`progressSequence`；当前创建时两个截止时间相同。后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING`
+`progressSequence`；当前创建时两个截止时间相同。普通节点的执行期限为 30 秒，LLM 与 Sub Workflow
+使用 24 小时长任务期限；LLM 等待期间 SSE 每 15 秒发送心跳，前端保持运行态，用户取消或最后一个
+SSE 客户端断开时仍会通过租约取消上游请求。后台按 `deadlineAt` 扫描 `PENDING` / `RUNNING`
 NodeRun，原子写入 Run `TIMED_OUT`、目标
 NodeRun `TIMED_OUT` 并取消同 Run 其余派发，迟到 Result 必须按 stale 忽略。损坏的 Outbox 命令和
 达到最大处理次数的 Result 必须通过同一失败终态入口写库，并在事务提交后发布

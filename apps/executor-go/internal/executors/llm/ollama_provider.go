@@ -12,7 +12,8 @@ type OllamaProvider struct {
 
 type ollamaResponse struct {
 	Message struct {
-		Content string `json:"content"`
+		Content  string `json:"content"`
+		Thinking string `json:"thinking"`
 	} `json:"message"`
 	Error string `json:"error"`
 }
@@ -29,7 +30,7 @@ func (provider *OllamaProvider) Execute(
 	ctx context.Context,
 	model ResolvedModel,
 	request ProviderRequest,
-) (string, *ExecutionFailure) {
+) (ProviderResult, *ExecutionFailure) {
 	body := map[string]any{
 		"model":    model.ModelID,
 		"messages": request.Messages,
@@ -79,14 +80,17 @@ func (provider *OllamaProvider) Execute(
 		&response,
 	)
 	if failure != nil {
-		return "", failure
+		return ProviderResult{}, failure
 	}
 	if strings.TrimSpace(response.Error) != "" {
-		return "", &ExecutionFailure{Code: "LLM_PROVIDER_ERROR", Message: strings.TrimSpace(response.Error)}
+		return ProviderResult{}, &ExecutionFailure{Code: "LLM_PROVIDER_ERROR", Message: strings.TrimSpace(response.Error)}
 	}
-	if strings.TrimSpace(response.Message.Content) == "" {
-		return "", &ExecutionFailure{Code: "LLM_RESPONSE_EMPTY", Message: "模型没有返回有效内容", Retryable: true}
+	if strings.TrimSpace(response.Message.Content) == "" && strings.TrimSpace(response.Message.Thinking) == "" {
+		return ProviderResult{}, &ExecutionFailure{Code: "LLM_RESPONSE_EMPTY", Message: "模型没有返回有效内容", Retryable: true}
 	}
 
-	return response.Message.Content, nil
+	return ProviderResult{
+		Content:  response.Message.Content,
+		Thinking: response.Message.Thinking,
+	}, nil
 }

@@ -146,7 +146,6 @@ apps/server/
 | `JWT_SECRET`                      | JWT 签名密钥                                          |
 | `JWT_EXPIRES_IN`                  | JWT 有效期，默认 `7d`                                 |
 | `MODEL_CREDENTIAL_ENCRYPTION_KEY` | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
-| `MODEL_CONNECTION_PRIVATE_HOSTS`  | 允许模型探测访问的私有 `host[:port]`，逗号分隔        |
 | `RABBITMQ_URL`                    | AMQP 地址，默认连接 `compose.dev.yaml` 的开发 vhost   |
 | `WORKFLOW_EXECUTOR_ROUTING_MODE`  | `legacy` 或 `classified`；默认 `legacy` 保持旧队列    |
 | `EXECUTOR_ENABLED_CLASSES`        | 允许派发的执行类别，逗号分隔                          |
@@ -154,8 +153,8 @@ apps/server/
 | `EXECUTOR_REQUIRE_INTERNAL_AUTH`  | 为 `true` 时缺少内部认证令牌会拒绝启动                |
 
 开发和测试环境未配置模型凭证密钥时，会通过 HKDF 从 `JWT_SECRET` 派生用途隔离密钥；生产环境
-必须配置专用密钥。开发环境默认只放行 `localhost:11434`、`127.0.0.1:11434` 和
-`[::1]:11434` 访问本机 Ollama，其他私有端点需要显式加入白名单。
+必须配置专用密钥。模型运行和连通性测试不应用目标地址白名单或内网地址过滤；目标网络限制由
+部署层网络策略或出站网关承担。
 
 节点执行路由支持兼容迁移：默认 `legacy` 仍把所有 Go 业务节点发布到
 `ai-workflow.node.execute.v1`；部署分类 Worker 后再将
@@ -212,10 +211,11 @@ Lease Token 身份。消费前校验失败时不执行节点，执行期间每 5
 
 Outbox 采用 `PENDING → PUBLISHING → PUBLISHED/FAILED` 状态和 stale claim 恢复，消息处理按
 at-least-once 设计。损坏的 Outbox 命令与达到最大处理次数的 Result 会把 Run 写入失败终态并发布
-`workflow_finished`；后台扫描 `deadlineAt`，把无结果的到期节点与 Run 写入超时终态。Go 已按节点
-类型注册 `llm`、`rag`、`code`、`http`、`condition` 的具体 Mock Executor；RabbitMQ transport、
-Registry、Runtime、SSE、持久化与幂等链路均为正式边界。真实业务节点逻辑、业务副作用幂等存储和
-Secret Gateway 仍属于后续阶段。
+`workflow_finished`；后台扫描 `deadlineAt`，把无结果的到期节点与 Run 写入超时终态。普通节点期限
+为 30 秒，LLM 与 Sub Workflow 使用 24 小时长任务期限；等待期间 SSE 心跳会维持前端运行态，主动
+取消或最后一个 SSE 客户端断开仍会通过租约终止请求。Go 已按节点类型注册 `llm`、`rag`、`code`、
+`http`、`condition` 的具体 Executor；RabbitMQ transport、Registry、Runtime、SSE、持久化与幂等
+链路均为正式边界。RAG、业务副作用幂等存储和通用 Secret Gateway 仍属于后续阶段。
 
 ## 常用命令
 

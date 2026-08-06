@@ -1,7 +1,6 @@
 import type { ModelProviderTypeValue } from '@/constant/model'
 import { TestModelConnectionDto, TestModelDto } from '@/dto/model.dto'
 import { ModelCredentialService } from '@/infra/model-provider/model-credential.service'
-import { ModelEndpointPolicyService } from '@/infra/model-provider/model-endpoint-policy.service'
 import type {
   ModelChatStreamProbe,
   ModelProviderAdapter,
@@ -37,7 +36,6 @@ export class ModelConnectionTestService {
   constructor(
     private readonly repository: ModelGroupRepository,
     private readonly credentialService: ModelCredentialService,
-    private readonly endpointPolicy: ModelEndpointPolicyService,
     private readonly providerRegistry: ModelProviderRegistry,
   ) {}
 
@@ -46,7 +44,6 @@ export class ModelConnectionTestService {
     const apiKey = await this.resolveApiKey(ownerId, dto, provider)
 
     const probeUrl = provider.createProbeUrl(dto.baseUrl)
-    await this.endpointPolicy.assertAllowed(probeUrl)
 
     const startedAt = Date.now()
 
@@ -135,7 +132,6 @@ export class ModelConnectionTestService {
     const provider = this.providerRegistry.get(dto.providerType)
     const apiKey = await this.resolveApiKey(ownerId, dto, provider)
     const probe = provider.createChatStreamProbe(dto.modelId, MODEL_TEST_PROMPT, dto.baseUrl)
-    await this.endpointPolicy.assertAllowed(probe.url)
 
     const startedAt = Date.now()
     const controller = new AbortController()

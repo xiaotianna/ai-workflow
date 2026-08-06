@@ -14,7 +14,10 @@ type OpenAICompatibleProvider struct {
 type openAICompatibleResponse struct {
 	Choices []struct {
 		Message struct {
-			Content string `json:"content"`
+			Content          string `json:"content"`
+			ReasoningContent string `json:"reasoning_content"`
+			Reasoning        string `json:"reasoning"`
+			Thinking         string `json:"thinking"`
 		} `json:"message"`
 	} `json:"choices"`
 }
@@ -31,7 +34,7 @@ func (provider *OpenAICompatibleProvider) Execute(
 	ctx context.Context,
 	model ResolvedModel,
 	request ProviderRequest,
-) (string, *ExecutionFailure) {
+) (ProviderResult, *ExecutionFailure) {
 	body := map[string]any{
 		"model":    model.ModelID,
 		"messages": request.Messages,
@@ -56,13 +59,27 @@ func (provider *OpenAICompatibleProvider) Execute(
 		&response,
 	)
 	if failure != nil {
-		return "", failure
+		return ProviderResult{}, failure
 	}
-	if len(response.Choices) == 0 || strings.TrimSpace(response.Choices[0].Message.Content) == "" {
-		return "", &ExecutionFailure{Code: "LLM_RESPONSE_EMPTY", Message: "模型没有返回有效内容", Retryable: true}
+	if len(response.Choices) == 0 {
+		return ProviderResult{}, &ExecutionFailure{Code: "LLM_RESPONSE_EMPTY", Message: "模型没有返回有效内容", Retryable: true}
+	}
+	message := response.Choices[0].Message
+	thinking := firstNonEmpty(message.ReasoningContent, message.Reasoning, message.Thinking)
+	if strings.TrimSpace(message.Content) == "" && strings.TrimSpace(thinking) == "" {
+		return ProviderResult{}, &ExecutionFailure{Code: "LLM_RESPONSE_EMPTY", Message: "模型没有返回有效内容", Retryable: true}
 	}
 
-	return response.Choices[0].Message.Content, nil
+	return ProviderResult{Content: message.Content, Thinking: thinking}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func applyOpenAIParameters(body map[string]any, parameters ModelParameters) {

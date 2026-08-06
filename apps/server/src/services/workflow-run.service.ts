@@ -72,8 +72,8 @@ import { randomUUID } from 'node:crypto'
 import { isUUID } from 'class-validator'
 
 const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用'
-const EXECUTION_DEADLINE_MS = 30_000
-const SUB_WORKFLOW_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000
+const DEFAULT_EXECUTION_DEADLINE_MS = 30_000
+const LONG_RUNNING_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000
 const RESULT_APPLY_MAX_ATTEMPTS = 5
 type WorkflowRunSummary = NonNullable<Awaited<ReturnType<WorkflowRunRepository['findRunSummary']>>>
 type WorkflowRunListItem = Awaited<ReturnType<WorkflowRunRepository['listOwnedRuns']>>[number]
@@ -851,10 +851,7 @@ export class WorkflowRunService {
       attempt: options.attempt,
       leaseToken: randomUUID(),
       deadlineAt: new Date(
-        Date.now() +
-          (options.node.type === BuiltinNodeType.SUB_WORKFLOW
-            ? SUB_WORKFLOW_EXECUTION_DEADLINE_MS
-            : EXECUTION_DEADLINE_MS),
+        Date.now() + resolveExecutionDeadlineMs(options.node.type),
       ).toISOString(),
       inputs: options.inputs,
       config: options.config,
@@ -895,6 +892,12 @@ export class WorkflowRunService {
       )
     }
   }
+}
+
+function resolveExecutionDeadlineMs(nodeType: string): number {
+  return nodeType === BuiltinNodeType.LLM || nodeType === BuiltinNodeType.SUB_WORKFLOW
+    ? LONG_RUNNING_EXECUTION_DEADLINE_MS
+    : DEFAULT_EXECUTION_DEADLINE_MS
 }
 
 function toWorkflowRunListItemVo(run: WorkflowRunListItem): WorkflowRunListItemVo {
