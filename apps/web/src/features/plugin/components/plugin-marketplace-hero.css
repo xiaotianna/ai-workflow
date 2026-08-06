@@ -1,0 +1,43 @@
+.plugin-hero {
+  --hero-progress: 0;
+  --hero-title-height: 0px;
+
+  padding-top: calc(12px * (1 - var(--hero-progress)));
+  padding-bottom: calc(24px - 8px * var(--hero-progress));
+  box-shadow: 0 0 0 rgb(0 0 0 / 0);
+}
+
+.plugin-hero[data-stuck='true'] {
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.08),
+    0 2px 4px -2px rgb(0 0 0 / 0.06);
+}
+
+.plugin-hero-bg {
+  top: calc(-24px * var(--hero-progress));
+}
+
+.plugin-hero-title {
+  margin-top: calc(32px - 16px * var(--hero-progress));
+  max-height: calc(var(--hero-title-height) * (1 - var(--hero-progress)));
+  opacity: calc(1 - var(--hero-progress));
+  transform: translateY(calc(-6px * var(--hero-progress)));
+}
+
+.plugin-hero-tabs {
+  margin-top: calc(32px - 16px * var(--hero-progress));
+}
+
+.plugin-hero-nav-title {
+  overflow: hidden;
+  white-space: nowrap;
+  max-width: calc(clamp(0, (var(--hero-progress) - 0.3) / 0.7, 1) * 150px);
+  opacity: clamp(0, (var(--hero-progress) - 0.3) / 0.7, 1);
+}
+
+@media (min-width: 768px) {
+  .plugin-hero-nav-title {
+    max-width: 150px;
+    opacity: 1;
+  }
+}

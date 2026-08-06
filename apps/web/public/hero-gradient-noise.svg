@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="400" viewBox="0 0 1440 400" fill="none" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="hero-noise-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0033ff" stop-opacity="0.15" />
+      <stop offset="45%" stop-color="#4d79ff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#001a80" stop-opacity="0.2" />
+    </linearGradient>
+    <filter id="hero-noise-filter" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.75" numOctaves="4" stitchTiles="stitch" />
+      <feColorMatrix type="saturate" values="0" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.35" />
+      </feComponentTransfer>
+    </filter>
+  </defs>
+  <rect width="1440" height="400" fill="url(#hero-noise-gradient)" />
+  <rect width="1440" height="400" filter="url(#hero-noise-filter)" opacity="0.55" />
+</svg>
