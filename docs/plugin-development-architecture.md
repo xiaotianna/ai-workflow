@@ -2,13 +2,15 @@
 
 ## 1. 文档状态
 
-- 状态：方案设计，待分阶段实施
+- 状态：分阶段实施中（`@ai-workflow/plugin` SDK 已完成，其他阶段待实施）
 - 基线日期：2026-08-07
 - 适用范围：插件 SDK、插件构建工具、Workflow Core、Web 编辑器、Server、Runtime、Protocol 与 Executor
 - 目标：让第三方按照稳定公开规范开发工作流节点插件，并支持声明式节点、可选自定义节点 UI、可选完整自定义配置表单，以及后续的隔离执行能力
 
-本文描述目标架构，不表示仓库已经具备对应能力。当前 `packages/workflow-plugin` 只有占位实现，
-插件市场页面仍主要使用模拟数据，Web 与 Server 也仍直接依赖内置 `nodeRegistry`。
+本文描述目标架构，不表示仓库已经具备全部对应能力。当前 `packages/workflow-plugin` 已完成声明
+DSL、Schema AST 与编译器、源码配置和 manifest 契约，以及 `./ui`、`./executor` 公共入口；
+`packages/workflow-plugin-cli` 仍是占位实现，插件市场页面仍主要使用模拟数据，Web 与 Server 也仍
+直接依赖内置 `nodeRegistry`。
 
 ## 2. 结论
 
@@ -71,7 +73,7 @@
 
 ### 4.2 主要差距
 
-1. `packages/workflow-plugin` 的 `defineConfig` 当前没有类型、返回值和 manifest 契约。
+1. `packages/workflow-plugin-cli` 尚未接入已落地的插件配置与 manifest 契约，也未生成三类构建产物。
 2. Web 多处直接导入 Core 全局 `nodeRegistry`，并在模块初始化时静态生成 React Flow
    `nodeTypes`，无法按当前 Workflow 合并插件。
 3. Server 的保存、发布、运行和执行路由同样依赖内置 Registry 或内置 node type 映射。
