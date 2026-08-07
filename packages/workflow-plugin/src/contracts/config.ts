@@ -7,6 +7,12 @@ import {
   type PluginNodeDefinition,
 } from './node'
 
+/**
+ * 插件权限，在安装插件的时候提示：
+ * 1、web:execute：如果插件包含自定义的前端代码，安装时提示风险，并决定是否加载 Web Remote。
+ * 2、network:public：插件沙箱需要访问公网。未声明时，沙箱禁止公网请求。
+ * 3、secrets:read：是否允许插件读取到工作流的env变量中的密钥
+ */
 export const PLUGIN_PERMISSION_VALUES = ['web:execute', 'network:public', 'secrets:read'] as const
 
 export type PluginPermission = (typeof PLUGIN_PERMISSION_VALUES)[number]
