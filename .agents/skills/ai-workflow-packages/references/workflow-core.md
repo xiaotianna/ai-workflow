@@ -19,6 +19,10 @@ import {
   HTTP_RESPONSE_OUTPUT_KEY,
   workflowSchema,
   nodeRegistry,
+  createBuiltinNodeRegistry,
+  createBuiltinWorkflowNodeCatalog,
+  createWorkflowNodeCatalog,
+  NodeRegistryBuilder,
   CONDITION_LOGICAL_OPERATOR_KINDS,
   CONDITION_LOGICAL_OPERATOR_OPTIONS,
   CONDITION_OPERATOR_KINDS,
@@ -44,6 +48,9 @@ import {
   type ConditionRules,
   type NodeFormSchema,
   type NodeVariableForm,
+  type NodeRegistryReader,
+  type WorkflowNodeCatalog,
+  type WorkflowPluginLock,
   type WorkflowEnvironmentVariable,
   type SystemVariableDefinition,
   type SystemVariableKey,
@@ -68,7 +75,13 @@ Nodes UI 保持 schema 和组件类型关联。
   `VariableValue`，缺省时由执行器返回同名字段，存在时由 Runtime 解析直接值或上游变量并覆盖
   该输出；字段保持可选以兼容旧工作流、Start 输入和执行器原生输出。
 - `workflowEdgeSchema` 校验节点与端口引用，并禁止节点连接自身。
-- `NodeRegistry` 管理节点类型，重复注册会抛错。
+- `NodeRegistryBuilder` 负责装配节点，重复注册会抛错；`build()` 返回不暴露注册方法的
+  `NodeRegistryReader`。Web、Server 和纯工具函数只消费 Reader，不能在编辑器挂载或运行开始后
+  修改节点集合。`NodeRegistry` 与全局 `nodeRegistry` 只保留为兼容 API，新代码禁止直接依赖。
+- `createWorkflowNodeCatalog()` 根据宿主版本、排序后的节点类型和 `WorkflowPluginLock` 生成稳定
+  fingerprint，并冻结插件锁与 Catalog；内置两端统一从 `createBuiltinWorkflowNodeCatalog()`
+  获取相同 fingerprint，插件 Catalog 必须新建，不能修改已存在实例。内置节点集合或装配适配规则
+  发生变化时必须同步递增 `BUILTIN_WORKFLOW_NODE_CATALOG_VERSION`，防止复用旧 fingerprint。
 - `supportsSingleNodeTestRun(nodeType)` 判定节点是否允许 `SINGLE_NODE` 测试运行；Start、End、
   Loop、Loop Start、Loop Exit、Sub Workflow 返回 `false`。Web `canRunNode` 与 Server 单节点入口
   必须复用该函数，不得各自维护拒绝列表。
@@ -214,7 +227,8 @@ Nodes UI 保持 schema 和组件类型关联。
    实现 `createInitialInputs()` / `createInitialOutputs()`，配置模板需要变量名时从
    `createInitialConfig(variables)` 的参数读取。
 6. 动态端口通过 `resolvePorts(parsedConfig)` 生成，端口 id 必须与 edge handle 稳定对应。
-7. 在 `BuiltinNodeType`、`builtinNodeStrategies` 和 `nodeRegistry` 中登记正式内置节点。
+7. 在 `BuiltinNodeType` 与 `builtinNodeStrategies` 中登记正式内置节点；内置 Catalog 工厂会据此装配
+   只读 Registry，不直接修改兼容 `nodeRegistry`。
 8. 如果节点需要专属界面，同步更新 `@ai-workflow/nodes-ui`。
 9. 默认变量区满足需求时不声明 `NodeType.variableForm`；需要自定义时只声明实际显示的方向，
    缺少的方向不渲染且不写 `null`，不在 Web 中按节点类型维护另一份映射。
@@ -225,8 +239,9 @@ Nodes UI 保持 schema 和组件类型关联。
 const parsed = workflowSchema.safeParse(rawWorkflow)
 if (!parsed.success) return parsed.error.issues
 
-const saveIssues = validateWorkflow(parsed.data, nodeRegistry)
-const runIssues = validateExecutorWorkflow(parsed.data, nodeRegistry)
+const catalog = createBuiltinWorkflowNodeCatalog()
+const saveIssues = validateWorkflow(parsed.data, catalog.nodeRegistry)
+const runIssues = validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)
 ```
 
 - `validateWorkflow` 用于编辑和保存，允许必填端口暂未连接，也不检查环。

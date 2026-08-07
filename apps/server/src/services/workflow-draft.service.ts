@@ -15,11 +15,15 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common'
-import { nodeRegistry, validateWorkflow } from '@ai-workflow/core'
+import { validateWorkflow } from '@ai-workflow/core'
+import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
 
 @Injectable()
 export class WorkflowDraftService {
-  constructor(private readonly workflowDraftRepository: WorkflowDraftRepository) {}
+  constructor(
+    private readonly workflowDraftRepository: WorkflowDraftRepository,
+    private readonly workflowCatalogResolver: WorkflowCatalogResolver,
+  ) {}
 
   async get(ownerId: string, appId: string): Promise<WorkflowDraftVo> {
     const app = await this.workflowDraftRepository.findOwned(ownerId, appId)
@@ -37,7 +41,11 @@ export class WorkflowDraftService {
     if (!submittedDefinition) {
       throw new BadRequestException('工作流定义格式无效')
     }
-    const issues = validateWorkflow(submittedDefinition, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
+      ownerId,
+      submittedDefinition,
+    )
+    const issues = validateWorkflow(submittedDefinition, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流定义格式无效')
     }

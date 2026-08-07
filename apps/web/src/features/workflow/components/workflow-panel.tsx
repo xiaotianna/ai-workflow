@@ -10,7 +10,6 @@ import {
   type WorkflowNode,
 } from '@ai-workflow/core'
 import type { AvailableVariableOption } from '@ai-workflow/form/components/node-variable-section'
-import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { WorkflowShortcutHelp } from './workflow-shortcut-help'
 import type { RefObject } from 'react'
@@ -30,7 +29,6 @@ interface WorkflowPanelProps {
   canRedo: boolean
   canUndo: boolean
   checkListIssues: readonly WorkflowCheckListIssue[]
-  configRenderers?: NodeConfigRendererMap
   environmentVariables: readonly WorkflowEnvironmentVariable[]
   nodes: readonly WorkflowNode[]
   nextStepSourceNodeId?: string
@@ -113,7 +111,6 @@ export const WorkflowPanel = ({
   canRedo,
   canUndo,
   checkListIssues,
-  configRenderers,
   environmentVariables,
   nodes,
   nextStepSourceNodeId,
@@ -272,7 +269,6 @@ export const WorkflowPanel = ({
                     key={selectedNode.id}
                     appId={appId}
                     node={selectedNode}
-                    configRenderers={configRenderers}
                     defaultLabel={selectedNodeDefaultLabel}
                     availableVariables={selectedNodeAvailableVariables}
                     nextStepDisabled={!selectedNodeCanAddNextNode}

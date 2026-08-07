@@ -1,4 +1,4 @@
-import { NodeRegistry } from '../node'
+import type { NodeRegistryReader } from '../node'
 import type { Workflow } from '../workflow/workflow-schema'
 import { validateAcyclicWorkflow } from './validate-cycle'
 import { validateEdges } from './validate-edge'
@@ -22,7 +22,7 @@ interface WorkflowValidationResult {
 // 统一基础校验入口，负责依次校验所有节点和边，并收集校验结果
 const collectWorkflowValidationResult = (
   workflow: Workflow,
-  registry: NodeRegistry,
+  registry: NodeRegistryReader,
 ): WorkflowValidationResult => {
   const issues: WorkflowValidationIssue[] = []
   const report: ReportValidationIssueFn = (issue) => issues.push(issue)
@@ -45,13 +45,13 @@ const collectWorkflowValidationResult = (
 // 校验编辑、保存阶段已经存在的节点和连线
 export const validateWorkflow = (
   workflow: Workflow,
-  registry: NodeRegistry, // 采用参数传入是为了后续可以扩展插件节点
+  registry: NodeRegistryReader, // 采用参数传入是为了后续可以扩展插件节点
 ): WorkflowValidationIssue[] => collectWorkflowValidationResult(workflow, registry).issues
 
 // 执行完整校验，并追加必填输入和循环依赖规则
 export const validateExecutorWorkflow = (
   workflow: Workflow,
-  registry: NodeRegistry,
+  registry: NodeRegistryReader,
 ): WorkflowValidationIssue[] => {
   const result = collectWorkflowValidationResult(workflow, registry)
   const report: ReportValidationIssueFn = (issue) => {

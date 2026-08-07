@@ -1,5 +1,4 @@
 import { Button } from '@ai-workflow/ui/components/button'
-import { nodeRegistry } from '@ai-workflow/core'
 import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
 import {
   MiniMap,
@@ -11,6 +10,7 @@ import {
 import { Minus, Plus } from 'lucide-react'
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
+import { useWorkflowCatalog } from '../../catalog/workflow-web-catalog'
 
 const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2]
 
@@ -24,6 +24,7 @@ const WorkflowMiniMapNode = ({
   x,
   y,
 }: MiniMapNodeProps) => {
+  const { nodeRegistry } = useWorkflowCatalog()
   const internalNode = useInternalNode<WorkflowCanvasNode>(id)
   const nodeType = internalNode?.internals.userNode.type
   const icon = nodeType ? nodeRegistry.get(nodeType)?.definition.icon : undefined

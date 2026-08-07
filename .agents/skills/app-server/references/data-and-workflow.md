@@ -144,14 +144,21 @@
 ## 工作流入口
 
 1. 对外部原始数据调用 `workflowSchema.safeParse()`。
-2. 保存或编辑场景调用 `validateWorkflow(parsed.data, registry)`。
-3. 执行前调用 `validateExecutorWorkflow(parsed.data, registry)`，不先重复调用保存校验。
-4. 只有校验无问题后才持久化为有效版本或交给 runtime。
-5. Runtime 的 ExecutionPlan 只从已验证快照建立查询索引；Server 不依赖 Compiler 再做一次静态
+2. 使用 `WorkflowCatalogResolver.resolveForWorkflow(ownerId, parsed.data)` 获取当前工作流不可变
+   `WorkflowServerCatalog`；当前空插件锁返回内置 Catalog，后续插件锁解析仍只扩展该入口。
+3. 保存或编辑场景调用 `validateWorkflow(parsed.data, catalog.nodeRegistry)`。
+4. 执行前调用 `validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)`，不先重复调用保存校验。
+5. Runtime 只使用 `catalog.configProjectors.createResolver()`；所有可派发内置节点都显式登记 projector，
+   禁止对未登记节点回退到 `projectStaticJsonNodeConfig`。
+6. 创建 Outbox 前把同一 Catalog 的 `executionRegistry` 传给
+   `WorkflowExecutionRoutingService.resolve()`；Routing Service 只应用 legacy/classified 部署策略与
+   enabled class 白名单，不导入 `BuiltinNodeType` 或维护节点路由表。
+7. 只有校验无问题后才持久化为有效版本或交给 runtime。
+8. Runtime 的 ExecutionPlan 只从已验证快照建立查询索引；Server 不依赖 Compiler 再做一次静态
    Workflow 校验。缺失的静态执行规则回到 Core 增加。
-6. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
-7. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
-8. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
+9. 保留工作流版本和节点类型版本的演进空间，不在执行器中修改已保存定义。
+10. 当前运行触发方式不包含定时调度；`WorkflowRunTrigger` 只记录 API、手动、测试和子工作流触发。
+11. `WorkflowRun.mode` 区分完整运行与单节点运行；`SINGLE_NODE` 时由应用服务保证 `targetNodeId` 存在，`FULL` 时保持为空。
 
 应用调用日志以 `WorkflowRun` 为统一事实来源，从而同时覆盖 API 和子工作流调用；`ApiCallLog` 只
 记录 HTTP API 请求审计，不能代替运行日志。日志查询通过版本来源 `PUBLISH` 与触发方式

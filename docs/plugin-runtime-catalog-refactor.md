@@ -2,13 +2,18 @@
 
 ## 1. 文档状态
 
-- 状态：方案设计，待分阶段实施
+- 状态：内置 Catalog 等价迁移已实施；插件锁、manifest 与远程 UI 合并待后续接入
 - 基线日期：2026-08-07
 - 适用范围：Workflow Core、Web 编辑器、Server 校验与执行路由
 - 目标：把 Web 与 Server 对全局 `nodeRegistry` 和内置路由表的直接依赖，统一收敛为按工作流插件锁构建的不可变运行时目录
 
 本文只描述现有节点体系的装配和注入重构，不重新定义 `NodeType`、`NodeRegistry`、
 `NodeUIRegistry`、表单协议或 Runtime 状态机。
+
+截至 2026-08-07，Core 只读 Registry/Builder 与 fingerprint、Web Catalog Provider/动态
+`nodeTypes`、Server Catalog Resolver/projector/执行注册表已经落地；当前 Workflow schema 尚未加入
+插件锁，因此两端 Resolver 仍返回空插件锁对应的内置 Catalog。后续插件开发应扩展现有工厂与 Resolver，
+不得恢复全局 singleton、静态 React Flow 类型表或 Routing Service 节点映射。
 
 ## 2. 核心结论
 

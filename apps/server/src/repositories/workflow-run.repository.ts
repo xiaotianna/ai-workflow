@@ -625,6 +625,7 @@ export class WorkflowRunRepository {
             runtimeState: true,
             runtimeRevision: true,
             workflowVersionId: true,
+            workflow: { select: { app: { select: { ownerId: true } } } },
             version: { select: { definition: true } },
           },
         },

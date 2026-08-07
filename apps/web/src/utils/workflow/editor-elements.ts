@@ -7,7 +7,7 @@ import {
   BuiltinNodeType,
   getNodePorts,
   normalizeNodeOutputs,
-  nodeRegistry,
+  type NodeRegistryReader,
   type WorkflowEdge,
   type WorkflowNode,
 } from '@ai-workflow/core'
@@ -42,6 +42,7 @@ function formatNodeDefaultLabel(defaultLabel: string, index: number): string {
 export function getCanvasNodeDefaultLabel(
   nodeId: string,
   nodes: readonly WorkflowCanvasNode[],
+  nodeRegistry: NodeRegistryReader,
 ): string | undefined {
   const node = nodes.find((candidate) => candidate.id === nodeId)
 
@@ -74,6 +75,7 @@ export function getCanvasNodeDefaultLabel(
 function getNextNodeLabel(
   type: string,
   existingNodes: readonly WorkflowCanvasNode[],
+  nodeRegistry: NodeRegistryReader,
 ): string | undefined {
   const defaultLabel = nodeRegistry.getOrThrow(type).definition.label
   const sameTypeNodes = existingNodes.filter((node) => node.type === type)
@@ -97,9 +99,10 @@ const createCanvasNode = (
   type: string,
   position: XYPosition,
   existingNodes: readonly WorkflowCanvasNode[],
+  nodeRegistry: NodeRegistryReader,
 ): WorkflowCanvasNode => {
   const nodeType = nodeRegistry.getOrThrow(type)
-  const label = getNextNodeLabel(type, existingNodes)
+  const label = getNextNodeLabel(type, existingNodes, nodeRegistry)
   const inputs = nodeType.createInitialInputs?.() ?? {}
   const outputs = normalizeNodeOutputs(
     nodeType.createInitialOutputs?.() ?? [],
@@ -153,6 +156,7 @@ export const removeEdgesConnectedToNodes = (
 export const removeDanglingEdges = (
   node: WorkflowNode,
   edges: readonly WorkflowEdge[],
+  nodeRegistry: NodeRegistryReader,
 ): WorkflowEdge[] => {
   // 找到该节点，如果节点不存在，不处理边
   const nodeType = nodeRegistry.get(node.type)
@@ -241,17 +245,19 @@ const createLoopCanvasNodes = ({
   parentId,
   parentSize,
   existingNodes,
+  nodeRegistry,
 }: {
   position: XYPosition
   parentId?: string
   parentSize?: { width: number; height: number }
   existingNodes: readonly WorkflowCanvasNode[]
+  nodeRegistry: NodeRegistryReader
 }): [WorkflowCanvasNode, WorkflowCanvasNode, WorkflowCanvasNode] => {
   const loopId = generateUuid()
   const loopChildExtent = getLoopChildExtent(DEFAULT_LOOP_SIZE)
-  const loopLabel = getNextNodeLabel(BuiltinNodeType.LOOP, existingNodes)
-  const loopStartLabel = getNextNodeLabel(BuiltinNodeType.LOOP_START, existingNodes)
-  const loopExitLabel = getNextNodeLabel(BuiltinNodeType.LOOP_EXIT, existingNodes)
+  const loopLabel = getNextNodeLabel(BuiltinNodeType.LOOP, existingNodes, nodeRegistry)
+  const loopStartLabel = getNextNodeLabel(BuiltinNodeType.LOOP_START, existingNodes, nodeRegistry)
+  const loopExitLabel = getNextNodeLabel(BuiltinNodeType.LOOP_EXIT, existingNodes, nodeRegistry)
 
   // 创建loop节点
   const loopNode: WorkflowCanvasNode = {
@@ -325,18 +331,26 @@ export const createCanvasNodes = ({
   parentId,
   parentSize,
   existingNodes,
+  nodeRegistry,
 }: {
   type: string
   position: XYPosition
   parentId?: string
   parentSize?: { width: number; height: number }
   existingNodes: readonly WorkflowCanvasNode[]
+  nodeRegistry: NodeRegistryReader
 }): [WorkflowCanvasNode, ...WorkflowCanvasNode[]] => {
   if (type === BuiltinNodeType.LOOP) {
-    return createLoopCanvasNodes({ position, parentId, parentSize, existingNodes })
+    return createLoopCanvasNodes({
+      position,
+      parentId,
+      parentSize,
+      existingNodes,
+      nodeRegistry,
+    })
   }
 
-  const node = createCanvasNode(type, position, existingNodes)
+  const node = createCanvasNode(type, position, existingNodes, nodeRegistry)
 
   if (!parentId) {
     return [node]

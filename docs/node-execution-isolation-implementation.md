@@ -11,6 +11,8 @@
 
 - 已实现分类 Command Queue/DLQ、Outbox 固定执行类别与 Routing Key；默认 `legacy`，显式切换
   `classified` 后启用分类路由；
+- 节点到执行类别的登记已移入不可变 `WorkflowServerCatalog.executionRegistry`；Routing Service
+  只应用部署模式与启用类别策略，不再导入内置节点类型或维护静态路由表；
 - 已实现 Go `legacy/compute/model/http/sandbox` Profile 和 Profile Registry 白名单；
 - 已实现 Code `process/remote` Runner、远程 Controller 请求/结果边界和生产拒绝降级开关，具体边界见
   [远程沙箱调用实现状态](./remote-sandbox-call-implementation-status.md)；

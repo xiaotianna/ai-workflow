@@ -2,7 +2,7 @@ import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/wo
 import { Background, ConnectionLineType, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import { useWorkflowEditor } from '../hooks/use-workflow-editor'
 import { ERROR_HANDLING_PORT_ID, type WorkflowEdge } from '@ai-workflow/core'
-import { workflowNodeTypes } from '@/components/workflow/workflow-nodes'
+import { createWorkflowNodeTypes } from '@/components/workflow/workflow-nodes'
 import { WorkflowPanel } from './workflow-panel'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import '@xyflow/react/dist/style.css'
@@ -24,7 +24,6 @@ import { WorkflowModelCatalogProvider } from '@/components/workflow/workflow-mod
 import { WorkflowKnowledgeBaseCatalogProvider } from '@/components/workflow/workflow-knowledge-base-catalog-context'
 import { WorkflowStudioAppCatalogProvider } from '@/components/workflow/workflow-studio-app-catalog-context'
 import { WorkflowEnvironmentVariablesProvider } from '@/components/workflow/workflow-environment-variables-context'
-import type { NodeConfigRendererMap } from '@ai-workflow/form/components/node-config-section'
 import type { WorkflowAuxiliaryPanelType } from './workflow-auxiliary-panel'
 import {
   appendWorkflowNodeDraftValidationIssues,
@@ -41,6 +40,12 @@ import type {
   WorkflowTestRunRequest,
   WorkflowTestRunResult,
 } from '../hooks/use-workflow-test-run'
+import {
+  builtinWorkflowWebCatalog,
+  WorkflowCatalogProvider,
+  type WorkflowWebCatalog,
+  useWorkflowCatalog,
+} from '../catalog/workflow-web-catalog'
 
 const EMPTY_NODE_EXECUTION_STATUSES: WorkflowNodeExecutionStatuses = {}
 
@@ -55,7 +60,6 @@ function WorkflowExecutionCamera({
 
 interface WorkflowEditorProps {
   applicationMetadata?: WorkflowApplicationMetadata
-  configRenderers?: NodeConfigRendererMap
   initialSavedAt?: Date
   initialSnapshot: WorkflowEditorSnapshot
   disabled?: boolean
@@ -80,7 +84,6 @@ interface WorkflowEditorProps {
 
 export function WorkflowEditor({
   applicationMetadata,
-  configRenderers,
   initialSavedAt,
   initialSnapshot,
   disabled = false,
@@ -102,6 +105,7 @@ export function WorkflowEditor({
   testRunPending = false,
   nodeExecutionStatuses = EMPTY_NODE_EXECUTION_STATUSES,
 }: WorkflowEditorProps) {
+  const catalog = useWorkflowCatalog()
   const canvasRef = useRef<HTMLDivElement>(null)
   const addNodeButtonRef = useRef<HTMLButtonElement>(null)
   const [hoveredNodeId, setHoveredNodeId] = useState<string>()
@@ -112,10 +116,19 @@ export function WorkflowEditor({
   const [lastRunRefreshKey, setLastRunRefreshKey] = useState(0)
   const [focusLastRunTabKey, setFocusLastRunTabKey] = useState(0)
   const wasTestRunPendingRef = useRef(false)
-  const editor = useWorkflowEditor({ canvasRef, initialSnapshot })
+  const editor = useWorkflowEditor({ canvasRef, initialSnapshot, catalog })
+  const observedNodeTypesKey = [...new Set(editor.nodes.map((node) => node.type))].sort().join('\0')
+  const workflowNodeTypes = useMemo(
+    () =>
+      createWorkflowNodeTypes(
+        catalog.nodeRegistry,
+        observedNodeTypesKey ? observedNodeTypesKey.split('\0') : [],
+      ),
+    [catalog.fingerprint, observedNodeTypesKey],
+  )
   const persistedCheckListIssues = useMemo(
-    () => createWorkflowCheckListIssues(editor.workflow),
-    [editor.workflow],
+    () => createWorkflowCheckListIssues(editor.workflow, catalog.nodeRegistry),
+    [catalog.fingerprint, editor.workflow],
   )
   const checkListIssues = appendWorkflowNodeDraftValidationIssues(
     persistedCheckListIssues,
@@ -123,6 +136,7 @@ export function WorkflowEditor({
       ? editor.selectedNode
       : undefined,
     editor.nodeDraftValidationIssues?.messages ?? [],
+    catalog.nodeRegistry,
   )
   const save = useWorkflowSave({
     dirty: editor.dirty,
@@ -130,6 +144,7 @@ export function WorkflowEditor({
     snapshot: editor.createSnapshot(),
     onSave,
     onSaved: editor.markSaved,
+    nodeRegistry: catalog.nodeRegistry,
   })
   const navigationGuard = useWorkflowNavigationGuard(save.hasPendingSave)
   const nodePicker = useWorkflowNodePicker({
@@ -153,6 +168,7 @@ export function WorkflowEditor({
     testRunCanPause,
     testRunPausing,
     testRunPending,
+    catalog,
   })
   const contextMenu = useWorkflowContextMenu({
     editor,
@@ -449,7 +465,6 @@ export function WorkflowEditor({
                           canRedo={editor.canRedo}
                           canUndo={editor.canUndo}
                           checkListIssues={checkListIssues}
-                          configRenderers={configRenderers}
                           environmentVariables={editor.environmentVariables}
                           nodes={editor.workflow.nodes}
                           addNodeOpen={disabled ? false : nodePicker.open}
@@ -542,10 +557,15 @@ export function WorkflowEditor({
   )
 }
 
-export const WorkflowEditorProvider = (props: WorkflowEditorProps) => {
+export const WorkflowEditorProvider = ({
+  catalog = builtinWorkflowWebCatalog,
+  ...props
+}: WorkflowEditorProps & { catalog?: WorkflowWebCatalog }) => {
   return (
     <ReactFlowProvider>
-      <WorkflowEditor {...props} />
+      <WorkflowCatalogProvider catalog={catalog}>
+        <WorkflowEditor key={catalog.fingerprint} {...props} />
+      </WorkflowCatalogProvider>
     </ReactFlowProvider>
   )
 }

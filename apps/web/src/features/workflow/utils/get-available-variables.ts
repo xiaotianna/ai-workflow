@@ -3,6 +3,7 @@ import {
   getEnvironmentVariableDataType,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
+  type NodeRegistryReader,
   type WorkflowEdge,
   type WorkflowEnvironmentVariable,
   type WorkflowNode,
@@ -58,11 +59,13 @@ export function getAvailableVariables({
   nodes,
   edges,
   environmentVariables,
+  nodeRegistry,
 }: {
   nodeId: string
   nodes: readonly WorkflowNode[]
   edges: readonly WorkflowEdge[]
   environmentVariables: readonly WorkflowEnvironmentVariable[]
+  nodeRegistry: NodeRegistryReader
 }): AvailableVariableOption[] {
   const upstreamNodeIds = collectUpstreamNodeIds(nodeId, edges)
   const environmentVariableOptions: AvailableVariableOption[] = environmentVariables.map(
@@ -89,7 +92,7 @@ export function getAvailableVariables({
   for (const node of nodes) {
     if (!upstreamNodeIds.has(node.id)) continue
 
-    const nodeLabel = getWorkflowNodeDisplayLabel(node)
+    const nodeLabel = getWorkflowNodeDisplayLabel(node, nodeRegistry)
     const outputs = new Map(
       node.outputs.map((output) => [
         output.key,

@@ -27,6 +27,7 @@ import { WorkflowRunEventStreamService } from '@/services/workflow-run-event-str
 import { WorkflowRunTimeoutScanner } from '@/services/workflow-run-timeout-scanner.service'
 import { WorkflowRunSseService } from '@/services/workflow-run-sse.service'
 import { WorkflowVersionService } from '@/services/workflow-version.service'
+import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
 import { Module } from '@nestjs/common'
 import { JwtModule } from './jwt.module'
 
@@ -64,6 +65,7 @@ import { JwtModule } from './jwt.module'
     WorkflowExecutionRoutingService,
     WorkflowOutboxPublisher,
     WorkflowResultConsumer,
+    WorkflowCatalogResolver,
   ],
 })
 export class StudioModule {}

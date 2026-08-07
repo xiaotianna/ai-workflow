@@ -1,14 +1,10 @@
 import { useStore, type NodeProps, type NodeTypes, type ReactFlowState } from '@xyflow/react'
 import type { WorkflowCanvasNode } from './types'
-import {
-  createBuiltinNodeUIRegistry,
-  RenderNode,
-  type ModelReferenceDisplayResolver,
-} from '@ai-workflow/nodes-ui'
+import { RenderNode, type ModelReferenceDisplayResolver } from '@ai-workflow/nodes-ui'
 import {
   BuiltinNodeType,
   ENVIRONMENT_VARIABLE_NAMESPACE,
-  nodeRegistry,
+  type NodeRegistryReader,
   type VariableReference,
   type WorkflowEnvironmentVariable,
 } from '@ai-workflow/core'
@@ -22,8 +18,8 @@ import { useWorkflowLoopEditorContext } from './workflow-loop-editor-context'
 import { LoopNodeResizeControl } from './loop-node-resize-control'
 import { useWorkflowEnvironmentVariables } from './workflow-environment-variables-context'
 import { modelProviderStrategies } from '@/features/models'
+import { useWorkflowCatalog } from '@/features/workflow/catalog/workflow-web-catalog'
 
-const nodeUIRegistry = createBuiltinNodeUIRegistry(nodeRegistry)
 const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
 
 const resolvePersistedModelReferenceDisplay: ModelReferenceDisplayResolver = (reference) => {
@@ -42,14 +38,20 @@ const resolvePersistedModelReferenceDisplay: ModelReferenceDisplayResolver = (re
   }
 }
 
-function selectNodeDisplayLabels(state: ReactFlowState): ReadonlyMap<string, string> {
+function selectNodeDisplayLabels(
+  state: ReactFlowState,
+  nodeRegistry: NodeRegistryReader,
+): ReadonlyMap<string, string> {
   return new Map(
     state.nodes.map((node) => [
       node.id,
-      getWorkflowNodeDisplayLabel({
-        type: node.type ?? node.id,
-        label: typeof node.data.label === 'string' ? node.data.label : undefined,
-      }),
+      getWorkflowNodeDisplayLabel(
+        {
+          type: node.type ?? node.id,
+          label: typeof node.data.label === 'string' ? node.data.label : undefined,
+        },
+        nodeRegistry,
+      ),
     ]),
   )
 }
@@ -147,12 +149,13 @@ function WorkflowNodeActionTrigger({ selected }: WorkflowNodeActionTriggerProps)
 
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   const { data, id, parentId, selected, type } = props
+  const catalog = useWorkflowCatalog()
   const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
   const environmentVariables = useWorkflowEnvironmentVariables()
   const nodeDisplayLabels = useStore(
     (state) =>
       type === BuiltinNodeType.CONDITION
-        ? selectNodeDisplayLabels(state)
+        ? selectNodeDisplayLabels(state, catalog.nodeRegistry)
         : EMPTY_NODE_DISPLAY_LABELS,
     nodeDisplayLabelsEqual,
   )
@@ -172,8 +175,8 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
           outputs: data.outputs,
           parentId,
         }}
-        nodeRegistry={nodeRegistry}
-        uiRegistry={nodeUIRegistry}
+        nodeRegistry={catalog.nodeRegistry}
+        uiRegistry={catalog.nodeUIRegistry}
         selected={selected}
         disabled={disabled}
         renderPort={(portProps) => <WorkflowNodeHandle {...portProps} />}
@@ -208,8 +211,14 @@ const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
   )
 }
 
-// 动态注册react flow需要的node节点（nodeTypes）
-export const workflowNodeTypes = nodeRegistry.list().reduce<NodeTypes>((nodeTypes, nodeType) => {
-  nodeTypes[nodeType.definition.type] = WorkflowNode
-  return nodeTypes
-}, {})
+export function createWorkflowNodeTypes(
+  nodeRegistry: NodeRegistryReader,
+  observedNodeTypes: Iterable<string> = [],
+): NodeTypes {
+  const nodeTypes = new Set([
+    ...nodeRegistry.list().map((nodeType) => nodeType.definition.type),
+    ...observedNodeTypes,
+  ])
+
+  return Object.fromEntries([...nodeTypes].map((type) => [type, WorkflowNode]))
+}

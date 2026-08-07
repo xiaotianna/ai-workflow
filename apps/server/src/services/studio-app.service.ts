@@ -13,7 +13,8 @@ import {
   type WorkflowLayout,
 } from '@/utils/workflow-draft'
 import type { StudioAppDslExport, StudioAppListVo, StudioAppVo } from '@/vo/studio.vo'
-import { nodeRegistry, validateWorkflow, type Workflow } from '@ai-workflow/core'
+import { validateWorkflow, type Workflow } from '@ai-workflow/core'
+import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
 import {
   BadRequestException,
   Injectable,
@@ -33,7 +34,10 @@ const DEFAULT_STUDIO_APP_ICON = '🤖'
 
 @Injectable()
 export class StudioAppService {
-  constructor(private readonly studioAppRepository: StudioAppRepository) {}
+  constructor(
+    private readonly studioAppRepository: StudioAppRepository,
+    private readonly workflowCatalogResolver: WorkflowCatalogResolver,
+  ) {}
 
   async list(ownerId: string, query: ListStudioAppsDto): Promise<StudioAppListVo> {
     const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
@@ -83,7 +87,12 @@ export class StudioAppService {
       outputs: [],
       environmentVariables: [],
     }
-    const definition = this.parseWorkflowDefinition(rawDefinition, '初始化工作流草稿结构无效', true)
+    const definition = await this.parseWorkflowDefinition(
+      ownerId,
+      rawDefinition,
+      '初始化工作流草稿结构无效',
+      true,
+    )
     const app = await this.studioAppRepository.create({
       appId,
       workflowId,
@@ -103,7 +112,8 @@ export class StudioAppService {
   async importDsl(ownerId: string, dto: ImportStudioAppDslDto): Promise<StudioAppVo> {
     const appId = randomUUID()
     const workflowId = randomUUID()
-    const importedDefinition = this.parseWorkflowDefinition(
+    const importedDefinition = await this.parseWorkflowDefinition(
+      ownerId,
       dto.workflow.definition,
       'DSL 工作流定义格式无效',
     )
@@ -146,7 +156,8 @@ export class StudioAppService {
       new Set(existingNames.map(({ name }) => name)),
     )
     const workflowId = randomUUID()
-    const sourceDefinition = this.parseWorkflowDefinition(
+    const sourceDefinition = await this.parseWorkflowDefinition(
+      ownerId,
       sourceDraft.definition,
       '工作流草稿结构无效，无法复制',
       true,
@@ -213,7 +224,8 @@ export class StudioAppService {
       throw new NotFoundException('应用还没有可导出的工作流草稿')
     }
 
-    const definition = this.parseWorkflowDefinition(
+    const definition = await this.parseWorkflowDefinition(
+      ownerId,
       draft.definition,
       '工作流草稿结构无效，无法导出',
       true,
@@ -244,14 +256,16 @@ export class StudioAppService {
     }
   }
 
-  private parseWorkflowDefinition(
+  private async parseWorkflowDefinition(
+    ownerId: string,
     rawDefinition: unknown,
     errorMessage: string,
     internalError = false,
-  ): Workflow {
+  ): Promise<Workflow> {
     const definition =
       parseWorkflowDefinition(rawDefinition) ?? this.throwInvalidDsl(errorMessage, internalError)
-    const issues = validateWorkflow(definition, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, definition)
+    const issues = validateWorkflow(definition, catalog.nodeRegistry)
     if (issues.length > 0) {
       this.throwInvalidDsl(issues[0]?.message ?? errorMessage, internalError)
     }

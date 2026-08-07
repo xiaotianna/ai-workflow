@@ -2,8 +2,8 @@ import {
   BuiltinNodeType,
   ERROR_HANDLING_PORT_ID,
   getNodePorts,
-  nodeRegistry,
   supportsSingleNodeTestRun,
+  type NodeRegistryReader,
   type NodeType,
   type Workflow,
   type WorkflowEdge,
@@ -63,10 +63,12 @@ import {
 import { autoLayoutRootNodes, layoutInsertedNodeOnEdge } from '../utils/auto-layout'
 import { getNextLoopChildPosition } from '../utils/get-next-loop-child-position'
 import { isEnvironmentVariableReferenced } from '../utils/environment-variable-reference'
+import type { WorkflowWebCatalog } from '../catalog/workflow-web-catalog'
 
 interface UseWorkflowEditorOptions {
   canvasRef: RefObject<HTMLDivElement | null>
   initialSnapshot: WorkflowEditorSnapshot // 初始化快照数据（包含工作流数据+布局数据）
+  catalog: WorkflowWebCatalog
 }
 
 interface NodeDraftValidationIssues {
@@ -110,19 +112,17 @@ function canReceiveConnection(nodeType: NodeType) {
   }
 }
 
-const EDGE_INSERTION_UNAVAILABLE_NODE_TYPES: ReadonlySet<string> = new Set(
-  nodeRegistry
-    .list()
-    .filter((nodeType) => !canInsertNodeTypeOnEdge(nodeType))
-    .map((nodeType) => nodeType.definition.type),
-)
-
-const NEXT_NODE_UNAVAILABLE_NODE_TYPES: ReadonlySet<string> = new Set(
-  nodeRegistry
-    .list()
-    .filter((nodeType) => !canReceiveConnection(nodeType))
-    .map((nodeType) => nodeType.definition.type),
-)
+function getUnavailableNodeTypes(
+  nodeRegistry: NodeRegistryReader,
+  isAvailable: (nodeType: NodeType) => boolean,
+): ReadonlySet<string> {
+  return new Set(
+    nodeRegistry
+      .list()
+      .filter((nodeType) => !isAvailable(nodeType))
+      .map((nodeType) => nodeType.definition.type),
+  )
+}
 
 function getNodePlacementSize(type: string) {
   return type === BuiltinNodeType.LOOP ? DEFAULT_LOOP_SIZE : DEFAULT_NODE_PLACEMENT_SIZE
@@ -150,6 +150,7 @@ function getCanvasNodeSize(node: WorkflowCanvasNode) {
 function getAvailableOutputPortIds(
   node: WorkflowCanvasNode,
   edges: readonly WorkflowEdge[],
+  nodeRegistry: NodeRegistryReader,
   sourceHandle?: string,
 ): string[] {
   try {
@@ -185,6 +186,7 @@ function findReconnectedEdge(
   nodes: readonly WorkflowCanvasNode[],
   edges: readonly WorkflowEdge[],
   workflow: WorkflowEditorSnapshot['workflow'],
+  nodeRegistry: NodeRegistryReader,
 ): WorkflowEdge | undefined {
   const targetNodeType = nodeRegistry.get(targetNode.type)
   if (!targetNodeType) return undefined
@@ -197,7 +199,7 @@ function findReconnectedEdge(
   for (const targetHandle of targetHandleIds) {
     const candidateEdge = { ...edge, targetHandle }
 
-    if (canConnect(candidateEdge, workflow, nodes, edges)) return candidateEdge
+    if (canConnect(candidateEdge, workflow, nodes, edges, nodeRegistry)) return candidateEdge
   }
 
   return undefined
@@ -215,6 +217,7 @@ function getDisabledNodeTypes(nodes: readonly WorkflowCanvasNode[]): ReadonlySet
 function getBlockedSingleInstanceNodeLabels(
   payload: WorkflowClipboardPayload,
   disabledNodeTypes: ReadonlySet<string>,
+  nodeRegistry: NodeRegistryReader,
 ) {
   return [
     ...new Set(
@@ -242,9 +245,14 @@ function showBlockedSingleInstancePasteToast(nodeLabels: readonly string[]) {
  * 维护 Workflow 编辑会话并向视图暴露明确的状态和操作
  * Hook 必须在 ReactFlowProvider 内调用，因为它会刷新动态 Handle 布局
  */
-export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEditorOptions) {
+export function useWorkflowEditor({
+  canvasRef,
+  initialSnapshot,
+  catalog,
+}: UseWorkflowEditorOptions) {
+  const { nodeRegistry } = catalog
   const [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
-    toCanvasNodes(initialSnapshot),
+    toCanvasNodes(initialSnapshot, nodeRegistry),
   )
   const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
     ...initialSnapshot.workflow.edges,
@@ -334,7 +342,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     ? toWorkflowNode(selectedCanvasNode)
     : undefined
   const selectedNodeDefaultLabel = selectedCanvasNode
-    ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes)
+    ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes, nodeRegistry)
     : undefined
   const selectedNodeAvailableVariables = selectedNode
     ? getAvailableVariables({
@@ -342,12 +350,21 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
         nodes: nodes.map(toWorkflowNode),
         edges,
         environmentVariables,
+        nodeRegistry,
       })
     : []
   const disabledNodeTypes = getDisabledNodeTypes(nodes)
+  const edgeInsertionUnavailableNodeTypes = useMemo(
+    () => getUnavailableNodeTypes(nodeRegistry, canInsertNodeTypeOnEdge),
+    [catalog.fingerprint, nodeRegistry],
+  )
+  const nextNodeUnavailableNodeTypes = useMemo(
+    () => getUnavailableNodeTypes(nodeRegistry, canReceiveConnection),
+    [catalog.fingerprint, nodeRegistry],
+  )
   const edgeInsertionDisabledNodeTypes = new Set([
     ...disabledNodeTypes,
-    ...EDGE_INSERTION_UNAVAILABLE_NODE_TYPES,
+    ...edgeInsertionUnavailableNodeTypes,
   ])
 
   const loopEditor = useWorkflowLoopEditor({
@@ -357,6 +374,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     checkpointHistory: history.checkpoint,
     markDirty: () => setDirty(true),
     updateNodeInternals,
+    nodeRegistry,
   })
 
   /** 应用 React Flow 节点变更，并只对可持久化变化设置 dirty */
@@ -448,6 +466,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     const createdNodes = createCanvasNodes({
       type,
       existingNodes: nodes,
+      nodeRegistry,
       position: viewportCenter
         ? {
             x: viewportCenter.x - placementSize.width / 2,
@@ -471,7 +490,8 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     const sourceNode = nodes.find((node) => node.id === sourceNodeId)
 
     return Boolean(
-      sourceNode && getAvailableOutputPortIds(sourceNode, edges, sourceHandle).length > 0,
+      sourceNode &&
+      getAvailableOutputPortIds(sourceNode, edges, nodeRegistry, sourceHandle).length > 0,
     )
   }
 
@@ -485,7 +505,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       return new Set(nodeTypes.map((nodeType) => nodeType.definition.type))
     }
 
-    return new Set([...disabledNodeTypes, ...NEXT_NODE_UNAVAILABLE_NODE_TYPES])
+    return new Set([...disabledNodeTypes, ...nextNodeUnavailableNodeTypes])
   }
 
   function addConnectedNode(type: string, sourceNodeId: string, sourceHandle?: string) {
@@ -540,6 +560,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     const createdNodes = createCanvasNodes({
       type,
       existingNodes: nodes,
+      nodeRegistry,
       position,
       ...(sourceNode.parentId
         ? {
@@ -557,7 +578,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     }
 
     const inputPortIds = Object.keys(getNodePorts(addedNodeType, parsedAddedConfig.data).inputs)
-    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges, sourceHandle)
+    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges, nodeRegistry, sourceHandle)
     const nextNodes = [...nodes, ...createdNodes]
     let connection: Connection | undefined = undefined
 
@@ -570,7 +591,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
           targetHandle,
         }
 
-        if (canConnect(candidate, initialSnapshot.workflow, nextNodes, edges)) {
+        if (canConnect(candidate, initialSnapshot.workflow, nextNodes, edges, nodeRegistry)) {
           connection = candidate
           break
         }
@@ -618,6 +639,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     const createdNodes = createCanvasNodes({
       type,
       existingNodes: nodes,
+      nodeRegistry,
       position: {
         x: requestedCenter.x - placementSize.width / 2,
         y: requestedCenter.y - placementSize.height / 2,
@@ -645,7 +667,15 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       target: addedNode.id,
       targetHandle: inputPortId,
     }
-    if (!canConnect(incomingConnection, initialSnapshot.workflow, nextNodes, remainingEdges)) {
+    if (
+      !canConnect(
+        incomingConnection,
+        initialSnapshot.workflow,
+        nextNodes,
+        remainingEdges,
+        nodeRegistry,
+      )
+    ) {
       throw new Error('无法连接原上游节点与新增节点')
     }
 
@@ -661,10 +691,13 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       targetHandle: replacedEdge.targetHandle,
     }
     if (
-      !canConnect(outgoingConnection, initialSnapshot.workflow, nextNodes, [
-        ...remainingEdges,
-        incomingEdge,
-      ])
+      !canConnect(
+        outgoingConnection,
+        initialSnapshot.workflow,
+        nextNodes,
+        [...remainingEdges, incomingEdge],
+        nodeRegistry,
+      )
     ) {
       throw new Error('无法连接新增节点与原下游节点')
     }
@@ -694,7 +727,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
   // 连接事件，需要校验是否能够连接
   function handleConnect(connection: Connection) {
-    if (!canConnect(connection, initialSnapshot.workflow, nodes, edges)) return
+    if (!canConnect(connection, initialSnapshot.workflow, nodes, edges, nodeRegistry)) return
 
     const nextEdge = createWorkflowEdge(connection)
     if (!nextEdge) return
@@ -706,7 +739,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
 
   // 校验是否能够连接
   function isValidConnection(connection: Connection | WorkflowEdge) {
-    return canConnect(connection, initialSnapshot.workflow, nodes, edges)
+    return canConnect(connection, initialSnapshot.workflow, nodes, edges, nodeRegistry)
   }
 
   // 删除节点后，同步清理引用这些节点的边和选择态
@@ -847,7 +880,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   ) {
     if (options.notifyBlockedSingleInstance) {
       showBlockedSingleInstancePasteToast(
-        getBlockedSingleInstanceNodeLabels(payload, disabledNodeTypes),
+        getBlockedSingleInstanceNodeLabels(payload, disabledNodeTypes, nodeRegistry),
       )
     }
 
@@ -999,7 +1032,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     setDirty(true)
 
     if (configChanged) {
-      setEdges((currentEdges) => removeDanglingEdges(nextNode, currentEdges))
+      setEdges((currentEdges) => removeDanglingEdges(nextNode, currentEdges, nodeRegistry))
       requestAnimationFrame(() => updateNodeInternals(nextNode.id))
     }
   }
@@ -1029,10 +1062,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
   }
 
   function getConnectedReplacementDisabledNodeTypes(nodeId: string): ReadonlySet<string> {
-    return new Set([
-      ...getReplacementDisabledNodeTypes(nodeId),
-      ...NEXT_NODE_UNAVAILABLE_NODE_TYPES,
-    ])
+    return new Set([...getReplacementDisabledNodeTypes(nodeId), ...nextNodeUnavailableNodeTypes])
   }
 
   function canReplaceNode(nodeId: string) {
@@ -1097,6 +1127,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
     const createdNodes = createCanvasNodes({
       type,
       existingNodes: remainingNodes,
+      nodeRegistry,
       position: currentNode.position,
       ...(currentNode.parentId
         ? {
@@ -1129,7 +1160,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
           ? []
           : [node],
     )
-    let nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges)
+    let nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges, nodeRegistry)
 
     if (connectionSourceNodeId) {
       const connectedEdges = remainingEdges.filter(
@@ -1149,6 +1180,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       const validDisconnectedEdges = removeDanglingEdges(
         toWorkflowNode(nextRootNode),
         disconnectedEdges,
+        nodeRegistry,
       )
       const reconnectedEdge = findReconnectedEdge(
         connectedEdge,
@@ -1156,6 +1188,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
         nextNodes,
         validDisconnectedEdges,
         initialSnapshot.workflow,
+        nodeRegistry,
       )
 
       if (!reconnectedEdge) {
@@ -1244,7 +1277,7 @@ export function useWorkflowEditor({ canvasRef, initialSnapshot }: UseWorkflowEdi
       workflow: importedWorkflow,
       layout: snapshot.layout,
     }
-    const nextNodes = toCanvasNodes(nextSnapshot)
+    const nextNodes = toCanvasNodes(nextSnapshot, nodeRegistry)
 
     history.checkpoint()
     setNodes(nextNodes)

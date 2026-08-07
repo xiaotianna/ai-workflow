@@ -1,5 +1,6 @@
 import type { NodeType } from '../node/node-definition'
-import { NodeRegistry } from '../node/node-registry'
+import { createWorkflowNodeCatalog } from '../node/workflow-node-catalog'
+import type { NodeRegistryReader } from '../node/node-registry'
 import { BuiltinNodeType } from './builtin-node-types'
 import { codeNode } from './code'
 import { conditionNode } from './condition'
@@ -27,6 +28,20 @@ export const builtinNodeStrategies = {
   [BuiltinNodeType.SUB_WORKFLOW]: subWorkflowNode,
 } satisfies Record<BuiltinNodeType, NodeType>
 
-export const nodeRegistry = new NodeRegistry(Object.values(builtinNodeStrategies))
+export function createBuiltinNodeRegistry(): NodeRegistryReader {
+  return createBuiltinWorkflowNodeCatalog().nodeRegistry
+}
+
+export const BUILTIN_WORKFLOW_NODE_CATALOG_VERSION = 'workflow-core-builtin-v1'
+
+export function createBuiltinWorkflowNodeCatalog() {
+  return createWorkflowNodeCatalog({
+    hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+    nodes: Object.values(builtinNodeStrategies),
+  })
+}
+
+/** @deprecated 新代码应从工作流 Catalog 获取 Registry。 */
+export const nodeRegistry = createBuiltinNodeRegistry()
 
 export * from './loop'

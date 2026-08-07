@@ -1,4 +1,4 @@
-import { BuiltinNodeType, nodeRegistry, type WorkflowEdge } from '@ai-workflow/core'
+import { BuiltinNodeType, type NodeRegistryReader, type WorkflowEdge } from '@ai-workflow/core'
 import type { Dispatch, SetStateAction } from 'react'
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
@@ -21,6 +21,7 @@ interface UseWorkflowLoopEditorOptions {
   checkpointHistory: () => void
   markDirty: () => void
   updateNodeInternals: (nodeId: string) => void
+  nodeRegistry: NodeRegistryReader
 }
 
 /**
@@ -34,6 +35,7 @@ export function useWorkflowLoopEditor({
   checkpointHistory,
   markDirty,
   updateNodeInternals,
+  nodeRegistry,
 }: UseWorkflowLoopEditorOptions) {
   const availableNodeTypes = nodeRegistry
     .list()
@@ -70,6 +72,7 @@ export function useWorkflowLoopEditor({
       parentId: loopId,
       position: getNextLoopChildPosition(loopId, nodes),
       parentSize: getLoopNodeSize(parentLoop),
+      nodeRegistry,
     })
 
     checkpointHistory()

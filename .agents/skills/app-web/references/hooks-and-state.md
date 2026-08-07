@@ -163,6 +163,15 @@ function ExampleForm() {
 
 ## 工作流编辑器
 
+- 工作流节点能力统一由 `features/workflow/catalog/workflow-web-catalog.tsx` 的
+  `WorkflowWebCatalog` 装配；Catalog 同时持有 fingerprint、Core Reader、Node UI Reader、字段
+  renderer 和整节点配置 renderer。`WorkflowCatalogProvider` 位于 `ReactFlowProvider` 内且包住
+  `WorkflowEditor`，React 组件通过 `useWorkflowCatalog()` 消费；纯函数必须显式接收
+  `NodeRegistryReader`，禁止重新导入 Core 全局 `nodeRegistry`。
+- `WorkflowEditorProvider` 默认使用冻结的内置 Catalog，也允许调用方传入工作流专属 Catalog。
+  React Flow `nodeTypes` 只按 `catalog.fingerprint` 与画布中排序去重后的 node type 集合重建；
+  Catalog fingerprint 变化时通过 key 重挂编辑器。未知快照节点仍映射到通用 `WorkflowNode`，由
+  `RenderNode` 显示诊断外壳并保留原始数据。
 - 工作流自动保存由 `WorkflowEditor` 组件层编排：`useWorkflowEditor` 只维护编辑状态、历史与
   `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
   页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载

@@ -1,5 +1,5 @@
 import { getNodePorts } from '@ai-workflow/core'
-import type { NodeDefinition, NodeRegistry, WorkflowNode } from '@ai-workflow/core'
+import type { NodeDefinition, NodeRegistryReader, WorkflowNode } from '@ai-workflow/core'
 import type {
   ModelReferenceDisplayResolver,
   NodeEditorCapabilities,
@@ -8,14 +8,14 @@ import type {
   NodePortRender,
   VariableReferenceDisplayResolver,
 } from '../contracts/node-content'
-import type { NodeUIRegistry } from '../registry'
+import type { NodeUIRegistryReader } from '../registry'
 import { BaseNode, NodeContentList } from './base-node'
 import { DefaultNodeContent, hasDefaultNodeContent } from './default-node-content'
 
 export interface RenderNodeProps {
   node: Readonly<WorkflowNode>
-  nodeRegistry: NodeRegistry
-  uiRegistry: NodeUIRegistry
+  nodeRegistry: NodeRegistryReader
+  uiRegistry: NodeUIRegistryReader
   selected?: boolean
   disabled?: boolean
   onSelect?: (nodeId: string) => void

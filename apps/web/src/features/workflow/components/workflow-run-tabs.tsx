@@ -1,5 +1,5 @@
 import type { StudioWorkflowTestRunDto, StudioWorkflowTraceExecutionDto } from '@/api/studio'
-import { BuiltinNodeType, nodeRegistry, type WorkflowNode } from '@ai-workflow/core'
+import { BuiltinNodeType, type WorkflowNode } from '@ai-workflow/core'
 import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
 import { Tabs, TabsContent } from '@ai-workflow/ui/components/tabs'
 import { cn } from '@ai-workflow/ui/lib/utils'
@@ -9,6 +9,7 @@ import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState, type ReactNode } from 'react'
 
 import { WorkflowPanelTabsList, WorkflowPanelTabsTrigger } from './workflow-panel-tabs'
+import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
 
 export type WorkflowRunPanelTab = 'input' | 'result' | 'details' | 'trace'
 
@@ -164,7 +165,7 @@ function RunMetadata({ run }: { run: StudioWorkflowTestRunDto }) {
         {metadata.map(([label, metadataValue]) => (
           <div key={label} className="contents">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd className="text-foreground min-w-0 [overflow-wrap:anywhere]">{metadataValue}</dd>
+            <dd className="text-foreground min-w-0 wrap-anywhere">{metadataValue}</dd>
           </div>
         ))}
       </dl>
@@ -202,6 +203,7 @@ function TraceNodeItem({
   run: StudioWorkflowTestRunDto
 }) {
   const [expanded, setExpanded] = useState(false)
+  const { nodeRegistry } = useWorkflowCatalog()
   const status = execution.status
   const definition = nodeRegistry.get(node.type)?.definition
   const baseNodeLabel = node.label || definition?.label || node.type

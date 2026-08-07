@@ -35,7 +35,7 @@ import {
 
 ## 渲染流程
 
-1. `RenderNode` 从 Core `NodeRegistry` 查找节点类型。
+1. `RenderNode` 从 Core `NodeRegistryReader` 查找节点类型。
 2. 未知类型显示可诊断的默认节点，不让整个画布直接崩溃。
 3. 将节点实例的 `label` / `description` 覆盖到类型定义的默认展示文案，再使用 Core
    `getNodePorts` 解析静态或动态端口。
@@ -141,7 +141,8 @@ Sub Workflow 节点通过 `defineNodeUI(subWorkflowNode, SubWorkflowNodeContent)
 3. 普通内容使用 `defineNodeUI(coreNodeType, Component)`；完整外壳使用
    `defineNodeRendererUI(coreNodeType, Renderer)`，两者都保持配置类型关联。
 4. 加入内置 UI 注册列表，或由插件创建独立 `NodeUIRegistry`。
-5. 调用 `assertCompatible(coreRegistry)`，避免 UI 注册未知 Core 类型。
+5. `createBuiltinNodeUIRegistry(coreRegistry)` 必须显式接收当前 Catalog 的 Core Reader，并调用
+   `assertCompatible(coreRegistry)`，避免 UI 注册未知 Core 类型；不得默认回退到 Core singleton。
 6. 动态端口只从 Core `getNodePorts` 获取，不在 UI 中复制端口规则。
 7. Core definition 或 form 已声明的节点业务标签、说明和无障碍名称直接复用对应定义；
    Nodes UI 只自行维护搜索、删除、空状态和计数等纯界面文案。

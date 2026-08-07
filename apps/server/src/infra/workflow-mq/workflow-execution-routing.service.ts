@@ -1,56 +1,16 @@
 import { EXECUTOR_ENABLED_CLASSES, WORKFLOW_EXECUTOR_ROUTING_MODE } from '@/constant/env'
-import { BuiltinNodeType } from '@ai-workflow/core'
+import {
+  WORKFLOW_EXECUTION_CLASSES,
+  type WorkflowExecutionClass,
+  type WorkflowExecutionRegistry,
+} from '@/workflow-catalog/workflow-execution.registry'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import {
-  WORKFLOW_COMMAND_ROUTING_KEY,
-  WORKFLOW_COMPUTE_COMMAND_ROUTING_KEY,
-  WORKFLOW_HTTP_COMMAND_ROUTING_KEY,
-  WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-  WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
-} from './workflow-mq.constants'
-
-export const WORKFLOW_EXECUTION_CLASSES = {
-  RUNTIME_CONTROL: 'runtime-control',
-  TRUSTED_COMPUTE: 'trusted-compute',
-  CONTROLLED_MODEL: 'controlled-model',
-  CONTROLLED_HTTP: 'controlled-http',
-  UNTRUSTED_SANDBOX: 'untrusted-sandbox',
-} as const
-
-export type WorkflowExecutionClass =
-  (typeof WORKFLOW_EXECUTION_CLASSES)[keyof typeof WORKFLOW_EXECUTION_CLASSES]
+import { WORKFLOW_COMMAND_ROUTING_KEY } from './workflow-mq.constants'
 
 export interface WorkflowExecutionRoute {
   executionClass: WorkflowExecutionClass
   routingKey: string
-}
-
-const classifiedRoutes: Readonly<Record<string, WorkflowExecutionRoute>> = {
-  [BuiltinNodeType.CONDITION]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.TRUSTED_COMPUTE,
-    routingKey: WORKFLOW_COMPUTE_COMMAND_ROUTING_KEY,
-  },
-  [BuiltinNodeType.LLM]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
-    routingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-  },
-  [BuiltinNodeType.RAG]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
-    routingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-  },
-  [BuiltinNodeType.HTTP]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_HTTP,
-    routingKey: WORKFLOW_HTTP_COMMAND_ROUTING_KEY,
-  },
-  [BuiltinNodeType.CODE]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
-    routingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
-  },
-  [BuiltinNodeType.SUB_WORKFLOW]: {
-    executionClass: WORKFLOW_EXECUTION_CLASSES.RUNTIME_CONTROL,
-    routingKey: 'server.execute.sub-workflow',
-  },
 }
 
 @Injectable()
@@ -65,17 +25,30 @@ export class WorkflowExecutionRoutingService {
     )
   }
 
-  resolve(nodeType: string): WorkflowExecutionRoute {
-    const route = classifiedRoutes[nodeType]
-    if (!route) throw new Error(`节点类型 ${nodeType} 没有执行路由`)
-    if (route.executionClass === WORKFLOW_EXECUTION_CLASSES.RUNTIME_CONTROL) return route
-    if (!this.enabledClasses.has(route.executionClass)) {
-      throw new Error(`执行类别 ${route.executionClass} 当前未启用`)
+  resolve(nodeType: string, executionRegistry: WorkflowExecutionRegistry): WorkflowExecutionRoute {
+    const registration = executionRegistry.getOrThrow(nodeType)
+
+    if (registration.kind === 'unsupported') {
+      throw new Error(registration.reason)
+    }
+    if (registration.kind === 'runtime-control') {
+      throw new Error(`Runtime 控制节点 ${nodeType} 不应创建执行命令`)
+    }
+    if (registration.kind === 'server-control') {
+      return {
+        executionClass: WORKFLOW_EXECUTION_CLASSES.RUNTIME_CONTROL,
+        routingKey: registration.routingKey,
+      }
+    }
+    if (!this.enabledClasses.has(registration.executionClass)) {
+      throw new Error(`执行类别 ${registration.executionClass} 当前未启用`)
     }
 
     return {
-      executionClass: route.executionClass,
-      routingKey: this.classified ? route.routingKey : WORKFLOW_COMMAND_ROUTING_KEY,
+      executionClass: registration.executionClass,
+      routingKey: this.classified
+        ? registration.classifiedRoutingKey
+        : WORKFLOW_COMMAND_ROUTING_KEY,
     }
   }
 }

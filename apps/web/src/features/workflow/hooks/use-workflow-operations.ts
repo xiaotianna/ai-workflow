@@ -1,9 +1,4 @@
-import {
-  nodeRegistry,
-  validateExecutorWorkflow,
-  validateWorkflow,
-  workflowSchema,
-} from '@ai-workflow/core'
+import { validateExecutorWorkflow, validateWorkflow, workflowSchema } from '@ai-workflow/core'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { useState } from 'react'
 
@@ -17,6 +12,7 @@ import {
   parseWorkflowApplicationDsl,
   type WorkflowApplicationMetadata,
 } from '../utils/workflow-application-dsl'
+import type { WorkflowWebCatalog } from '../catalog/workflow-web-catalog'
 
 type WorkflowEditor = ReturnType<typeof useWorkflowEditor>
 
@@ -34,6 +30,7 @@ interface UseWorkflowOperationsOptions {
   testRunCanPause?: boolean
   testRunPausing?: boolean
   testRunPending?: boolean
+  catalog: WorkflowWebCatalog
 }
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -54,7 +51,9 @@ export function useWorkflowOperations({
   testRunCanPause = false,
   testRunPausing = false,
   testRunPending = false,
+  catalog,
 }: UseWorkflowOperationsOptions) {
+  const { nodeRegistry } = catalog
   const [importDialogOpen, setImportDialogOpen] = useState(false)
 
   function openSingleNodeTestRun(nodeId: string) {

@@ -1,6 +1,6 @@
 // 该文件用于校验node相关的内容，例如：id唯一、是否node已注册...
 
-import { getNodePorts, NodeRegistry } from '../node'
+import { getNodePorts, type NodeRegistryReader } from '../node'
 import type { NodeDefinition, NodeType, WorkflowNode } from '../node'
 import type {
   NodeValidationResult,
@@ -30,7 +30,7 @@ const validateUniqueNodeId = (
 // 校验节点是否注册
 const validateRegisteredNodeType = (
   node: WorkflowNode,
-  registry: NodeRegistry,
+  registry: NodeRegistryReader,
   report: ReportValidationIssueFn,
 ): NodeType | undefined => {
   // node完整实例
@@ -73,7 +73,7 @@ const validateNode = (
   node: WorkflowNode,
   nodeIds: Set<string>,
   portsByNodeId: NodeValidationResult['portsByNodeId'],
-  registry: NodeRegistry,
+  registry: NodeRegistryReader,
   report: ReportValidationIssueFn,
 ): void => {
   // 校验id是否唯一
@@ -98,7 +98,7 @@ const validateNode = (
 // 校验全部节点，并返回存在的节点和解析的端口
 export const validateNodes = (
   workflowNodes: readonly WorkflowNode[],
-  registry: NodeRegistry,
+  registry: NodeRegistryReader,
   report: ReportValidationIssueFn,
 ): NodeValidationResult => {
   const nodeIds = new Set<string>()

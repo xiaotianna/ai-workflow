@@ -1,9 +1,9 @@
 import {
   BuiltinNodeType,
   FIELD_UI_TYPES,
-  nodeRegistry,
   validateExecutorWorkflow,
   type FieldSchema,
+  type NodeRegistryReader,
   type Workflow,
   type WorkflowNode,
   type WorkflowValidationIssue,
@@ -21,6 +21,7 @@ export function appendWorkflowNodeDraftValidationIssues(
   issues: readonly WorkflowCheckListIssue[],
   node: WorkflowNode | undefined,
   messages: readonly string[],
+  nodeRegistry: NodeRegistryReader,
 ): readonly WorkflowCheckListIssue[] {
   if (!node || messages.length === 0) return issues
 
@@ -82,6 +83,7 @@ function isRequiredFieldEmpty(field: FieldSchema, value: unknown) {
 function getConfigIssueMessage(
   node: WorkflowNode,
   issue: { message: string; path: PropertyKey[] },
+  nodeRegistry: NodeRegistryReader,
 ) {
   const nodeType = nodeRegistry.get(node.type)
   const fieldName = typeof issue.path[0] === 'string' ? issue.path[0] : undefined
@@ -100,7 +102,11 @@ function getValidationIssueNodeId(issue: WorkflowValidationIssue, workflow: Work
   return edge?.target ?? edge?.source
 }
 
-function getValidationIssueMessage(issue: WorkflowValidationIssue, node: WorkflowNode) {
+function getValidationIssueMessage(
+  issue: WorkflowValidationIssue,
+  node: WorkflowNode,
+  nodeRegistry: NodeRegistryReader,
+) {
   if (issue.scope === 'workflow') return issue.message
 
   if (issue.portId && issue.message.startsWith('必填输入端口尚未连接')) {
@@ -111,7 +117,7 @@ function getValidationIssueMessage(issue: WorkflowValidationIssue, node: Workflo
   return issue.message
 }
 
-function collectNodeConfigIssues(node: WorkflowNode) {
+function collectNodeConfigIssues(node: WorkflowNode, nodeRegistry: NodeRegistryReader) {
   const nodeType = nodeRegistry.get(node.type)
   if (!nodeType) return []
 
@@ -148,7 +154,7 @@ function collectNodeConfigIssues(node: WorkflowNode) {
       const fieldName = typeof issue.path[0] === 'string' ? issue.path[0] : undefined
       if (fieldName && emptyRequiredFieldNames.has(fieldName)) continue
 
-      issues.push(getConfigIssueMessage(node, issue))
+      issues.push(getConfigIssueMessage(node, issue, nodeRegistry))
     }
   }
 
@@ -160,7 +166,10 @@ function collectNodeConfigIssues(node: WorkflowNode) {
 }
 
 /** 根据当前 Core 工作流数据派生检查清单；调用方负责按工作流引用缓存计算结果。 */
-export function createWorkflowCheckListIssues(workflow: Workflow): WorkflowCheckListIssue[] {
+export function createWorkflowCheckListIssues(
+  workflow: Workflow,
+  nodeRegistry: NodeRegistryReader,
+): WorkflowCheckListIssue[] {
   const nodeById = new Map(workflow.nodes.map((node) => [node.id, node]))
   const pendingIssues: PendingCheckListIssue[] = []
   const issueKeys = new Set<string>()
@@ -174,7 +183,7 @@ export function createWorkflowCheckListIssues(workflow: Workflow): WorkflowCheck
   }
 
   for (const node of workflow.nodes) {
-    for (const message of collectNodeConfigIssues(node)) {
+    for (const message of collectNodeConfigIssues(node, nodeRegistry)) {
       appendIssue(node, message)
     }
   }
@@ -186,7 +195,7 @@ export function createWorkflowCheckListIssues(workflow: Workflow): WorkflowCheck
     const node = nodeId ? nodeById.get(nodeId) : undefined
     if (!node) continue
 
-    appendIssue(node, getValidationIssueMessage(issue, node))
+    appendIssue(node, getValidationIssueMessage(issue, node, nodeRegistry))
   }
 
   return pendingIssues.map(({ message, node }, index) => ({

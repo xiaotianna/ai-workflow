@@ -3,7 +3,6 @@ import { ActionMenuContent, type ActionMenuAction } from '@/components/action-me
 import {
   ERROR_HANDLING_PORT_ID,
   getNodePorts,
-  nodeRegistry,
   type NodeType,
   type WorkflowEdge,
 } from '@ai-workflow/core'
@@ -16,6 +15,7 @@ import { useEdges, useNodes, type XYPosition } from '@xyflow/react'
 import { Ellipsis, Plus } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useRef } from 'react'
+import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
 
 interface WorkflowNextStepProps {
   nodeId: string
@@ -90,6 +90,7 @@ function WorkflowNextStepNode({
   onDisconnect,
   onSelect,
 }: WorkflowNextStepNodeProps) {
+  const { nodeRegistry } = useWorkflowCatalog()
   const actionTriggerRef = useRef<HTMLButtonElement>(null)
   const definition = nodeRegistry.get(node.type)?.definition
   const label = node.data.label?.trim() || definition?.label || node.type

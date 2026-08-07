@@ -61,6 +61,10 @@ apps/server/
 │   │   ├── model-group.repository.ts
 │   │   ├── studio-app.repository.ts
 │   │   └── workflow-run.repository.ts
+│   ├── workflow-catalog/
+│   │   ├── runtime-node-config-projector.registry.ts
+│   │   ├── workflow-execution.registry.ts
+│   │   └── workflow-server-catalog.ts
 │   └── services/
 │       ├── app-api.service.ts
 │       ├── auth.service.ts
@@ -85,6 +89,9 @@ CommonJS 运行时入口。`infra/workflow-mq` 统一声明 RabbitMQ 拓扑并�
 Consumer 和连接生命周期。`WorkflowRunTimeoutScanner` 作为 `StudioModule` provider 管理
 `deadlineAt` 扫描生命周期，并复用 `WorkflowRunService` 的统一终态入口。业务服务不得自行访问
 `process.env` 或把 AMQP 细节散落到 Controller。
+`workflow-catalog` 负责按工作流解析不可变 Core、Runtime projector 与执行能力目录；业务 Service
+只消费 `WorkflowCatalogResolver` 返回的同一 Catalog，不直接导入 Core 全局 Registry，也不在 MQ
+Routing Service 中维护节点类型表。
 
 ## 常用命令
 

@@ -1,5 +1,5 @@
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
-import { nodeRegistry, validateWorkflow, workflowSchema } from '@ai-workflow/core'
+import { validateWorkflow, workflowSchema, type NodeRegistryReader } from '@ai-workflow/core'
 import { useEffect, useRef, useState } from 'react'
 
 const AUTO_SAVE_DEBOUNCE_MS = 800
@@ -12,6 +12,7 @@ interface UseWorkflowSaveOptions {
   initialSavedAt?: Date
   onSave: (snapshot: WorkflowEditorSnapshot) => void | Promise<void>
   onSaved: () => void
+  nodeRegistry: NodeRegistryReader
 }
 
 function getSnapshotSignature(snapshot: WorkflowEditorSnapshot) {
@@ -28,6 +29,7 @@ export function useWorkflowSave({
   onSave,
   onSaved,
   snapshot,
+  nodeRegistry,
 }: UseWorkflowSaveOptions) {
   const signature = getSnapshotSignature(snapshot)
   const [errors, setErrors] = useState<string[]>([])

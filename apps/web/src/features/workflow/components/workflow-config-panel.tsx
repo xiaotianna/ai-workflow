@@ -4,7 +4,6 @@ import {
   deriveCodeNodeOutputs,
   nodeInputBindingsSchema,
   nodeOutputDefinitionsSchema,
-  nodeRegistry,
   normalizeNodeOutputs,
   resolveNodeVariableForm,
   synchronizeCodeNodeOutputs,
@@ -15,10 +14,7 @@ import {
   NodeConfigFields,
   type NodeConfigFieldErrors,
 } from '@ai-workflow/form/components/node-config-fields'
-import {
-  NodeConfigSection,
-  type NodeConfigRendererMap,
-} from '@ai-workflow/form/components/node-config-section'
+import { NodeConfigSection } from '@ai-workflow/form/components/node-config-section'
 import {
   NodeVariableSection,
   type AvailableVariableOption,
@@ -37,7 +33,7 @@ import { useEffect, useState } from 'react'
 import { z } from 'zod'
 
 import { useWorkflowNodeLastRun } from '../hooks/use-workflow-node-last-run'
-import { builtinWorkflowNodeConfigFieldRenderers } from '../node-config-renderers/builtin'
+import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
 import {
   WorkflowNodeConfigActionsProvider,
   type SubWorkflowSelectionPayload,
@@ -52,7 +48,6 @@ type WorkflowConfigPanelTab = 'settings' | 'last-run'
 interface WorkflowConfigPanelProps {
   appId?: string
   node: WorkflowNode
-  configRenderers?: NodeConfigRendererMap
   defaultLabel?: string
   availableVariables?: readonly AvailableVariableOption[]
   nextStepDisabled?: boolean
@@ -135,7 +130,6 @@ function normalizeConfigPanelOutputs(
 export const WorkflowConfigPanel = ({
   appId,
   node,
-  configRenderers,
   defaultLabel,
   availableVariables = [],
   nextStepDisabled = false,
@@ -164,6 +158,8 @@ export const WorkflowConfigPanel = ({
   onPauseTestRun,
   onSubmitSingleNodeTestRun,
 }: WorkflowConfigPanelProps) => {
+  const catalog = useWorkflowCatalog()
+  const { nodeRegistry } = catalog
   const nodeType = nodeRegistry.get(node.type)
   const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
   const initialConfig = resolveInitialNodeConfig(nodeType, node.config)
@@ -430,7 +426,7 @@ export const WorkflowConfigPanel = ({
     <div className="px-5">
       <NodeConfigSection
         renderer={configRenderer}
-        renderers={configRenderers}
+        renderers={catalog.configRenderers}
         config={form.config}
         availableVariables={availableVariables}
         errors={errors}
@@ -441,7 +437,7 @@ export const WorkflowConfigPanel = ({
     <div className="px-5">
       <NodeConfigFields
         fields={formFields}
-        renderers={builtinWorkflowNodeConfigFieldRenderers}
+        renderers={catalog.fieldRenderers}
         values={form.config}
         errors={errors}
         availableVariables={availableVariables}

@@ -5,9 +5,9 @@
 
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import {
-  nodeRegistry,
   validateWorkflow,
   workflowSchema,
+  type NodeRegistryReader,
   type Workflow,
   type WorkflowEdge,
 } from '@ai-workflow/core'
@@ -23,6 +23,7 @@ export const canConnect = (
   baseWorkflow: Workflow,
   nodes: readonly WorkflowCanvasNode[],
   edges: readonly WorkflowEdge[],
+  nodeRegistry: NodeRegistryReader,
 ): boolean => {
   const { source, sourceHandle, target, targetHandle } = connection
   if (!sourceHandle || !targetHandle || source === target) return false

@@ -5,12 +5,11 @@ import {
   httpNode,
   llmNode,
   loopNode,
-  nodeRegistry,
   ragNode,
   startNode,
   subWorkflowNode,
 } from '@ai-workflow/core'
-import type { NodeRegistry } from '@ai-workflow/core'
+import type { NodeRegistryReader } from '@ai-workflow/core'
 import { defineNodeRendererUI, defineNodeUI } from '../contracts/node-content'
 import { NodeUIRegistry } from '../registry'
 import { CodeNodeContent } from './code'
@@ -35,8 +34,6 @@ export const builtinNodeUIRegistrations = [
   defineNodeRendererUI(loopNode, LoopNode),
 ]
 
-export function createBuiltinNodeUIRegistry(
-  coreRegistry: NodeRegistry = nodeRegistry,
-): NodeUIRegistry {
+export function createBuiltinNodeUIRegistry(coreRegistry: NodeRegistryReader): NodeUIRegistry {
   return new NodeUIRegistry(builtinNodeUIRegistrations).assertCompatible(coreRegistry)
 }

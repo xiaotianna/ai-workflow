@@ -1,5 +1,4 @@
 import {
-  nodeRegistry,
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
   type WorkflowEnvironmentVariable,
@@ -19,6 +18,7 @@ import { WorkflowTestRunPanelContent } from './workflow-test-run-panel'
 import { WorkflowVariableItem } from './workflow-variable-item'
 import type { WorkflowVersionHistoryPublishSync } from '../hooks/use-workflow-version-history'
 import { WorkflowVersionHistoryPanel } from './workflow-version-history-panel'
+import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
 
 export type WorkflowAuxiliaryPanelType =
   | 'test-run'
@@ -74,6 +74,7 @@ interface CheckListPanelContentProps {
 }
 
 function CheckListPanelContent({ issues, onIssueSelect }: CheckListPanelContentProps) {
+  const { nodeRegistry } = useWorkflowCatalog()
   if (issues.length === 0) {
     return (
       <div className="flex min-h-52 flex-col items-center justify-center px-6 py-10 text-center">

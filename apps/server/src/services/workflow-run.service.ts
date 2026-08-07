@@ -16,7 +16,6 @@ import {
   type Workflow,
   type WorkflowNode,
   jsonValueSchema,
-  nodeRegistry,
   supportsSingleNodeTestRun,
   validateExecutorWorkflow,
   workflowSchema,
@@ -27,18 +26,12 @@ import {
   type ExecuteNodeCommand,
 } from '@ai-workflow/protocol'
 import {
-  createRuntimeNodeConfigResolver,
   createWorkflowRuntime,
-  projectConditionNodeConfig,
-  projectHttpNodeConfig,
-  projectLlmNodeConfig,
-  projectStaticJsonNodeConfig,
   RUNTIME_EXECUTION_STATUSES,
   RUNTIME_NODE_STATUSES,
   runtimeStateSchema,
   type DispatchNodeEffect,
   type RuntimeErrorData,
-  type RuntimeNodeConfigProjector,
   type RuntimeState,
   type RuntimeTransition,
 } from '@ai-workflow/runtime'
@@ -70,6 +63,10 @@ import {
 } from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 import { isUUID } from 'class-validator'
+import {
+  WorkflowCatalogResolver,
+  type WorkflowServerCatalog,
+} from '@/workflow-catalog/workflow-server-catalog'
 
 const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用'
 const DEFAULT_EXECUTION_DEADLINE_MS = 30_000
@@ -81,12 +78,6 @@ interface WorkflowRunCursor {
   id: string
   queuedAt: Date
 }
-const RUNTIME_NODE_CONFIG_PROJECTORS: Readonly<Record<string, RuntimeNodeConfigProjector>> = {
-  [BuiltinNodeType.LLM]: projectLlmNodeConfig,
-  [BuiltinNodeType.HTTP]: projectHttpNodeConfig,
-  [BuiltinNodeType.CONDITION]: projectConditionNodeConfig,
-}
-
 @Injectable()
 export class WorkflowRunService {
   private readonly logger = new Logger(WorkflowRunService.name)
@@ -97,6 +88,7 @@ export class WorkflowRunService {
     private readonly workflowRunRepository: WorkflowRunRepository,
     private readonly workflowRunEventStream: WorkflowRunEventStreamService,
     private readonly workflowExecutionRouting: WorkflowExecutionRoutingService,
+    private readonly workflowCatalogResolver: WorkflowCatalogResolver,
   ) {}
 
   async createTestRun(
@@ -133,7 +125,11 @@ export class WorkflowRunService {
     if (!parsedWorkflow.success) {
       throw new InternalServerErrorException('发布版本工作流定义格式无效')
     }
-    const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
+      target.workflow.app.ownerId,
+      parsedWorkflow.data,
+    )
+    const issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
@@ -141,7 +137,7 @@ export class WorkflowRunService {
     const runId = randomUUID()
     const runtime = createWorkflowRuntime(parsedWorkflow.data, {
       workflowVersionId: target.id,
-      configResolver: this.createRuntimeConfigResolver(parsedWorkflow.data),
+      configResolver: catalog.configProjectors.createResolver(),
     })
     let transition: RuntimeTransition
     try {
@@ -168,7 +164,7 @@ export class WorkflowRunService {
       input: transition.state.startInput,
       runtimeState: transition.state,
       terminal: getRuntimeTerminal(transition),
-      dispatches: this.prepareRuntimeDispatches(transition, runId),
+      dispatches: this.prepareRuntimeDispatches(transition, runId, catalog),
     })
     if (created === 'not-found') throw new NotFoundException(APP_API_VERSION_NOT_FOUND_MESSAGE)
     return this.getApiRun(appId, runId)
@@ -354,9 +350,14 @@ export class WorkflowRunService {
         throw new InternalServerErrorException('完整工作流运行缺少 RuntimeState')
       }
 
+      // eslint-disable-next-line no-await-in-loop
+      const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
+        context.run.workflow.app.ownerId,
+        parsedWorkflow.data,
+      )
       const runtime = createWorkflowRuntime(parsedWorkflow.data, {
         workflowVersionId: context.run.workflowVersionId,
-        configResolver: this.createRuntimeConfigResolver(parsedWorkflow.data),
+        configResolver: catalog.configProjectors.createResolver(),
       })
 
       let transition: RuntimeTransition
@@ -369,7 +370,7 @@ export class WorkflowRunService {
         throw new InternalServerErrorException(getErrorMessage(error, 'RuntimeState 恢复失败'))
       }
 
-      const dispatches = this.prepareRuntimeDispatches(transition, context.runId)
+      const dispatches = this.prepareRuntimeDispatches(transition, context.runId, catalog)
       const completedNodes = collectCompletedNodeTransitions(
         context.run.runtimeState as unknown as RuntimeState,
         transition.state,
@@ -402,8 +403,9 @@ export class WorkflowRunService {
       throw new BadRequestException('仅 sub_workflow 命令可由服务端编排')
     }
 
-    const parsedConfig = nodeRegistry
-      .getOrThrow(BuiltinNodeType.SUB_WORKFLOW)
+    const parsedConfig = this.workflowCatalogResolver
+      .resolveBuiltin()
+      .nodeRegistry.getOrThrow(BuiltinNodeType.SUB_WORKFLOW)
       .schema.safeParse(command.config)
     if (!parsedConfig.success || !parsedConfig.data.workflow.id) {
       await this.processNodeResult(
@@ -440,7 +442,11 @@ export class WorkflowRunService {
       )
       return
     }
-    const issues = validateExecutorWorkflow(parsedWorkflow.data, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
+      target.triggeredById,
+      parsedWorkflow.data,
+    )
+    const issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       await this.processNodeResult(
         createFailedResult(
@@ -455,7 +461,7 @@ export class WorkflowRunService {
     const childRunId = randomUUID()
     const runtime = createWorkflowRuntime(parsedWorkflow.data, {
       workflowVersionId: target.version.id,
-      configResolver: this.createRuntimeConfigResolver(parsedWorkflow.data),
+      configResolver: catalog.configProjectors.createResolver(),
     })
     let transition: RuntimeTransition
     try {
@@ -490,7 +496,7 @@ export class WorkflowRunService {
       input: command.inputs,
       runtimeState: transition.state,
       terminal: getRuntimeTerminal(transition),
-      dispatches: this.prepareRuntimeDispatches(transition, childRunId),
+      dispatches: this.prepareRuntimeDispatches(transition, childRunId, catalog),
     })
     if (outcome === 'created' && transition.state.status !== 'RUNNING') {
       await this.processChildRunCompletion(childRunId)
@@ -656,7 +662,8 @@ export class WorkflowRunService {
     layout: unknown,
     input: Record<string, unknown>,
   ): Promise<WorkflowTestRunVo> {
-    const issues = validateExecutorWorkflow(workflow, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow)
+    const issues = validateExecutorWorkflow(workflow, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
@@ -667,7 +674,7 @@ export class WorkflowRunService {
     const workflowVersionId = randomUUID()
     const runtime = createWorkflowRuntime(workflow, {
       workflowVersionId,
-      configResolver: this.createRuntimeConfigResolver(workflow),
+      configResolver: catalog.configProjectors.createResolver(),
     })
     const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
 
@@ -682,7 +689,7 @@ export class WorkflowRunService {
       throw new BadRequestException(getErrorMessage(error, '工作流无法启动'))
     }
 
-    const initialDispatches = this.prepareRuntimeDispatches(transition, runId)
+    const initialDispatches = this.prepareRuntimeDispatches(transition, runId, catalog)
     const created = await this.workflowRunRepository.createTestRun({
       ownerId,
       appId,
@@ -720,7 +727,8 @@ export class WorkflowRunService {
       throw new BadRequestException('当前节点不支持单独测试运行')
     }
 
-    const nodeType = nodeRegistry.get(node.type)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow)
+    const nodeType = catalog.nodeRegistry.get(node.type)
     const parsedConfig = nodeType?.schema.safeParse(node.config)
     if (!nodeType || !parsedConfig?.success) {
       throw new BadRequestException('节点配置不完整，无法运行')
@@ -731,10 +739,9 @@ export class WorkflowRunService {
     const effectiveInput = resolveSingleNodeRunInput(node, input)
     let projectedConfig: Record<string, JsonValue>
     try {
-      projectedConfig = this.createRuntimeConfigResolver(workflow).resolve(
-        node,
-        resolveSingleNodeVariableValue,
-      )
+      projectedConfig = catalog.configProjectors
+        .createResolver()
+        .resolve(node, resolveSingleNodeVariableValue)
     } catch (error) {
       throw new BadRequestException(getErrorMessage(error, '节点配置无法解析'))
     }
@@ -746,7 +753,7 @@ export class WorkflowRunService {
       inputs: effectiveInput,
       config: projectedConfig,
     })
-    const dispatches = [this.prepareDispatch(command)]
+    const dispatches = [this.prepareDispatch(command, catalog)]
 
     const created = await this.workflowRunRepository.createTestRun({
       ownerId,
@@ -778,26 +785,10 @@ export class WorkflowRunService {
     }
   }
 
-  private createRuntimeConfigResolver(workflow: Workflow) {
-    const businessNodeTypes = new Set(
-      workflow.nodes
-        .filter((node) => node.type !== BuiltinNodeType.START && node.type !== BuiltinNodeType.END)
-        .map((node) => node.type),
-    )
-
-    return createRuntimeNodeConfigResolver(
-      Object.fromEntries(
-        [...businessNodeTypes].map((nodeType) => [
-          nodeType,
-          RUNTIME_NODE_CONFIG_PROJECTORS[nodeType] ?? projectStaticJsonNodeConfig,
-        ]),
-      ),
-    )
-  }
-
   private prepareRuntimeDispatches(
     transition: RuntimeTransition,
     runId: string,
+    catalog: WorkflowServerCatalog,
   ): PreparedNodeDispatch[] {
     return transition.effects
       .filter((effect): effect is DispatchNodeEffect => effect.type === 'DISPATCH_NODE')
@@ -814,15 +805,19 @@ export class WorkflowRunService {
             inputs: effect.inputs,
             config: effect.config,
           }),
+          catalog,
         ),
       )
   }
 
-  private prepareDispatch(command: ExecuteNodeCommand): PreparedNodeDispatch {
+  private prepareDispatch(
+    command: ExecuteNodeCommand,
+    catalog: WorkflowServerCatalog,
+  ): PreparedNodeDispatch {
     try {
       return {
         command,
-        ...this.workflowExecutionRouting.resolve(command.nodeType),
+        ...this.workflowExecutionRouting.resolve(command.nodeType, catalog.executionRegistry),
       }
     } catch (error) {
       throw new BadRequestException(getErrorMessage(error, '节点暂不支持执行'))

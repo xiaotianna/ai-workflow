@@ -15,18 +15,15 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common'
-import {
-  BuiltinNodeType,
-  nodeRegistry,
-  validateExecutorWorkflow,
-  workflowSchema,
-} from '@ai-workflow/core'
+import { BuiltinNodeType, validateExecutorWorkflow, workflowSchema } from '@ai-workflow/core'
+import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
 
 @Injectable()
 export class WorkflowDeploymentService {
   constructor(
     private readonly workflowDraftRepository: WorkflowDraftRepository,
     private readonly workflowDeploymentRepository: WorkflowDeploymentRepository,
+    private readonly workflowCatalogResolver: WorkflowCatalogResolver,
   ) {}
 
   async getCurrent(ownerId: string, appId: string): Promise<WorkflowDeploymentVo | null> {
@@ -107,7 +104,8 @@ export class WorkflowDeploymentService {
       throw new BadRequestException(parsed.error.issues[0]?.message ?? '工作流定义格式无效')
     }
 
-    const issues = validateExecutorWorkflow(parsed.data, nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, parsed.data)
+    const issues = validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法发布')
     }

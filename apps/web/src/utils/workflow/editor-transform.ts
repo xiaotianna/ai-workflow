@@ -3,7 +3,7 @@ import {
   BuiltinNodeType,
   synchronizeCodeNodeOutputs,
   normalizeNodeOutputs,
-  nodeRegistry,
+  type NodeRegistryReader,
   type Workflow,
   type WorkflowEdge,
   type WorkflowNode,
@@ -36,7 +36,10 @@ const getNodeDepth = (node: WorkflowNode, nodeById: ReadonlyMap<string, Workflow
 }
 
 // 将core的工作流数据转为画布需要的数据（添加坐标）
-export const toCanvasNodes = (snapshot: WorkflowEditorSnapshot): WorkflowCanvasNode[] => {
+export const toCanvasNodes = (
+  snapshot: WorkflowEditorSnapshot,
+  nodeRegistry: NodeRegistryReader,
+): WorkflowCanvasNode[] => {
   // 建立节点索引
   const nodeById = new Map(snapshot.workflow.nodes.map((node) => [node.id, node]))
   const loopSizeById = new Map(
