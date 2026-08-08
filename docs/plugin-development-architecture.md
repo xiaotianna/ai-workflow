@@ -533,7 +533,10 @@ dist/
 
 ### 12.4 Web Remote
 
-自定义 React UI 推荐生成 Module Federation Remote，由 Web 使用运行时 API按已安装插件清单动态加载。
+自定义 React UI 通过 esbuild 生成 ESM Remote Entry，由 Web 宿主按已安装插件清单动态加载。该方案
+借鉴 Module Federation 的 Remote Entry、Shared Singleton 和运行时动态加载思想，但不使用 Webpack
+Module Federation 运行时。详细机制见 [远程组件动态加载方案](<./远程组件(远程插件)动态加载方案.md>)。
+
 构建器负责生成虚拟远程入口，插件作者只声明组件文件和 export，不手写注册代码。
 
 远程模块建议只暴露一个稳定模块：
@@ -893,8 +896,9 @@ parser/validator 同步升级。
 ### 19.2 Web Remote
 
 Module Federation Remote 与宿主 React 运行在同一页面上下文，可以访问 DOM 和页面内存，因此不是
-安全沙箱。`node.custom: true`、`form.custom: true` 和自定义 content 都应触发 `web:execute`
-权限声明和用户授权要求。
+安全沙箱。当前实现采用 ESM + 共享依赖注入 + 动态 import，机制见
+[远程组件动态加载方案](./remote-component-dynamic-loading.md)。`node.custom: true`、`form.custom: true`
+和自定义 content 都应触发 `web:execute` 权限声明和用户授权要求。
 
 如果未来需要执行完全不可信 UI，只能使用 sandboxed iframe 与 `postMessage`，但它不能直接复用宿主
 React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装成普通插件 renderer。
@@ -1093,6 +1097,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 
 ## 26. 相关文档
 
+- [远程组件动态加载方案](./remote-component-dynamic-loading.md)
 - [插件运行时目录重构方案](./plugin-runtime-catalog-refactor.md)
 - [节点分级隔离实现方案](./node-execution-isolation-implementation.md)
 - [远程沙箱调用实现状态](./remote-sandbox-call-implementation-status.md)

@@ -31,7 +31,8 @@
 - 插件 Marketplace 的列表、详情、安装/升级与 Multipart 发布请求统一放在 `src/api/plugins`；插件
   Feature 管理搜索防抖、筛选、排序、游标续载、权限确认、发布 Dialog 和 Header 交互，不直接创建
   Axios 实例或拼接认证 Header。工作流页通过 `src/features/workflow/plugin-runtime` 解析 Runtime
-  Catalog、动态加载 `web/remoteEntry.js`，并把 Remote UI 注册进 `NodeUIRegistry`。
+  Catalog、动态加载 `web/remoteEntry.js`，并把 Remote UI 注册进 `NodeUIRegistry`；机制见仓库
+  `docs/远程组件(远程插件)动态加载方案.md`。
 - `src/api/client.ts` 是 Web 请求的统一 Axios 入口：请求拦截器注入登录 Token，响应拦截器
   解包统一响应的 `data`，并按真实 HTTP 状态处理错误 Toast；携带认证信息的请求收到
   `401` 或 `403` 时清理本地会话并跳转登录页。业务 API 不自行创建 Axios 实例、不判断

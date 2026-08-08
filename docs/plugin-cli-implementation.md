@@ -175,7 +175,8 @@ interface PluginWebModule {
 ```
 
 React、React DOM 和 `@ai-workflow/plugin/ui` 必须作为宿主共享依赖，不能重复打入 Remote。CLI 只
-生成 Remote 及 Manifest 引用，不负责由 Web 加载和执行它。自定义 UI 必须由配置提前声明
+生成 Remote 及 Manifest 引用，不负责由 Web 加载和执行它；Web 侧加载机制见
+[远程组件动态加载方案](<./远程组件(远程插件)动态加载方案.md>)。自定义 UI 必须由配置提前声明
 `web:execute` 权限。
 
 ### 3.6 `dev`
