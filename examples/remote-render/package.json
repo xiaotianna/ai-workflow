@@ -1,0 +1,24 @@
+{
+  "name": "@examples/remote-render",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.2",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "plugin:check": "ai-workflow-plugin check",
+    "plugin:build": "ai-workflow-plugin build",
+    "plugin:pack": "ai-workflow-plugin pack",
+    "plugin:dev": "ai-workflow-plugin dev",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ai-workflow/plugin": "link:../../packages/workflow-plugin",
+    "@ai-workflow/plugin-cli": "link:../../packages/workflow-plugin-cli",
+    "@types/react": "^19.2.14",
+    "react": "^19.2.4",
+    "typescript": "~6.0.2"
+  }
+}
