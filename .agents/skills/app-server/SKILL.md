@@ -36,8 +36,9 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
   TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包
   保存到可配置的本地产物目录。Marketplace 列表已接入真实数据、访问范围、搜索、筛选、排序和
-  opaque cursor；安装/升级已接入真实 `PluginInstallation` 数据和权限授权快照，runtime catalog
-  与工作流插件锁尚未接入。
+  opaque cursor；安装/升级已接入真实 `PluginInstallation` 数据和权限授权快照。Runtime Catalog
+  已按工作流精确插件锁解析 Manifest、摘要和宿主兼容范围，并为草稿、测试版本与发布版本维护
+  插件制品引用投影；第三方插件沙箱执行和 Remote UI 装载尚未接入。
 - 首次实现时补齐明确的依赖、配置、环境变量和 workspace 脚本，不在无关任务中顺手搭建后端。
 - 遵守根目录命令约束，不自动运行 `dev`、`build` 或任何 git 命令。
 

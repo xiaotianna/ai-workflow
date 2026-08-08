@@ -183,6 +183,9 @@ function ExampleForm() {
   React Flow `nodeTypes` 只按 `catalog.fingerprint` 与画布中排序去重后的 node type 集合重建；
   Catalog fingerprint 变化时通过 key 重挂编辑器。未知快照节点仍映射到通用 `WorkflowNode`，由
   `RenderNode` 显示诊断外壳并保留原始数据。
+- 应用工作流页读取草稿后，以草稿 `plugins` 调用 Runtime Catalog 接口；服务端返回的 Manifest 在 Web
+  再次校验并编译为 Core 节点，fingerprint 一致后才挂载编辑器。`useWorkflowEditor` 按画布实际存在的
+  插件节点派生工作流插件锁：加入某插件首个节点时写入锁，删除最后一个节点时移除锁。
 - 工作流自动保存由 `WorkflowEditor` 组件层编排：`useWorkflowEditor` 只维护编辑状态、历史与
   `dirty`，`useWorkflowSave` 只负责 Core 保存校验、800ms 防抖、请求串行和保存状态，
   页面提供草稿读取与写入函数，并将草稿 `updatedAt` 作为初始保存时间传入编辑器，使首次加载

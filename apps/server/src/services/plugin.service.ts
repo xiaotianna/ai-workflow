@@ -4,6 +4,7 @@ import type {
   PluginListSort,
   PublishPluginDto,
 } from '@/dto/plugin.dto'
+import { PluginCatalogService } from '@/services/plugin-catalog.service'
 import type { Prisma } from '@/generated/prisma/client'
 import { PluginArtifactStore } from '@/infra/plugin-artifact/plugin-artifact-store'
 import { PluginPackageInspector } from '@/infra/plugin-artifact/plugin-package-inspector'
@@ -14,9 +15,17 @@ import type {
   PluginListVo,
   InstalledPluginVo,
   PublishedPluginVersionVo,
+  PluginRuntimeCatalogVo,
 } from '@/vo/plugin.vo'
 import {
+  BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+  builtinNodeStrategies,
+  createWorkflowNodeCatalog,
+  type WorkflowPluginLock,
+} from '@ai-workflow/core'
+import {
   PLUGIN_PERMISSION_VALUES,
+  createNodeTypesFromPluginManifest,
   pluginManifestSchema,
   type PluginPermission,
 } from '@ai-workflow/plugin'
@@ -41,7 +50,43 @@ export class PluginService {
     private readonly packageInspector: PluginPackageInspector,
     private readonly artifactStore: PluginArtifactStore,
     private readonly pluginRepository: PluginRepository,
+    private readonly pluginCatalogService: PluginCatalogService,
   ) {}
+
+  async resolveRuntimeCatalog(
+    ownerId: string,
+    pluginLock: WorkflowPluginLock,
+  ): Promise<PluginRuntimeCatalogVo> {
+    const resolvedPlugins = await this.pluginCatalogService.resolveEditorVersions(
+      ownerId,
+      pluginLock,
+    )
+    const resolvedLock = resolvedPlugins.map((plugin) => ({
+      pluginId: plugin.pluginId,
+      version: plugin.version,
+      digest: plugin.artifactDigest,
+    }))
+    const catalog = createWorkflowNodeCatalog({
+      hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+      nodes: [
+        ...Object.values(builtinNodeStrategies),
+        ...resolvedPlugins.flatMap((plugin) => createNodeTypesFromPluginManifest(plugin.manifest)),
+      ],
+      pluginLock: resolvedLock,
+    })
+
+    return {
+      fingerprint: catalog.fingerprint,
+      pluginLock: catalog.pluginLock,
+      plugins: resolvedPlugins.map((plugin) => ({
+        pluginId: plugin.pluginId,
+        versionId: plugin.versionId,
+        version: plugin.version,
+        artifactDigest: plugin.artifactDigest,
+        manifest: plugin.manifest,
+      })),
+    }
+  }
 
   async list(ownerId: string, query: ListPluginsDto): Promise<PluginListVo> {
     const cursor = query.cursor ? this.decodeCursor(query.cursor, query.sort) : undefined

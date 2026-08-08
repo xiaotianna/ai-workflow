@@ -1,13 +1,35 @@
 import type { NodeType } from './node-definition'
 import { NodeRegistryBuilder, type NodeRegistryReader } from './node-registry'
+import { z } from 'zod'
 
-export interface WorkflowPluginLockItem {
-  readonly pluginId: string
-  readonly version: string
-  readonly digest: string
-}
+export const workflowPluginLockItemSchema = z
+  .object({
+    pluginId: z.string().uuid(),
+    version: z.string().trim().min(1).max(64),
+    digest: z.string().regex(/^[a-f0-9]{64}$/i, '插件摘要必须是 SHA-256'),
+  })
+  .strict()
 
-export type WorkflowPluginLock = readonly WorkflowPluginLockItem[]
+export const workflowPluginLockSchema = z
+  .array(workflowPluginLockItemSchema)
+  .superRefine((items, context) => {
+    const pluginIds = new Set<string>()
+
+    items.forEach((item, index) => {
+      if (pluginIds.has(item.pluginId)) {
+        context.addIssue({
+          code: 'custom',
+          path: [index, 'pluginId'],
+          message: `同一工作流不能锁定同一插件的多个版本：${item.pluginId}`,
+        })
+      }
+      pluginIds.add(item.pluginId)
+    })
+  })
+
+export type WorkflowPluginLockItem = Readonly<z.output<typeof workflowPluginLockItemSchema>>
+
+export type WorkflowPluginLock = Readonly<z.output<typeof workflowPluginLockSchema>>
 
 export interface WorkflowNodeCatalog {
   readonly fingerprint: string

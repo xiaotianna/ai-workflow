@@ -86,6 +86,50 @@ export type PublishPluginVersionResult =
 export class PluginRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  listEnabledInstallations(ownerId: string) {
+    return this.prisma.pluginInstallation.findMany({
+      where: { ownerId, enabled: true },
+      select: {
+        pluginId: true,
+        grantedPermissions: true,
+        version: {
+          select: {
+            id: true,
+            version: true,
+            manifest: true,
+            artifactReference: true,
+            artifactDigest: true,
+            artifactSize: true,
+          },
+        },
+      },
+      orderBy: { pluginId: 'asc' },
+    })
+  }
+
+  findInstalledVersions(
+    ownerId: string,
+    versions: readonly { pluginId: string; version: string }[],
+  ) {
+    if (versions.length === 0) return Promise.resolve([])
+
+    return this.prisma.pluginVersion.findMany({
+      where: {
+        OR: versions.map(({ pluginId, version }) => ({ pluginId, version })),
+        plugin: { installations: { some: { ownerId, enabled: true } } },
+      },
+      select: {
+        id: true,
+        pluginId: true,
+        version: true,
+        manifest: true,
+        artifactReference: true,
+        artifactDigest: true,
+        artifactSize: true,
+      },
+    })
+  }
+
   list(options: ListPluginsOptions) {
     const direction = options.sort === 'name_asc' ? 'asc' : 'desc'
     const sortField =
@@ -325,11 +369,22 @@ export class PluginRepository {
       return {
         versions: {
           some: {
-            workflowDependencies: {
-              some: {
-                workflowVersion: { workflow: { app: { ownerId } } },
+            OR: [
+              {
+                workflowDependencies: {
+                  some: {
+                    workflowVersion: { workflow: { app: { ownerId } } },
+                  },
+                },
               },
-            },
+              {
+                workflowDraftDependencies: {
+                  some: {
+                    workflowDraft: { workflow: { app: { ownerId } } },
+                  },
+                },
+              },
+            ],
           },
         },
       }

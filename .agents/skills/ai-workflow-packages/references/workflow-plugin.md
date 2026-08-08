@@ -18,12 +18,14 @@ Executor 子入口仍保持源码入口，不进入 Server 的 CommonJS bundle�
 ```ts
 import {
   compilePluginSchemaToZod,
+  createNodeTypesFromPluginManifest,
   defineConfig,
   defineNode,
   field,
   pluginConfigSchema,
   pluginManifestSchema,
   pluginSchema,
+  PLUGIN_HOST_VERSION,
   type PluginConfig,
   type PluginManifest,
 } from '@ai-workflow/plugin'
@@ -36,6 +38,10 @@ import {
   条件分支、上下文消息和异常处理等 Form 内置 renderer；LLM、知识库、子工作流等应用数据字段
   必须使用 `field.host()`。
 - `compilePluginSchemaToZod()` 是 Web、Server 和 CLI 重建业务校验规则的统一入口。
+- `createNodeTypesFromPluginManifest()` 将已校验 Manifest 的静态 schema、definition、form、端口、
+  固定输出和初始配置编译为 Core `NodeType`；它不加载 Remote UI，也不执行第三方代码。
+- `PLUGIN_HOST_VERSION` 是 Manifest `hostVersionRange` 的当前兼容版本基线，调整宿主插件契约时必须
+  显式升级，不得复用 Core Catalog fingerprint 版本充当 SemVer。
 - `pluginConfigSchema` 校验插件源码默认导出的配置，包含初始配置、form 顶层字段、重复节点 Key、
   宿主字段能力和自定义 UI 权限等跨字段约束。`hostVersionRange` 表示插件兼容的平台
   宿主 SemVer 版本范围，不用于选择节点执行器。

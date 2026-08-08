@@ -1,3 +1,4 @@
+import type { WorkflowPluginDependencyInput } from '@/common/interfaces/workflow-plugin-dependency.interface'
 import { Prisma, WorkflowVersionSource } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
 import { Injectable } from '@nestjs/common'
@@ -9,6 +10,7 @@ interface PublishWorkflowOptions {
   schemaVersion: number
   definition: Prisma.InputJsonValue
   layout: Prisma.InputJsonValue
+  pluginDependencies: readonly WorkflowPluginDependencyInput[]
 }
 
 type PublishWorkflowResult =
@@ -121,6 +123,15 @@ export class WorkflowDeploymentRepository {
           layout: options.layout,
           note: null,
           createdById: options.ownerId,
+          pluginDependencies: {
+            create: options.pluginDependencies.map((dependency) => ({
+              pluginVersionId: dependency.pluginVersionId,
+              manifest: toJsonInput(dependency.manifest),
+              artifactReference: dependency.artifactReference,
+              artifactDigest: dependency.artifactDigest,
+              artifactSize: dependency.artifactSize,
+            })),
+          },
         },
         select: {
           id: true,
@@ -152,4 +163,8 @@ export class WorkflowDeploymentRepository {
       }
     })
   }
+}
+
+function toJsonInput(value: unknown): Prisma.InputJsonValue {
+  return structuredClone(value) as Prisma.InputJsonValue
 }

@@ -8,6 +8,7 @@ import { HTTP_FIXED_OUTPUTS } from '../nodes/http/outputs'
 import { LLM_FIXED_OUTPUTS } from '../nodes/llm/outputs'
 import { normalizeNodeOutputs } from '../node/normalize-node-outputs'
 import { workflowOutputsSchema } from './workflow-output-schema'
+import { workflowPluginLockSchema } from '../node/workflow-node-catalog'
 
 // 整个工作流实例
 export const workflowSchema = z
@@ -19,6 +20,7 @@ export const workflowSchema = z
     edges: z.array(workflowEdgeSchema),
     outputs: workflowOutputsSchema.default([]),
     environmentVariables: workflowEnvironmentVariablesSchema,
+    plugins: workflowPluginLockSchema.default([]),
   })
   .transform((workflow) => ({
     ...workflow,

@@ -1,5 +1,6 @@
 import type { PluginVisibilityValue } from '@/dto/plugin.dto'
-import type { PluginPermission } from '@ai-workflow/plugin'
+import type { PluginManifest, PluginPermission } from '@ai-workflow/plugin'
+import type { WorkflowPluginLock } from '@ai-workflow/core'
 
 export interface PluginInstallationVo {
   versionId: string
@@ -65,4 +66,16 @@ export interface PublishedPluginVersionVo {
   archiveDigest: string
   artifactDigest: string
   publishedAt: Date
+}
+
+export interface PluginRuntimeCatalogVo {
+  fingerprint: string
+  pluginLock: WorkflowPluginLock
+  plugins: Array<{
+    pluginId: string
+    versionId: string
+    version: string
+    artifactDigest: string
+    manifest: PluginManifest
+  }>
 }

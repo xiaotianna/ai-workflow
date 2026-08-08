@@ -8,9 +8,11 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  Matches,
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator'
 
 export const PLUGIN_VISIBILITIES = ['PUBLIC', 'PRIVATE'] as const
@@ -70,4 +72,26 @@ export class InstallPluginDto {
   })
   @IsArray({ message: '授权权限必须是数组' })
   permissions!: PluginPermission[]
+}
+
+export class WorkflowPluginLockItemDto {
+  @IsUUID('4', { message: '插件 ID 格式不正确' })
+  pluginId!: string
+
+  @MaxLength(64, { message: '插件版本不能超过 64 个字符' })
+  @IsString({ message: '插件版本必须是字符串' })
+  version!: string
+
+  @Matches(/^[a-f0-9]{64}$/i, { message: '插件摘要必须是 SHA-256' })
+  digest!: string
+}
+
+export class ResolvePluginRuntimeCatalogDto {
+  @Type(() => WorkflowPluginLockItemDto)
+  @ValidateNested({ each: true })
+  @ArrayUnique((item: WorkflowPluginLockItemDto) => item.pluginId, {
+    message: '同一插件不能锁定多个版本',
+  })
+  @IsArray({ message: '插件锁必须是数组' })
+  pluginLock: WorkflowPluginLockItemDto[] = []
 }

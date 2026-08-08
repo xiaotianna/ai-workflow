@@ -4,11 +4,16 @@ import {
   saveStudioWorkflowDraft,
   type StudioWorkflowDraftDto,
 } from '@/api/studio'
+import { resolvePluginRuntimeCatalog } from '@/api/plugins'
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import { useWorkflowPublish } from '@/features/workflow/hooks/use-workflow-publish'
 import { useWorkflowTestRun } from '@/features/workflow/hooks/use-workflow-test-run'
+import {
+  createResolvedWorkflowWebCatalog,
+  type WorkflowWebCatalog,
+} from '@/features/workflow/catalog/workflow-web-catalog'
 import type { StudioAppListItem } from '@/features/studio'
 import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -29,6 +34,7 @@ type WorkflowDraftState =
       appId: string
       status: 'success'
       draft: StudioWorkflowDraftDto
+      catalog: WorkflowWebCatalog
     }
 
 function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
@@ -42,6 +48,8 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   const testRun = useWorkflowTestRun(app.id)
   const draft =
     draftState.appId === app.id && draftState.status === 'success' ? draftState.draft : undefined
+  const catalog =
+    draftState.appId === app.id && draftState.status === 'success' ? draftState.catalog : undefined
 
   useEffect(() => {
     const controller = new AbortController()
@@ -53,12 +61,17 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     })
 
     void getStudioWorkflowDraft(app.id, controller.signal)
-      .then((loadedDraft) => {
+      .then(async (loadedDraft) => {
+        const runtimeCatalog = await resolvePluginRuntimeCatalog(
+          loadedDraft.definition.plugins,
+          controller.signal,
+        )
         revisionRef.current = loadedDraft.revision
         setDraftState({
           appId: app.id,
           status: 'success',
           draft: loadedDraft,
+          catalog: createResolvedWorkflowWebCatalog(runtimeCatalog),
         })
       })
       .catch(() => {
@@ -73,7 +86,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     return () => controller.abort()
   }, [app.id])
 
-  if (!draft) {
+  if (!draft || !catalog) {
     return <UnavailableWorkflowEditor workflowId={app.id} />
   }
 
@@ -93,12 +106,14 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
 
   async function handleRestoreVersion(versionId: string) {
     const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId)
+    const runtimeCatalog = await resolvePluginRuntimeCatalog(restoredDraft.definition.plugins)
     revisionRef.current = restoredDraft.revision
     setSelectedVersionId(versionId)
     setDraftState({
       appId: app.id,
       status: 'success',
       draft: restoredDraft,
+      catalog: createResolvedWorkflowWebCatalog(runtimeCatalog),
     })
   }
 
@@ -119,6 +134,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
         workflow: draft.definition,
         layout: draft.layout,
       }}
+      catalog={catalog}
       initialSavedAt={new Date(draft.updatedAt)}
       disabled={disabled}
       onSave={handleSave}

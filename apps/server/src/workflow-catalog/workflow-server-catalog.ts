@@ -1,16 +1,24 @@
 import {
+  BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
   BuiltinNodeType,
+  builtinNodeStrategies,
   createBuiltinWorkflowNodeCatalog,
+  createWorkflowNodeCatalog,
   type NodeRegistryReader,
   type Workflow,
+  type WorkflowPluginLock,
 } from '@ai-workflow/core'
+import { createNodeTypesFromPluginManifest } from '@ai-workflow/plugin'
 import {
   projectConditionNodeConfig,
   projectHttpNodeConfig,
   projectLlmNodeConfig,
   projectStaticJsonNodeConfig,
 } from '@ai-workflow/runtime'
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
+
+import type { WorkflowPluginDependencyInput } from '@/common/interfaces/workflow-plugin-dependency.interface'
+import { PluginCatalogService } from '@/services/plugin-catalog.service'
 
 import {
   WORKFLOW_COMPUTE_COMMAND_ROUTING_KEY,
@@ -19,6 +27,7 @@ import {
   WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
 } from '@/infra/workflow-mq/workflow-mq.constants'
 import { RuntimeNodeConfigProjectorRegistry } from './runtime-node-config-projector.registry'
+import type { RuntimeNodeConfigProjectorRegistration } from './runtime-node-config-projector.registry'
 import {
   WORKFLOW_EXECUTION_CLASSES,
   WorkflowExecutionRegistry,
@@ -27,12 +36,14 @@ import {
 
 export interface WorkflowServerCatalog {
   readonly fingerprint: string
+  readonly pluginLock: WorkflowPluginLock
+  readonly pluginDependencies: readonly WorkflowPluginDependencyInput[]
   readonly nodeRegistry: NodeRegistryReader
   readonly configProjectors: RuntimeNodeConfigProjectorRegistry
   readonly executionRegistry: WorkflowExecutionRegistry
 }
 
-const BUILTIN_CONFIG_PROJECTORS = new RuntimeNodeConfigProjectorRegistry([
+const BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS: readonly RuntimeNodeConfigProjectorRegistration[] = [
   { nodeType: BuiltinNodeType.LLM, projector: projectLlmNodeConfig },
   { nodeType: BuiltinNodeType.HTTP, projector: projectHttpNodeConfig },
   {
@@ -45,7 +56,11 @@ const BUILTIN_CONFIG_PROJECTORS = new RuntimeNodeConfigProjectorRegistry([
     nodeType: BuiltinNodeType.SUB_WORKFLOW,
     projector: projectStaticJsonNodeConfig,
   },
-])
+]
+
+const BUILTIN_CONFIG_PROJECTORS = new RuntimeNodeConfigProjectorRegistry(
+  BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
+)
 
 const BUILTIN_EXECUTION_REGISTRATIONS: readonly WorkflowNodeExecutionRegistration[] = [
   { nodeType: BuiltinNodeType.START, kind: 'runtime-control' },
@@ -99,6 +114,8 @@ export function createBuiltinWorkflowServerCatalog(): WorkflowServerCatalog {
 
   return Object.freeze({
     fingerprint: coreCatalog.fingerprint,
+    pluginLock: coreCatalog.pluginLock,
+    pluginDependencies: [],
     nodeRegistry: coreCatalog.nodeRegistry,
     configProjectors: BUILTIN_CONFIG_PROJECTORS,
     executionRegistry,
@@ -139,14 +156,67 @@ function assertCatalogCompatible(
 export class WorkflowCatalogResolver {
   private readonly builtinCatalog = createBuiltinWorkflowServerCatalog()
 
+  constructor(private readonly pluginCatalogService: PluginCatalogService) {}
+
   async resolveForWorkflow(ownerId: string, workflow: Workflow): Promise<WorkflowServerCatalog> {
-    // 插件锁进入 Workflow schema 后，此处按 ownerId + lock 校验安装、摘要并缓存 Catalog。
-    void ownerId
-    void workflow
-    return this.builtinCatalog
+    if (workflow.plugins.length === 0) return this.builtinCatalog
+
+    const resolvedPlugins = await this.pluginCatalogService.resolveWorkflowVersions(
+      ownerId,
+      workflow.plugins,
+    )
+    const pluginNodeTypes = resolvedPlugins.flatMap((plugin) =>
+      createNodeTypesFromPluginManifest(plugin.manifest),
+    )
+    const coreCatalog = createWorkflowNodeCatalog({
+      hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+      nodes: [...Object.values(builtinNodeStrategies), ...pluginNodeTypes],
+      pluginLock: workflow.plugins,
+    })
+    const pluginProjectors = pluginNodeTypes.map((nodeType) => ({
+      nodeType: nodeType.definition.type,
+      projector: projectStaticJsonNodeConfig,
+    }))
+    const configProjectors = new RuntimeNodeConfigProjectorRegistry([
+      ...BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
+      ...pluginProjectors,
+    ])
+    const executionRegistry = new WorkflowExecutionRegistry([
+      ...BUILTIN_EXECUTION_REGISTRATIONS,
+      ...resolvedPlugins.flatMap((plugin) =>
+        plugin.manifest.nodes.map((node) => ({
+          nodeType: node.type,
+          kind: 'unsupported' as const,
+          reason:
+            node.execution.kind === 'sandbox-js'
+              ? `插件节点 ${node.label} 尚未接入独立沙箱执行器`
+              : `插件节点 ${node.label} 未声明服务端执行能力`,
+        })),
+      ),
+    ])
+
+    assertCatalogCompatible(coreCatalog.nodeRegistry, configProjectors, executionRegistry)
+
+    return Object.freeze({
+      fingerprint: coreCatalog.fingerprint,
+      pluginLock: coreCatalog.pluginLock,
+      pluginDependencies: Object.freeze(resolvedPlugins.map((plugin) => plugin.dependency)),
+      nodeRegistry: coreCatalog.nodeRegistry,
+      configProjectors,
+      executionRegistry,
+    })
   }
 
   resolveBuiltin(): WorkflowServerCatalog {
     return this.builtinCatalog
+  }
+}
+
+export function assertWorkflowExecutable(workflow: Workflow, catalog: WorkflowServerCatalog): void {
+  for (const node of workflow.nodes) {
+    const registration = catalog.executionRegistry.get(node.type)
+    if (registration?.kind === 'unsupported') {
+      throw new BadRequestException(registration.reason)
+    }
   }
 }

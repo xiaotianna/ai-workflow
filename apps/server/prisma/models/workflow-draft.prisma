@@ -12,5 +12,7 @@ model WorkflowDraft {
   workflow  Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   updatedBy User?    @relation("WorkflowDraftUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 
+  pluginDependencies WorkflowDraftPluginDependency[]
+
   @@map("workflow_drafts")
 }

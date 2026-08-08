@@ -241,6 +241,8 @@
   各级标题与代码、表格文字按内容层级递减，避免文档页沿用业务面板的紧凑字号。文档品牌区复用
   Web 公共 `/logo.svg`，不得以 Lucide 图标替代项目 Logo。未激活菜单 Hover 时只切换背景，文字
   继续使用 `text-muted-foreground`，不得加深为正文色；激活项保持主色文字。
+  MDX 代码高亮使用 Shiki 的 `catppuccin-latte`（亮色）与 `catppuccin-mocha`（暗色）主题，
+  代码块外壳继续由 Web 的 MDX 映射控制。
 
 ## 应用调用日志表格
 

@@ -317,13 +317,19 @@ export function useWorkflowEditor({
     },
   })
 
-  const workflow = useMemo<Workflow>(
-    () => ({
+  const workflow = useMemo<Workflow>(() => {
+    const usedPluginIds = new Set<string>()
+    for (const node of nodes) {
+      const lock = catalog.pluginLockByNodeType.get(node.type)
+      if (lock) usedPluginIds.add(lock.pluginId)
+    }
+
+    return {
       ...toWorkflow(initialSnapshot.workflow, nodes, edges),
       environmentVariables,
-    }),
-    [edges, environmentVariables, initialSnapshot.workflow, nodes],
-  )
+      plugins: catalog.pluginLock.filter((lock) => usedPluginIds.has(lock.pluginId)),
+    }
+  }, [catalog, edges, environmentVariables, initialSnapshot.workflow, nodes])
 
   // 画布选中节点
   const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)

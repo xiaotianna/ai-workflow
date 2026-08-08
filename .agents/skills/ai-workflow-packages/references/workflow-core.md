@@ -64,8 +64,8 @@ Nodes UI 保持 schema 和组件类型关联。
 
 ## 核心模型
 
-- `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes、edges、outputs 和
-  `environmentVariables`；旧工作流缺少环境变量字段时默认解析为空数组。
+- `workflowSchema` 校验工作流基本结构，包含 id、name、description、nodes、edges、outputs、
+  `environmentVariables` 和 `plugins`；旧工作流缺少 outputs 或 plugins 时默认解析为空数组。
 - `workflowNodeSchema` 校验通用节点字段、可选的实例 `label` / `description`、
   `inputs` 变量绑定和实例动态 `outputs`；实例名称和描述覆盖 `NodeDefinition` 的默认展示
   文案，具体 `config` 仍由对应 `NodeType.schema` 校验。
@@ -82,6 +82,8 @@ Nodes UI 保持 schema 和组件类型关联。
   fingerprint，并冻结插件锁与 Catalog；内置两端统一从 `createBuiltinWorkflowNodeCatalog()`
   获取相同 fingerprint，插件 Catalog 必须新建，不能修改已存在实例。内置节点集合或装配适配规则
   发生变化时必须同步递增 `BUILTIN_WORKFLOW_NODE_CATALOG_VERSION`，防止复用旧 fingerprint。
+- `workflowPluginLockSchema` 校验平台插件 UUID、版本和 SHA-256 digest，并禁止同一工作流锁定同一
+  插件多个版本；Web、Server 和持久化入口不得自行定义另一份锁结构。
 - `supportsSingleNodeTestRun(nodeType)` 判定节点是否允许 `SINGLE_NODE` 测试运行；Start、End、
   Loop、Loop Start、Loop Exit、Sub Workflow 返回 `false`。Web `canRunNode` 与 Server 单节点入口
   必须复用该函数，不得各自维护拒绝列表。

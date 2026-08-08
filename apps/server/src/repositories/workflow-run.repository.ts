@@ -3,6 +3,7 @@ import type {
   RuntimeTerminalData,
   RuntimeTransitionPersistence,
 } from '@/common/interfaces/workflow-run-persistence.interface'
+import type { WorkflowPluginDependencyInput } from '@/common/interfaces/workflow-plugin-dependency.interface'
 import type { TestRunMode, WorkflowRunListScope } from '@/dto/workflow-run.dto'
 import {
   Prisma,
@@ -37,6 +38,7 @@ interface CreateTestRunOptions {
   runtimeState?: RuntimeState
   terminal: RuntimeTerminalData
   dispatches: readonly PreparedNodeDispatch[]
+  pluginDependencies: readonly WorkflowPluginDependencyInput[]
 }
 
 interface CreateApiRunOptions {
@@ -172,6 +174,15 @@ export class WorkflowRunRepository {
           layout: toJsonInput(options.layout),
           note: options.mode === 'FULL' ? '完整工作流测试运行' : '单节点测试运行',
           createdById: options.ownerId,
+          pluginDependencies: {
+            create: options.pluginDependencies.map((dependency) => ({
+              pluginVersionId: dependency.pluginVersionId,
+              manifest: toJsonInput(dependency.manifest),
+              artifactReference: dependency.artifactReference,
+              artifactDigest: dependency.artifactDigest,
+              artifactSize: dependency.artifactSize,
+            })),
+          },
         },
       })
 

@@ -139,12 +139,18 @@
 - 文件系统与 PostgreSQL 不能组成同一事务：Service 先写唯一产物文件，再执行发布事务；数据库
   失败时尽力删除本次文件，清理失败的孤儿文件留给后续 GC，禁止删除已经成功入库的产物。
 - Marketplace 查询在 Repository 中同时应用发布状态、可见范围、搜索、scope 和游标条件；scope
-  分别通过安装关系、当前用户工作流版本依赖和 `publisherId` 实现。默认只允许公开插件与当前用户
+  分别通过安装关系、当前用户工作流草稿/版本依赖和 `publisherId` 实现。默认只允许公开插件与当前用户
   自己的私有插件。安装数通过 `PluginInstallation` 关系聚合，列表和详情通过
   `latestVersionId` 读取最新版本，不在 Web 用 Mock 或客户端过滤模拟服务端数据。
 - `PluginInstallation` 以 `(ownerId, pluginId)` 唯一，保存当前选择的精确 `versionId`、启用状态与
   从该版本 Manifest 重新校验后的权限授权快照。安装升级只切换这条记录；历史工作流版本继续引用
-  原精确版本，运行时权限与插件锁校验仍由后续 runtime catalog 阶段完成。
+  原精确版本。
+- Workflow 顶层 `plugins` 保存 `(pluginId, version, digest)` 精确锁。`PluginCatalogService` 对编辑器
+  合并当前安装版本和工作流锁定版本，对 Server 校验只解析工作流锁；Manifest、制品引用、摘要和
+  大小分别投影到 `WorkflowDraftPluginDependency` 与 `WorkflowVersionPluginDependency`。草稿保存、
+  测试版本、发布版本和版本恢复必须与定义在同一事务内同步投影。
+- Manifest 可以先编译为静态 Core 节点供编辑与保存；在独立沙箱尚未落地前，插件节点执行能力统一
+  登记为 `unsupported`，发布和测试运行在创建版本或 Outbox 前明确拒绝。
 
 ## Redis
 
@@ -167,11 +173,12 @@
 
 1. 对外部原始数据调用 `workflowSchema.safeParse()`。
 2. 使用 `WorkflowCatalogResolver.resolveForWorkflow(ownerId, parsed.data)` 获取当前工作流不可变
-   `WorkflowServerCatalog`；当前空插件锁返回内置 Catalog，后续插件锁解析仍只扩展该入口。
+   `WorkflowServerCatalog`；空插件锁返回内置 Catalog，非空锁按安装关系、精确 SemVer、摘要和
+   Manifest 宿主兼容范围构建专属 Catalog。
 3. 保存或编辑场景调用 `validateWorkflow(parsed.data, catalog.nodeRegistry)`。
 4. 执行前调用 `validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)`，不先重复调用保存校验。
 5. Runtime 只使用 `catalog.configProjectors.createResolver()`；所有可派发内置节点都显式登记 projector，
-   禁止对未登记节点回退到 `projectStaticJsonNodeConfig`。
+   插件静态配置可使用通用 JSON projector，但未登记的节点不得回退。
 6. 创建 Outbox 前把同一 Catalog 的 `executionRegistry` 传给
    `WorkflowExecutionRoutingService.resolve()`；Routing Service 只应用 legacy/classified 部署策略与
    enabled class 白名单，不导入 `BuiltinNodeType` 或维护节点路由表。

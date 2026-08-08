@@ -64,6 +64,7 @@ import {
 import { randomUUID } from 'node:crypto'
 import { isUUID } from 'class-validator'
 import {
+  assertWorkflowExecutable,
   WorkflowCatalogResolver,
   type WorkflowServerCatalog,
 } from '@/workflow-catalog/workflow-server-catalog'
@@ -133,6 +134,7 @@ export class WorkflowRunService {
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
+    assertWorkflowExecutable(parsedWorkflow.data, catalog)
 
     const runId = randomUUID()
     const runtime = createWorkflowRuntime(parsedWorkflow.data, {
@@ -667,6 +669,7 @@ export class WorkflowRunService {
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
+    assertWorkflowExecutable(workflow, catalog)
 
     this.assertFullRunCapabilities(workflow)
 
@@ -704,6 +707,7 @@ export class WorkflowRunService {
       runtimeState: transition.state,
       terminal: getRuntimeTerminal(transition),
       dispatches: initialDispatches,
+      pluginDependencies: catalog.pluginDependencies,
     })
     if (created === 'not-found') throw new NotFoundException('工作流草稿不存在')
 
@@ -728,6 +732,7 @@ export class WorkflowRunService {
     }
 
     const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow)
+    assertWorkflowExecutable(workflow, catalog)
     const nodeType = catalog.nodeRegistry.get(node.type)
     const parsedConfig = nodeType?.schema.safeParse(node.config)
     if (!nodeType || !parsedConfig?.success) {
@@ -769,6 +774,7 @@ export class WorkflowRunService {
       input: effectiveInput,
       terminal: { status: 'RUNNING' },
       dispatches,
+      pluginDependencies: catalog.pluginDependencies,
     })
     if (created === 'not-found') throw new NotFoundException('工作流草稿不存在')
 

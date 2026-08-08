@@ -1,3 +1,4 @@
+import type { WorkflowPluginDependencyInput } from '@/common/interfaces/workflow-plugin-dependency.interface'
 import { Prisma } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
 import { Injectable } from '@nestjs/common'
@@ -9,6 +10,7 @@ interface SaveWorkflowDraftOptions {
   revision: number
   definition: Prisma.InputJsonValue
   layout: Prisma.InputJsonValue
+  pluginDependencies: readonly WorkflowPluginDependencyInput[]
 }
 
 type SaveWorkflowDraftResult =
@@ -102,6 +104,22 @@ export class WorkflowDraftRepository {
 
       if (updated.count !== 1) return { status: 'conflict' }
 
+      await transaction.workflowDraftPluginDependency.deleteMany({
+        where: { workflowDraftId: draft.id },
+      })
+      if (options.pluginDependencies.length > 0) {
+        await transaction.workflowDraftPluginDependency.createMany({
+          data: options.pluginDependencies.map((dependency) => ({
+            workflowDraftId: draft.id,
+            pluginVersionId: dependency.pluginVersionId,
+            manifest: toJsonInput(dependency.manifest),
+            artifactReference: dependency.artifactReference,
+            artifactDigest: dependency.artifactDigest,
+            artifactSize: dependency.artifactSize,
+          })),
+        })
+      }
+
       await transaction.app.update({
         where: {
           id: options.appId,
@@ -130,4 +148,8 @@ export class WorkflowDraftRepository {
       }
     })
   }
+}
+
+function toJsonInput(value: unknown): Prisma.InputJsonValue {
+  return structuredClone(value) as Prisma.InputJsonValue
 }

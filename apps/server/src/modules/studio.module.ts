@@ -30,9 +30,10 @@ import { WorkflowVersionService } from '@/services/workflow-version.service'
 import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
 import { Module } from '@nestjs/common'
 import { JwtModule } from './jwt.module'
+import { PluginModule } from './plugin.module'
 
 @Module({
-  imports: [JwtModule],
+  imports: [JwtModule, PluginModule],
   controllers: [
     AppApiController,
     AppApiManagementController,

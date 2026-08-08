@@ -200,6 +200,10 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   详情返回的最新 `versionId`，以及用户确认的完整权限集合；服务端重新从该版本 Manifest 读取权限，
   版本已变化返回 `409`，权限集合不一致返回 `400`。接口只更新 `PluginInstallation`，不得改写任何
   工作流草稿或不可变 `WorkflowVersion`。
+- `POST /plugins/runtime-catalog/resolve`：提交当前工作流的 `pluginLock`，返回该用户编辑器可用的
+  已安装插件 Manifest、精确版本锁和 Catalog fingerprint。已被工作流使用的插件必须解析锁定版本，
+  未使用插件使用当前安装版本；服务端校验启用状态、精确版本、Artifact digest 和
+  `hostVersionRange`，响应不返回本地 `artifactReference`。
 - `POST /plugins/publish`：使用 Bearer Token 和 `multipart/form-data` 上传 CLI `pack` 生成的
   `.tgz`；文件字段固定为 `file`，文本字段为 `visibility=PUBLIC|PRIVATE` 和最长 5000 字符的可选
   `changelog`。压缩包最大 50 MB，解压后最大 200 MB、最多 2048 个普通文件。

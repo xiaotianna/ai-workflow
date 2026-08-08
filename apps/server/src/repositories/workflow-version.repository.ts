@@ -118,6 +118,15 @@ export class WorkflowVersionRepository {
           schemaVersion: true,
           definition: true,
           layout: true,
+          pluginDependencies: {
+            select: {
+              pluginVersionId: true,
+              manifest: true,
+              artifactReference: true,
+              artifactDigest: true,
+              artifactSize: true,
+            },
+          },
         },
       })
       if (!version) return { status: 'not-found' }
@@ -139,6 +148,22 @@ export class WorkflowVersionRepository {
           updatedAt: true,
         },
       })
+
+      await transaction.workflowDraftPluginDependency.deleteMany({
+        where: { workflowDraftId: draft.id },
+      })
+      if (version.pluginDependencies.length > 0) {
+        await transaction.workflowDraftPluginDependency.createMany({
+          data: version.pluginDependencies.map((dependency) => ({
+            workflowDraftId: draft.id,
+            pluginVersionId: dependency.pluginVersionId,
+            manifest: dependency.manifest as Prisma.InputJsonValue,
+            artifactReference: dependency.artifactReference,
+            artifactDigest: dependency.artifactDigest,
+            artifactSize: dependency.artifactSize,
+          })),
+        })
+      }
 
       await transaction.app.update({
         where: { id: options.appId },

@@ -16,7 +16,10 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { BuiltinNodeType, validateExecutorWorkflow, workflowSchema } from '@ai-workflow/core'
-import { WorkflowCatalogResolver } from '@/workflow-catalog/workflow-server-catalog'
+import {
+  assertWorkflowExecutable,
+  WorkflowCatalogResolver,
+} from '@/workflow-catalog/workflow-server-catalog'
 
 @Injectable()
 export class WorkflowDeploymentService {
@@ -109,6 +112,7 @@ export class WorkflowDeploymentService {
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法发布')
     }
+    assertWorkflowExecutable(parsed.data, catalog)
 
     const result = await this.workflowDeploymentRepository.publishOwned({
       ownerId,
@@ -117,6 +121,7 @@ export class WorkflowDeploymentService {
       schemaVersion: draft.schemaVersion,
       definition: this.toJsonInput(parsed.data),
       layout: this.toJsonInput(layout),
+      pluginDependencies: catalog.pluginDependencies,
     })
 
     if (result.status === 'not-found') {

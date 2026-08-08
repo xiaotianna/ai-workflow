@@ -79,6 +79,7 @@ export class WorkflowDraftService {
       revision: dto.revision,
       definition: this.toJsonInput(definition),
       layout: this.toJsonInput(layout),
+      pluginDependencies: catalog.pluginDependencies,
     })
 
     if (result.status === 'not-found') {

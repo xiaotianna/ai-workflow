@@ -1,4 +1,6 @@
 import { apiClient } from '@/api/client'
+import type { WorkflowPluginLock } from '@ai-workflow/core'
+import type { PluginManifest } from '@ai-workflow/plugin'
 
 export type PluginVisibility = 'PUBLIC' | 'PRIVATE'
 export type PluginListScope = 'ALL' | 'INSTALLED' | 'USED' | 'MINE'
@@ -90,6 +92,18 @@ export interface InstalledPluginDto {
   updateAvailable: false
 }
 
+export interface PluginRuntimeCatalogDto {
+  fingerprint: string
+  pluginLock: WorkflowPluginLock
+  plugins: Array<{
+    pluginId: string
+    versionId: string
+    version: string
+    artifactDigest: string
+    manifest: PluginManifest
+  }>
+}
+
 export function listPlugins(
   params: ListPluginsParams,
   signal?: AbortSignal,
@@ -120,5 +134,16 @@ export function installPlugin(
   return apiClient.put<InstalledPluginDto, InstallPluginParams>(
     `/plugins/${encodeURIComponent(pluginId)}/installation`,
     values,
+  )
+}
+
+export function resolvePluginRuntimeCatalog(
+  pluginLock: WorkflowPluginLock,
+  signal?: AbortSignal,
+): Promise<PluginRuntimeCatalogDto> {
+  return apiClient.post<PluginRuntimeCatalogDto, { pluginLock: WorkflowPluginLock }>(
+    '/plugins/runtime-catalog/resolve',
+    { pluginLock },
+    { signal },
   )
 }

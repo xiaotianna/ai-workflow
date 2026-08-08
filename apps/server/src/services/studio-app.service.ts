@@ -86,6 +86,7 @@ export class StudioAppService {
       edges: [],
       outputs: [],
       environmentVariables: [],
+      plugins: [],
     }
     const definition = await this.parseWorkflowDefinition(
       ownerId,

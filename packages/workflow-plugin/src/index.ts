@@ -1,5 +1,6 @@
 export * from './contracts'
 export * from './schema'
+export * from './runtime'
 
 export type {
   DataType,
