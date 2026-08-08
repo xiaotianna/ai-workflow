@@ -1,4 +1,9 @@
-import { listPlugins, type PluginListItemDto, type PluginListScope } from '@/api/plugins'
+import {
+  listPlugins,
+  type InstalledPluginDto,
+  type PluginListItemDto,
+  type PluginListScope,
+} from '@/api/plugins'
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -140,9 +145,25 @@ export function usePlugins() {
     void requestMore(nextCursor)
   }
 
+  function applyInstallation(result: InstalledPluginDto) {
+    setPlugins((currentPlugins) =>
+      currentPlugins.map((plugin) =>
+        plugin.id === result.pluginId
+          ? {
+              ...plugin,
+              installCount: plugin.installation ? plugin.installCount : plugin.installCount + 1,
+              installation: result.installation,
+              updateAvailable: result.updateAvailable,
+            }
+          : plugin,
+      ),
+    )
+  }
+
   return {
     hasMore: nextCursor !== null,
     activeFilter,
+    applyInstallation,
     heroLoading: !initialized,
     initialError,
     initialLoading,

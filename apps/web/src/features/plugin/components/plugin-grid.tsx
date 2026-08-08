@@ -1,6 +1,7 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { useEffect, useRef } from 'react'
 
+import type { InstalledPluginDto } from '@/api/plugins'
 import { PluginCard } from './plugin-card'
 import { PluginCardSkeletonGrid } from './plugin-card-skeleton'
 import type { PluginListItem } from '../types'
@@ -15,6 +16,7 @@ interface PluginGridProps {
   onLoadMore: () => void
   onRetryInitial: () => void
   onRetryLoadMore: () => void
+  onInstalled: (result: InstalledPluginDto) => void
 }
 
 const pluginGridClassName =
@@ -30,6 +32,7 @@ export function PluginGrid({
   onLoadMore,
   onRetryInitial,
   onRetryLoadMore,
+  onInstalled,
 }: PluginGridProps) {
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null)
 
@@ -79,7 +82,7 @@ export function PluginGrid({
     <>
       <div className={pluginGridClassName}>
         {plugins.map((plugin) => (
-          <PluginCard key={plugin.id} plugin={plugin} />
+          <PluginCard key={plugin.id} plugin={plugin} onInstalled={onInstalled} />
         ))}
         {loadingMore ? <PluginCardSkeletonGrid count={4} /> : null}
       </div>

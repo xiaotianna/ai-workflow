@@ -3,6 +3,14 @@ import { apiClient } from '@/api/client'
 export type PluginVisibility = 'PUBLIC' | 'PRIVATE'
 export type PluginListScope = 'ALL' | 'INSTALLED' | 'USED' | 'MINE'
 export type PluginListSort = 'updated_desc' | 'created_desc' | 'name_asc'
+export type PluginPermission = 'web:execute' | 'network:public' | 'secrets:read'
+
+export interface PluginInstallationDto {
+  versionId: string
+  version: string
+  enabled: boolean
+  grantedPermissions: PluginPermission[]
+}
 
 export interface PluginListItemDto {
   id: string
@@ -17,9 +25,13 @@ export interface PluginListItemDto {
   visibility: PluginVisibility
   installCount: number
   latestVersion: {
+    id: string
     version: string
     publishedAt: string
+    permissions: PluginPermission[]
   }
+  installation: PluginInstallationDto | null
+  updateAvailable: boolean
   createdAt: string
   updatedAt: string
 }
@@ -58,11 +70,24 @@ export interface PublishedPluginVersionDto {
 export interface PluginDetailDto extends PluginListItemDto {
   content: string
   versions: Array<{
+    id: string
     version: string
     publishedAt: string
     author: string
     changelog: string
+    permissions: PluginPermission[]
   }>
+}
+
+export interface InstallPluginParams {
+  versionId: string
+  permissions: PluginPermission[]
+}
+
+export interface InstalledPluginDto {
+  pluginId: string
+  installation: PluginInstallationDto
+  updateAvailable: false
 }
 
 export function listPlugins(
@@ -86,4 +111,14 @@ export function publishPlugin(values: PublishPluginParams): Promise<PublishedPlu
 
 export function getPlugin(pluginId: string, signal?: AbortSignal): Promise<PluginDetailDto> {
   return apiClient.get<PluginDetailDto>(`/plugins/${encodeURIComponent(pluginId)}`, { signal })
+}
+
+export function installPlugin(
+  pluginId: string,
+  values: InstallPluginParams,
+): Promise<InstalledPluginDto> {
+  return apiClient.put<InstalledPluginDto, InstallPluginParams>(
+    `/plugins/${encodeURIComponent(pluginId)}/installation`,
+    values,
+  )
 }

@@ -2,16 +2,17 @@
 
 ## 1. 文档状态
 
-- 状态：阶段一 SDK 与构建工具已实现，Web/Server/执行阶段待实施
-- 基线日期：2026-08-08
+- 状态：SDK、构建工具、Marketplace 发布/列表/安装已实现，工作流插件锁与执行阶段待实施
+- 基线日期：2026-08-09
 - 适用范围：插件 SDK、插件构建工具、Workflow Core、Web 编辑器、Server、Runtime、Protocol 与 Executor
 - 目标：让第三方按照稳定公开规范开发工作流节点插件，并支持声明式节点、可选自定义节点 UI、可选完整自定义配置表单，以及后续的隔离执行能力
 
 本文描述目标架构，不表示仓库已经具备全部对应能力。当前 `packages/workflow-plugin` 已完成声明
 DSL、Schema AST 与编译器、源码配置和 manifest 契约，以及 `./ui`、`./executor` 公共入口；
 `packages/workflow-plugin-cli` 已实现 init、check、build、pack、dev、三套项目模板、ESM Web Remote
-与 Executor ESM 构建。插件市场页面仍主要使用模拟数据，Web 与 Server 尚未消费插件 Manifest 和
-Artifact。
+与 Executor ESM 构建。Server 已接入 `.tgz` 校验、不可变版本发布、Marketplace 查询和用户安装，
+Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工作流插件锁、runtime catalog 和第三方执行
+仍待后续阶段实现。
 
 ## 2. 结论
 
@@ -77,7 +78,8 @@ Artifact。
 1. Web 多处直接导入 Core 全局 `nodeRegistry`，并在模块初始化时静态生成 React Flow
    `nodeTypes`，无法按当前 Workflow 合并插件。
 2. Server 的保存、发布、运行和执行路由同样依赖内置 Registry 或内置 node type 映射。
-3. 当前 Workflow 快照没有插件版本锁，无法保证发布版本在插件升级后仍可复现。
+3. 当前 Workflow 快照仍没有插件版本锁；Marketplace 安装升级不会改写 Workflow，但运行时还不能
+   按工作流解析精确插件版本。
 4. Core 的 Zod schema、`createInitialConfig()` 和 `resolvePorts()` 包含运行时对象或函数，不能直接
    放入 JSON manifest。
 5. 任意远程 React 代码与宿主运行在同一个页面上下文，不能被当作安全沙箱。
@@ -185,8 +187,8 @@ ai-workflow-plugin pack
 ai-workflow-plugin publish
 ```
 
-第一阶段已实现 `init`、`check`、`dev`、`build` 和 `pack`；`publish` 在 Server 插件上传与版本模型
-完成后接入。
+第一阶段已实现 `init`、`check`、`dev`、`build` 和 `pack`；发布由 Web 上传 CLI 生成的 `.tgz` 到
+Server 完成，CLI 不保存平台 UUID、上传作者或发布状态。
 
 新增 workspace package 时，需要同步为 `$ai-workflow-packages` 增加独立技能引用文件并登记加载条件。
 
@@ -735,7 +737,7 @@ interface Workflow {
 
 ### 16.1 数据模型
 
-建议增加：
+当前数据模型与后续目标：
 
 - `Plugin`：平台 UUID、唯一 package 名映射、上传作者、可见性和状态；
 - `PluginVersion`：不可变 semver、manifest、宿主版本范围和发布时间；
@@ -746,6 +748,10 @@ interface Workflow {
 
 Workflow JSON 仍保存 plugin lock 作为事实来源，引用投影与 JSON 在同一事务重建，用真实外键阻止
 删除仍被草稿、版本、部署或运行引用的 PluginVersion 和 Artifact。
+
+其中 `Plugin`、`PluginVersion` 和 `PluginInstallation` 已落地；`Plugin.latestVersionId` 是最新版本的
+唯一指针，同一 package 的新上传必须由原发布者提交且 SemVer 严格递增。工作流两类引用投影仍待
+插件锁阶段实现。
 
 ### 16.2 模块边界
 
@@ -909,8 +915,9 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 
 ### 20.1 安装
 
-1. 用户选择 PluginVersion；
-2. Server 校验 `hostVersionRange`、manifest、artifact digest 和权限；
+1. Marketplace 当前只允许用户安装显式最新 `PluginVersion`；
+2. Server 校验请求版本仍是最新版本，并从持久化 manifest 重新读取权限；宿主版本范围和运行时
+   artifact 校验在 runtime catalog 阶段补齐；
 3. 用户确认特权权限；
 4. 创建或更新 PluginInstallation；
 5. 安装只决定“允许新工作流使用的版本”，不自动修改现有草稿和版本。
@@ -918,6 +925,8 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 ### 20.2 升级
 
 - 安装升级与 Workflow 升级分开；
+- 发布者以同一 package 名上传严格递增的新 SemVer 会创建新的不可变 PluginVersion，并切换
+  `latestVersionId`；已安装用户继续停留在原版本，直到显式确认权限并更新；
 - Workflow 显式升级时先检查新 manifest 的节点集合、schemaVersion 和权限；
 - 没有安全迁移路径时拒绝自动升级；
 - 升级产生新的可撤销草稿快照；

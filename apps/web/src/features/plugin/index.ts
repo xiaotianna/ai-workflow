@@ -2,6 +2,7 @@ export { PluginCard } from './components/plugin-card'
 export { PluginCardSkeleton, PluginCardSkeletonGrid } from './components/plugin-card-skeleton'
 export { PluginDetail } from './components/plugin-detail'
 export { PluginGrid } from './components/plugin-grid'
+export { PluginInstallationDialog } from './components/plugin-installation-dialog'
 export { PluginMarkdown } from './components/plugin-markdown'
 export { PluginMarketplaceHero } from './components/plugin-marketplace-hero'
 export { PluginMarketplaceHeader } from './components/plugin-marketplace-header'
@@ -16,6 +17,11 @@ export {
   pluginPublishSchema,
   pluginPublishVisibilityValues,
 } from './schema'
-export type { PluginListItem, PluginVersion, PluginVersionHistory } from './types'
+export type {
+  PluginDetail as PluginDetailData,
+  PluginListItem,
+  PluginVersion,
+  PluginVersionHistory,
+} from './types'
 export type { PluginFilterId } from './constants'
 export type { PluginPublishFormInput, PluginPublishInput } from './schema'

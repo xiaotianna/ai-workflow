@@ -1,19 +1,21 @@
 model Plugin {
-  id           String           @id @default(uuid()) @db.Uuid
-  publisherId  String?          @db.Uuid
-  packageName  String           @unique @db.VarChar(214)
-  name         String           @db.VarChar(80)
-  description  String           @db.VarChar(500)
-  icon         String?          @db.VarChar(256)
-  category     String           @db.VarChar(32)
-  visibility   PluginVisibility @default(PRIVATE)
-  status       PluginStatus     @default(DRAFT)
-  verified     Boolean          @default(false)
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id              String           @id @default(uuid()) @db.Uuid
+  publisherId     String?          @db.Uuid
+  latestVersionId String?          @unique @db.Uuid
+  packageName     String           @unique @db.VarChar(214)
+  name            String           @db.VarChar(80)
+  description     String           @db.VarChar(500)
+  icon            String?          @db.VarChar(256)
+  category        String           @db.VarChar(32)
+  visibility      PluginVisibility @default(PRIVATE)
+  status          PluginStatus     @default(DRAFT)
+  verified        Boolean          @default(false)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
   publisher     User?                @relation(fields: [publisherId], references: [id], onDelete: SetNull)
-  versions      PluginVersion[]
+  latestVersion PluginVersion?       @relation("PluginLatestVersion", fields: [latestVersionId], references: [id], onDelete: SetNull)
+  versions      PluginVersion[]      @relation("PluginVersions")
   installations PluginInstallation[]
 
   @@index([publisherId, updatedAt])
@@ -36,7 +38,8 @@ model PluginVersion {
   authorName         String   @db.VarChar(80)
   publishedAt        DateTime @default(now())
 
-  plugin               Plugin                            @relation(fields: [pluginId], references: [id], onDelete: Restrict)
+  plugin               Plugin                            @relation("PluginVersions", fields: [pluginId], references: [id], onDelete: Restrict)
+  latestForPlugin      Plugin?                           @relation("PluginLatestVersion")
   installations        PluginInstallation[]
   workflowDependencies WorkflowVersionPluginDependency[]
 
@@ -46,13 +49,14 @@ model PluginVersion {
 }
 
 model PluginInstallation {
-  id        String   @id @default(uuid()) @db.Uuid
-  ownerId   String   @db.Uuid
-  pluginId  String   @db.Uuid
-  versionId String   @db.Uuid
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                 String   @id @default(uuid()) @db.Uuid
+  ownerId            String   @db.Uuid
+  pluginId           String   @db.Uuid
+  versionId          String   @db.Uuid
+  enabled            Boolean  @default(true)
+  grantedPermissions String[] @default([])
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   owner   User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   plugin  Plugin        @relation(fields: [pluginId], references: [id], onDelete: Restrict)

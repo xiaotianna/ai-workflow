@@ -2,8 +2,10 @@ import { Button } from '@ai-workflow/ui/components/button'
 import { ChevronDown, Download } from 'lucide-react'
 import { useState } from 'react'
 
+import type { InstalledPluginDto } from '@/api/plugins'
 import { formatPluginInstallCount } from '../data'
 import type { PluginDetail as PluginDetailData } from '../types'
+import { PluginInstallationDialog } from './plugin-installation-dialog'
 import { PluginMarkdown } from './plugin-markdown'
 import {
   formatPluginVersionDate,
@@ -12,12 +14,16 @@ import {
 
 interface PluginDetailProps {
   plugin: PluginDetailData
+  onInstalled: (result: InstalledPluginDto) => void
 }
 
-export function PluginDetail({ plugin }: PluginDetailProps) {
+export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
+  const [installationOpen, setInstallationOpen] = useState(false)
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
   const Icon = plugin.icon
   const latestVersion = plugin.versions[0]
+  const installedLatest = plugin.installation !== null && !plugin.updateAvailable
+  const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
 
   return (
     <>
@@ -70,14 +76,17 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
               <Button
                 type="button"
                 className="h-9 w-33.75 rounded-none rounded-l-lg px-3 font-semibold"
+                disabled={installedLatest}
+                onClick={() => setInstallationOpen(true)}
               >
-                安装
+                {actionLabel}
               </Button>
               <Button
                 type="button"
                 size="icon"
                 className="border-primary-foreground/15 h-9 rounded-none rounded-r-lg border-l"
                 aria-label="更多安装选项"
+                onClick={() => setVersionHistoryOpen(true)}
               >
                 <ChevronDown aria-hidden className="size-4" />
               </Button>
@@ -124,6 +133,12 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
         plugin={plugin}
         open={versionHistoryOpen}
         onOpenChange={setVersionHistoryOpen}
+      />
+      <PluginInstallationDialog
+        plugin={plugin}
+        open={installationOpen}
+        onOpenChange={setInstallationOpen}
+        onInstalled={onInstalled}
       />
     </>
   )

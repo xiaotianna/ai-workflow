@@ -1,6 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 
-import type { PluginVisibility } from '@/api/plugins'
+import type { PluginInstallationDto, PluginPermission, PluginVisibility } from '@/api/plugins'
 
 export interface PluginListItem {
   id: string
@@ -13,17 +13,23 @@ export interface PluginListItem {
   tags: string[]
   icon: LucideIcon
   visibility?: PluginVisibility
-  latestVersion?: {
+  latestVersion: {
+    id: string
     version: string
     publishedAt: string
+    permissions: PluginPermission[]
   }
+  installation: PluginInstallationDto | null
+  updateAvailable: boolean
 }
 
 export interface PluginVersion {
+  id: string
   version: string
   publishedAt: string
   author: string
   changelog: string
+  permissions: PluginPermission[]
 }
 
 export type PluginVersionHistory = readonly [PluginVersion, ...PluginVersion[]]

@@ -196,6 +196,10 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   安装数、可见范围与 opaque `nextCursor`，前端不得解析或自行构造游标。
 - `GET /plugins/:pluginId`：`pluginId` 固定为 `Plugin.id` UUID，按列表相同的可见范围返回真实详情和
   不可变版本历史；详情路由不得使用作者或 package 名充当平台 ID。
+- `PUT /plugins/:pluginId/installation`：安装或把当前用户的安装升级到最新版本。请求必须提交列表或
+  详情返回的最新 `versionId`，以及用户确认的完整权限集合；服务端重新从该版本 Manifest 读取权限，
+  版本已变化返回 `409`，权限集合不一致返回 `400`。接口只更新 `PluginInstallation`，不得改写任何
+  工作流草稿或不可变 `WorkflowVersion`。
 - `POST /plugins/publish`：使用 Bearer Token 和 `multipart/form-data` 上传 CLI `pack` 生成的
   `.tgz`；文件字段固定为 `file`，文本字段为 `visibility=PUBLIC|PRIVATE` 和最长 5000 字符的可选
   `changelog`。压缩包最大 50 MB，解压后最大 200 MB、最多 2048 个普通文件。
@@ -205,7 +209,7 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - package 名和 SemVer 只从通过 `@ai-workflow/plugin` Schema 校验的 Manifest 读取；Manifest 和
   CLI 不包含平台 UUID 或作者。首次成功发布会把唯一 package 名映射到服务端生成的 `Plugin.id`
   UUID，并绑定当前认证用户；其他用户覆盖该 package 返回 `403`。同一插件版本不可覆盖，重复发布
-  返回 `409`。
+  返回 `409`；后续上传必须严格高于显式 `latestVersionId` 指向的 SemVer，否则同样返回 `409`。
 - 成功响应只返回插件版本身份、可见范围、Archive/Artifact digest 和发布时间，不返回本地存储
   绝对路径或压缩包正文。当前是“上传即发布”，不经过审核流程。
 

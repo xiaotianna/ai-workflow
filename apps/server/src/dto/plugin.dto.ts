@@ -1,5 +1,17 @@
 import { Transform, Type } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
+import { PLUGIN_PERMISSION_VALUES, type PluginPermission } from '@ai-workflow/plugin'
+import {
+  ArrayUnique,
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator'
 
 export const PLUGIN_VISIBILITIES = ['PUBLIC', 'PRIVATE'] as const
 export type PluginVisibilityValue = (typeof PLUGIN_VISIBILITIES)[number]
@@ -45,4 +57,17 @@ export class PublishPluginDto {
   @IsString({ message: '版本说明必须是字符串' })
   @IsOptional()
   changelog?: string
+}
+
+export class InstallPluginDto {
+  @IsUUID('4', { message: '插件版本 ID 格式不正确' })
+  versionId!: string
+
+  @ArrayUnique({ message: '授权权限不能重复' })
+  @IsIn(PLUGIN_PERMISSION_VALUES, {
+    each: true,
+    message: '包含不支持的插件权限',
+  })
+  @IsArray({ message: '授权权限必须是数组' })
+  permissions!: PluginPermission[]
 }

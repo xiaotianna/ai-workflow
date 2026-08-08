@@ -1,8 +1,13 @@
 import type { AuthenticatedRequest } from '@/common/interfaces/auth-context.interface'
 import { JwtAuth } from '@/decorators/jwt-auth.decorator'
-import { ListPluginsDto, PublishPluginDto } from '@/dto/plugin.dto'
+import { InstallPluginDto, ListPluginsDto, PublishPluginDto } from '@/dto/plugin.dto'
 import { PluginService, type UploadedPluginPackage } from '@/services/plugin.service'
-import type { PluginDetailVo, PluginListVo, PublishedPluginVersionVo } from '@/vo/plugin.vo'
+import type {
+  InstalledPluginVo,
+  PluginDetailVo,
+  PluginListVo,
+  PublishedPluginVersionVo,
+} from '@/vo/plugin.vo'
 import {
   Body,
   Controller,
@@ -12,6 +17,7 @@ import {
   Post,
   Query,
   Req,
+  Put,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common'
@@ -38,6 +44,15 @@ export class PluginController {
     @Param('pluginId', new ParseUUIDPipe({ version: '4' })) pluginId: string,
   ): Promise<PluginDetailVo> {
     return this.pluginService.get(request.auth.userId, pluginId)
+  }
+
+  @Put(':pluginId/installation')
+  install(
+    @Req() request: AuthenticatedRequest,
+    @Param('pluginId', new ParseUUIDPipe({ version: '4' })) pluginId: string,
+    @Body() dto: InstallPluginDto,
+  ): Promise<InstalledPluginVo> {
+    return this.pluginService.install(request.auth.userId, pluginId, dto)
   }
 
   @Post('publish')

@@ -2,7 +2,7 @@ import { Button } from '@ai-workflow/ui/components/button'
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
-import { getPlugin } from '@/api/plugins'
+import { getPlugin, type InstalledPluginDto } from '@/api/plugins'
 import { PluginDetail, PluginMarketplaceHeader, toPluginDetail } from '@/features/plugin'
 
 export default function PluginDetailPage() {
@@ -39,6 +39,21 @@ export default function PluginDetailPage() {
     })
   }
 
+  function handleInstalled(result: InstalledPluginDto) {
+    setPlugin((currentPlugin) => {
+      if (!currentPlugin || currentPlugin.id !== result.pluginId) return currentPlugin
+
+      return {
+        ...currentPlugin,
+        installCount: currentPlugin.installation
+          ? currentPlugin.installCount
+          : currentPlugin.installCount + 1,
+        installation: result.installation,
+        updateAvailable: result.updateAvailable,
+      }
+    })
+  }
+
   return (
     <div className="bg-input h-svh min-w-0 overflow-auto">
       <header className="sticky top-0 z-40 bg-transparent p-3">
@@ -56,7 +71,7 @@ export default function PluginDetailPage() {
           <p className="text-muted-foreground text-sm">正在加载插件…</p>
         </section>
       ) : plugin ? (
-        <PluginDetail plugin={plugin} />
+        <PluginDetail plugin={plugin} onInstalled={handleInstalled} />
       ) : (
         <section className="mx-auto flex max-w-3xl flex-col items-center px-8 py-28 text-center">
           <h1 className="text-foreground text-2xl font-semibold">未找到该插件</h1>

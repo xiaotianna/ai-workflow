@@ -11,6 +11,7 @@ import {
 export default function PluginPage() {
   const {
     activeFilter,
+    applyInstallation,
     hasMore,
     heroLoading,
     initialError,
@@ -58,6 +59,7 @@ export default function PluginPage() {
           onLoadMore={loadMore}
           onRetryInitial={refresh}
           onRetryLoadMore={retryLoadMore}
+          onInstalled={applyInstallation}
         />
       </PageContent>
     </div>

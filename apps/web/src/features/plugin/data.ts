@@ -20,6 +20,8 @@ export function toPluginListItem(plugin: PluginListItemDto): PluginListItem {
     icon: Package,
     visibility: plugin.visibility,
     latestVersion: plugin.latestVersion,
+    installation: plugin.installation,
+    updateAvailable: plugin.updateAvailable,
   }
 }
 
@@ -33,16 +35,20 @@ export function toPluginDetail(plugin: PluginDetailDto): PluginDetail {
     content: plugin.content,
     versions: [
       {
+        id: latestVersion.id,
         version: latestVersion.version,
         publishedAt: latestVersion.publishedAt,
         author: latestVersion.author,
         changelog: latestVersion.changelog,
+        permissions: latestVersion.permissions,
       },
       ...previousVersions.map((version) => ({
+        id: version.id,
         version: version.version,
         publishedAt: version.publishedAt,
         author: version.author,
         changelog: version.changelog,
+        permissions: version.permissions,
       })),
     ],
   }

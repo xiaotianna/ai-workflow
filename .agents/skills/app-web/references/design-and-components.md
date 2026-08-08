@@ -63,9 +63,14 @@
   `text-sm leading-5`，作者、插件短标识和安装量使用紧凑的 13px 元信息行，安装量前保留下载
   图标；认证发布者在名称后使用主题色认证标识。不得直接复制外部项目的字体别名或硬编码颜色。
 - 插件详情安装主操作复用 `StudioToolbar` 的分体主按钮结构：两个标准主按钮放在
-  `overflow-hidden rounded-lg` 容器内，左侧保持 `h-9 w-[135px]` 并以半粗体只显示“安装”，右侧
+  `overflow-hidden rounded-lg` 容器内，左侧保持 `h-9 w-[135px]` 并以半粗体按状态显示“安装”、
+  “更新”或“已安装”，右侧
   保持 `size-9`、通过 `border-primary-foreground/15 border-l` 分隔，并使用 Lucide
   `ChevronDown`。不添加独立按钮组背景、手写分隔元素或包裹图标。
+- 列表卡片和详情页的安装/更新操作统一打开 `PluginInstallationDialog`。权限只能使用服务端返回的
+  最新版本 Manifest 权限，不允许前端自行补充；弹窗展示权限名称与风险说明，升级时对安装版本尚未
+  授予的权限标记“新增权限”，无额外权限时也要明确说明。确认请求期间禁止关闭或重复提交，成功后
+  原位更新安装状态。插件安装升级不得暗示或触发已有工作流自动升级。
 - 插件详情正文与版本更新日志保存为 Markdown，并通过 `fumadocs-core/content/md` 渲染，外层使用
   已接入的 `@fumadocs/tailwind/typography` `prose prose-sm` 样式，以 14px 作为基础字号。页面侧栏只
   展示最新版本；完整版本记录与 Markdown 更新日志放在版本历史 Dialog 中，版本记录表格复用 UI

@@ -1,7 +1,9 @@
 import type { PluginListScope, PluginListSort, PluginVisibilityValue } from '@/dto/plugin.dto'
 import { PluginStatus, PluginVisibility, Prisma } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
+import type { PluginPermission } from '@ai-workflow/plugin'
 import { Injectable } from '@nestjs/common'
+import { gt } from 'semver'
 
 interface PublishPluginVersionOptions {
   ownerId: string
@@ -19,6 +21,13 @@ interface PublishPluginVersionOptions {
   icon?: string
 }
 
+interface SavePluginInstallationOptions {
+  ownerId: string
+  pluginId: string
+  versionId: string
+  permissions: PluginPermission[]
+}
+
 export interface PluginListCursor {
   id: string
   value: Date | string
@@ -33,7 +42,7 @@ interface ListPluginsOptions {
   cursor?: PluginListCursor
 }
 
-const pluginListSelect = {
+const pluginBaseSelect = {
   id: true,
   packageName: true,
   name: true,
@@ -43,31 +52,21 @@ const pluginListSelect = {
   createdAt: true,
   updatedAt: true,
   publisher: { select: { id: true, username: true } },
-  versions: {
-    orderBy: [{ publishedAt: 'desc' as const }, { id: 'desc' as const }],
-    take: 1,
-    select: { version: true, publishedAt: true },
-  },
-  _count: { select: { installations: true } },
-} satisfies Prisma.PluginSelect
-
-const pluginDetailSelect = {
-  ...pluginListSelect,
-  versions: {
-    orderBy: [{ publishedAt: 'desc' as const }, { id: 'desc' as const }],
+  latestVersion: {
     select: {
+      id: true,
       version: true,
       publishedAt: true,
-      authorName: true,
-      changelog: true,
-      readme: true,
+      manifest: true,
     },
   },
+  _count: { select: { installations: true } },
 } satisfies Prisma.PluginSelect
 
 export type PublishPluginVersionResult =
   | { status: 'package-owned-by-other-user' }
   | { status: 'version-conflict' }
+  | { status: 'version-not-newer'; latestVersion: string }
   | {
       status: 'published'
       version: {
@@ -99,7 +98,7 @@ export class PluginRepository {
     return this.prisma.plugin.findMany({
       where: {
         status: PluginStatus.PUBLISHED,
-        versions: { some: {} },
+        latestVersionId: { not: null },
         AND: [
           this.createAccessFilter(options.ownerId),
           this.createScopeFilter(options.ownerId, options.scope),
@@ -126,7 +125,19 @@ export class PluginRepository {
       },
       orderBy: [{ [sortField]: direction }, { id: direction }],
       take: options.limit + 1,
-      select: pluginListSelect,
+      select: {
+        ...pluginBaseSelect,
+        installations: {
+          where: { ownerId: options.ownerId },
+          take: 1,
+          select: {
+            versionId: true,
+            enabled: true,
+            grantedPermissions: true,
+            version: { select: { version: true } },
+          },
+        },
+      },
     })
   }
 
@@ -135,10 +146,70 @@ export class PluginRepository {
       where: {
         id: pluginId,
         status: PluginStatus.PUBLISHED,
-        versions: { some: {} },
+        latestVersionId: { not: null },
         AND: [this.createAccessFilter(ownerId)],
       },
-      select: pluginDetailSelect,
+      select: {
+        ...pluginBaseSelect,
+        latestVersion: {
+          select: {
+            id: true,
+            version: true,
+            publishedAt: true,
+            manifest: true,
+            readme: true,
+          },
+        },
+        versions: {
+          select: {
+            id: true,
+            version: true,
+            publishedAt: true,
+            authorName: true,
+            changelog: true,
+            manifest: true,
+          },
+        },
+        installations: {
+          where: { ownerId },
+          take: 1,
+          select: {
+            versionId: true,
+            enabled: true,
+            grantedPermissions: true,
+            version: { select: { version: true } },
+          },
+        },
+      },
+    })
+  }
+
+  saveInstallation(options: SavePluginInstallationOptions) {
+    return this.prisma.pluginInstallation.upsert({
+      where: {
+        ownerId_pluginId: {
+          ownerId: options.ownerId,
+          pluginId: options.pluginId,
+        },
+      },
+      create: {
+        ownerId: options.ownerId,
+        pluginId: options.pluginId,
+        versionId: options.versionId,
+        enabled: true,
+        grantedPermissions: options.permissions,
+      },
+      update: {
+        versionId: options.versionId,
+        enabled: true,
+        grantedPermissions: options.permissions,
+      },
+      select: {
+        versionId: true,
+        enabled: true,
+        grantedPermissions: true,
+        version: { select: { version: true } },
+      },
     })
   }
 
@@ -149,7 +220,7 @@ export class PluginRepository {
           where: { id: options.ownerId },
           select: { username: true },
         })
-        const plugin = await transaction.plugin.upsert({
+        const identity = await transaction.plugin.upsert({
           where: { packageName: options.packageName },
           create: {
             publisherId: options.ownerId,
@@ -162,23 +233,30 @@ export class PluginRepository {
             status: PluginStatus.PUBLISHED,
           },
           update: {},
-          select: { id: true, publisherId: true },
+          select: { id: true },
+        })
+
+        await transaction.$queryRaw(
+          Prisma.sql`SELECT "id" FROM "plugins" WHERE "id" = ${identity.id}::uuid FOR UPDATE`,
+        )
+        const plugin = await transaction.plugin.findUniqueOrThrow({
+          where: { id: identity.id },
+          select: {
+            id: true,
+            publisherId: true,
+            latestVersion: { select: { version: true } },
+          },
         })
 
         if (plugin.publisherId !== options.ownerId) {
           return { status: 'package-owned-by-other-user' }
         }
-
-        await transaction.plugin.update({
-          where: { id: plugin.id },
-          data: {
-            name: options.name,
-            description: options.description,
-            icon: options.icon,
-            visibility: options.visibility as PluginVisibility,
-            status: PluginStatus.PUBLISHED,
-          },
-        })
+        if (plugin.latestVersion && !gt(options.version, plugin.latestVersion.version)) {
+          return {
+            status: 'version-not-newer',
+            latestVersion: plugin.latestVersion.version,
+          }
+        }
 
         const version = await transaction.pluginVersion.create({
           data: {
@@ -194,6 +272,18 @@ export class PluginRepository {
             authorName: author.username,
           },
           select: { id: true, version: true, artifactDigest: true, publishedAt: true },
+        })
+
+        await transaction.plugin.update({
+          where: { id: plugin.id },
+          data: {
+            latestVersionId: version.id,
+            name: options.name,
+            description: options.description,
+            icon: options.icon,
+            visibility: options.visibility as PluginVisibility,
+            status: PluginStatus.PUBLISHED,
+          },
         })
 
         return {
