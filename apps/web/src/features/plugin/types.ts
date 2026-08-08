@@ -1,5 +1,3 @@
-import type { LucideIcon } from 'lucide-react'
-
 import type { PluginInstallationDto, PluginPermission, PluginVisibility } from '@/api/plugins'
 
 export interface PluginListItem {
@@ -11,7 +9,7 @@ export interface PluginListItem {
   installCount: number
   description: string
   tags: string[]
-  icon: LucideIcon
+  icon: string | null
   visibility?: PluginVisibility
   latestVersion: {
     id: string

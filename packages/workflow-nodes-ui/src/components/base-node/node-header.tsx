@@ -3,9 +3,8 @@ import { cn } from '@ai-workflow/ui/lib/utils'
 import { CircleCheck, CircleX, LoaderCircle } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { getNodeThemeColor } from '../../common/node-theme-map'
 import type { NodeExecutionStatus } from '../../contracts/node-content'
-import { NodeIcon } from '../node-icon'
+import { NodeIconBadge } from '../node-icon-badge'
 
 export interface NodeHeaderProps {
   definition: NodeDefinition
@@ -30,12 +29,11 @@ export function NodeHeader({
   return (
     <header className={cn('flex items-center justify-between p-3', className)}>
       <div className="flex min-w-0 flex-1 items-center">
-        <span
-          className="text-primary-foreground mr-2 flex size-6 shrink-0 items-center justify-center rounded-[0.5rem] shadow-md"
-          style={{ backgroundColor: getNodeThemeColor(definition.type) }}
-        >
-          <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
-        </span>
+        <NodeIconBadge
+          type={definition.type}
+          icon={definition.icon}
+          className="mr-2 rounded-[0.5rem] shadow-md"
+        />
 
         <div className="min-w-0 flex-1">
           {label ?? (

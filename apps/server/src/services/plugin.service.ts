@@ -7,6 +7,7 @@ import type {
 import { PluginCatalogService } from '@/services/plugin-catalog.service'
 import type { Prisma } from '@/generated/prisma/client'
 import { PluginArtifactStore } from '@/infra/plugin-artifact/plugin-artifact-store'
+import { PluginArtifactReader } from '@/infra/plugin-artifact/plugin-artifact-reader'
 import { PluginPackageInspector } from '@/infra/plugin-artifact/plugin-package-inspector'
 import { PluginRepository, type PluginListCursor } from '@/repositories/plugin.repository'
 import type {
@@ -27,6 +28,7 @@ import {
   PLUGIN_PERMISSION_VALUES,
   createNodeTypesFromPluginManifest,
   pluginManifestSchema,
+  type PluginManifest,
   type PluginPermission,
 } from '@ai-workflow/plugin'
 import {
@@ -35,6 +37,7 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  StreamableFile,
 } from '@nestjs/common'
 import { isUUID } from 'class-validator'
 import { rcompare } from 'semver'
@@ -49,6 +52,7 @@ export class PluginService {
   constructor(
     private readonly packageInspector: PluginPackageInspector,
     private readonly artifactStore: PluginArtifactStore,
+    private readonly artifactReader: PluginArtifactReader,
     private readonly pluginRepository: PluginRepository,
     private readonly pluginCatalogService: PluginCatalogService,
   ) {}
@@ -78,14 +82,54 @@ export class PluginService {
     return {
       fingerprint: catalog.fingerprint,
       pluginLock: catalog.pluginLock,
-      plugins: resolvedPlugins.map((plugin) => ({
-        pluginId: plugin.pluginId,
-        versionId: plugin.versionId,
-        version: plugin.version,
-        artifactDigest: plugin.artifactDigest,
-        manifest: plugin.manifest,
-      })),
+      plugins: await Promise.all(
+        resolvedPlugins.map(async (plugin) => ({
+          pluginId: plugin.pluginId,
+          versionId: plugin.versionId,
+          version: plugin.version,
+          artifactDigest: plugin.artifactDigest,
+          manifest: await this.resolveManifestIcons(
+            plugin.manifest,
+            plugin.dependency.artifactReference,
+          ),
+        })),
+      ),
     }
+  }
+
+  async getVersionAsset(
+    ownerId: string,
+    pluginId: string,
+    versionId: string,
+    assetPath: string,
+  ): Promise<StreamableFile> {
+    const version = await this.pluginRepository.findAccessibleVersion(ownerId, pluginId, versionId)
+    if (!version?.artifactReference) throw new NotFoundException('未找到该插件版本')
+
+    const asset = await this.artifactReader.readAsset(version.artifactReference, assetPath)
+    return new StreamableFile(asset.content, {
+      type: asset.contentType,
+      disposition: 'inline',
+    })
+  }
+
+  private async resolveManifestIcons(
+    manifest: PluginManifest,
+    artifactReference: string,
+  ): Promise<PluginManifest> {
+    const nodes = await Promise.all(
+      manifest.nodes.map(async (node) => {
+        if (!node.icon) return node
+
+        const asset = await this.artifactReader.readAsset(artifactReference, node.icon)
+        return {
+          ...node,
+          icon: `data:${asset.contentType};base64,${asset.content.toString('base64')}`,
+        }
+      }),
+    )
+
+    return { ...manifest, nodes }
   }
 
   async list(ownerId: string, query: ListPluginsDto): Promise<PluginListVo> {
@@ -244,6 +288,7 @@ export class PluginService {
     packageName: string
     name: string
     description: string
+    icon: string | null
     visibility: 'PUBLIC' | 'PRIVATE'
     verified: boolean
     createdAt: Date
@@ -283,6 +328,7 @@ export class PluginService {
       packageName: plugin.packageName,
       name: plugin.name,
       description: plugin.description,
+      icon: plugin.icon,
       author: plugin.publisher,
       verified: plugin.verified,
       visibility: plugin.visibility,

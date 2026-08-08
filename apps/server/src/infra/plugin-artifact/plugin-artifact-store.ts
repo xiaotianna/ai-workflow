@@ -52,7 +52,7 @@ export class PluginArtifactStore {
     }
   }
 
-  private resolveStoragePath(storageKey: string): string {
+  resolveStoragePath(storageKey: string): string {
     const targetPath = resolve(this.rootDirectory, storageKey)
     const relativePath = relative(this.rootDirectory, targetPath)
 

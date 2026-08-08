@@ -15,6 +15,7 @@ import type {
   PublishedPluginVersionVo,
 } from '@/vo/plugin.vo'
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -52,6 +53,16 @@ export class PluginController {
     return this.pluginService.resolveRuntimeCatalog(request.auth.userId, dto.pluginLock)
   }
 
+  @Get(':pluginId/versions/:versionId/assets/*')
+  getVersionAsset(
+    @Req() request: AuthenticatedRequest,
+    @Param('pluginId', new ParseUUIDPipe({ version: '4' })) pluginId: string,
+    @Param('versionId', new ParseUUIDPipe({ version: '4' })) versionId: string,
+  ) {
+    const assetPath = extractPluginAssetPath(request.path, pluginId, versionId)
+    return this.pluginService.getVersionAsset(request.auth.userId, pluginId, versionId, assetPath)
+  }
+
   @Get(':pluginId')
   get(
     @Req() request: AuthenticatedRequest,
@@ -85,4 +96,18 @@ export class PluginController {
   ): Promise<PublishedPluginVersionVo> {
     return this.pluginService.publish(request.auth.userId, file, dto)
   }
+}
+
+function extractPluginAssetPath(pathname: string, pluginId: string, versionId: string): string {
+  const prefix = `/plugins/${pluginId}/versions/${versionId}/assets/`
+  if (!pathname.startsWith(prefix)) {
+    throw new BadRequestException('插件资源路径无效')
+  }
+
+  const assetPath = decodeURIComponent(pathname.slice(prefix.length))
+  if (!assetPath) {
+    throw new BadRequestException('插件资源路径不能为空')
+  }
+
+  return assetPath
 }

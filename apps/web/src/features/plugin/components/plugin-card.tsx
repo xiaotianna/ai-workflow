@@ -8,6 +8,7 @@ import type { InstalledPluginDto } from '@/api/plugins'
 import { formatPluginInstallCount } from '../data'
 import { getPluginDetailPath } from '../paths'
 import type { PluginListItem } from '../types'
+import { PluginIcon } from './plugin-icon'
 import { PluginInstallationDialog } from './plugin-installation-dialog'
 
 export interface PluginCardProps {
@@ -18,7 +19,6 @@ export interface PluginCardProps {
 
 export function PluginCard({ plugin, className, onInstalled }: PluginCardProps) {
   const [installationOpen, setInstallationOpen] = useState(false)
-  const Icon = plugin.icon
   const detailPath = getPluginDetailPath(plugin)
   const installedLatest = plugin.installation !== null && !plugin.updateAvailable
   const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
@@ -39,7 +39,11 @@ export function PluginCard({ plugin, className, onInstalled }: PluginCardProps) 
 
         <div className="flex shrink-0 items-start gap-3 px-4 pt-4 pb-2">
           <span className="border-border/80 bg-background text-foreground flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border-[0.5px]">
-            <Icon aria-hidden className="size-5" />
+            <PluginIcon
+              pluginId={plugin.id}
+              versionId={plugin.latestVersion.id}
+              icon={plugin.icon}
+            />
           </span>
 
           <div className="min-w-0 flex-1">

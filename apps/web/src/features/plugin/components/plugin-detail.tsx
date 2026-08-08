@@ -5,6 +5,7 @@ import { useState } from 'react'
 import type { InstalledPluginDto } from '@/api/plugins'
 import { formatPluginInstallCount } from '../data'
 import type { PluginDetail as PluginDetailData } from '../types'
+import { PluginIcon } from './plugin-icon'
 import { PluginInstallationDialog } from './plugin-installation-dialog'
 import { PluginMarkdown } from './plugin-markdown'
 import {
@@ -20,7 +21,6 @@ interface PluginDetailProps {
 export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
   const [installationOpen, setInstallationOpen] = useState(false)
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
-  const Icon = plugin.icon
   const latestVersion = plugin.versions[0]
   const installedLatest = plugin.installation !== null && !plugin.updateAvailable
   const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
@@ -31,7 +31,7 @@ export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
         <div className="mx-auto flex max-w-5xl flex-col gap-8 px-8 py-12 lg:flex-row lg:items-center">
           <div className="flex min-w-0 flex-1 items-center gap-4">
             <span className="border-border bg-background text-foreground flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-[0.5px]">
-              <Icon aria-hidden className="size-10" />
+              <PluginIcon pluginId={plugin.id} versionId={latestVersion.id} icon={plugin.icon} />
             </span>
 
             <div className="flex min-w-0 grow flex-col justify-start">

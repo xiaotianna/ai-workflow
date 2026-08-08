@@ -47,6 +47,7 @@ const pluginBaseSelect = {
   packageName: true,
   name: true,
   description: true,
+  icon: true,
   visibility: true,
   verified: true,
   createdAt: true,
@@ -126,6 +127,27 @@ export class PluginRepository {
         artifactReference: true,
         artifactDigest: true,
         artifactSize: true,
+      },
+    })
+  }
+
+  findAccessibleVersion(ownerId: string, pluginId: string, versionId: string) {
+    return this.prisma.pluginVersion.findFirst({
+      where: {
+        id: versionId,
+        pluginId,
+        plugin: {
+          status: PluginStatus.PUBLISHED,
+          OR: [
+            { visibility: PluginVisibility.PUBLIC },
+            { visibility: PluginVisibility.PRIVATE, publisherId: ownerId },
+            { installations: { some: { ownerId } } },
+          ],
+        },
+      },
+      select: {
+        id: true,
+        artifactReference: true,
       },
     })
   }

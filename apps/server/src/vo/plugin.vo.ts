@@ -14,6 +14,7 @@ export interface PluginListItemVo {
   packageName: string
   name: string
   description: string
+  icon: string | null
   author: {
     id: string
     username: string

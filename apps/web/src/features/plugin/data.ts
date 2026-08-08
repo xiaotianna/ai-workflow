@@ -1,5 +1,3 @@
-import { Package } from 'lucide-react'
-
 import type { PluginDetailDto, PluginListItemDto } from '@/api/plugins'
 import type { PluginDetail, PluginListItem } from './types'
 
@@ -17,7 +15,7 @@ export function toPluginListItem(plugin: PluginListItemDto): PluginListItem {
     installCount: plugin.installCount,
     description: plugin.description,
     tags: [],
-    icon: Package,
+    icon: plugin.icon,
     visibility: plugin.visibility,
     latestVersion: plugin.latestVersion,
     installation: plugin.installation,
