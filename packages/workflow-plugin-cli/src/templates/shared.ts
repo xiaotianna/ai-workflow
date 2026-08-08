@@ -12,9 +12,6 @@ interface CommonTemplateOptions {
 }
 
 function createPackageJson(context: PluginTemplateContext, options: CommonTemplateOptions): string {
-  const publisherArgument = context.publisherFromPackageScope
-    ? ''
-    : ` --publisher ${context.publisher}`
   const devDependencies: Record<string, string> = {
     '@ai-workflow/plugin': context.sdkDependency,
     '@ai-workflow/plugin-cli': context.cliDependency,
@@ -37,9 +34,9 @@ function createPackageJson(context: PluginTemplateContext, options: CommonTempla
     },
     scripts: {
       'plugin:check': 'ai-workflow-plugin check',
-      'plugin:build': `ai-workflow-plugin build${publisherArgument}`,
-      'plugin:pack': `ai-workflow-plugin pack${publisherArgument}`,
-      'plugin:dev': `ai-workflow-plugin dev${publisherArgument}`,
+      'plugin:build': 'ai-workflow-plugin build',
+      'plugin:pack': 'ai-workflow-plugin pack',
+      'plugin:dev': 'ai-workflow-plugin dev',
       typecheck: 'tsc --noEmit',
     },
     devDependencies,
@@ -94,11 +91,10 @@ pnpm plugin:dev
 
 ## 项目信息
 
-- 插件 ID：\`${context.pluginId}\`
-- Publisher：\`${context.publisher}\`
+- Package：\`${context.packageName}\`
 - 模板：\`${options.template}\`
 
-生成项目默认设置为 \`private: true\`。准备正式发布前，请确认 package 名、版本、Publisher 和平台发布流程。
+生成项目默认设置为 \`private: true\`。准备正式发布前，请确认 package 名、版本和平台发布流程。平台插件 UUID 与作者身份由服务端在上传时绑定。
 `
 }
 
@@ -126,7 +122,9 @@ export function createPluginIndex(
   context: PluginTemplateContext,
   options: { readonly permissions?: readonly string[] },
 ): string {
-  const displayName = context.pluginId
+  const displayName = context.packageName
+    .split('/')
+    .at(-1)!
     .split('-')
     .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
     .join(' ')
@@ -139,7 +137,6 @@ export function createPluginIndex(
 import { exampleNode } from './nodes/example'
 
 export default defineConfig({
-  id: ${JSON.stringify(context.pluginId)},
   displayName: ${JSON.stringify(displayName)},
   description: '由 AI Workflow 插件脚手架生成的示例插件',
   hostVersionRange: '^1.0.0',${permissions}

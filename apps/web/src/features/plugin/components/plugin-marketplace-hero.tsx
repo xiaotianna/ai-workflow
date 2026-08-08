@@ -1,6 +1,7 @@
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { useRef } from 'react'
 
+import type { PluginPublishInput } from '../schema'
 import { pluginFilters, type PluginFilterId } from '../constants'
 import { usePluginHeroCollapse } from '../hooks/use-plugin-hero-collapse'
 import { PluginHeroBackground } from './plugin-hero-background'
@@ -11,6 +12,7 @@ export interface PluginMarketplaceHeroProps {
   activeFilter: PluginFilterId
   onSearchChange: (search: string) => void
   onFilterChange: (filter: PluginFilterId) => void
+  onPublish?: (input: PluginPublishInput) => unknown | Promise<unknown>
 }
 
 function PluginFilterTab({
@@ -82,6 +84,7 @@ export function PluginMarketplaceHero({
   activeFilter,
   onSearchChange,
   onFilterChange,
+  onPublish,
 }: PluginMarketplaceHeroProps) {
   const heroRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLDivElement>(null)
@@ -118,6 +121,7 @@ export function PluginMarketplaceHero({
             search={search}
             collapseMobileTitle
             onSearchChange={onSearchChange}
+            onPublish={onPublish}
           />
 
           <div className="relative z-10 mx-5 w-[calc(100%-2.5rem)]">

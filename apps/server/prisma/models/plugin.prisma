@@ -1,0 +1,83 @@
+model Plugin {
+  id           String           @id @default(uuid()) @db.Uuid
+  publisherId  String?          @db.Uuid
+  packageName  String           @unique @db.VarChar(214)
+  name         String           @db.VarChar(80)
+  description  String           @db.VarChar(500)
+  icon         String?          @db.VarChar(256)
+  category     String           @db.VarChar(32)
+  visibility   PluginVisibility @default(PRIVATE)
+  status       PluginStatus     @default(DRAFT)
+  verified     Boolean          @default(false)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  publisher     User?                @relation(fields: [publisherId], references: [id], onDelete: SetNull)
+  versions      PluginVersion[]
+  installations PluginInstallation[]
+
+  @@index([publisherId, updatedAt])
+  @@index([visibility, status, updatedAt])
+  @@map("plugins")
+}
+
+model PluginVersion {
+  id                 String   @id @default(uuid()) @db.Uuid
+  pluginId           String   @db.Uuid
+  version            String   @db.VarChar(64)
+  platformApiVersion String   @db.VarChar(16)
+  manifest           Json     @db.JsonB
+  readme             String
+  changelog          String
+  artifactReference  String?  @db.VarChar(512)
+  artifactDigest     String   @db.VarChar(64)
+  artifactSize       Int?
+  runtimeReady       Boolean  @default(false)
+  authorName         String   @db.VarChar(80)
+  publishedAt        DateTime @default(now())
+
+  plugin               Plugin                            @relation(fields: [pluginId], references: [id], onDelete: Restrict)
+  installations        PluginInstallation[]
+  workflowDependencies WorkflowVersionPluginDependency[]
+
+  @@unique([pluginId, version])
+  @@index([pluginId, publishedAt])
+  @@map("plugin_versions")
+}
+
+model PluginInstallation {
+  id        String   @id @default(uuid()) @db.Uuid
+  ownerId   String   @db.Uuid
+  pluginId  String   @db.Uuid
+  versionId String   @db.Uuid
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner   User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  plugin  Plugin        @relation(fields: [pluginId], references: [id], onDelete: Restrict)
+  version PluginVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+
+  @@unique([ownerId, pluginId])
+  @@index([ownerId, updatedAt])
+  @@index([pluginId])
+  @@map("plugin_installations")
+}
+
+model WorkflowVersionPluginDependency {
+  id                String   @id @default(uuid()) @db.Uuid
+  workflowVersionId String   @db.Uuid
+  pluginVersionId   String   @db.Uuid
+  manifest          Json     @db.JsonB
+  artifactReference String   @db.VarChar(512)
+  artifactDigest    String   @db.VarChar(64)
+  artifactSize      Int?
+  createdAt         DateTime @default(now())
+
+  workflowVersion WorkflowVersion @relation(fields: [workflowVersionId], references: [id], onDelete: Cascade)
+  pluginVersion   PluginVersion   @relation(fields: [pluginVersionId], references: [id], onDelete: Restrict)
+
+  @@unique([workflowVersionId, pluginVersionId])
+  @@index([pluginVersionId])
+  @@map("workflow_version_plugin_dependencies")
+}

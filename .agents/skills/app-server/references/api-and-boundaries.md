@@ -186,6 +186,29 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 知识库响应使用显式 VO，包含 `id`、`title`、`author`、`description?`、`icon?`、`createdAt` 和
 `updatedAt`，不得暴露 Prisma model 或返回尚未实现的文档数量、索引状态。
 
+## 当前插件接口
+
+- `GET /plugins`：使用 Bearer Token 游标分页读取 Marketplace。只返回 `PUBLISHED` 且至少存在一个
+  版本的插件；可见范围固定为全部公开插件与当前用户发布的私有插件，禁止读取其他用户的私有插件。
+  `limit` 范围为 1–50，支持最长 100 字符的 `search`、`scope=ALL|INSTALLED|USED|MINE` 和
+  `sort=updated_desc|created_desc|name_asc`。搜索在服务端按名称、描述、package 名和上传用户名
+  执行不区分大小写的包含匹配；响应返回平台 UUID、最新版本、
+  安装数、可见范围与 opaque `nextCursor`，前端不得解析或自行构造游标。
+- `GET /plugins/:pluginId`：`pluginId` 固定为 `Plugin.id` UUID，按列表相同的可见范围返回真实详情和
+  不可变版本历史；详情路由不得使用作者或 package 名充当平台 ID。
+- `POST /plugins/publish`：使用 Bearer Token 和 `multipart/form-data` 上传 CLI `pack` 生成的
+  `.tgz`；文件字段固定为 `file`，文本字段为 `visibility=PUBLIC|PRIVATE` 和最长 5000 字符的可选
+  `changelog`。压缩包最大 50 MB，解压后最大 200 MB、最多 2048 个普通文件。
+- Server 必须拒绝绝对路径、反斜杠、空路径段、`.` / `..`、重复路径和非普通 TAR 文件，并校验
+  TAR Header checksum、`plugin.manifest.json`、`integrity.json`、逐文件大小/SHA-256、Artifact
+  digest 与压缩包 digest。不得只相信文件名、MIME 或浏览器表单参数。
+- package 名和 SemVer 只从通过 `@ai-workflow/plugin` Schema 校验的 Manifest 读取；Manifest 和
+  CLI 不包含平台 UUID 或作者。首次成功发布会把唯一 package 名映射到服务端生成的 `Plugin.id`
+  UUID，并绑定当前认证用户；其他用户覆盖该 package 返回 `403`。同一插件版本不可覆盖，重复发布
+  返回 `409`。
+- 成功响应只返回插件版本身份、可见范围、Archive/Artifact digest 和发布时间，不返回本地存储
+  绝对路径或压缩包正文。当前是“上传即发布”，不经过审核流程。
+
 ## 当前模型配置接口
 
 以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离模型组：

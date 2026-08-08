@@ -1,12 +1,12 @@
 import { lstat, mkdir, readFile, realpath, stat } from 'node:fs/promises'
 import { dirname, isAbsolute, relative, resolve } from 'node:path'
 
+import { pluginPackageNameSchema } from '@ai-workflow/plugin'
 import { valid } from 'semver'
 
-import { PluginCliError } from '../shared/diagnostics'
+import { formatSchemaIssues, PluginCliError } from '../shared/diagnostics'
 import type { PluginPackageContext, PluginPackageJson } from '../shared/types'
 
-const PACKAGE_NAME_PATTERN = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/
 const ROOT_EXPORT_CONDITIONS = ['source', 'import', 'default'] as const
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -27,18 +27,14 @@ function parsePackageJson(content: string, packageJsonPath: string): PluginPacka
 }
 
 export function parsePackageName(value: unknown): string {
-  if (
-    typeof value !== 'string' ||
-    value.length === 0 ||
-    value.length > 214 ||
-    !PACKAGE_NAME_PATTERN.test(value)
-  ) {
+  const result = pluginPackageNameSchema.safeParse(value)
+  if (!result.success) {
     throw new PluginCliError('插件 package 名称不合法', {
       code: 'INVALID_PACKAGE_NAME',
-      details: ['package.json#name 必须是合法的小写 npm package 名称'],
+      details: formatSchemaIssues(result.error),
     })
   }
-  return value
+  return result.data
 }
 
 function parsePackageVersion(value: unknown): string {
@@ -184,11 +180,6 @@ export async function resolveExistingPackageFile(
   }
 
   return realFilePath
-}
-
-export function inferPublisher(packageName: string): string | undefined {
-  if (!packageName.startsWith('@')) return undefined
-  return packageName.slice(1).split('/')[0]
 }
 
 export function resolvePackageOutputDirectory(rootDir: string, outDir = 'dist'): string {

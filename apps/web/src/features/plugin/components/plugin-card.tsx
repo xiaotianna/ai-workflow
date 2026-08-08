@@ -1,6 +1,6 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { ExternalLink, Tag } from 'lucide-react'
+import { ExternalLink, LockKeyhole, Tag } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 import { formatPluginInstallCount } from '../data'
@@ -58,6 +58,17 @@ export function PluginCard({ plugin, className }: PluginCardProps) {
 
       <div className="relative min-h-10 shrink-0 px-4 pt-1 pb-4">
         <div className="flex flex-wrap items-center gap-1.5 transition-opacity duration-200 group-hover:pointer-events-none group-hover:opacity-0">
+          {plugin.latestVersion ? (
+            <span className="border-border/60 text-muted-foreground inline-flex h-6 items-center rounded-md border px-2 text-[11px] leading-4 font-medium">
+              v{plugin.latestVersion.version}
+            </span>
+          ) : null}
+          {plugin.visibility === 'PRIVATE' ? (
+            <span className="border-border/60 text-muted-foreground inline-flex h-6 items-center gap-1 rounded-md border px-2 text-[11px] leading-4 font-medium">
+              <LockKeyhole aria-hidden className="size-3" />
+              私有
+            </span>
+          ) : null}
           {plugin.tags.map((tag) => (
             <span
               key={tag}

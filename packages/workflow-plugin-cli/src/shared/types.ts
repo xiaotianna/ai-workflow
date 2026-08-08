@@ -30,9 +30,7 @@ export interface InitPluginOptions {
   readonly targetDirectory: string
   readonly cwd?: string
   readonly template?: PluginTemplate
-  readonly pluginId?: string
   readonly packageName?: string
-  readonly publisher?: string
   readonly localDependencies?: boolean
   readonly install?: boolean
 }
@@ -40,16 +38,13 @@ export interface InitPluginOptions {
 export interface InitPluginResult {
   readonly targetDirectory: string
   readonly template: PluginTemplate
-  readonly pluginId: string
   readonly packageName: string
-  readonly publisher: string
   readonly localDependencies: boolean
   readonly installed: boolean
 }
 
 export interface BuildPluginOptions extends CheckPluginOptions {
   readonly outDir?: string
-  readonly publisher?: string
 }
 
 export interface IntegrityFileEntry {

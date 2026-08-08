@@ -1,0 +1,2 @@
+-- Plugin marketplace tables are created in 20260806170824_plugin.
+-- This migration name is retained because it has already been recorded by development databases.

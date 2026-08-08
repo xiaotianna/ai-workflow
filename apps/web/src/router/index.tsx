@@ -1,9 +1,12 @@
 import { lazy } from 'react'
 import {
   BookMarked,
+  BookOpenText,
   Computer,
   FileText,
+  Rocket,
   Target,
+  Workflow,
   ScrollText,
   SquareMousePointer,
   SquareTerminal,
@@ -30,6 +33,10 @@ const KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base'))
 const KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents'))
 const KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test'))
 const SharedAppApiPage = lazy(() => import('../pages/shared/app-api'))
+const DocsPage = lazy(() => import('../pages/docs'))
+const DocsOverviewPage = lazy(() => import('../pages/docs/overview'))
+const DocsGettingStartedPage = lazy(() => import('../pages/docs/getting-started'))
+const DocsWorkflowBasicsPage = lazy(() => import('../pages/docs/workflow-basics'))
 
 export const routes = [
   {
@@ -136,7 +143,7 @@ export const routes = [
       },
       {
         id: 'plugin-detail',
-        path: 'plugin/:author/:pluginId',
+        path: 'plugin/:pluginId',
         element: (
           <LazyLoad>
             <PluginDetailPage />
@@ -284,6 +291,85 @@ export const routes = [
             },
           },
         ],
+      },
+    ],
+  },
+  {
+    id: 'docs',
+    path: '/docs',
+    element: (
+      <LazyLoad>
+        <DocsPage />
+      </LazyLoad>
+    ),
+    handle: {
+      meta: {
+        title: '文档',
+        requiresAuth: false,
+      },
+    },
+    children: [
+      {
+        id: 'docs-overview',
+        index: true,
+        element: (
+          <LazyLoad>
+            <DocsOverviewPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '概览',
+            requiresAuth: false,
+            icon: BookOpenText,
+            navigationGroup: '开始',
+          },
+        },
+      },
+      {
+        id: 'docs-getting-started',
+        path: 'getting-started',
+        element: (
+          <LazyLoad>
+            <DocsGettingStartedPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '快速开始',
+            requiresAuth: false,
+            icon: Rocket,
+            navigationGroup: '开始',
+          },
+        },
+      },
+      {
+        id: 'docs-workflow-basics',
+        path: 'workflow-basics',
+        element: (
+          <LazyLoad>
+            <DocsWorkflowBasicsPage />
+          </LazyLoad>
+        ),
+        handle: {
+          meta: {
+            title: '工作流基础',
+            requiresAuth: false,
+            icon: Workflow,
+            navigationGroup: '核心概念',
+          },
+        },
+      },
+      {
+        id: 'docs-fallback',
+        path: '*',
+        element: <Navigate to="/docs" replace />,
+        handle: {
+          meta: {
+            title: '文档',
+            requiresAuth: false,
+          },
+        },
       },
     ],
   },

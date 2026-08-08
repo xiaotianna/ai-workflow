@@ -22,7 +22,7 @@ workflow-plugin
 - `node.ts`：节点声明，提供 defineNode()，定义配置、端口、固定输出、UI 和执行方式。
 - `field.ts`：表单字段 DSL，如 field.text()、field.select()、field.host()。
 - `manifest.ts`：构建后 plugin.manifest.json 的结构和校验规则。
-- `identifiers.ts`：插件 ID、节点 Key、端口 ID、节点 type 的命名规则。
+- `identifiers.ts`：npm package 名、节点 Key、端口 ID、节点 type 的命名规则。平台插件 UUID 不属于 SDK 契约。
 - `module-reference.ts`：校验 UI、图标、Executor 等模块入口必须是安全相对路径。
 
 contracts 描述的是完整插件、节点和 Manifest

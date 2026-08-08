@@ -28,6 +28,9 @@
 - 应用 API 管理与公开分享请求放在 `src/api/app-api`，接口文档、密钥和分享交互放在
   `features/app-api`；受保护页面与公开分享页面复用同一个文档正文组件，但只有受保护页面
   可以挂载管理头部。
+- 插件 Marketplace 的列表查询与 Multipart 发布请求统一放在 `src/api/plugins`；插件 Feature 管理
+  搜索防抖、筛选、排序、游标续载、发布 Dialog 和 Header 交互，不直接创建 Axios 实例或拼接认证
+  Header。
 - `src/api/client.ts` 是 Web 请求的统一 Axios 入口：请求拦截器注入登录 Token，响应拦截器
   解包统一响应的 `data`，并按真实 HTTP 状态处理错误 Toast；携带认证信息的请求收到
   `401` 或 `403` 时清理本地会话并跳转登录页。业务 API 不自行创建 Axios 实例、不判断

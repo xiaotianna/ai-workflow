@@ -14,6 +14,7 @@ dist
 dist-ssr
 *.local
 apps/server/src/generated/prisma
+apps/server/var/plugin-artifacts
 
 # Environment variables
 !.env.example

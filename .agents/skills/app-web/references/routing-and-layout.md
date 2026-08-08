@@ -8,8 +8,8 @@
 - `/` 下的布局页面直接组合 `LayoutSidebar` 和主内容区域，并通过子路由渲染页面。
 - 首页布局当前包含 `/studio`、`/knowledge-base`、`/models` 和 `/plugin`；模型页导航位于
   知识库与插件之间，继续从 `models` 路由的 `handle.meta` 派生。
-- 插件详情使用 `/plugin/:author/:pluginId`，作者昵称和插件 ID 在生成链接时分别使用
-  `encodeURIComponent` 转义；详情路由与首页布局同级，作为独立的受保护全屏页面，不渲染首页
+- 插件详情使用 `/plugin/:pluginId`，其中 `pluginId` 是服务端 `Plugin.id` UUID；详情路由与首页布局
+  同级，作为独立的受保护全屏页面，不渲染首页
   侧栏。详情页固定复用插件列表的 Marketplace Header，正文滚动时 Header 保持在页面顶部；Header
   的 Logo Hover 或键盘 Focus 后切换为返回箭头，点击返回 `/plugin`。
 - `/models` 使用 `tab=chat|embedding` 保存“对话 / 嵌入”分类；缺失或无效值通过 replace
@@ -19,6 +19,9 @@
 - `/knowledge-base/:id` 与 `/app/:id` 同级，为知识库详情布局；子路由包含 `documents` 和 `recall-test`，索引路由重定向到 `documents`。
 - `/share/api/:shareToken` 位于 `/` 鉴权路由树之外，通过公开接口校验分享状态后只展示应用 API
   文档正文；该路由不得挂载应用详情 Header、侧栏或读取用户登录会话。
+- `/docs` 位于 `/` 鉴权路由树之外，是公开的 Wiki 式文档布局；父路由保留 `Outlet`，当前子路由
+  包含概览、快速开始和工作流基础。左侧菜单从子路由 `handle.meta` 的标题、图标与分组派生，
+  MDX 内容来自 `apps/web/content/docs`，组件映射统一通过 `src/components/mdx.tsx` 提供。
 - 页面使用 React `lazy`，由 `LazyLoad` 统一提供 Suspense fallback。
 - 路由 `handle.meta` 保存标题、鉴权标记和导航图标；侧栏从路由配置派生导航。
 - `/auth` 仅允许未登录访问；已登录访问时重定向到 `/`。登录成功也统一重定向到 `/`，

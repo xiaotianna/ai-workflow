@@ -5,7 +5,7 @@ import { PLUGIN_PERMISSION_VALUES } from './config'
 import { pluginFieldSchema } from './field'
 import {
   createPluginNodeType,
-  pluginIdSchema,
+  pluginPackageNameSchema,
   pluginNodeKeySchema,
   pluginNodeTypeSchema,
   pluginPortIdSchema,
@@ -112,8 +112,9 @@ export const pluginManifestSchema = z
     manifestVersion: z.literal(1),
     plugin: z
       .object({
-        id: pluginIdSchema,
-        publisher: pluginIdSchema,
+        packageName: pluginPackageNameSchema,
+        displayName: z.string().trim().min(1).max(80),
+        description: z.string().trim().max(500).optional(),
         version: semanticVersionSchema,
       })
       .strict(),
@@ -160,16 +161,12 @@ export const pluginManifestSchema = z
       }
       nodeTypes.add(node.type)
 
-      const expectedType = createPluginNodeType(
-        manifest.plugin.publisher,
-        manifest.plugin.id,
-        node.key,
-      )
+      const expectedType = createPluginNodeType(manifest.plugin.packageName, node.key)
       if (node.type !== expectedType) {
         context.addIssue({
           code: 'custom',
           path: ['nodes', index, 'type'],
-          message: `插件节点类型必须由 publisher、插件 ID 和节点 Key 生成：${expectedType}`,
+          message: `插件节点类型必须由 package 名称和节点 Key 生成：${expectedType}`,
         })
       }
 

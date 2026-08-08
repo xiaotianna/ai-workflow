@@ -53,3 +53,14 @@ enum ModelType {
   CHAT
   EMBEDDING
 }
+
+enum PluginVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum PluginStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+}

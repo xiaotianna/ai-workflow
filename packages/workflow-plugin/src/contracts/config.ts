@@ -1,6 +1,5 @@
 import { z } from 'zod'
 
-import { pluginIdSchema } from './identifiers'
 import {
   pluginNodeDefinitionSchema,
   type AnyPluginNodeDefinition,
@@ -24,7 +23,6 @@ function hasUniqueItems(values: readonly string[]) {
 export interface PluginConfig<
   TNodes extends readonly AnyPluginNodeDefinition[] = readonly PluginNodeDefinition[],
 > {
-  readonly id: string
   readonly displayName: string
   readonly description?: string
   // 检查整个插件是否兼容当前平台宿主版本，使用 SemVer range 表达式（例如：^1.2.3）
@@ -52,9 +50,8 @@ export function defineConfig<const TConfig extends PluginConfig>(config: TConfig
 
 export const pluginConfigSchema = z
   .object({
-    id: pluginIdSchema,
-    displayName: z.string().trim().min(1).max(128),
-    description: z.string().trim().optional(),
+    displayName: z.string().trim().min(1).max(80),
+    description: z.string().trim().max(500).optional(),
     hostVersionRange: z.string().trim().min(1),
     permissions: z
       .array(z.enum(PLUGIN_PERMISSION_VALUES))

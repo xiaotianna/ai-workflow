@@ -1,8 +1,10 @@
 import type { LucideIcon } from 'lucide-react'
 
+import type { PluginVisibility } from '@/api/plugins'
+
 export interface PluginListItem {
   id: string
-  slug?: string
+  packageName?: string
   title: string
   author: string
   verified?: boolean
@@ -10,12 +12,17 @@ export interface PluginListItem {
   description: string
   tags: string[]
   icon: LucideIcon
+  visibility?: PluginVisibility
+  latestVersion?: {
+    version: string
+    publishedAt: string
+  }
 }
 
 export interface PluginVersion {
   version: string
   publishedAt: string
-  publisher: string
+  author: string
   changelog: string
 }
 

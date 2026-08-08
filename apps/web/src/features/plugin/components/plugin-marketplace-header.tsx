@@ -1,14 +1,20 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { ArrowLeft, BookOpen, Search } from 'lucide-react'
-import type { FormEvent } from 'react'
+import { ArrowLeft, BookOpen, Search, Upload } from 'lucide-react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
+
+import { publishPlugin } from '@/api/plugins'
+
+import type { PluginPublishInput } from '../schema'
+import { PluginPublishDialog } from './plugin-publish-dialog'
 
 export interface PluginMarketplaceHeaderProps {
   search: string
   onSearchChange: (search: string) => void
   onSearchSubmit?: (search: string) => void
+  onPublish?: (input: PluginPublishInput) => unknown | Promise<unknown>
   collapseMobileTitle?: boolean
   showLogoBackAction?: boolean
   className?: string
@@ -18,10 +24,13 @@ export function PluginMarketplaceHeader({
   search,
   onSearchChange,
   onSearchSubmit,
+  onPublish,
   collapseMobileTitle = false,
   showLogoBackAction = false,
   className,
 }: PluginMarketplaceHeaderProps) {
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false)
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     onSearchSubmit?.(search.trim())
@@ -100,7 +109,8 @@ export function PluginMarketplaceHeader({
           name="query"
           autoComplete="off"
           aria-label="搜索插件"
-          placeholder="搜索..."
+          maxLength={100}
+          placeholder="搜索名称、描述、ID 或发布者"
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           className="bg-input focus-visible:bg-background h-9 rounded-[10px] border-transparent pr-2 pl-8 text-[14px] leading-5 shadow-none"
@@ -109,16 +119,34 @@ export function PluginMarketplaceHeader({
 
       <div className="flex h-full shrink-0 items-center justify-end gap-4 pr-3.5 pl-4">
         <div aria-hidden className="bg-muted-foreground/30 mx-0 h-4 w-px shrink-0" />
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label="申请或发布"
-          className="text-muted-foreground hover:text-foreground size-8"
-        >
-          <BookOpen className="size-4 shrink-0" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="发布插件"
+            className="text-muted-foreground hover:text-foreground size-8"
+            onClick={() => setPublishDialogOpen(true)}
+          >
+            <Upload className="size-4 shrink-0" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label="申请或发布"
+            className="text-muted-foreground hover:text-foreground size-8"
+          >
+            <BookOpen className="size-4 shrink-0" />
+          </Button>
+        </div>
       </div>
+
+      <PluginPublishDialog
+        open={publishDialogOpen}
+        onOpenChange={setPublishDialogOpen}
+        onPublish={onPublish ?? publishPlugin}
+      />
     </div>
   )
 }

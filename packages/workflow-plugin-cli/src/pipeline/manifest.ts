@@ -55,10 +55,7 @@ function createAssetArtifact(nodeKey: string, sourceEntry: string): string {
   return `assets/${nodeKey}-${fileName}`
 }
 
-export function createPluginBuildPlan(
-  checkedPlugin: CheckedPlugin,
-  publisher: string,
-): PluginBuildPlan {
+export function createPluginBuildPlan(checkedPlugin: CheckedPlugin): PluginBuildPlan {
   const webModules: PluginWebModulePlan[] = []
   const executors: PluginExecutorPlan[] = []
   const assets: PluginAssetPlan[] = []
@@ -133,7 +130,7 @@ export function createPluginBuildPlan(
 
     return {
       key: node.key,
-      type: createPluginNodeType(publisher, checkedPlugin.config.id, node.key),
+      type: createPluginNodeType(checkedPlugin.package.name, node.key),
       label: node.label,
       ...(node.description === undefined ? {} : { description: node.description }),
       ...(icon === undefined ? {} : { icon }),
@@ -156,8 +153,11 @@ export function createPluginBuildPlan(
     manifest: {
       manifestVersion: 1,
       plugin: {
-        id: checkedPlugin.config.id,
-        publisher,
+        packageName: checkedPlugin.package.name,
+        displayName: checkedPlugin.config.displayName,
+        ...(checkedPlugin.config.description === undefined
+          ? {}
+          : { description: checkedPlugin.config.description }),
         version: checkedPlugin.package.version,
       },
       hostVersionRange: checkedPlugin.config.hostVersionRange,

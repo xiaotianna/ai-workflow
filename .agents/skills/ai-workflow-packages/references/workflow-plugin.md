@@ -7,6 +7,10 @@ DSL、Schema AST 与 Zod 编译器、源码配置和 manifest 契约，以及受
 包不负责读取插件 package、构建远程模块、发布产物、安装插件或运行第三方代码；这些能力分别属于
 Plugin CLI、Web/Server 插件运行时和独立强沙箱。
 
+根入口同时提供 `build:node`，生成 `dist/index.cjs` 供 NestJS Server 使用同一 Manifest Schema；
+Server 的启动准备脚本必须先构建该入口，不得在服务端复制 Manifest 类型或校验规则。React UI 和
+Executor 子入口仍保持源码入口，不进入 Server 的 CommonJS bundle。
+
 ## 公开入口
 
 根入口保持环境无关：
@@ -36,7 +40,7 @@ import {
   宿主字段能力和自定义 UI 权限等跨字段约束。`hostVersionRange` 表示插件兼容的平台
   宿主 SemVer 版本范围，不用于选择节点执行器。
 - `pluginManifestSchema` 校验构建后的纯数据 manifest，并校验节点 type 必须由
-  `plugin:<publisher>/<plugin-id>/<node-key>` 生成。
+  `plugin:<package-name>/<node-key>` 生成。Manifest 不承载平台 UUID 或上传作者。
 - 节点配置 schema 顶层必须是 object；第一阶段只支持静态初始配置和静态端口。
 
 React 能力只从 `./ui` 使用：

@@ -89,7 +89,8 @@ function createTar(files: readonly ArchiveFile[]): Buffer {
 
 export async function packPlugin(options: BuildPluginOptions = {}): Promise<PackPluginResult> {
   const buildResult = await buildPlugin(options)
-  const archiveName = `${buildResult.manifest.plugin.id}-${buildResult.package.version}.tgz`
+  const archivePackageName = buildResult.package.name.replace(/^@/, '').replaceAll('/', '-')
+  const archiveName = `${archivePackageName}-${buildResult.package.version}.tgz`
   const archivePath = join(buildResult.outDir, archiveName)
   const tar = createTar(await collectArchiveFiles(buildResult.outDir))
   const archive = gzipSync(tar, { level: 9 })

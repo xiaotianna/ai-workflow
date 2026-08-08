@@ -1,0 +1,2 @@
+-- RenameIndex
+ALTER INDEX "workflow_version_plugin_dependencies_workflowVersionId_pluginVe" RENAME TO "workflow_version_plugin_dependencies_workflowVersionId_plug_key";

@@ -36,6 +36,11 @@
 
 ## 插件 Marketplace
 
+- Marketplace Header 在文档图标左侧固定提供插件发布入口，点击打开 `PluginPublishDialog`；发布表单
+  上传 CLI `pack` 生成的 `.tgz` 插件包，并填写公开范围和可选版本说明。package 名和版本以包内
+  Manifest 为准；平台 UUID 由服务端生成，作者取当前认证用户，均不允许在表单或 CLI 中覆盖。Header 默认通过 `src/api/plugins` 调用真实
+  `/plugins/publish`，同时允许用 `onPublish` 覆盖提交实现。请求失败由统一 API Client 展示错误并
+  保留表单，成功后清空临时文件和参数并关闭 Dialog。
 - 插件列表与详情页复用 `PluginMarketplaceHeader`；列表把 Header 放入可折叠 Hero，详情页作为
   不渲染首页侧栏的独立全屏页面，只使用固定在页面顶部的 Header，不复制搜索、品牌标识或发布入口。
   详情页滚动容器与插件信息摘要区统一使用和输入框内部一致的 `bg-input` 页面底衬；Header 外层
@@ -46,11 +51,13 @@
   返回态，标题区域也不触发图标切换。
   插件信息摘要和 Markdown 主内容都使用居中的 `max-w-5xl` 内容宽度，避免宽屏下正文与版本侧栏
   过度分散；两区保持相同的左右内容轴。
-  详情链接统一由 `getPluginDetailPath` 生成，对作者昵称和插件 ID 分别执行 URL 转义。
+  详情链接统一由 `getPluginDetailPath` 使用平台 UUID 生成。
 - 插件列表卡片的描述默认以无渐变的两行截断文本展示；只有整张卡片 Hover 或 Focus-within 时才
   通过透明度交叉过渡切换到底部渐隐版本，减少动态效果偏好下关闭该过渡。不得让渐变遮罩在卡片
-  默认态持续生效。插件列表项不维护分类字段，列表卡片不显示分类角标；顶部只保留所有集成、
-  已安装、已使用和我的插件筛选。
+  默认态持续生效。插件列表项不维护分类字段，列表卡片不显示分类角标。Hero 承载品牌、搜索、发布
+  入口，以及“所有集成 / 已安装 / 已使用 / 我发布的插件”四个原始白色选中标签；不得替换为正文
+  灰色 Select 工具栏。列表使用真实 `GET /plugins` 数据，搜索覆盖名称、描述、package 名与上传作者；搜索或筛选变化后重置游标并从首批
+  重新加载。
 - 插件详情摘要中的插件标识使用 `size-20`、`rounded-2xl` 和 0.5px 语义边框，不添加阴影；名称使用
   `text-2xl leading-8 font-semibold`，版本标签固定为 `h-6 px-2 text-xs`。描述使用
   `text-sm leading-5`，作者、插件短标识和安装量使用紧凑的 13px 元信息行，安装量前保留下载
@@ -214,6 +221,21 @@
   `workflow_started` SSE 事件的 `data.id` 即 `runId`；获取执行情况的 Path Parameter 同时说明
   该值也可从运行日志接口响应的 `data.items[].id` 获取。上述事件名、字段路径、`runId` 和接口
   路径在可见说明中统一使用 Markdown 行内代码样式。
+
+## Docs 文档
+
+- `/docs` 保留 Fumadocs MDX 的 Vite 编译能力，但展示组件统一由 Web 公共
+  `src/components/mdx.tsx` 提供；不得直接使用 `fumadocs-ui/mdx` 默认映射、`fd-*` token 或由
+  第三方 `prose` 规则控制视觉。
+- 标题、正文、链接、列表、引用、代码、表格与图片统一使用项目语义 token。页面使用 `bg-input`
+  底衬，Wiki 外壳使用 `bg-background`、0.5px `border-border`、圆角和低对比 `shadow-xs`；桌面端
+  固定显示左侧菜单，移动端切换为横向菜单。菜单从 Docs 子路由元数据派生，激活项使用主色浅背景；
+  链接的键盘焦点通过内部背景与文字变化表达，不使用 ring，站内 Markdown 链接使用 React Router
+  导航且不刷新页面。正文和列表以 16px 为基础字号、32px 为行高；导航菜单项固定 32px 高，
+  以 14px 为基础字号，
+  各级标题与代码、表格文字按内容层级递减，避免文档页沿用业务面板的紧凑字号。文档品牌区复用
+  Web 公共 `/logo.svg`，不得以 Lucide 图标替代项目 Logo。未激活菜单 Hover 时只切换背景，文字
+  继续使用 `text-muted-foreground`，不得加深为正文色；激活项保持主色文字。
 
 ## 应用调用日志表格
 

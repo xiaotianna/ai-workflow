@@ -14,11 +14,11 @@ CLI 不负责插件安装、发布、版本持久化、Web 注册或 Executor �
 命令入口：
 
 ```text
-ai-workflow-plugin init  <directory> [--template <basic|custom-ui|executor>] [--plugin-id <id>] [--package-name <name>] [--publisher <id>] [--local] [--install]
+ai-workflow-plugin init  <directory> [--template <basic|custom-ui|executor>] [--package-name <name>] [--local] [--install]
 ai-workflow-plugin check [--cwd <directory>]
-ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>]
 ```
 
 根入口同时导出 `initPlugin()`、`checkPlugin()`、`buildPlugin()`、`packPlugin()`、`devPlugin()`、
@@ -52,10 +52,8 @@ CLI workspace package 的 `link:` 相对路径。两处都只使用当前 worksp
   增加 `defineExecutor()` 与 `sandbox-js` 声明，并明确当前只能构建不能运行。
 - 目标目录必须不存在或为空；拒绝普通文件、符号链接和非空目录。所有文件先写入同级 staging，成功后
   再 rename 到目标目录。
-- 插件 ID 默认取目标目录名，package 名可通过 `--package-name` 覆盖；两者分别执行 SDK ID 和 npm
-  package 名校验。
-- scoped package 自动推导 publisher；显式 publisher 与 scope 冲突时失败；未提供两者时使用仅供本地
-  开发的 `local`，并写入 build/pack/dev scripts。
+- package 名默认取目标目录名，可通过 `--package-name` 覆盖并执行 npm package 名校验。
+- CLI 与源码配置不包含平台插件 UUID或 publisher；平台上传接口按 package 名映射 UUID，并绑定当前认证用户。
 - 默认不安装依赖；只有 `--install` 才使用无 shell 的子进程执行 `pnpm install`。安装失败时保留已生成
   项目并提示手动重试。
 - `--local` 从当前目录向上查找包含 `packages/workflow-plugin` 与 `packages/workflow-plugin-cli` 的仓库
@@ -71,8 +69,7 @@ CLI workspace package 的 `link:` 相对路径。两处都只使用当前 worksp
 - 默认导出必须通过 `pluginConfigSchema`；`hostVersionRange` 额外使用 SemVer range 校验。
 - icon、UI、表单和 Executor 引用必须是 package 内真实文件，并在检查阶段验证所声明的 export；
   Executor 固定要求 default export。
-- build 的 publisher 来自显式参数或 scoped package 的 scope；Manifest node type 只通过
-  `createPluginNodeType(publisher, pluginId, nodeKey)` 生成。
+- Manifest node type 只通过 `createPluginNodeType(packageName, nodeKey)` 生成。
 - 输出目录只能位于 package 内，同时检查父目录和符号链接真实路径；构建先写同文件系统 staging，
   校验成功后原子替换目标目录。
 - Manifest `integrity.digest` 是排序后 Artifact 路径、大小和文件摘要的聚合 SHA-256；

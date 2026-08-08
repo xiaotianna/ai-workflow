@@ -129,6 +129,15 @@ function ExampleForm() {
 - 列表虚拟化只负责可见行与触底信号，不持有请求数据；加载失败后停止自动续载，由页面提供
   明确的重试入口，避免虚拟列表在失败位置循环请求。
 
+## 插件 Marketplace 列表
+
+- `features/plugin/hooks/use-plugins.ts` 负责插件列表的 300ms 搜索防抖、ALL/INSTALLED/USED/MINE
+  scope、opaque cursor、首屏和续载状态；页面只组合带原始标签样式的 Hero 和 Grid。
+- 搜索、scope 或主动刷新时取消旧请求、清空现有条目和游标并加载第一页；续载请求使用查询版本
+  隔离过期响应，并按平台插件 UUID 去重。续载失败后停止自动请求，用户明确重试后再继续。
+- 插件发布成功后刷新当前查询，使新版本及其可见范围立即反映在列表中；列表不得回退到 Mock 数据
+  或客户端集合筛选。
+
 ## 应用调用日志
 
 - `features/app-logs/hooks/use-app-logs.ts` 负责应用调用日志的 300ms 搜索防抖、状态/时间过滤、

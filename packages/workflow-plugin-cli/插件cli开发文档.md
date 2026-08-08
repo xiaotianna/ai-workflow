@@ -81,7 +81,7 @@ CLI 的输入不是某一个零散文件，而是一个完整的 npm package。�
 import { defineConfig } from '@ai-workflow/plugin'
 
 export default defineConfig({
-  id: 'http-plugin',
+  displayName: 'HTTP Plugin',
   // 节点、配置、UI、执行器等声明
 })
 ```
@@ -105,7 +105,7 @@ dist/
 执行 `pack` 后，还会在输出目录中生成：
 
 ```text
-<plugin-id>-<version>.tgz
+<package-name>-<version>.tgz
 ```
 
 没有自定义 UI 就不会创建 `web/`；没有 `sandbox-js` 节点就不会创建 `executor/`。
@@ -117,9 +117,9 @@ CLI 对外提供五条命令：
 ```text
 ai-workflow-plugin init <directory> [--template <basic|custom-ui|executor>] [--local] [--install]
 ai-workflow-plugin check [--cwd <directory>]
-ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>]
 ```
 
 `init` 是脚手架入口，负责从模板创建一个新的插件 package。其余四条命令作用于已经存在的插件，并且
@@ -152,9 +152,9 @@ ai-workflow-plugin init my-plugin
 content 或 `sandbox-js` Executor 的项目。生成内容直接使用现有 `defineConfig`、`defineNode`、
 `pluginSchema`、`field` 和 `defineExecutor`，不会另造一套示例 API。
 
-脚手架会校验插件 ID、npm package 名和 publisher，拒绝覆盖非空目录，并先写入同级 staging 再发布
-目标目录。scoped package 自动从 scope 推导 publisher；普通 package 未指定 publisher 时使用本地
-开发身份 `local`。默认只生成文件，只有明确传入 `--install` 才执行 `pnpm install`。
+脚手架会校验 npm package 名，拒绝覆盖非空目录，并先写入同级 staging 再发布目标目录。CLI 不接收
+平台插件 UUID 或 publisher；这些身份由服务端在上传时绑定。默认只生成文件，只有明确传入
+`--install` 才执行 `pnpm install`。
 
 仓库根的 `pnpm plugin:init` 会自动启用 `--local`，按照插件目标目录计算 SDK 与 CLI 的 `link:` 相对
 路径，适用于两个包尚未发布时的本地开发。公开 CLI 不传 `--local` 时保留 registry 版本范围，供未来
@@ -281,11 +281,11 @@ executor/<node-key>.mjs
 节点 type 也不是插件作者随意填写，而是统一通过以下规则生成：
 
 ```text
-plugin:<publisher>/<plugin-id>/<node-key>
+plugin:<package-name>/<node-key>
 ```
 
-`publisher` 优先来自 `--publisher`；如果 package 名是 `@acme/http-plugin`，也可以从 scope 推导为
-`acme`。这样发布者身份来自构建上下文，而不是盲目信任插件源码自己声明。
+例如 package 名为 `@acme/http-plugin` 时，节点类型为
+`plugin:@acme/http-plugin/<node-key>`。package 名用于产物定位，不能替代平台 UUID 或上传作者。
 
 先做计划的好处是把“配置怎样映射成产物”和“怎样操作文件系统”拆开，转换规则更容易检查，构建器也
 不需要理解完整的插件领域模型。
@@ -494,10 +494,10 @@ new PluginCliError('插件默认导出未通过 PluginConfig 校验', {
 - 在 Web 中注册或运行远程 UI；
 - 执行第三方 Executor；
 - 充当 Marketplace 的安全沙箱；
-- 信任本地传入的 publisher 作为平台最终认证身份。
+- 生成或接收平台插件 UUID、publisher 身份。
 
 它只负责从源码到标准产物。安装属于 Server/Web 插件运行时，Executor 执行属于独立强沙箱，平台发布
-还需要在受控环境中重新构建或校验，并使用已认证的 publisher 身份。
+还需要在受控环境中重新构建或校验；服务端发布接口使用当前认证用户作为作者。
 
 ## 12. 面试时可以直接这样讲
 

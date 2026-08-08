@@ -10,6 +10,7 @@ import { ModelsModule } from './modules/models.module'
 import { KnowledgeBaseModule } from './modules/knowledge-base.module'
 import { ExecutorModelModule } from './modules/executor-model.module'
 import { ExecutorCommandModule } from './modules/executor-command.module'
+import { PluginModule } from './modules/plugin.module'
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ExecutorCommandModule } from './modules/executor-command.module'
     KnowledgeBaseModule,
     ExecutorCommandModule,
     ExecutorModelModule,
+    PluginModule,
   ],
   controllers: [],
 })

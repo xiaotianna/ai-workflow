@@ -33,6 +33,10 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 知识库已落地最小 `KnowledgeBase` Prisma 模型和迁移，并通过 `KnowledgeBaseModule` 提供按用户
   隔离的空白知识库创建、列表、详情、编辑和删除接口；删除会阻止仍被工作流草稿或版本引用的
   知识库。文档、索引代际、向量和异步任务尚未实现。
+- 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
+  TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包
+  保存到可配置的本地产物目录。Marketplace 列表已接入真实数据、访问范围、搜索、筛选、排序和
+  opaque cursor；安装和 runtime catalog 尚未接入真实数据。
 - 首次实现时补齐明确的依赖、配置、环境变量和 workspace 脚本，不在无关任务中顺手搭建后端。
 - 遵守根目录命令约束，不自动运行 `dev`、`build` 或任何 git 命令。
 

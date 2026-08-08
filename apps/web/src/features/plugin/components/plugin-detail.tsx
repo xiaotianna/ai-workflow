@@ -55,7 +55,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
                 <span aria-hidden className="mx-1">
                   /
                 </span>
-                <span>{plugin.slug ?? plugin.id}</span>
+                <span>{plugin.packageName ?? plugin.id}</span>
                 <span aria-hidden className="bg-border mx-3 h-3 w-px" />
                 <Download aria-hidden className="size-3.5 shrink-0" />
                 <span className="ml-1 text-xs">
@@ -100,7 +100,7 @@ export function PluginDetail({ plugin }: PluginDetailProps) {
             <div className="text-muted-foreground mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span className="text-foreground font-medium">v{latestVersion.version}</span>
               <span aria-hidden className="bg-border h-3.5 w-px" />
-              <span>{latestVersion.publisher}</span>
+              <span>{latestVersion.author}</span>
             </div>
             <time
               dateTime={latestVersion.publishedAt}

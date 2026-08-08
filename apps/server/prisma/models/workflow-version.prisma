@@ -13,8 +13,9 @@ model WorkflowVersion {
   workflow  Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
   createdBy User?    @relation("WorkflowVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
-  deployments WorkflowDeployment[]
-  runs        WorkflowRun[]
+  deployments        WorkflowDeployment[]
+  runs               WorkflowRun[]
+  pluginDependencies WorkflowVersionPluginDependency[]
 
   @@unique([workflowId, version])
   @@index([workflowId, createdAt])

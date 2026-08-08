@@ -124,6 +124,22 @@
   Prisma 模型中的向量列使用 `Unsupported("vector")`，向量查询封装在 `VectorStore`/Repository
   边界内。
 
+## 插件发布持久化
+
+- `Plugin` 同时承担第三方 package 名到平台 UUID 的映射：`packageName` 唯一，`id` 由数据库生成
+  UUID，`publisherId` 绑定首个上传用户，并保存可见范围和发布状态；`PluginVersion` 以
+  `(pluginId, version)` 保证 SemVer 不可覆盖，保存 Manifest、上传用户名快照、版本说明、
+  Artifact digest、产物字节数和受控 `artifactReference`。
+- 插件压缩包通过 `PluginArtifactStore` 保存到 `PLUGIN_ARTIFACT_DIRECTORY`，默认相对当前 Server
+  工作目录的 `var/plugin-artifacts`。数据库只保存相对 storage key，不保存绝对路径或文件正文；
+  首次实现使用随机 UUID 文件名避免并发失败时误删其他发布的同摘要产物。
+- 文件系统与 PostgreSQL 不能组成同一事务：Service 先写唯一产物文件，再执行发布事务；数据库
+  失败时尽力删除本次文件，清理失败的孤儿文件留给后续 GC，禁止删除已经成功入库的产物。
+- Marketplace 查询在 Repository 中同时应用发布状态、可见范围、搜索、scope 和游标条件；scope
+  分别通过安装关系、当前用户工作流版本依赖和 `publisherId` 实现。默认只允许公开插件与当前用户
+  自己的私有插件。安装数通过 `PluginInstallation` 关系聚合，最新版本按
+  `publishedAt` 与版本记录 ID 倒序取得，不在 Web 用 Mock 或客户端过滤模拟服务端数据。
+
 ## Redis
 
 - 只在缓存、幂等、限流、短期锁或事件协调需求明确时使用。

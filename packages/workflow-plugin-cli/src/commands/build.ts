@@ -1,41 +1,18 @@
 import { mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 
-import { pluginIdSchema } from '@ai-workflow/plugin'
-
 import { buildPluginArtifacts } from '../pipeline/artifacts'
 import { createFileIntegrityEntries, createIntegrityDigest } from '../pipeline/integrity'
 import { createPluginBuildPlan, finalizePluginManifest } from '../pipeline/manifest'
-import { formatSchemaIssues, PluginCliError } from '../shared/diagnostics'
 import type { BuildPluginOptions, BuildPluginResult, IntegrityFile } from '../shared/types'
 import { checkPlugin } from './check'
 import {
   ensureSafePackageDirectory,
-  inferPublisher,
   resolvePackageOutputDirectory,
 } from '../package/package-context'
 
 async function writeJson(filePath: string, value: unknown): Promise<void> {
   await writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`)
-}
-
-function resolvePublisher(packageName: string, requestedPublisher?: string): string {
-  const publisher = requestedPublisher ?? inferPublisher(packageName)
-  if (!publisher) {
-    throw new PluginCliError('构建插件时必须明确 publisher', {
-      code: 'MISSING_PUBLISHER',
-      details: ['传入 --publisher，或使用可推导 publisher 的 scoped package 名称'],
-    })
-  }
-
-  const result = pluginIdSchema.safeParse(publisher)
-  if (!result.success) {
-    throw new PluginCliError('publisher 格式不合法', {
-      code: 'INVALID_PUBLISHER',
-      details: formatSchemaIssues(result.error),
-    })
-  }
-  return result.data
 }
 
 async function replaceOutputDirectory(stagingDirectory: string, outDir: string): Promise<void> {
@@ -64,13 +41,12 @@ async function replaceOutputDirectory(stagingDirectory: string, outDir: string):
 
 export async function buildPlugin(options: BuildPluginOptions = {}): Promise<BuildPluginResult> {
   const checkedPlugin = await checkPlugin(options)
-  const publisher = resolvePublisher(checkedPlugin.package.name, options.publisher)
   const outDir = resolvePackageOutputDirectory(checkedPlugin.package.rootDir, options.outDir)
   await ensureSafePackageDirectory(checkedPlugin.package.rootDir, dirname(outDir))
   const stagingDirectory = await mkdtemp(join(dirname(outDir), `.${basename(outDir)}-stage-`))
 
   try {
-    const plan = createPluginBuildPlan(checkedPlugin, publisher)
+    const plan = createPluginBuildPlan(checkedPlugin)
     await buildPluginArtifacts(checkedPlugin, plan, stagingDirectory)
 
     const artifactEntries = await createFileIntegrityEntries(stagingDirectory)

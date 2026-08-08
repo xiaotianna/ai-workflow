@@ -220,7 +220,6 @@ ai-workflow-plugin publish
 import { defineConfig, defineNode, field, pluginSchema as s } from '@ai-workflow/plugin'
 
 export default defineConfig({
-  id: 'github',
   displayName: 'GitHub',
   description: 'GitHub 工作流节点',
   hostVersionRange: '^1.0.0',
@@ -286,8 +285,8 @@ export default defineConfig({
 })
 ```
 
-插件 version 只以 `package.json#version` 为事实来源，配置中不重复声明。构建时将 npm package 名称、
-publisher 身份和插件 ID 分开处理，不能让作者通过 node type 冒充内置节点。
+插件 version 只以 `package.json#version` 为事实来源，配置中不重复声明。CLI 只使用 npm package 名称
+标识第三方来源；平台插件 UUID 和上传作者由服务端发布流程绑定，不能由插件源码声明。
 
 ## 8. `defineConfig` 与 `defineNode`
 
@@ -493,7 +492,7 @@ renderer 或 executor。
 
 `check` 和 `build` 至少验证：
 
-- package 名称、version 和插件 ID 合法；
+- package 名称和 version 合法；
 - node key 在插件内唯一；
 - 生成后的完整 node type 不与内置或其他插件冲突；
 - `initial` 能通过 schema；
@@ -563,8 +562,9 @@ React、React DOM 和 `@ai-workflow/plugin/ui` 必须使用宿主共享实例，
 {
   "manifestVersion": 1,
   "plugin": {
-    "id": "github",
-    "publisher": "acme",
+    "packageName": "@acme/github",
+    "displayName": "GitHub",
+    "description": "读取 GitHub 仓库内容",
     "version": "1.0.0"
   },
   "hostVersionRange": "^1.0.0",
@@ -575,7 +575,7 @@ React、React DOM 和 `@ai-workflow/plugin/ui` 必须使用宿主共享实例，
   "nodes": [
     {
       "key": "create-issue",
-      "type": "plugin:acme/github/create-issue",
+      "type": "plugin:@acme/github/create-issue",
       "configSchemaVersion": 1,
       "configSchema": {},
       "initialConfig": {},
@@ -609,11 +609,11 @@ React、React DOM 和 `@ai-workflow/plugin/ui` 必须使用宿主共享实例，
 完整 node type 由平台生成：
 
 ```text
-plugin:<publisher>/<plugin-id>/<node-key>
+plugin:<package-name>/<node-key>
 ```
 
-开发者只声明 `plugin.id` 和 `node.key`，不能直接声明完整 type。publisher 来自已认证的发布者身份，
-不能信任源码字段。内置 node type 不使用 `plugin:` 前缀。
+开发者只声明 package 名和 `node.key`，不能直接声明完整 type。package 名用于第三方产物定位，不是
+平台插件 UUID；作者来自上传请求中的认证用户。内置 node type 不使用 `plugin:` 前缀。
 
 ### 13.2 版本字段
 
@@ -737,8 +737,8 @@ interface Workflow {
 
 建议增加：
 
-- `Plugin`：稳定插件身份、publisher、slug、可见性和状态；
-- `PluginVersion`：不可变 semver、manifest、宿主版本范围、审核和发布时间；
+- `Plugin`：平台 UUID、唯一 package 名映射、上传作者、可见性和状态；
+- `PluginVersion`：不可变 semver、manifest、宿主版本范围和发布时间；
 - `PluginArtifact`：类型、路径、字节数、摘要、签名和存储位置；
 - `PluginInstallation`：owner、插件、选定版本、启用状态和已授予权限；
 - `WorkflowDraftPluginReference`：草稿对 PluginVersion 的引用投影；
@@ -818,7 +818,7 @@ Server 不依赖 `@ai-workflow/ui`、`@ai-workflow/form`、`@ai-workflow/nodes-u
 第一阶段插件 SDK、manifest、Web Runtime 和 Server 校验落地时，可以只允许：
 
 - `execution.kind: 'none'`：可编辑但明确禁止发布和运行；
-- 平台审核的声明式执行适配器；
+- 平台提供的声明式执行适配器；
 - 不开放任意第三方执行代码。
 
 后续再开放：
@@ -888,7 +888,7 @@ parser/validator 同步升级。
 
 Module Federation Remote 与宿主 React 运行在同一页面上下文，可以访问 DOM 和页面内存，因此不是
 安全沙箱。`node.custom: true`、`form.custom: true` 和自定义 content 都应触发 `web:execute`
-权限和审核要求。
+权限声明和用户授权要求。
 
 如果未来需要执行完全不可信 UI，只能使用 sandboxed iframe 与 `postMessage`，但它不能直接复用宿主
 React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装成普通插件 renderer。
@@ -900,7 +900,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 - 所有文件使用相对路径和 SHA-256；
 - Server 返回同源或受控 CDN URL，不加载作者域名；
 - CSP 只允许平台插件资产来源；
-- 高权限插件需要签名、审核状态和明确用户授权；
+- 高权限插件需要签名和明确用户授权；
 - 插件不能读取其他插件 artifact；
 - runtime catalog 只返回当前用户、当前 Workflow、当前插件锁需要的版本；
 - 插件安装权限与 Workflow 运行时使用权限分别校验。
@@ -910,7 +910,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 ### 20.1 安装
 
 1. 用户选择 PluginVersion；
-2. Server 校验 `hostVersionRange`、manifest、artifact digest、审核状态和权限；
+2. Server 校验 `hostVersionRange`、manifest、artifact digest 和权限；
 3. 用户确认特权权限；
 4. 创建或更新 PluginInstallation；
 5. 安装只决定“允许新工作流使用的版本”，不自动修改现有草稿和版本。
@@ -1001,7 +1001,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 2. 增加插件 executor artifact 下载、摘要校验和缓存；
 3. 增加 Protocol 新版本或正式的 executorType 方案；
 4. 增加租约取消、结果限制、稳定错误码和审计；
-5. 上线签名、权限、审核和供应链扫描；
+5. 上线签名、权限和供应链扫描；
 6. 先私有插件灰度，再开放 Marketplace 第三方。
 
 完成标志：插件代码不能读取 Worker/Server 文件和凭证，不能访问平台内网，资源、取消、重试和结果
@@ -1020,7 +1020,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 - 可选 `node.custom: true` 和 `form.custom: true` Web Remote；
 - 复用 Form 内置字段和 Web Host Field Registry；
 - Workflow 保存插件版本锁；
-- 第三方执行先标记为不支持或只开放平台审核的声明式适配器；
+- 第三方执行先标记为不支持或只开放平台提供的声明式适配器；
 - 不开放动态端口、任意迁移函数和宿主进程执行代码。
 
 该范围能先验证 SDK、构建、manifest、注册表和自定义 UI 的主链路，又不会被尚未完成的强沙箱阻塞。

@@ -22,11 +22,6 @@ export function PluginMarketplaceHeroSkeleton({ className }: PluginMarketplaceHe
         <div className="mx-5 space-y-3">
           <Skeleton className="h-9 w-72 max-w-full rounded-md bg-white/20" />
           <Skeleton className="h-5 w-96 max-w-full rounded-md bg-white/15" />
-          <div className="flex gap-2 pt-2">
-            {Array.from({ length: 5 }, (_, index) => (
-              <Skeleton key={index} className="h-8 w-24 rounded-lg bg-white/15" />
-            ))}
-          </div>
         </div>
       </div>
     </div>

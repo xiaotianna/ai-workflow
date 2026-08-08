@@ -1,10 +1,7 @@
 import type { PluginTemplate } from '../shared/types'
 
 export interface PluginTemplateContext {
-  readonly pluginId: string
   readonly packageName: string
-  readonly publisher: string
-  readonly publisherFromPackageScope: boolean
   readonly sdkDependency: string
   readonly cliDependency: string
   readonly localDependencies: boolean

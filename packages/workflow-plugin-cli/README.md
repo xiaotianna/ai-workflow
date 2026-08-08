@@ -27,11 +27,11 @@ pnpm plugin:init ./examples/my-plugin
 ## 命令
 
 ```text
-ai-workflow-plugin init <directory> [--template <template>] [--plugin-id <id>] [--package-name <name>] [--publisher <id>] [--local] [--install]
+ai-workflow-plugin init <directory> [--template <template>] [--package-name <name>] [--local] [--install]
 ai-workflow-plugin check [--cwd <directory>]
-ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
-ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin pack  [--cwd <directory>] [--out-dir <directory>]
+ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>]
 ```
 
 - `init`：生成 `basic`、`custom-ui` 或 `executor` 插件项目，默认不安装依赖。
@@ -40,8 +40,8 @@ ai-workflow-plugin dev   [--cwd <directory>] [--out-dir <directory>] [--publishe
 - `pack`：重新执行确定性构建并生成 `.tgz` 和 SHA-256。
 - `dev`：监听插件 package，保留最后一次成功构建，并提供本地静态 HTTP 服务。
 
-scoped npm package 默认从 scope 推导本地构建使用的 publisher；非 scoped package 必须通过
-`--publisher` 明确传入。平台发布时仍必须使用已认证的 publisher 身份重新构建或校验。
+CLI 只把 npm package 名作为第三方来源标识写入 Manifest。平台插件 UUID 不进入 CLI 或插件源码；
+服务端在上传时用 package 名映射平台 UUID，并把当前认证用户绑定为作者。
 
 ## 创建插件项目
 
@@ -64,10 +64,9 @@ pnpm plugin:init ./examples/my-plugin --template executor
 - `custom-ui`：增加 React 节点 content 和 `web:execute` 权限；
 - `executor`：增加 `defineExecutor()` 和 `sandbox-js` 声明，但 CLI 只构建、不运行 Executor。
 
-`init` 默认用目标目录名作为插件 ID 和 package 名。未提供 scope 或 `--publisher` 时，本地
-publisher 默认为 `local`，生成的 build/pack/dev scripts 会显式传入它；通过
-`--package-name @acme/my-plugin` 使用 scoped package 时，会自动推导 publisher `acme`。显式
-`--publisher` 与 package scope 不一致时会失败。
+`init` 默认用目标目录名作为 package 名，也可以通过
+`--package-name @acme/my-plugin` 生成 scoped package。生成的 build/pack/dev scripts 不携带平台
+UUID 或发布者参数。
 
 依赖模式：
 

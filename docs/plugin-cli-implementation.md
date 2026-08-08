@@ -53,20 +53,19 @@ CLI 不负责：
 命令：
 
 ```text
-ai-workflow-plugin init <directory> [--template <basic|custom-ui|executor>] [--plugin-id <id>] [--package-name <name>] [--publisher <id>] [--local] [--install]
+ai-workflow-plugin init <directory> [--template <basic|custom-ui|executor>] [--package-name <name>] [--local] [--install]
 ```
 
 `init` 负责创建一个符合当前 SDK 契约的最小插件项目：
 
 1. 目标目录必须不存在或为空，拒绝覆盖非空目录和写入符号链接；
-2. 插件 ID 默认使用目标目录名，package 名可单独覆盖；
-3. package scope 可以推导 publisher，显式 publisher 与 scope 冲突时失败；
-4. 没有 scope 和 publisher 时使用本地开发身份 `local`；
-5. basic 生成 Schema 表单与 `execution: none`，custom-ui 增加 React content，executor 增加
+2. package 名默认使用目标目录名，可通过 `--package-name` 覆盖；
+3. CLI 不生成平台插件 UUID，也不接受 publisher；UUID 与上传作者在服务端发布时绑定；
+4. basic 生成 Schema 表单与 `execution: none`，custom-ui 增加 React content，executor 增加
    `sandbox-js` 源码；
-6. 所有模板文件先写入同级 staging，成功后再 rename 为目标目录；
-7. 默认只生成文件；`--install` 明确启用后才使用无 shell 子进程执行 `pnpm install`。
-8. `--local` 从当前目录向上定位 SDK 和 CLI workspace package，再根据最终目标目录生成可迁移层级的
+5. 所有模板文件先写入同级 staging，成功后再 rename 为目标目录；
+6. 默认只生成文件；`--install` 明确启用后才使用无 shell 子进程执行 `pnpm install`。
+7. `--local` 从当前目录向上定位 SDK 和 CLI workspace package，再根据最终目标目录生成可迁移层级的
    `link:` 相对路径；默认模式保留 registry 版本范围。
 
 安装失败不会删除已经生成的项目。生成后的 package 提供 `plugin:check`、`plugin:build`、
@@ -109,7 +108,7 @@ ai-workflow-plugin check [--cwd <directory>]
 命令：
 
 ```text
-ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin build [--cwd <directory>] [--out-dir <directory>]
 ```
 
 `build` 复用完整 `check` 管线，在校验通过后生成：
@@ -125,10 +124,11 @@ dist/
 
 Manifest 转换规则：
 
-- `plugin.id` 来自 `PluginConfig.id`；
+- `plugin.packageName` 只来自 `package.json#name`；
+- `plugin.displayName` 和可选描述来自 `PluginConfig`；
 - `plugin.version` 只来自 `package.json#version`；
-- `plugin.publisher` 来自明确的 CLI/受信任构建上下文，不信任插件源码自行声明；
-- 节点 type 统一生成为 `plugin:<publisher>/<plugin-id>/<node-key>`；
+- Manifest 不包含平台 UUID 或发布者身份；
+- 节点 type 统一生成为 `plugin:<package-name>/<node-key>`；
 - `config.schemaVersion/schema/initial/form` 转为
   `configSchemaVersion/configSchema/initialConfig/form`；
 - 源码模块引用转换为构建产物中的 `remoteExport` 或 `artifact`；
@@ -143,7 +143,7 @@ Manifest 转换规则：
 命令：
 
 ```text
-ai-workflow-plugin pack [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin pack [--cwd <directory>] [--out-dir <directory>]
 ```
 
 `pack` 必须先执行与 `build` 相同的全量检查和确定性构建，然后：
@@ -183,7 +183,7 @@ React、React DOM 和 `@ai-workflow/plugin/ui` 必须作为宿主共享依赖，
 命令：
 
 ```text
-ai-workflow-plugin dev [--cwd <directory>] [--out-dir <directory>] [--publisher <id>]
+ai-workflow-plugin dev [--cwd <directory>] [--out-dir <directory>]
 ```
 
 开发服务负责：

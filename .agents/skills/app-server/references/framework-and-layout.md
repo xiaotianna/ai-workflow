@@ -49,11 +49,15 @@ apps/server/
 │   ├── infra/model-provider/
 │   │   ├── model-credential.service.ts
 │   │   └── *adapter.ts
+│   ├── infra/plugin-artifact/
+│   │   ├── plugin-artifact-store.ts
+│   │   └── plugin-package-inspector.ts
 │   ├── infra/workflow-mq/
 │   ├── modules/
 │   │   ├── auth.module.ts
 │   │   ├── executor-model.module.ts
 │   │   ├── models.module.ts
+│   │   ├── plugin.module.ts
 │   │   └── studio.module.ts
 │   ├── repositories/
 │   │   ├── app-api.repository.ts
@@ -71,6 +75,7 @@ apps/server/
 │       ├── executor-model.service.ts
 │       ├── model-connection-test.service.ts
 │       ├── model-group.service.ts
+│       ├── plugin.service.ts
 │       ├── studio-app.service.ts
 │       ├── workflow-run-sse.service.ts
 │       ├── workflow-run-timeout-scanner.service.ts

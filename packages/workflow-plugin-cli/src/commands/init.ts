@@ -2,10 +2,8 @@ import { spawn } from 'node:child_process'
 import { lstat, mkdir, mkdtemp, readdir, rename, rm, rmdir, writeFile } from 'node:fs/promises'
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 
-import { pluginIdSchema } from '@ai-workflow/plugin'
-
-import { inferPublisher, parsePackageName } from '../package/package-context'
-import { formatSchemaIssues, PluginCliError } from '../shared/diagnostics'
+import { parsePackageName } from '../package/package-context'
+import { PluginCliError } from '../shared/diagnostics'
 import type { InitPluginOptions, InitPluginResult, PluginTemplate } from '../shared/types'
 import { isPluginTemplate, pluginTemplateFactories } from '../templates'
 import type { PluginTemplateContext, PluginTemplateFile } from '../templates'
@@ -17,17 +15,6 @@ import {
 interface TargetDirectoryState {
   readonly exists: boolean
   readonly path: string
-}
-
-function parsePluginId(value: string, label: '插件 ID' | 'publisher'): string {
-  const result = pluginIdSchema.safeParse(value)
-  if (!result.success) {
-    throw new PluginCliError(`${label} 格式不合法`, {
-      code: label === '插件 ID' ? 'INVALID_PLUGIN_ID' : 'INVALID_PUBLISHER',
-      details: formatSchemaIssues(result.error),
-    })
-  }
-  return result.data
 }
 
 function resolveTemplate(value: PluginTemplate = 'basic'): PluginTemplate {
@@ -173,31 +160,13 @@ export async function initPlugin(options: InitPluginOptions): Promise<InitPlugin
 
   const targetDirectory = resolve(options.cwd ?? process.cwd(), options.targetDirectory)
   const targetState = await inspectTargetDirectory(targetDirectory)
-  const pluginId = parsePluginId(options.pluginId ?? basename(targetDirectory), '插件 ID')
   const packageName = parsePackageName(options.packageName ?? basename(targetDirectory))
-  const scopedPublisher = inferPublisher(packageName)
-  const requestedPublisher = options.publisher
-    ? parsePluginId(options.publisher, 'publisher')
-    : undefined
-
-  if (scopedPublisher && requestedPublisher && scopedPublisher !== requestedPublisher) {
-    throw new PluginCliError('publisher 与 scoped package 不一致', {
-      code: 'PUBLISHER_SCOPE_MISMATCH',
-      details: [`package scope：${scopedPublisher}`, `publisher：${requestedPublisher}`],
-    })
-  }
-
-  const publisher = requestedPublisher ?? scopedPublisher ?? 'local'
-  parsePluginId(publisher, 'publisher')
   const template = resolveTemplate(options.template)
   const dependencies = options.localDependencies
     ? await resolveLocalTemplateDependencies(options.cwd ?? process.cwd(), targetDirectory)
     : REGISTRY_TEMPLATE_DEPENDENCIES
   const context: PluginTemplateContext = {
-    pluginId,
     packageName,
-    publisher,
-    publisherFromPackageScope: scopedPublisher !== undefined,
     sdkDependency: dependencies.sdk,
     cliDependency: dependencies.cli,
     localDependencies: dependencies.local,
@@ -229,9 +198,7 @@ export async function initPlugin(options: InitPluginOptions): Promise<InitPlugin
   return {
     targetDirectory,
     template,
-    pluginId,
     packageName,
-    publisher,
     localDependencies: dependencies.local,
     installed: options.install ?? false,
   }

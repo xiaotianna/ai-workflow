@@ -127,7 +127,7 @@ export function PluginVersionHistoryDialog({
                           {formatPluginVersionDate(version.publishedAt)}
                         </time>
                       </TableCell>
-                      <TableCell>{version.publisher}</TableCell>
+                      <TableCell>{version.author}</TableCell>
                     </TableRow>
                   ))}
                   {hasMoreVersions ? (
