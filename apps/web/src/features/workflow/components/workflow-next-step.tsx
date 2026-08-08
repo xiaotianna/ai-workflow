@@ -6,7 +6,7 @@ import {
   type NodeType,
   type WorkflowEdge,
 } from '@ai-workflow/core'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { NodeIconBadge } from '@ai-workflow/nodes-ui'
 import { Button } from '@ai-workflow/ui/components/button'
 import { DropdownMenu, DropdownMenuTrigger } from '@ai-workflow/ui/components/dropdown-menu'
 import { Form } from '@ai-workflow/ui/components/form'
@@ -144,12 +144,11 @@ function WorkflowNextStepNode({
         className="h-full min-w-0 flex-1 shrink justify-start gap-2 rounded-lg px-2 text-left shadow-none hover:bg-transparent focus-visible:bg-transparent"
         onClick={() => onSelect(node.id)}
       >
-        <span
-          className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-[0.5rem] shadow-md"
-          style={{ backgroundColor: getNodeThemeColor(node.type) }}
-        >
-          <NodeIcon icon={definition?.icon} className="size-4" aria-hidden />
-        </span>
+        <NodeIconBadge
+          type={node.type}
+          icon={definition?.icon}
+          className="rounded-[0.5rem] shadow-md"
+        />
         <span className="text-foreground truncate text-sm font-medium">{label}</span>
       </Button>
 
@@ -253,16 +252,13 @@ export function WorkflowNextStep({
           <p className="text-muted-foreground text-xs">添加此工作流程中的下一个节点</p>
 
           <div className="flex items-start">
-            <div className="border-border bg-background flex size-9 shrink-0 items-center justify-center rounded-xl border-[0.5px] shadow-xs">
-              <span
-                className="text-primary-foreground flex size-6 items-center justify-center rounded-[0.5rem] shadow-md"
-                style={{ backgroundColor: getNodeThemeColor(definition.type) }}
-              >
-                <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
-              </span>
-            </div>
+            <NodeIconBadge
+              type={definition.type}
+              icon={definition.icon}
+              className="rounded-[0.5rem] shadow-md"
+            />
 
-            <span className="bg-workflow-edge mt-[17.5px] h-px w-6 shrink-0" aria-hidden />
+            <span className="bg-workflow-edge mt-[11.5px] h-px w-6 shrink-0" aria-hidden />
 
             <MotionConfig reducedMotion="user">
               <div

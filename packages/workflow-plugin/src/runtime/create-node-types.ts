@@ -23,6 +23,7 @@ export function createNodeTypesFromPluginManifest(manifest: PluginManifest): rea
         ports: node.ports,
       },
       form: node.form,
+      ...(node.ui.form.custom ? { configRenderer: node.type } : {}),
       fixedOutputs: node.fixedOutputs,
       createInitialConfig: () => structuredClone(node.initialConfig),
     } as unknown as NodeType

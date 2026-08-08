@@ -148,6 +148,13 @@ function resolveAssetContentType(path: string): string {
     case 'gif': {
       return 'image/gif'
     }
+    case 'js':
+    case 'mjs': {
+      return 'text/javascript; charset=utf-8'
+    }
+    case 'json': {
+      return 'application/json; charset=utf-8'
+    }
     default: {
       return 'application/octet-stream'
     }

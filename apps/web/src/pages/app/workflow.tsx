@@ -11,9 +11,10 @@ import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import { useWorkflowPublish } from '@/features/workflow/hooks/use-workflow-publish'
 import { useWorkflowTestRun } from '@/features/workflow/hooks/use-workflow-test-run'
 import {
-  createResolvedWorkflowWebCatalog,
-  type WorkflowWebCatalog,
-} from '@/features/workflow/catalog/workflow-web-catalog'
+  createWorkflowPluginRuntime,
+  type WorkflowPluginRuntime,
+} from '@/features/workflow/plugin-runtime'
+import { useWorkflowPluginRuntimeToasts } from '@/features/workflow/hooks/use-workflow-plugin-runtime-toasts'
 import type { StudioAppListItem } from '@/features/studio'
 import { useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
@@ -34,7 +35,7 @@ type WorkflowDraftState =
       appId: string
       status: 'success'
       draft: StudioWorkflowDraftDto
-      catalog: WorkflowWebCatalog
+      catalog: WorkflowPluginRuntime
     }
 
 function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
@@ -51,6 +52,8 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   const catalog =
     draftState.appId === app.id && draftState.status === 'success' ? draftState.catalog : undefined
 
+  useWorkflowPluginRuntimeToasts(catalog)
+
   useEffect(() => {
     const controller = new AbortController()
     revisionRef.current = undefined
@@ -66,12 +69,13 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
           loadedDraft.definition.plugins,
           controller.signal,
         )
+        const runtime = await createWorkflowPluginRuntime(runtimeCatalog, controller.signal)
         revisionRef.current = loadedDraft.revision
         setDraftState({
           appId: app.id,
           status: 'success',
           draft: loadedDraft,
-          catalog: createResolvedWorkflowWebCatalog(runtimeCatalog),
+          catalog: runtime,
         })
       })
       .catch(() => {
@@ -107,13 +111,14 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   async function handleRestoreVersion(versionId: string) {
     const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId)
     const runtimeCatalog = await resolvePluginRuntimeCatalog(restoredDraft.definition.plugins)
+    const runtime = await createWorkflowPluginRuntime(runtimeCatalog)
     revisionRef.current = restoredDraft.revision
     setSelectedVersionId(versionId)
     setDraftState({
       appId: app.id,
       status: 'success',
       draft: restoredDraft,
-      catalog: createResolvedWorkflowWebCatalog(runtimeCatalog),
+      catalog: runtime,
     })
   }
 
@@ -122,44 +127,48 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   }
 
   return (
-    <WorkflowEditorProvider
-      key={`${app.id}:${draft.revision}`}
-      applicationMetadata={{
-        id: app.id,
-        title: app.title,
-        description: app.description,
-        icon: app.icon,
-      }}
-      initialSnapshot={{
-        workflow: draft.definition,
-        layout: draft.layout,
-      }}
-      catalog={catalog}
-      initialSavedAt={new Date(draft.updatedAt)}
-      disabled={disabled}
-      onSave={handleSave}
-      onPauseTestRun={testRun.pause}
-      onPublish={workflowPublish.publish}
-      onRestoreVersion={handleRestoreVersion}
-      onSelectCurrentDraft={handleSelectCurrentDraft}
-      onTestRun={testRun.run}
-      publishedAt={workflowPublish.deployment?.publishedAt}
-      publishLoadError={workflowPublish.loadError}
-      publishLoading={workflowPublish.loading}
-      publishPending={workflowPublish.pending}
-      publishSync={{
-        pending: workflowPublish.pending,
-        versionId: workflowPublish.deployment?.versionId,
-        version: workflowPublish.deployment?.version,
-        publishedAt: workflowPublish.deployment?.publishedAt,
-      }}
-      selectedVersionId={selectedVersionId}
-      testRunCanPause={testRun.canPause}
-      testRunPausing={testRun.pausing}
-      testRunPending={testRun.pending}
-      testRunResult={testRun.result}
-      nodeExecutionStatuses={testRun.nodeExecutionStatuses}
-    />
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="min-h-0 flex-1">
+        <WorkflowEditorProvider
+          key={`${app.id}:${draft.revision}`}
+          applicationMetadata={{
+            id: app.id,
+            title: app.title,
+            description: app.description,
+            icon: app.icon,
+          }}
+          initialSnapshot={{
+            workflow: draft.definition,
+            layout: draft.layout,
+          }}
+          catalog={catalog}
+          initialSavedAt={new Date(draft.updatedAt)}
+          disabled={disabled || catalog.hasUnresolvedRemoteUi}
+          onSave={handleSave}
+          onPauseTestRun={testRun.pause}
+          onPublish={workflowPublish.publish}
+          onRestoreVersion={handleRestoreVersion}
+          onSelectCurrentDraft={handleSelectCurrentDraft}
+          onTestRun={testRun.run}
+          publishedAt={workflowPublish.deployment?.publishedAt}
+          publishLoadError={workflowPublish.loadError}
+          publishLoading={workflowPublish.loading}
+          publishPending={workflowPublish.pending}
+          publishSync={{
+            pending: workflowPublish.pending,
+            versionId: workflowPublish.deployment?.versionId,
+            version: workflowPublish.deployment?.version,
+            publishedAt: workflowPublish.deployment?.publishedAt,
+          }}
+          selectedVersionId={selectedVersionId}
+          testRunCanPause={testRun.canPause}
+          testRunPausing={testRun.pausing}
+          testRunPending={testRun.pending}
+          testRunResult={testRun.result}
+          nodeExecutionStatuses={testRun.nodeExecutionStatuses}
+        />
+      </div>
+    </div>
   )
 }
 
