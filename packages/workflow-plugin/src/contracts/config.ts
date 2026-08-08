@@ -27,11 +27,22 @@ export interface PluginConfig<
   readonly id: string
   readonly displayName: string
   readonly description?: string
-  readonly engine: string
+  // 检查整个插件是否兼容当前平台宿主版本，使用 SemVer range 表达式（例如：^1.2.3）
+  readonly hostVersionRange: string
+  // 插件需要向用户申请的权限
   readonly permissions?: readonly PluginPermission[]
+  /**
+   * 检查平台是否提供插件需要的具体表单控件
+   * web工作流编辑器中需要的表单字段组件，例如插件配置需要：模型选择器、知识库选择器组件
+   * 这些控件依赖平台业务数据，第三方插件无法自行实现，因此由宿主提供
+   *  requires: {
+        hostFields: ['model-selector', 'knowledge-base-selector'],
+      }
+   */
   readonly requires?: {
     readonly hostFields?: readonly string[]
   }
+  // 是数组的原因是，一个插件其实是一个插件包，提供多个节点
   readonly nodes: TNodes
 }
 
@@ -44,7 +55,7 @@ export const pluginConfigSchema = z
     id: pluginIdSchema,
     displayName: z.string().trim().min(1).max(128),
     description: z.string().trim().optional(),
-    engine: z.string().trim().min(1),
+    hostVersionRange: z.string().trim().min(1),
     permissions: z
       .array(z.enum(PLUGIN_PERMISSION_VALUES))
       .refine(hasUniqueItems, '插件权限不能重复')

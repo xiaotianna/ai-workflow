@@ -117,7 +117,7 @@ export const pluginManifestSchema = z
         version: semanticVersionSchema,
       })
       .strict(),
-    engine: z.string().trim().min(1),
+    hostVersionRange: z.string().trim().min(1),
     permissions: z
       .array(z.enum(PLUGIN_PERMISSION_VALUES))
       .refine((values) => new Set(values).size === values.length, '插件权限不能重复')

@@ -44,7 +44,7 @@ const configSchema = pluginSchema.object({
 
 - `types.ts`：Schema AST 的 TypeScript 类型和类型推导。
 - `builders.ts`：pluginSchema.string()、object()、array() 等声明 DSL。
-- `ast-schema.ts`：检查序列化后的 AST 本身是否合法。
+- `ast-schema.ts`：检查序列化后的 AST（Schema 字段值） 本身是否合法。
 - `compiler.ts`：通过 compilePluginSchemaToZod() 把 AST 重建成 Zod Schema。
 
 这里没有直接让插件保存 Zod 对象，是因为 AST 必须能够写进 Manifest、通过网络传输，并由 Web、Server、CLI 确定性重建。

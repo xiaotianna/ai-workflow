@@ -221,7 +221,7 @@ export default defineConfig({
   id: 'github',
   displayName: 'GitHub',
   description: 'GitHub 工作流节点',
-  engine: '^1.0.0',
+  hostVersionRange: '^1.0.0',
   permissions: ['network:public'],
 
   nodes: [
@@ -502,7 +502,7 @@ renderer 或 executor。
 - manifest 中没有函数、class、React element 或不可序列化值；
 - 使用的宿主字段能力已经在 `requires` 中声明；
 - permissions 覆盖 Web Remote、网络、Secret 和 Executor 需求；
-- SDK/engine 版本范围与构建器兼容；
+- SDK/宿主版本范围与构建器兼容；
 - 单文件、单 chunk 和总 artifact 大小不超过平台限制；
 - 输出目录不包含源码、source map、环境文件、密钥或无关 package 文件，除非发布策略明确允许。
 
@@ -565,7 +565,7 @@ React、React DOM 和 `@ai-workflow/plugin/ui` 必须使用宿主共享实例，
     "publisher": "acme",
     "version": "1.0.0"
   },
-  "engine": "^1.0.0",
+  "hostVersionRange": "^1.0.0",
   "permissions": ["network:public"],
   "requires": {
     "hostFields": []
@@ -616,7 +616,7 @@ plugin:<publisher>/<plugin-id>/<node-key>
 ### 13.2 版本字段
 
 - `manifestVersion`：manifest 文件格式版本；
-- `engine`：兼容的平台插件宿主版本范围；
+- `hostVersionRange`：兼容的平台插件宿主版本范围；
 - npm package version：插件版本；
 - `configSchemaVersion`：单个节点配置结构版本；
 - artifact digest：具体构建内容身份。
@@ -736,7 +736,7 @@ interface Workflow {
 建议增加：
 
 - `Plugin`：稳定插件身份、publisher、slug、可见性和状态；
-- `PluginVersion`：不可变 semver、manifest、engine range、审核和发布时间；
+- `PluginVersion`：不可变 semver、manifest、宿主版本范围、审核和发布时间；
 - `PluginArtifact`：类型、路径、字节数、摘要、签名和存储位置；
 - `PluginInstallation`：owner、插件、选定版本、启用状态和已授予权限；
 - `WorkflowDraftPluginReference`：草稿对 PluginVersion 的引用投影；
@@ -908,7 +908,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 ### 20.1 安装
 
 1. 用户选择 PluginVersion；
-2. Server 校验 engine、manifest、artifact digest、审核状态和权限；
+2. Server 校验 `hostVersionRange`、manifest、artifact digest、审核状态和权限；
 3. 用户确认特权权限；
 4. 创建或更新 PluginInstallation；
 5. 安装只决定“允许新工作流使用的版本”，不自动修改现有草稿和版本。
@@ -936,7 +936,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 | ---------------------- | ------------------------------------------------- | ------------------------------------------ |
 | manifest 缺失          | 显示未知节点诊断                                  | 禁止                                       |
 | Web Remote 加载失败    | 声明式节点可回退 BaseNode；完整自定义 UI 显示错误 | custom UI 依赖未满足时禁止保存             |
-| engine 不兼容          | 只读展示                                          | 禁止                                       |
+| 宿主版本不兼容         | 只读展示                                          | 禁止                                       |
 | 缺少宿主字段能力       | 显示插件能力错误                                  | 禁止                                       |
 | artifact digest 不匹配 | 不执行远程代码                                    | 禁止                                       |
 | 插件安装被禁用         | 已有工作流只读或按策略编辑                        | 禁止新增节点，发布按明确策略处理           |
@@ -1048,7 +1048,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 ### 24.3 Server
 
 - 所有原始 Workflow 先经过 Core 结构校验，再解析插件锁和业务校验；
-- 用户不能使用未安装、无权限、摘要不匹配或 engine 不兼容的插件；
+- 用户不能使用未安装、无权限、摘要不匹配或宿主版本不兼容的插件；
 - 发布版本固定精确插件 artifact；
 - 插件升级不改变历史版本；
 - 引用中的 PluginVersion 和 Artifact 不能被删除；

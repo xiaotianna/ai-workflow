@@ -33,7 +33,8 @@ import {
   必须使用 `field.host()`。
 - `compilePluginSchemaToZod()` 是 Web、Server 和 CLI 重建业务校验规则的统一入口。
 - `pluginConfigSchema` 校验插件源码默认导出的配置，包含初始配置、form 顶层字段、重复节点 Key、
-  宿主字段能力和自定义 UI 权限等跨字段约束。
+  宿主字段能力和自定义 UI 权限等跨字段约束。`hostVersionRange` 表示插件兼容的平台
+  宿主 SemVer 版本范围，不用于选择节点执行器。
 - `pluginManifestSchema` 校验构建后的纯数据 manifest，并校验节点 type 必须由
   `plugin:<publisher>/<plugin-id>/<node-key>` 生成。
 - 节点配置 schema 顶层必须是 object；第一阶段只支持静态初始配置和静态端口。

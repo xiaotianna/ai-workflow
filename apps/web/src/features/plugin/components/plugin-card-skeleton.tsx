@@ -9,14 +9,12 @@ export function PluginCardSkeleton({ className }: PluginCardSkeletonProps) {
   return (
     <div
       className={cn(
-        'border-border/20 bg-card relative flex min-h-[176px] w-full flex-col overflow-hidden rounded-xl border shadow-xs',
+        'border-border/20 bg-card relative flex min-h-44 w-full flex-col overflow-hidden rounded-xl border shadow-xs',
         className,
       )}
       aria-hidden
     >
-      <Skeleton className="absolute top-0 right-0 h-6 w-14 rounded-none rounded-bl-lg" />
-
-      <div className="flex items-start gap-3 px-4 pt-4 pr-16 pb-2">
+      <div className="flex items-start gap-3 px-4 pt-4 pb-2">
         <Skeleton className="size-10 shrink-0 rounded-[10px]" />
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <Skeleton className="h-4 w-[45%] max-w-28 rounded-sm" />
