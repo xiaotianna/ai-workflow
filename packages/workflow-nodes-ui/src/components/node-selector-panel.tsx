@@ -1,15 +1,28 @@
 import type { NodeType } from '@ai-workflow/core'
 import { Input } from '@ai-workflow/ui/components/input'
+import { Tabs, TabsContent } from '@ai-workflow/ui/components/tabs'
 import { cn } from '@ai-workflow/ui/lib/utils'
 import { Search } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 
-import { getNodeThemeColor } from '../common/node-theme-map'
-import { NodeIcon } from './node-icon'
+import { NodeSelectorArchTabsList, NodeSelectorArchTabTrigger } from './node-selector-arch-tabs'
+import { NodeSelectorBuiltinPanel } from './node-selector-builtin-panel'
+import { NodeSelectorPluginPanel } from './node-selector-plugin-panel'
+import {
+  filterNodeTypesByQuery,
+  splitNodeTypesByOrigin,
+  type NodeSelectorTab,
+} from './node-selector-utils'
+
+export type { NodeSelectorTab } from './node-selector-utils'
 
 interface NodeSelectorPanelProps {
   nodeTypes: readonly NodeType[]
   disabledNodeTypes?: ReadonlySet<string>
+  pluginGroupLabelByNodeType?: ReadonlyMap<string, string>
+  activeTab?: NodeSelectorTab
+  defaultActiveTab?: NodeSelectorTab
+  onActiveTabChange?: (tab: NodeSelectorTab) => void
   className?: string
   onSelectNode: (type: string) => void
 }
@@ -17,70 +30,87 @@ interface NodeSelectorPanelProps {
 export function NodeSelectorPanel({
   nodeTypes,
   disabledNodeTypes,
+  pluginGroupLabelByNodeType,
+  activeTab: controlledActiveTab,
+  defaultActiveTab = 'builtin',
+  onActiveTabChange,
   className,
   onSelectNode,
 }: NodeSelectorPanelProps) {
   const [query, setQuery] = useState('')
-  const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filteredNodeTypes = nodeTypes.filter(({ definition }) =>
-    [definition.label, definition.description, definition.type].some((value) =>
-      value?.toLocaleLowerCase().includes(normalizedQuery),
-    ),
+  const [uncontrolledActiveTab, setUncontrolledActiveTab] =
+    useState<NodeSelectorTab>(defaultActiveTab)
+  const requestedActiveTab = controlledActiveTab ?? uncontrolledActiveTab
+  const { builtinNodeTypes, pluginNodeTypes } = useMemo(
+    () => splitNodeTypesByOrigin(nodeTypes),
+    [nodeTypes],
   )
+  const filteredBuiltinNodeTypes = useMemo(
+    () => filterNodeTypesByQuery(builtinNodeTypes, query),
+    [builtinNodeTypes, query],
+  )
+  const filteredPluginNodeTypes = useMemo(
+    () => filterNodeTypesByQuery(pluginNodeTypes, query),
+    [pluginNodeTypes, query],
+  )
+  const hasPluginNodes = pluginNodeTypes.length > 0
+  const activeTab = requestedActiveTab === 'plugin' && hasPluginNodes ? 'plugin' : 'builtin'
+
+  function handleActiveTabChange(nextTab: string) {
+    if (nextTab !== 'builtin' && nextTab !== 'plugin') return
+
+    if (controlledActiveTab === undefined) {
+      setUncontrolledActiveTab(nextTab)
+    }
+    onActiveTabChange?.(nextTab)
+  }
 
   return (
-    <div className={cn('w-[min(21rem,calc(100vw-2rem))] p-2', className)}>
-      <div className="relative">
-        <Search
-          className="text-input-placeholder pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
-          aria-hidden
-        />
-        <Input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜索节点名称、描述或类型"
-          aria-label="搜索节点"
-          className="h-8 pr-8 pl-8"
-        />
-      </div>
+    <div className={cn('w-[min(21rem,calc(100vw-2rem))] overflow-hidden', className)}>
+      <Tabs value={activeTab} onValueChange={handleActiveTabChange} className="min-w-0">
+        {hasPluginNodes ? (
+          <NodeSelectorArchTabsList aria-label="节点选择来源">
+            <NodeSelectorArchTabTrigger value="builtin">内置节点</NodeSelectorArchTabTrigger>
+            <NodeSelectorArchTabTrigger value="plugin">插件</NodeSelectorArchTabTrigger>
+          </NodeSelectorArchTabsList>
+        ) : null}
 
-      <ul
-        aria-label="可选择节点"
-        className="mt-2 grid max-h-80 grid-cols-1 gap-1 overflow-y-auto overscroll-contain sm:grid-cols-2"
-      >
-        {filteredNodeTypes.map(({ definition }) => {
-          const disabled = disabledNodeTypes?.has(definition.type) ?? false
+        <div className="p-2">
+          <div className="relative">
+            <Search
+              className="text-input-placeholder pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索节点名称、描述或类型"
+              aria-label="搜索节点"
+              className="h-8 pr-8 pl-8"
+            />
+          </div>
 
-          return (
-            <li key={definition.type}>
-              <button
-                type="button"
-                disabled={disabled}
-                className="enabled:hover:bg-accent enabled:focus-visible:bg-accent flex w-full items-center gap-2 rounded-md px-2 py-1 text-left outline-hidden transition-colors enabled:cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                onClick={() => onSelectNode(definition.type)}
-              >
-                <span
-                  className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-md"
-                  style={{ backgroundColor: getNodeThemeColor(definition.type) }}
-                >
-                  <NodeIcon icon={definition.icon} className="size-4" aria-hidden />
-                </span>
-                <span className="min-w-0 truncate text-sm font-medium">{definition.label}</span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
+          <TabsContent value="builtin" className="mt-2 outline-none">
+            <NodeSelectorBuiltinPanel
+              nodeTypes={filteredBuiltinNodeTypes}
+              disabledNodeTypes={disabledNodeTypes}
+              onSelectNode={onSelectNode}
+            />
+          </TabsContent>
 
-      {filteredNodeTypes.length === 0 ? (
-        <div
-          role="status"
-          className="text-muted-foreground flex min-h-20 items-center justify-center px-4 text-center text-sm"
-        >
-          没有找到匹配的节点
+          {hasPluginNodes ? (
+            <TabsContent value="plugin" className="mt-2 outline-none">
+              <NodeSelectorPluginPanel
+                nodeTypes={filteredPluginNodeTypes}
+                disabledNodeTypes={disabledNodeTypes}
+                pluginGroupLabelByNodeType={pluginGroupLabelByNodeType}
+                onSelectNode={onSelectNode}
+              />
+            </TabsContent>
+          ) : null}
         </div>
-      ) : null}
+      </Tabs>
     </div>
   )
 }

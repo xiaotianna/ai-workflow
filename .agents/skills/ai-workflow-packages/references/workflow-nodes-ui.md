@@ -156,14 +156,19 @@ Sub Workflow 节点通过 `defineNodeUI(subWorkflowNode, SubWorkflowNodeContent)
   编辑能力，不直接依赖应用 Hook。
 - 画布连线等紧凑位置的圆形添加入口使用 `AddNodeIconButton`；组件只提供 20px 主色圆形
   按钮与加号，不包含节点选择器或 React Flow 逻辑。
-- `NodeSelectorPanel` 承担搜索、节点列表、主题图标和禁用项展示；`NodeSelectorPopover`
-  组合独立受控 Popover、虚拟锚点、选择回调和失败 Toast，`AddNodeButton` 只提供标准添加
-  触发器，`AddNode` 组合两者供 Loop 等局部场景使用。根画布等需要从按钮、快捷键和右键
+- `NodeSelectorPanel` 承担搜索、Tab 切换、节点列表、主题图标和禁用项展示；内置列表由
+  `NodeSelectorBuiltinPanel` 渲染，插件列表由 `NodeSelectorPluginPanel` 按插件包分组渲染；
+  `NodeSelectorPopover` 组合独立受控 Popover、虚拟锚点、选择回调和失败 Toast，`AddNodeButton`
+  只提供标准添加触发器，`AddNode` 组合两者供 Loop 等局部场景使用。根画布等需要从按钮、快捷键和右键
   复用同一弹窗的场景应分别渲染 `AddNodeButton` 与 `NodeSelectorPopover`，并根据入口传入
   按钮元素或弹出目标的屏幕坐标；屏幕坐标由 Popover 内的真实固定定位 Anchor 承载，不复用
   按钮的虚拟锚点。与保持打开的菜单组成级联浮层时，使用 `keepOpenOnFocusOutside` 阻止菜单
   焦点回收关闭选择器，同时仍保留点击外部和 Esc 关闭。通过 `operationLabel` 调整失败文案，
-  不复制搜索和节点列表。
+  不复制搜索和节点列表。存在插件节点时，面板顶部使用 `bg-input` 拱形 Tab：激活项
+  以 `bg-popover/95` 与下方内容衔接，并通过径向渐变伪元素形成底部内凹过渡；未激活项仅
+  展示 `text-muted-foreground` 文案。内置列表 `max-h-80`，插件列表 `max-h-96` 且按插件包
+  标题分组，标题使用 `text-xs text-muted-foreground`。应用层通过 `pluginGroupLabelByNodeType`
+  注入插件包展示名，并通过受控 `activeTab` / `onActiveTabChange` 持久化当前工作流的 Tab 选择。
 - `AddNode` 通过可选的 `disabledNodeTypes` 接收调用方当前不可添加的节点类型集合；禁用项
   保留在搜索和列表结果中，使用原生 `disabled` 阻止选择，并展示禁用光标与透明度反馈。
   `AddNode` 需要由外部快捷键控制面板时，通过可选的 `open`、`onOpenChange` 使用受控模式；

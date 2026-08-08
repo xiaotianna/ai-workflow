@@ -9,6 +9,7 @@ import '@xyflow/react/dist/style.css'
 import { WorkflowLoopEditorProvider } from '@/components/workflow/workflow-loop-editor-context'
 import { useWorkflowShortcuts } from '../hooks/use-workflow-shortcuts'
 import { useWorkflowNodePicker } from '../hooks/use-workflow-node-picker'
+import { useWorkflowNodeSelectorTab } from '../hooks/use-workflow-node-selector-tab'
 import { useWorkflowOperations } from '../hooks/use-workflow-operations'
 import { useWorkflowContextMenu } from '../hooks/use-workflow-context-menu'
 import { useWorkflowNavigationGuard } from '../hooks/use-workflow-navigation-guard'
@@ -151,6 +152,7 @@ export function WorkflowEditor({
     defaultAnchorRef: addNodeButtonRef,
     editor,
   })
+  const nodeSelectorTab = useWorkflowNodeSelectorTab(editor.workflow.id)
   const operations = useWorkflowOperations({
     applicationMetadata,
     checkListIssues,
@@ -537,6 +539,9 @@ export function WorkflowEditor({
                         anchorPosition={nodePicker.anchorPosition}
                         nodeTypes={nodePicker.nodeTypes}
                         disabledNodeTypes={nodePicker.disabledNodeTypes}
+                        pluginGroupLabelByNodeType={catalog.pluginGroupLabelByNodeType}
+                        activeTab={nodeSelectorTab.activeTab}
+                        onActiveTabChange={nodeSelectorTab.onActiveTabChange}
                         open={!disabled && nodePicker.open}
                         operationLabel={nodePicker.operationLabel}
                         keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}

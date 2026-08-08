@@ -24,6 +24,7 @@ export interface WorkflowWebCatalog {
   readonly fingerprint: string
   readonly pluginLock: WorkflowPluginLock
   readonly pluginLockByNodeType: ReadonlyMap<string, WorkflowPluginLockItem>
+  readonly pluginGroupLabelByNodeType: ReadonlyMap<string, string>
   readonly nodeRegistry: WorkflowNodeCatalog['nodeRegistry']
   readonly nodeUIRegistry: NodeUIRegistryReader
   readonly fieldRenderers: NodeConfigFieldRendererMap
@@ -36,6 +37,7 @@ export interface CreateWorkflowWebCatalogOptions {
   readonly fieldRenderers?: NodeConfigFieldRendererMap
   readonly configRenderers?: NodeConfigRendererMap
   readonly pluginLockByNodeType?: ReadonlyMap<string, WorkflowPluginLockItem>
+  readonly pluginGroupLabelByNodeType?: ReadonlyMap<string, string>
 }
 
 export function createWorkflowWebCatalog({
@@ -44,11 +46,13 @@ export function createWorkflowWebCatalog({
   fieldRenderers = {},
   configRenderers = {},
   pluginLockByNodeType = new Map(),
+  pluginGroupLabelByNodeType = new Map(),
 }: CreateWorkflowWebCatalogOptions): WorkflowWebCatalog {
   return Object.freeze({
     fingerprint: coreCatalog.fingerprint,
     pluginLock: coreCatalog.pluginLock,
     pluginLockByNodeType,
+    pluginGroupLabelByNodeType,
     nodeRegistry: coreCatalog.nodeRegistry,
     nodeUIRegistry,
     fieldRenderers: Object.freeze({ ...fieldRenderers }),
@@ -77,10 +81,15 @@ export function createResolvedWorkflowWebCatalog(
 
   const pluginLockById = new Map(coreCatalog.pluginLock.map((lock) => [lock.pluginId, lock]))
   const pluginLockByNodeType = new Map<string, WorkflowPluginLockItem>()
+  const pluginGroupLabelByNodeType = new Map<string, string>()
   for (const { plugin, manifest } of manifests) {
     const lock = pluginLockById.get(plugin.pluginId)
     if (!lock) throw new Error(`插件目录缺少版本锁：${plugin.pluginId}`)
-    for (const node of manifest.nodes) pluginLockByNodeType.set(node.type, lock)
+    const groupLabel = manifest.plugin.displayName
+    for (const node of manifest.nodes) {
+      pluginLockByNodeType.set(node.type, lock)
+      pluginGroupLabelByNodeType.set(node.type, groupLabel)
+    }
   }
 
   return createWorkflowWebCatalog({
@@ -92,6 +101,7 @@ export function createResolvedWorkflowWebCatalog(
     },
     configRenderers: builtinNodeConfigRenderers,
     pluginLockByNodeType,
+    pluginGroupLabelByNodeType,
   })
 }
 

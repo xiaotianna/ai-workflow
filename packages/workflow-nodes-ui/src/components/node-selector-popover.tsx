@@ -3,7 +3,7 @@ import { showToast } from '@ai-workflow/ui/lib/toast'
 import { Popover } from 'radix-ui'
 import { useMemo } from 'react'
 
-import { NodeSelectorPanel } from './node-selector-panel'
+import { NodeSelectorPanel, type NodeSelectorTab } from './node-selector-panel'
 
 export interface NodeSelectorAnchor {
   getBoundingClientRect: () => DOMRect
@@ -19,6 +19,10 @@ interface NodeSelectorPopoverProps {
   anchorPosition?: NodeSelectorAnchorPosition
   nodeTypes: readonly NodeType[]
   disabledNodeTypes?: ReadonlySet<string>
+  pluginGroupLabelByNodeType?: ReadonlyMap<string, string>
+  activeTab?: NodeSelectorTab
+  defaultActiveTab?: NodeSelectorTab
+  onActiveTabChange?: (tab: NodeSelectorTab) => void
   open: boolean
   operationLabel?: string
   keepOpenOnFocusOutside?: boolean
@@ -60,6 +64,10 @@ export function NodeSelectorPopover({
   anchorPosition,
   nodeTypes,
   disabledNodeTypes,
+  pluginGroupLabelByNodeType,
+  activeTab,
+  defaultActiveTab,
+  onActiveTabChange,
   open,
   operationLabel = '添加',
   keepOpenOnFocusOutside = false,
@@ -115,6 +123,10 @@ export function NodeSelectorPopover({
             key={open ? operationLabel : 'closed'}
             nodeTypes={nodeTypes}
             disabledNodeTypes={disabledNodeTypes}
+            pluginGroupLabelByNodeType={pluginGroupLabelByNodeType}
+            activeTab={activeTab}
+            defaultActiveTab={defaultActiveTab}
+            onActiveTabChange={onActiveTabChange}
             onSelectNode={handleSelect}
           />
         </Popover.Content>
