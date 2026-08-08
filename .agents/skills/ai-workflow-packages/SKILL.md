@@ -1,6 +1,6 @@
 ---
 name: ai-workflow-packages
-description: '维护 AI Workflow 仓库的全部 workspace packages。修改或使用 packages/ui、shared、workflow-core、workflow-form、workflow-nodes-ui、workflow-runtime、workflow-protocol、workflow-plugin，以及调整包职责、公开 API、导出路径或跨包依赖时使用。'
+description: '维护 AI Workflow 仓库的全部 workspace packages。修改或使用 packages/ui、shared、workflow-core、workflow-form、workflow-nodes-ui、workflow-runtime、workflow-protocol、workflow-plugin、workflow-plugin-cli，以及调整包职责、公开 API、导出路径或跨包依赖时使用。'
 ---
 
 # Workspace Packages 开发规范
@@ -24,6 +24,9 @@ description: '维护 AI Workflow 仓库的全部 workspace packages。修改或�
 - 工作流执行计划、执行器和运行上下文：读取 [references/workflow-runtime.md](references/workflow-runtime.md)。
 - TypeScript 与 Go 的节点执行消息、JSON Schema 和边界校验：读取 [references/workflow-protocol.md](references/workflow-protocol.md)。
 - 第三方插件声明 DSL、Schema AST、manifest、公共 UI 门面与 Executor 契约：读取 [references/workflow-plugin.md](references/workflow-plugin.md)。
+- 第三方插件 package 发现、配置检查、Manifest/Artifact 构建、打包和本地开发服务：同时读取
+  [references/workflow-plugin-cli.md](references/workflow-plugin-cli.md) 和
+  [references/workflow-plugin.md](references/workflow-plugin.md)。
 
 ## 总体边界
 

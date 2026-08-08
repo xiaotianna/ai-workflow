@@ -11,6 +11,8 @@
     "dev": "turbo dev",
     "dev:web": "turbo dev:web --filter=@ai-workflow/web",
     "dev:server": "turbo dev:server --filter=@ai-workflow/server",
+    "plugin:cli:build": "pnpm --filter @ai-workflow/plugin-cli build",
+    "plugin:init": "pnpm run plugin:cli:build && node ./packages/workflow-plugin-cli/bin/ai-workflow-plugin.mjs init --local",
     "build": "turbo run build",
     "docker:dev:up": "docker compose -f compose.dev.yaml up -d",
     "docker:dev:down": "docker compose -f compose.dev.yaml down",
@@ -22,7 +24,7 @@
     "format:check": "prettier . --check --config ./configs/prettier/.prettierrc.json --ignore-path ./configs/prettier/.prettierignore",
     "check": "pnpm format:check && pnpm lint",
     "husky:init": "npx husky init",
-    "prepare": "husky"
+    "prepare": "husky && pnpm run plugin:cli:build"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,mjs,cjs}": [

@@ -2,15 +2,16 @@
 
 ## 1. 文档状态
 
-- 状态：分阶段实施中（`@ai-workflow/plugin` SDK 已完成，其他阶段待实施）
-- 基线日期：2026-08-07
+- 状态：阶段一 SDK 与构建工具已实现，Web/Server/执行阶段待实施
+- 基线日期：2026-08-08
 - 适用范围：插件 SDK、插件构建工具、Workflow Core、Web 编辑器、Server、Runtime、Protocol 与 Executor
 - 目标：让第三方按照稳定公开规范开发工作流节点插件，并支持声明式节点、可选自定义节点 UI、可选完整自定义配置表单，以及后续的隔离执行能力
 
 本文描述目标架构，不表示仓库已经具备全部对应能力。当前 `packages/workflow-plugin` 已完成声明
 DSL、Schema AST 与编译器、源码配置和 manifest 契约，以及 `./ui`、`./executor` 公共入口；
-`packages/workflow-plugin-cli` 仍是占位实现，插件市场页面仍主要使用模拟数据，Web 与 Server 也仍
-直接依赖内置 `nodeRegistry`。
+`packages/workflow-plugin-cli` 已实现 init、check、build、pack、dev、三套项目模板、ESM Web Remote
+与 Executor ESM 构建。插件市场页面仍主要使用模拟数据，Web 与 Server 尚未消费插件 Manifest 和
+Artifact。
 
 ## 2. 结论
 
@@ -73,15 +74,14 @@ DSL、Schema AST 与编译器、源码配置和 manifest 契约，以及 `./ui`�
 
 ### 4.2 主要差距
 
-1. `packages/workflow-plugin-cli` 尚未接入已落地的插件配置与 manifest 契约，也未生成三类构建产物。
-2. Web 多处直接导入 Core 全局 `nodeRegistry`，并在模块初始化时静态生成 React Flow
+1. Web 多处直接导入 Core 全局 `nodeRegistry`，并在模块初始化时静态生成 React Flow
    `nodeTypes`，无法按当前 Workflow 合并插件。
-3. Server 的保存、发布、运行和执行路由同样依赖内置 Registry 或内置 node type 映射。
-4. 当前 Workflow 快照没有插件版本锁，无法保证发布版本在插件升级后仍可复现。
-5. Core 的 Zod schema、`createInitialConfig()` 和 `resolvePorts()` 包含运行时对象或函数，不能直接
+2. Server 的保存、发布、运行和执行路由同样依赖内置 Registry 或内置 node type 映射。
+3. 当前 Workflow 快照没有插件版本锁，无法保证发布版本在插件升级后仍可复现。
+4. Core 的 Zod schema、`createInitialConfig()` 和 `resolvePorts()` 包含运行时对象或函数，不能直接
    放入 JSON manifest。
-6. 任意远程 React 代码与宿主运行在同一个页面上下文，不能被当作安全沙箱。
-7. 当前 Protocol v1 只使用 `nodeType` 选择 Go Executor；插件逻辑节点类型与执行适配器类型尚未拆分。
+5. 任意远程 React 代码与宿主运行在同一个页面上下文，不能被当作安全沙箱。
+6. 当前 Protocol v1 只使用 `nodeType` 选择 Go Executor；插件逻辑节点类型与执行适配器类型尚未拆分。
 
 ## 5. 总体架构
 
@@ -177,6 +177,7 @@ import {
 建议命令：
 
 ```text
+ai-workflow-plugin init
 ai-workflow-plugin check
 ai-workflow-plugin dev
 ai-workflow-plugin build
@@ -184,7 +185,8 @@ ai-workflow-plugin pack
 ai-workflow-plugin publish
 ```
 
-第一阶段只需实现 `check`、`dev`、`build` 和 `pack`；`publish` 在 Server 插件上传与版本模型完成后接入。
+第一阶段已实现 `init`、`check`、`dev`、`build` 和 `pack`；`publish` 在 Server 插件上传与版本模型
+完成后接入。
 
 新增 workspace package 时，需要同步为 `$ai-workflow-packages` 增加独立技能引用文件并登记加载条件。
 
@@ -946,7 +948,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 
 ## 22. 分阶段实施
 
-### 阶段一：SDK、Schema 与构建工具
+### 阶段一：SDK、Schema 与构建工具（已实现）
 
 1. 重做 `packages/workflow-plugin`；
 2. 新增 `packages/workflow-plugin-cli`；

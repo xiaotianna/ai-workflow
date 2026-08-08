@@ -32,3 +32,4 @@ apps/server/src/generated/prisma
 
 *.tsbuildinfo
 .turbo/
+examples/
