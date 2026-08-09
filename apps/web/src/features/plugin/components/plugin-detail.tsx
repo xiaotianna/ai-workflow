@@ -119,15 +119,15 @@ export function PluginDetail({ plugin, onInstalled, onUninstalled }: PluginDetai
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:pl-8">
-            <div className="bg-primary flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg shadow-xs">
+            <div className="flex h-9 shrink-0 gap-0.5 overflow-hidden rounded-lg shadow-xs">
               {installedLatest ? (
-                <span className="text-primary-foreground flex h-full w-33.75 items-center justify-center px-3 text-sm font-semibold">
+                <span className="bg-primary text-primary-foreground flex h-9 w-33.75 items-center justify-center rounded-l-lg px-3 text-sm font-semibold">
                   {plugin.installation?.enabled ? '已安装' : '已禁用'}
                 </span>
               ) : (
                 <Button
                   type="button"
-                  className="h-full w-33.75 rounded-none px-3 font-semibold shadow-none"
+                  className="h-9 w-33.75 rounded-none rounded-l-lg bg-clip-border px-3 font-semibold shadow-none"
                   onClick={() => openInstallation()}
                 >
                   {actionLabel}
@@ -142,7 +142,7 @@ export function PluginDetail({ plugin, onInstalled, onUninstalled }: PluginDetai
                   <SelectTrigger
                     aria-label="管理插件安装状态"
                     aria-busy={installationChanging}
-                    className="bg-primary hover:bg-primary/85 focus-visible:bg-primary/85 border-primary-foreground/15 text-primary-foreground [&>svg]:text-primary-foreground !h-full !w-9 justify-center gap-0 rounded-none border-y-0 border-r-0 border-l !p-0 shadow-none"
+                    className="bg-primary hover:bg-primary/85 focus-visible:bg-primary/85 data-[state=open]:bg-primary/85 text-primary-foreground [&>svg]:text-primary-foreground h-9 w-9 justify-center gap-0 rounded-none rounded-r-lg border-transparent p-0 shadow-none"
                   >
                     <span className="sr-only">管理插件安装状态</span>
                   </SelectTrigger>

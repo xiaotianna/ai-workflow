@@ -42,6 +42,17 @@ interface ListPluginsOptions {
   cursor?: PluginListCursor
 }
 
+export interface PluginUsageSummary {
+  workflowCount: number
+  draftWorkflowCount: number
+  versionWorkflowCount: number
+}
+
+export type RemovePluginInstallationResult =
+  | { status: 'not-found' }
+  | { status: 'in-use'; usage: PluginUsageSummary }
+  | { status: 'removed' }
+
 const pluginBaseSelect = {
   id: true,
   packageName: true,
@@ -174,7 +185,16 @@ export class PluginRepository {
       select: {
         id: true,
         manifest: true,
-        plugin: { select: { latestVersionId: true } },
+        plugin: {
+          select: {
+            latestVersionId: true,
+            installations: {
+              where: { ownerId },
+              take: 1,
+              select: { versionId: true },
+            },
+          },
+        },
       },
     })
   }
@@ -345,8 +365,62 @@ export class PluginRepository {
     })
   }
 
-  removeInstallation(ownerId: string, pluginId: string) {
-    return this.prisma.pluginInstallation.deleteMany({ where: { ownerId, pluginId } })
+  getUsageSummary(ownerId: string, pluginId: string): Promise<PluginUsageSummary> {
+    return this.readUsageSummary(this.prisma, ownerId, pluginId)
+  }
+
+  async removeInstallationIfUnused(
+    ownerId: string,
+    pluginId: string,
+  ): Promise<RemovePluginInstallationResult> {
+    return this.prisma.$transaction(async (transaction) => {
+      const installation = await transaction.pluginInstallation.findUnique({
+        where: { ownerId_pluginId: { ownerId, pluginId } },
+        select: { id: true },
+      })
+      if (!installation) return { status: 'not-found' }
+
+      const usage = await this.readUsageSummary(transaction, ownerId, pluginId)
+      if (usage.workflowCount > 0) return { status: 'in-use', usage }
+
+      await transaction.pluginInstallation.delete({ where: { id: installation.id } })
+      return { status: 'removed' }
+    })
+  }
+
+  private async readUsageSummary(
+    client: Prisma.TransactionClient | PrismaService,
+    ownerId: string,
+    pluginId: string,
+  ): Promise<PluginUsageSummary> {
+    const [draftDependencies, versionDependencies] = await Promise.all([
+      client.workflowDraftPluginDependency.findMany({
+        where: {
+          pluginVersion: { pluginId },
+          workflowDraft: { workflow: { app: { ownerId, deletedAt: null } } },
+        },
+        select: { workflowDraft: { select: { workflowId: true } } },
+      }),
+      client.workflowVersionPluginDependency.findMany({
+        where: {
+          pluginVersion: { pluginId },
+          workflowVersion: { workflow: { app: { ownerId, deletedAt: null } } },
+        },
+        select: { workflowVersion: { select: { workflowId: true } } },
+      }),
+    ])
+    const draftWorkflowIds = new Set(
+      draftDependencies.map((dependency) => dependency.workflowDraft.workflowId),
+    )
+    const versionWorkflowIds = new Set(
+      versionDependencies.map((dependency) => dependency.workflowVersion.workflowId),
+    )
+
+    return {
+      workflowCount: new Set([...draftWorkflowIds, ...versionWorkflowIds]).size,
+      draftWorkflowCount: draftWorkflowIds.size,
+      versionWorkflowCount: versionWorkflowIds.size,
+    }
   }
 
   async publishVersion(options: PublishPluginVersionOptions): Promise<PublishPluginVersionResult> {

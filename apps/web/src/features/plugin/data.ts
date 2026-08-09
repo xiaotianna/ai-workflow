@@ -31,6 +31,7 @@ export function toPluginDetail(plugin: PluginDetailDto): PluginDetail {
   return {
     ...listItem,
     content: plugin.content,
+    usage: plugin.usage,
     versions: [
       {
         id: latestVersion.id,

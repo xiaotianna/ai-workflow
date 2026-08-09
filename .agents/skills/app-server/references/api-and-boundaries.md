@@ -194,15 +194,19 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   `sort=updated_desc|created_desc|name_asc`。搜索在服务端按名称、描述、package 名和上传用户名
   执行不区分大小写的包含匹配；响应返回平台 UUID、最新版本、
   安装数、可见范围与 opaque `nextCursor`，前端不得解析或自行构造游标。
-- `GET /plugins/:pluginId`：`pluginId` 固定为 `Plugin.id` UUID，按列表相同的可见范围返回真实详情和
-  不可变版本历史；详情路由不得使用作者或 package 名充当平台 ID。
+- `GET /plugins/:pluginId`：`pluginId` 固定为 `Plugin.id` UUID，按列表相同的可见范围返回真实详情、
+  不可变版本历史，以及当前用户工作流对该插件的引用汇总 `usage`；详情路由不得使用作者或 package
+  名充当平台 ID。
 - `PUT /plugins/:pluginId/installation`：安装或切换当前用户的插件版本。请求必须提交详情版本历史中属于
   该插件的 `versionId`，以及用户确认的完整权限集合；服务端重新从目标版本 Manifest 读取权限，版本不存在返回
-  `404`，权限集合不一致返回 `400`。安装非最新版本时响应的 `updateAvailable` 为 `true`。
+  `404`，权限集合不一致返回 `400`。已有安装切换到不同版本时，还必须提交
+  `acknowledgeVersionChange=true`，否则返回 `400`；安装非最新版本时响应的 `updateAvailable` 为 `true`。
 - `PATCH /plugins/:pluginId/installation`：使用 `{ enabled: boolean }` 启用或禁用当前用户的安装记录；未安装时返回
   `404`。禁用后编辑器 Runtime Catalog 不再加载该插件。
-- `DELETE /plugins/:pluginId/installation`：卸载当前用户的插件；未安装时返回 `404`。卸载只删除
-  `PluginInstallation`，不得改写已发布、历史版本、运行或其精确插件锁。
+- `DELETE /plugins/:pluginId/installation`：卸载当前用户的插件；未安装时返回 `404`。删除前必须在服务端
+  重新检查当前用户所有未删除工作流的草稿依赖和不可变版本依赖，只要任一工作流引用该插件的任一版本，
+  就返回 `409` 并禁止卸载。允许卸载时只删除 `PluginInstallation`，不得改写已发布、历史版本、运行或其
+  精确插件锁。
 - 上述安装、版本切换、启停与卸载接口只修改 `PluginInstallation`，不得改写任何工作流草稿或不可变
   `WorkflowVersion`。
 - `POST /plugins/runtime-catalog/resolve`：提交当前工作流的 `pluginLock`，返回该用户编辑器可用的

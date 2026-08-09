@@ -110,7 +110,7 @@ export function PluginVersionHistoryDialog({
                     <TableHead className="w-44 rounded-l-lg">版本</TableHead>
                     <TableHead className="w-56">更新于</TableHead>
                     <TableHead>发布者</TableHead>
-                    <TableHead className="w-24 rounded-r-lg text-right">操作</TableHead>
+                    <TableHead className="w-[40%] rounded-r-lg">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -132,7 +132,7 @@ export function PluginVersionHistoryDialog({
                         </time>
                       </TableCell>
                       <TableCell>{version.author}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell>
                         {plugin.installation?.versionId !== version.id ? (
                           <Button
                             type="button"

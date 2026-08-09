@@ -28,12 +28,15 @@ export function PluginUninstallationDialog({
   onUninstalled,
 }: PluginUninstallationDialogProps) {
   const [uninstalling, setUninstalling] = useState(false)
+  const usage = plugin.usage
+  const blocked = Boolean(usage && usage.workflowCount > 0)
 
   function handleOpenChange(nextOpen: boolean) {
     if (!uninstalling) onOpenChange(nextOpen)
   }
 
   async function handleUninstall() {
+    if (blocked) return
     setUninstalling(true)
 
     try {
@@ -54,7 +57,9 @@ export function PluginUninstallationDialog({
         <DialogHeader>
           <DialogTitle>{`卸载 ${plugin.title}`}</DialogTitle>
           <DialogDescription>
-            卸载后，该插件将不再出现在当前编辑器的插件目录中。已发布、历史版本及已创建的运行仍保留其精确版本锁。
+            {blocked && usage
+              ? `当前有 ${usage.workflowCount} 个工作流正在使用该插件（草稿 ${usage.draftWorkflowCount} 个、历史或发布版本 ${usage.versionWorkflowCount} 个），因此不允许卸载。请先移除草稿引用；不可变版本仍有引用时，需要处理对应工作流后再卸载。`
+              : '卸载后，该插件将不再出现在当前编辑器的插件目录中。'}
           </DialogDescription>
         </DialogHeader>
 
@@ -68,11 +73,11 @@ export function PluginUninstallationDialog({
             type="button"
             variant="destructive"
             size="sm"
-            disabled={uninstalling}
+            disabled={uninstalling || blocked}
             aria-busy={uninstalling}
             onClick={() => void handleUninstall()}
           >
-            {uninstalling ? '卸载中…' : '确认卸载'}
+            {uninstalling ? '卸载中…' : blocked ? '存在工作流引用' : '确认卸载'}
           </Button>
         </DialogFooter>
       </DialogContent>

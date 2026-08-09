@@ -72,6 +72,7 @@ export interface PublishedPluginVersionDto {
 
 export interface PluginDetailDto extends PluginListItemDto {
   content: string
+  usage: PluginUsageDto
   versions: Array<{
     id: string
     version: string
@@ -82,9 +83,16 @@ export interface PluginDetailDto extends PluginListItemDto {
   }>
 }
 
+export interface PluginUsageDto {
+  workflowCount: number
+  draftWorkflowCount: number
+  versionWorkflowCount: number
+}
+
 export interface InstallPluginParams {
   versionId: string
   permissions: PluginPermission[]
+  acknowledgeVersionChange?: boolean
 }
 
 export interface InstalledPluginDto {

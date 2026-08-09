@@ -73,6 +73,10 @@ export class InstallPluginDto {
   })
   @IsArray({ message: '授权权限必须是数组' })
   permissions!: PluginPermission[]
+
+  @IsBoolean({ message: '版本切换确认状态必须是布尔值' })
+  @IsOptional()
+  acknowledgeVersionChange?: boolean
 }
 
 export class UpdatePluginInstallationDto {

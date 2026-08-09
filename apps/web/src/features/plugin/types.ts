@@ -1,4 +1,9 @@
-import type { PluginInstallationDto, PluginPermission, PluginVisibility } from '@/api/plugins'
+import type {
+  PluginInstallationDto,
+  PluginPermission,
+  PluginUsageDto,
+  PluginVisibility,
+} from '@/api/plugins'
 
 export interface PluginListItem {
   id: string
@@ -19,6 +24,7 @@ export interface PluginListItem {
   }
   installation: PluginInstallationDto | null
   updateAvailable: boolean
+  usage?: PluginUsageDto
 }
 
 export interface PluginVersion {
@@ -34,5 +40,6 @@ export type PluginVersionHistory = readonly [PluginVersion, ...PluginVersion[]]
 
 export interface PluginDetail extends PluginListItem {
   content: string
+  usage: PluginUsageDto
   versions: PluginVersionHistory
 }

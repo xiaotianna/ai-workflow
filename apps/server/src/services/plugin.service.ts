@@ -175,10 +175,12 @@ export class PluginService {
     const versions = [...plugin.versions].sort((left, right) =>
       rcompare(left.version, right.version),
     )
+    const usage = await this.pluginRepository.getUsageSummary(ownerId, pluginId)
 
     return {
       ...listItem,
       content: latestVersion.readme || plugin.description,
+      usage,
       versions: versions.map((version) => ({
         id: version.id,
         version: version.version,
@@ -205,6 +207,12 @@ export class PluginService {
     const requiredPermissions = this.readManifestPermissions(version.manifest)
     if (!hasSamePermissions(requiredPermissions, dto.permissions)) {
       throw new BadRequestException('授权权限与插件版本要求不一致')
+    }
+    const currentInstallation = version.plugin.installations[0]
+    const changingVersion =
+      currentInstallation !== undefined && currentInstallation.versionId !== version.id
+    if (changingVersion && dto.acknowledgeVersionChange !== true) {
+      throw new BadRequestException('更改插件版本前必须确认对编辑中工作流的影响')
     }
 
     const installation = await this.pluginRepository.saveInstallation({
@@ -251,8 +259,11 @@ export class PluginService {
   }
 
   async uninstall(ownerId: string, pluginId: string): Promise<UninstalledPluginVo> {
-    const result = await this.pluginRepository.removeInstallation(ownerId, pluginId)
-    if (result.count === 0) throw new NotFoundException('未找到该插件的安装记录')
+    const result = await this.pluginRepository.removeInstallationIfUnused(ownerId, pluginId)
+    if (result.status === 'not-found') throw new NotFoundException('未找到该插件的安装记录')
+    if (result.status === 'in-use') {
+      throw new ConflictException(`该插件仍被 ${result.usage.workflowCount} 个工作流使用，无法卸载`)
+    }
     return { pluginId }
   }
 

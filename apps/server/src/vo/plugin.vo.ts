@@ -41,6 +41,7 @@ export interface PluginListVo {
 
 export interface PluginDetailVo extends PluginListItemVo {
   content: string
+  usage: PluginUsageVo
   versions: Array<{
     id: string
     version: string
@@ -49,6 +50,12 @@ export interface PluginDetailVo extends PluginListItemVo {
     changelog: string
     permissions: PluginPermission[]
   }>
+}
+
+export interface PluginUsageVo {
+  workflowCount: number
+  draftWorkflowCount: number
+  versionWorkflowCount: number
 }
 
 export interface InstalledPluginVo {
