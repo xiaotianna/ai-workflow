@@ -45,7 +45,3 @@ export type DocumentActionHandler = (
   action: DocumentAction,
   document: KnowledgeBaseDocument,
 ) => void
-
-export interface AddDocumentInput {
-  file: File
-}

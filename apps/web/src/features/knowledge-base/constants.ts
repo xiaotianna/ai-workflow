@@ -17,7 +17,22 @@ export const documentSortOptions = [
 export const documentPageSizeOptions = [10, 25, 50] as const
 
 export const documentAcceptedFileTypes =
-  '.md,.markdown,.txt,.pdf,.doc,.docx,.csv,.html,.htm,.xlsx,.xls'
+  '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.html,.md,.mdx,.markdown,.txt'
+
+export const documentAcceptedFileExtensions = [
+  'pdf',
+  'doc',
+  'docx',
+  'ppt',
+  'pptx',
+  'xls',
+  'xlsx',
+  'html',
+  'md',
+  'mdx',
+  'markdown',
+  'txt',
+] as const
 
 export const documentMaxFileSizeBytes = 15 * 1024 * 1024
 

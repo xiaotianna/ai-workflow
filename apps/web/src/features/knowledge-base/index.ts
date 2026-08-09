@@ -1,4 +1,4 @@
-export { AddDocumentDialog } from './components/add-document-dialog'
+export { AddDocumentPage } from './components/add-document-page'
 export { CreateKnowledgeBaseDialog } from './components/create-knowledge-base-dialog'
 export { DeleteKnowledgeBaseDialog } from './components/delete-knowledge-base-dialog'
 export { DocumentTable } from './components/document-table'
@@ -11,9 +11,8 @@ export { KnowledgeBaseGrid } from './components/knowledge-base-grid'
 export { KnowledgeBaseToolbar } from './components/knowledge-base-toolbar'
 export { createMockDocuments, formatDocumentCharacterCount, toKnowledgeBaseListItem } from './data'
 export { useKnowledgeBases } from './hooks/use-knowledge-bases'
-export type { CreateKnowledgeBaseInput } from './schema'
+export type { AddDocumentInput, CreateKnowledgeBaseInput } from './schema'
 export type {
-  AddDocumentInput,
   DocumentAction,
   DocumentActionHandler,
   KnowledgeBaseAction,

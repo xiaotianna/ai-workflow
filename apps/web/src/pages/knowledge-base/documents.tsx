@@ -1,4 +1,5 @@
 import type { RowSelectionState, SortingState } from '@tanstack/react-table'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 
@@ -6,7 +7,7 @@ import { PageContent } from '@/components/page-content'
 import { PageHeaderActions } from '@/components/page-header-actions'
 import { PageTitle } from '@/components/page-title'
 import {
-  AddDocumentDialog,
+  AddDocumentPage,
   createMockDocuments,
   DocumentTable,
   DocumentToolbar,
@@ -43,7 +44,8 @@ export default function KnowledgeBaseDocumentsPage({
   onDocumentAction,
 }: KnowledgeBaseDocumentsPageProps) {
   const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
-  const { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>()
+  const { isResourceAvailable, knowledgeBase } =
+    useOutletContext<KnowledgeBaseDetailOutletContext>()
   const [documents, setDocuments] = useState(() => createMockDocuments(knowledgeBaseId))
   const [category, setCategory] = useState('all')
   const [search, setSearch] = useState('')
@@ -52,7 +54,8 @@ export default function KnowledgeBaseDocumentsPage({
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [addDialogOpen, setAddDialogOpen] = useState(false)
+  const [addPageOpen, setAddPageOpen] = useState(false)
+  const [slideDirection, setSlideDirection] = useState(1)
 
   useEffect(() => {
     setDocuments(createMockDocuments(knowledgeBaseId))
@@ -135,35 +138,46 @@ export default function KnowledgeBaseDocumentsPage({
 
   function handleAddDocument(input: AddDocumentInput) {
     const uploadedAt = new Date()
-    const extension = input.file.name.split('.').pop()?.toLowerCase() ?? 'other'
-    const fileType =
-      extension === 'md' || extension === 'markdown'
-        ? 'markdown'
-        : extension === 'pdf'
-          ? 'pdf'
-          : extension === 'txt'
-            ? 'text'
-            : 'other'
+    const uploadedDocuments = input.files.map((file, index) => {
+      const extension = file.name.split('.').pop()?.toLowerCase() ?? 'other'
+      const fileType =
+        extension === 'md' || extension === 'mdx' || extension === 'markdown'
+          ? 'markdown'
+          : extension === 'pdf'
+            ? 'pdf'
+            : extension === 'txt'
+              ? 'text'
+              : 'other'
 
-    setDocuments((currentDocuments) => [
-      {
-        id: `local-${Date.now()}`,
+      return {
+        id: `local-${uploadedAt.getTime()}-${index}`,
         knowledgeBaseId,
-        name: input.file.name,
+        name: file.name,
         fileType,
-        segmentationMode: 'general',
+        segmentationMode: 'general' as const,
         segmentationModeLabel: '通用',
-        characterCount: Math.max(Math.round(input.file.size / 2), 1),
+        characterCount: Math.max(Math.round(file.size / 2), 1),
         recallCount: 0,
         uploadedAt: uploadedAt.toISOString(),
         uploadedAtLabel: uploadedAtFormatter.format(uploadedAt),
-        status: 'indexing',
+        status: 'indexing' as const,
         statusLabel: '索引中',
         enabled: true,
-      },
-      ...currentDocuments,
-    ])
+      }
+    })
+
+    setDocuments((currentDocuments) => [...uploadedDocuments, ...currentDocuments])
     setPageIndex(0)
+  }
+
+  function openAddPage() {
+    setSlideDirection(1)
+    setAddPageOpen(true)
+  }
+
+  function closeAddPage() {
+    setSlideDirection(-1)
+    setAddPageOpen(false)
   }
 
   if (!isResourceAvailable) {
@@ -181,55 +195,79 @@ export default function KnowledgeBaseDocumentsPage({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden px-6 pt-4 pb-2">
-      <PageTitle title="文档" subtitle="管理知识库中的文档与分段内容" />
+    <div className="relative h-full min-h-0 overflow-hidden">
+      <MotionConfig reducedMotion="user" transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
+        <AnimatePresence initial={false} mode="popLayout" custom={slideDirection}>
+          {addPageOpen ? (
+            <motion.div
+              key="add-document-page"
+              custom={slideDirection}
+              initial={{ opacity: 0, x: '100%' }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: '100%' }}
+              className="fixed inset-0 z-50"
+            >
+              <AddDocumentPage
+                knowledgeBaseName={knowledgeBase?.title}
+                onAdd={handleAddDocument}
+                onClose={closeAddPage}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="document-list-page"
+              custom={slideDirection}
+              initial={{ opacity: 0, x: '-100%' }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: '-100%' }}
+              className="absolute inset-0 flex min-h-0 flex-col overflow-hidden px-6 pt-4 pb-2"
+            >
+              <PageTitle title="文档" subtitle="管理知识库中的文档与分段内容" />
 
-      <PageHeaderActions>
-        <DocumentToolbar
-          category={category}
-          search={search}
-          sortBy={sortBy}
-          onAddDocument={() => setAddDialogOpen(true)}
-          onCategoryChange={(nextCategory) => {
-            setCategory(nextCategory)
-            setPageIndex(0)
-          }}
-          onMetadataClick={() => undefined}
-          onSearchChange={(nextSearch) => {
-            setSearch(nextSearch)
-            setPageIndex(0)
-          }}
-          onSortByChange={(nextSortBy) => {
-            setSortBy(nextSortBy)
-            setPageIndex(0)
-          }}
-        />
-      </PageHeaderActions>
+              <PageHeaderActions>
+                <DocumentToolbar
+                  category={category}
+                  search={search}
+                  sortBy={sortBy}
+                  onAddDocument={openAddPage}
+                  onCategoryChange={(nextCategory) => {
+                    setCategory(nextCategory)
+                    setPageIndex(0)
+                  }}
+                  onMetadataClick={() => undefined}
+                  onSearchChange={(nextSearch) => {
+                    setSearch(nextSearch)
+                    setPageIndex(0)
+                  }}
+                  onSortByChange={(nextSortBy) => {
+                    setSortBy(nextSortBy)
+                    setPageIndex(0)
+                  }}
+                />
+              </PageHeaderActions>
 
-      <AddDocumentDialog
-        open={addDialogOpen}
-        onOpenChange={setAddDialogOpen}
-        onAdd={handleAddDocument}
-      />
-
-      <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-        <DocumentTable
-          documents={visibleDocuments}
-          pageIndex={pageIndex}
-          pageSize={pageSize}
-          rowSelection={rowSelection}
-          sorting={sorting}
-          onDocumentAction={onDocumentAction ?? handleDocumentAction}
-          onDocumentEnabledChange={handleDocumentEnabledChange}
-          onPageChange={setPageIndex}
-          onPageSizeChange={(nextPageSize) => {
-            setPageSize(nextPageSize)
-            setPageIndex(0)
-          }}
-          onRowSelectionChange={setRowSelection}
-          onSortingChange={handleSortingChange}
-        />
-      </PageContent>
+              <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <DocumentTable
+                  documents={visibleDocuments}
+                  pageIndex={pageIndex}
+                  pageSize={pageSize}
+                  rowSelection={rowSelection}
+                  sorting={sorting}
+                  onDocumentAction={onDocumentAction ?? handleDocumentAction}
+                  onDocumentEnabledChange={handleDocumentEnabledChange}
+                  onPageChange={setPageIndex}
+                  onPageSizeChange={(nextPageSize) => {
+                    setPageSize(nextPageSize)
+                    setPageIndex(0)
+                  }}
+                  onRowSelectionChange={setRowSelection}
+                  onSortingChange={handleSortingChange}
+                />
+              </PageContent>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </MotionConfig>
     </div>
   )
 }
