@@ -3,8 +3,11 @@ import { ArrowLeft } from 'lucide-react'
 import { Link, NavLink } from 'react-router-dom'
 
 import type { DocsNavigationGroup, DocsNavigationItem } from '../navigation'
+import type { DocsProject } from '../projects'
+import { DocsProjectSwitcher } from './docs-project-switcher'
 
 interface DocsNavigationProps {
+  activeProject: DocsProject
   groups: readonly DocsNavigationGroup[]
 }
 
@@ -28,28 +31,11 @@ function DocsNavigationLink({ icon: Icon, label, to }: DocsNavigationItem) {
   )
 }
 
-function DocsBrand() {
-  return (
-    <Link
-      to="/docs"
-      className="hover:bg-muted focus-visible:bg-accent flex cursor-pointer items-center gap-2 rounded-xl p-2 outline-hidden transition-colors"
-    >
-      <img src="/logo.svg" alt="" className="size-9 shrink-0 object-contain" />
-      <span className="min-w-0">
-        <span className="text-foreground block truncate text-base leading-6 font-semibold">
-          AI Workflow
-        </span>
-        <span className="text-muted-foreground block text-sm leading-5">文档中心</span>
-      </span>
-    </Link>
-  )
-}
-
-export function DocsSidebar({ groups }: DocsNavigationProps) {
+export function DocsSidebar({ activeProject, groups }: DocsNavigationProps) {
   return (
     <aside className="border-border/70 bg-background hidden h-full w-64 shrink-0 flex-col border-r-[0.5px] md:flex">
       <div className="p-2">
-        <DocsBrand />
+        <DocsProjectSwitcher activeProject={activeProject} />
       </div>
 
       <nav aria-label="文档导航" className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
@@ -80,13 +66,13 @@ export function DocsSidebar({ groups }: DocsNavigationProps) {
   )
 }
 
-export function DocsMobileNavigation({ groups }: DocsNavigationProps) {
+export function DocsMobileNavigation({ activeProject, groups }: DocsNavigationProps) {
   const items = groups.flatMap((group) => group.items)
 
   return (
     <header className="border-border/70 bg-background shrink-0 border-b-[0.5px] md:hidden">
       <div className="px-2 pt-2">
-        <DocsBrand />
+        <DocsProjectSwitcher activeProject={activeProject} />
       </div>
       <nav aria-label="移动端文档导航" className="flex gap-1 overflow-x-auto px-3 py-2">
         {items.map(({ icon: Icon, label, to }) => (

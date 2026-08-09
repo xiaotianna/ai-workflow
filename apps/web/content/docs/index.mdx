@@ -1,30 +1,28 @@
 ---
 title: AI Workflow 文档
-description: 使用 MDX 编写的 AI Workflow 示例文档。
+description: AI Workflow 的使用、启动与部署文档。
 ---
 
 # AI Workflow 文档
 
-欢迎来到 AI Workflow 文档。这里集中介绍工作流的创建、配置、测试和发布方式。
+这里集中介绍 AI Workflow 的本地启动、工作流使用和独立部署。插件开发与项目面试材料已拆分为
+独立文档空间，可以通过左上角的项目切换器进入。
 
 ## 快速开始
 
 你可以通过下面三个步骤开始使用：
 
-1. 在工作室中新建工作流应用。
-2. 添加所需节点并完成节点配置。
-3. 测试运行通过后发布工作流。
+1. 启动 PostgreSQL、Redis 和 RabbitMQ 等基础设施。
+2. 启动 Web、Server 与节点执行器。
+3. 在工作室创建、测试并发布第一个工作流。
 
-前往[快速开始](/docs/getting-started)查看完整操作流程，或阅读[工作流基础](/docs/workflow-basics)了解核心概念。
+前往[快速开始](/docs/ai-workflow/getting-started)查看本地启动流程，或阅读
+[工作流基础](/docs/ai-workflow/workflow-basics)了解核心概念。
 
-## 文档内容
+## 文档边界
 
-文档源文件位于 `apps/web/content/docs`，支持标题、列表、表格、代码块和其他 MDX 内容。
+- **AI Workflow**：面向平台使用者和独立部署者。
+- **项目介绍**：面向简历编写和技术面试复盘。
+- **插件开发**：面向插件作者，介绍 SDK、CLI 与发布流程。
 
-```ts
-const greeting = 'Hello, AI Workflow!'
-
-console.log(greeting)
-```
-
-> 这是一段示例引用，用来确认 Markdown 排版已经生效。
+> 当前仓库只提供开发环境基础设施 Compose。生产部署前请继续阅读部署指南中的安全与运维检查项。

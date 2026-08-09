@@ -1,17 +1,49 @@
 ---
 title: 快速开始
-description: 创建并运行第一个 AI Workflow 工作流。
+description: 在本地启动 AI Workflow 并创建第一个工作流。
 ---
 
 # 快速开始
 
-本节将带你创建一个最简单的工作流，并完成首次测试运行。
+本节从本地环境准备开始，带你启动项目并完成第一次测试运行。
 
-## 1. 创建应用
+## 1. 环境要求
 
-进入工作室，点击新建应用并填写应用名称。创建完成后会自动进入工作流编辑器。
+- Node.js 22 或更高版本
+- pnpm 10
+- Docker 与 Docker Compose
 
-## 2. 添加节点
+在仓库根目录安装依赖：
+
+```bash
+pnpm install
+```
+
+## 2. 启动基础设施
+
+开发环境使用 PostgreSQL、Redis 和 RabbitMQ：
+
+```bash
+pnpm docker:dev:up
+pnpm docker:dev:status
+```
+
+默认端口分别为 `5432`、`6379`、`5672`，RabbitMQ 管理端口为 `15672`。
+
+## 3. 启动应用
+
+从仓库根目录启动 Web 与 Server：
+
+```bash
+pnpm dev
+```
+
+Go Executor 是独立 RabbitMQ Worker，需要按照 `apps/executor-go/README.md` 配置并启动。它负责执行
+LLM、HTTP、Code、Condition 等业务节点；Start 和 End 由 TypeScript Runtime 在 Server 内推进。
+
+## 4. 创建工作流
+
+进入工作室，新建工作流应用，并按照业务流程连接节点：
 
 在画布中添加需要的节点，并按照业务流程连接它们：
 
@@ -19,7 +51,7 @@ description: 创建并运行第一个 AI Workflow 工作流。
 2. 添加 LLM、HTTP 或 Code 等处理节点。
 3. 使用 End 节点整理最终输出。
 
-## 3. 测试运行
+## 5. 测试与发布
 
 点击顶部的“测试运行”，填写 Start 节点要求的输入，然后查看每个节点的执行结果与追踪信息。
 
@@ -29,4 +61,4 @@ const input = 'Hello, workflow!'
 return { message: input }
 ```
 
-> 测试通过后再发布工作流，外部 API 才会使用最新发布版本。
+> 测试运行使用当前草稿；外部 API 和子工作流调用使用已发布的不可变版本。

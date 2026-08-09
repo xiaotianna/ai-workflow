@@ -821,9 +821,19 @@ export class WorkflowRunService {
     catalog: WorkflowServerCatalog,
   ): PreparedNodeDispatch {
     try {
+      const route = this.workflowExecutionRouting.resolve(
+        command.nodeType,
+        catalog.executionRegistry,
+      )
+      const routedCommand = parseExecuteNodeCommand({
+        ...command,
+        executorType: route.executorType,
+        ...(route.sandboxArtifact ? { sandboxArtifact: route.sandboxArtifact } : {}),
+      })
       return {
-        command,
-        ...this.workflowExecutionRouting.resolve(command.nodeType, catalog.executionRegistry),
+        command: routedCommand,
+        executionClass: route.executionClass,
+        routingKey: route.routingKey,
       }
     } catch (error) {
       throw new BadRequestException(getErrorMessage(error, '节点暂不支持执行'))
@@ -841,13 +851,14 @@ export class WorkflowRunService {
     const commandId = randomUUID()
 
     return parseExecuteNodeCommand({
-      protocolVersion: '1',
+      protocolVersion: '2',
       commandId,
       idempotencyKey: `${options.runId}:${options.executionKey}:${options.attempt}`,
       runId: options.runId,
       nodeRunId: randomUUID(),
       nodeId: options.node.id,
       nodeType: options.node.type,
+      executorType: options.node.type,
       executionKey: options.executionKey,
       attempt: options.attempt,
       leaseToken: randomUUID(),

@@ -87,4 +87,7 @@ defineExecutor(async ({ config, inputs, signal }) => ({
 - 取消信号
 - 输出结果
 
-这里不是真正的执行器或沙箱，也不依赖 RabbitMQ、Go Worker、NestJS、React。实际第三方代码未来应由独立强沙箱执行。
+这里不是真正的执行器或沙箱，也不依赖 RabbitMQ、Go Worker、NestJS、React。构建后的
+`sandbox-js` ESM 由 Server 按工作流锁和摘要解析，再交给 Go Executor 在独立临时目录的 Node.js
+子进程中执行；SDK 本身不接触运行基础设施。该模式不构成不可信多租户安全边界，只适用于本地开发和
+受信任插件。

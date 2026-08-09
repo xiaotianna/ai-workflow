@@ -1,4 +1,5 @@
 export * from './config'
+export * from './error-handling'
 export * from './field'
 export * from './identifiers'
 export * from './manifest'

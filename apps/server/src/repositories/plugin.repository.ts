@@ -127,6 +127,15 @@ export class PluginRepository {
         artifactReference: true,
         artifactDigest: true,
         artifactSize: true,
+        plugin: {
+          select: {
+            installations: {
+              where: { ownerId, enabled: true },
+              take: 1,
+              select: { grantedPermissions: true },
+            },
+          },
+        },
       },
     })
   }
@@ -172,13 +181,31 @@ export class PluginRepository {
             ? [
                 {
                   OR: [
-                    { name: { contains: options.search, mode: 'insensitive' as const } },
-                    { description: { contains: options.search, mode: 'insensitive' as const } },
-                    { packageName: { contains: options.search, mode: 'insensitive' as const } },
+                    {
+                      name: {
+                        contains: options.search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      description: {
+                        contains: options.search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                    {
+                      packageName: {
+                        contains: options.search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
                     {
                       publisher: {
                         is: {
-                          username: { contains: options.search, mode: 'insensitive' as const },
+                          username: {
+                            contains: options.search,
+                            mode: 'insensitive' as const,
+                          },
                         },
                       },
                     },
@@ -337,7 +364,12 @@ export class PluginRepository {
             changelog: options.changelog ?? '',
             authorName: author.username,
           },
-          select: { id: true, version: true, artifactDigest: true, publishedAt: true },
+          select: {
+            id: true,
+            version: true,
+            artifactDigest: true,
+            publishedAt: true,
+          },
         })
 
         await transaction.plugin.update({
@@ -422,11 +454,15 @@ export class PluginRepository {
 
     if (sort === 'name_asc') {
       const value = cursor.value as string
-      return { OR: [{ name: { gt: value } }, { name: value, id: { gt: cursor.id } }] }
+      return {
+        OR: [{ name: { gt: value } }, { name: value, id: { gt: cursor.id } }],
+      }
     }
 
     const field = sort === 'created_desc' ? 'createdAt' : 'updatedAt'
     const value = cursor.value as Date
-    return { OR: [{ [field]: { lt: value } }, { [field]: value, id: { lt: cursor.id } }] }
+    return {
+      OR: [{ [field]: { lt: value } }, { [field]: value, id: { lt: cursor.id } }],
+    }
   }
 }

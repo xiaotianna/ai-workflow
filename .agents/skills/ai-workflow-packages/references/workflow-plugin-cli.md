@@ -49,7 +49,7 @@ CLI workspace package 的 `link:` 相对路径。两处都只使用当前 worksp
 ## `init` 行为
 
 - `init <directory>` 默认生成 basic 模板；custom-ui 增加 React content 与 `web:execute`，executor
-  增加 `defineExecutor()` 与 `sandbox-js` 声明，并明确当前只能构建不能运行。
+  增加 `defineExecutor()` 与 `sandbox-js` 声明，并说明由本地 Go Executor 的 Node.js 子进程运行。
 - 目标目录必须不存在或为空；拒绝普通文件、符号链接和非空目录。所有文件先写入同级 staging，成功后
   再 rename 到目标目录。
 - package 名默认取目标目录名，可通过 `--package-name` 覆盖并执行 npm package 名校验。
@@ -84,7 +84,7 @@ CLI workspace package 的 `link:` 相对路径。两处都只使用当前 worksp
 - Manifest 的 `remoteExport` 使用节点 Key 派生的稳定导出名，并由虚拟入口聚合成
   `PluginWebModule`。
 - `sandbox-js` 为每个节点生成 `executor/<node-key>.mjs`。CLI 只编译和打包，禁止 import 或调用
-  Executor Artifact；实际运行必须等待独立强沙箱。
+  Executor Artifact；实际运行由 Go Executor 的独立 Node.js 子进程负责。
 
 ## `dev` 行为
 

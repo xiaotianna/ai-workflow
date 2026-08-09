@@ -11,6 +11,14 @@ export type WorkflowExecutionClass =
 
 type ExecutorExecutionClass = Exclude<WorkflowExecutionClass, 'runtime-control'>
 
+export interface SandboxArtifactExecutionReference {
+  readonly pluginVersionId: string
+  readonly artifactDigest: string
+  readonly artifactPath: string
+  readonly networkPolicy: 'none' | 'public'
+  readonly errorHandlingField?: string
+}
+
 export type WorkflowNodeExecutionRegistration =
   | { readonly nodeType: string; readonly kind: 'runtime-control' }
   | {
@@ -24,6 +32,8 @@ export type WorkflowNodeExecutionRegistration =
       readonly kind: 'executor'
       readonly executionClass: ExecutorExecutionClass
       readonly classifiedRoutingKey: string
+      readonly executorType?: string
+      readonly sandboxArtifact?: SandboxArtifactExecutionReference
     }
   | {
       readonly nodeType: string

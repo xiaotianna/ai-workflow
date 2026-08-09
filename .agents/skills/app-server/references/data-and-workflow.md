@@ -145,14 +145,16 @@
 - `PluginInstallation` 以 `(ownerId, pluginId)` 唯一，保存当前选择的精确 `versionId`、启用状态与
   从该版本 Manifest 重新校验后的权限授权快照。安装升级只切换这条记录；历史工作流版本继续引用
   原精确版本。
-- Workflow 顶层 `plugins` 保存 `(pluginId, version, digest)` 精确锁。`PluginCatalogService` 对编辑器
-  合并当前安装版本和工作流锁定版本，对 Server 校验只解析工作流锁；Manifest、制品引用、摘要和
+- Workflow 顶层 `plugins` 保存 `(pluginId, version, digest)` 精确锁。`PluginCatalogService` 为编辑器
+  始终解析当前启用的安装版本，并在草稿下次保存时写入新锁；已发布、历史版本和已创建运行的
+  Server Catalog 仍只解析各自的工作流精确锁。Manifest、制品引用、摘要和
   大小分别投影到 `WorkflowDraftPluginDependency` 与 `WorkflowVersionPluginDependency`。草稿保存、
   测试版本、发布版本和版本恢复必须与定义在同一事务内同步投影。
 - Manifest 可以先编译为 Core 节点供编辑与保存；普通端口保持静态，声明
   `pluginSchema.errorHandling()` 与 `field.errorHandling()` 时由宿主可信规则按配置模式派生
-  `error` 端口。在独立沙箱尚未落地前，插件节点执行能力仍统一登记为 `unsupported`，发布和测试
-  运行在创建版本或 Outbox 前明确拒绝，不能因为已具备异常配置与端口能力而绕过执行隔离。
+  `error` 端口。`sandbox-js` 节点登记为固定 `plugin-sandbox-js` executorType 并进入
+  `untrusted-sandbox`；未声明执行能力的插件节点仍登记为 `unsupported`。Command 只携带插件版本、
+  摘要和安全相对入口，不携带 Server storage key 或源码。
 
 ## Redis
 
@@ -217,8 +219,9 @@ Executor 返回成功但 Runtime 在输出归一化阶段拒绝结果时，NodeR
 Result Consumer 重试。
 Command Outbox 同时保存逻辑 `executionClass` 和创建时确定的 `routingKey`，Publisher 重试只使用持久化
 路由。`WORKFLOW_EXECUTOR_ROUTING_MODE` 默认 `legacy`，继续发布 `node.execute`；切换为
-`classified` 后，Condition、LLM/RAG、HTTP、Code 分别进入 compute、model、http、sandbox Queue，
-Result Queue 与 Protocol v1 不变。`EXECUTOR_ENABLED_CLASSES` 是 Server 的显式派发能力白名单。
+`classified` 后，Condition、LLM/RAG、HTTP、Code 与插件沙箱分别进入 compute、model、http、sandbox
+Queue。Result Queue 不变；新 Command 使用 Protocol v2 的 `executorType`/`sandboxArtifact`，Worker
+继续兼容 v1。`EXECUTOR_ENABLED_CLASSES` 是 Server 的显式派发能力白名单。
 迁移字段保留兼容默认值，使旧 Server 在滚动升级期间仍能创建 legacy Outbox。
 Command Lease 与模型解析 Controller 共用可选 `EXECUTOR_INTERNAL_AUTH_TOKEN` Bearer Guard；生产设置
 `EXECUTOR_REQUIRE_INTERNAL_AUTH=true`，缺少 Token 时 Server 必须在启动阶段失败。

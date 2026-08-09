@@ -5,7 +5,7 @@
 `packages/workflow-plugin` 是第三方插件开发者使用的公共 SDK 门面，负责提供可序列化的插件声明
 DSL、Schema AST 与 Zod 编译器、源码配置和 manifest 契约，以及受限的 UI、Executor 公共类型。
 包不负责读取插件 package、构建远程模块、发布产物、安装插件或运行第三方代码；这些能力分别属于
-Plugin CLI、Web/Server 插件运行时和独立强沙箱。
+Plugin CLI、Web/Server 插件运行时和 Go Executor 的本地插件进程。
 
 根入口同时提供 `build:node`，生成 `dist/index.cjs` 供 NestJS Server 使用同一 Manifest Schema；
 Server 的启动准备脚本必须先构建该入口，不得在服务端复制 Manifest 类型或校验规则。React UI 和
@@ -91,7 +91,9 @@ import {
 ```
 
 该入口只定义纯 JSON 输入、输出、运行标识和取消信号，不依赖 React、DOM UI、NestJS、RabbitMQ
-或 Go Worker。`sandbox-js` 当前只是可声明产物类型；在独立强沙箱落地前，宿主不得执行它。
+或 Go Worker。`sandbox-js` 由 Server 编译为固定 `plugin-sandbox-js` 执行适配器，通过受租约保护的
+制品解析接口读取锁定版本 ESM，并交给 Go Executor 在独立临时目录的 Node.js 子进程中运行。该执行
+模式不构成不可信多租户安全边界，只适用于本地开发和受信任插件。
 
 ## 依赖边界与注意事项
 

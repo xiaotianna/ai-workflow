@@ -1,0 +1,42 @@
+---
+title: 项目介绍
+description: 用于简历和面试沟通的 AI Workflow 项目全景。
+---
+
+# 项目介绍
+
+AI Workflow 是一个可视化 AI 工作流平台。用户可以在画布上组合节点、配置模型与知识库、测试草稿、
+发布不可变版本，并通过 API 或子工作流复用已经发布的能力。
+
+这组文档面向简历编写和技术面试，不承担安装手册职责。独立部署与平台使用请切换到
+“AI Workflow”，插件作者文档请切换到“插件开发”。
+
+## 核心能力
+
+- 可视化节点编排、变量引用、配置校验与草稿编辑；
+- 工作流版本发布、测试运行、日志与 SSE 状态反馈；
+- 模型组、知识库和子工作流等宿主资源接入；
+- 插件 Marketplace、版本锁定、权限确认和自定义节点扩展；
+- TypeScript Runtime 调度与 Go Executor 单节点执行；
+- PostgreSQL 持久化、Redis、RabbitMQ 和 Outbox/Inbox 可靠消息链路。
+
+## 技术栈
+
+| 范围   | 技术                                                           |
+| ------ | -------------------------------------------------------------- |
+| 前端   | React 19、TypeScript、Vite、React Router、Tailwind CSS、Motion |
+| 服务端 | NestJS、Prisma、PostgreSQL、Redis、RabbitMQ                    |
+| 执行器 | Go、RabbitMQ、Node.js ESM 子进程                               |
+| 工程化 | pnpm Workspace、Turborepo、Docker Compose、Oxlint、Prettier    |
+
+## 架构分层
+
+项目把“定义是否正确”“下一步执行什么”“如何持久化与派发”“单节点如何产生副作用”拆为四层：
+
+1. `@ai-workflow/core` 负责工作流领域模型和静态校验。
+2. `@ai-workflow/runtime` 负责纯状态机、变量解析和 DAG 调度。
+3. NestJS Server 负责版本快照、事务、持久化、租约和消息可靠性。
+4. Go Executor 只执行一个业务节点，不读取整张 Workflow，也不自行调度 DAG。
+
+这种边界让编辑器、发布入口和执行入口复用同一套领域契约，也让 Runtime 可以脱离数据库和消息队列
+进行推演与恢复。

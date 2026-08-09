@@ -8,7 +8,8 @@
 ## TypeScript 公共入口
 
 - `ExecuteNodeCommand`：协议版本、消息与幂等标识、Run/NodeRun/Execution 身份、attempt、租约、deadline，
-  以及已经解析完成的 JSON Inputs/Config。
+  以及已经解析完成的 JSON Inputs/Config。v2 额外携带稳定 `executorType`；第三方沙箱命令携带
+  `sandboxArtifact` 的插件版本、整体摘要、安全入口、网络策略和可选异常处理字段名。
 - `ExecuteNodeResult`：`SUCCEEDED` 与 `FAILED` 的严格判别联合；成功包含 outputs 和唯一
   activatedHandles，失败包含稳定 code、message、retryable 和可选 JSON details。
 - `parseExecuteNodeCommand(unknown)` / `parseExecuteNodeResult(unknown)`：使用 AJV 2020 和 format 校验器
@@ -29,7 +30,9 @@
 
 ## 协议规则
 
-- 当前 `protocolVersion` 固定为 `'1'`；扩展不兼容字段时必须新增版本并保持旧消息含义稳定。
+- 当前生产者生成 `protocolVersion: '2'`；Go Worker 与 Schema 继续接受历史 v1。v1 按逻辑
+  `nodeType` 选择 Registry，v2 按 `executorType` 选择执行适配器，不能为未知类型提供 fallback。
+- Result v1/v2 结构保持相同并回显 Command 版本，因此现有 Result Queue、Inbox 和 Runtime 推进语义不变。
 - Command 只携带单个节点执行所需数据，不携带完整 Workflow、Edge、其他节点输出、数据库连接或长期
   Secret。
 - Protocol 独立声明递归 JSON 值以支持 Go；Runtime 继续使用 Core `JsonValue`，不能反向依赖

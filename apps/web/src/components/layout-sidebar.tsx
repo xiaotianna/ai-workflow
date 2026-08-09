@@ -5,6 +5,8 @@ import { NavLink } from 'react-router-dom'
 
 import { AccountMenu } from '@/features/account'
 
+import { HelpMenu } from './help-menu'
+
 export interface LayoutSidebarNavigationItem {
   to: string
   label: string
@@ -46,8 +48,9 @@ export function LayoutSidebar({ header, items, navigationLabel }: LayoutSidebarP
         ))}
       </nav>
 
-      <div className="relative min-w-0 p-3">
-        <AccountMenu />
+      <div className="relative flex min-w-0 items-center gap-2 p-3">
+        <AccountMenu className="min-w-0 flex-1" />
+        <HelpMenu />
       </div>
     </aside>
   )

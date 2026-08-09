@@ -201,9 +201,10 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   版本已变化返回 `409`，权限集合不一致返回 `400`。接口只更新 `PluginInstallation`，不得改写任何
   工作流草稿或不可变 `WorkflowVersion`。
 - `POST /plugins/runtime-catalog/resolve`：提交当前工作流的 `pluginLock`，返回该用户编辑器可用的
-  已安装插件 Manifest、精确版本锁和 Catalog fingerprint。已被工作流使用的插件必须解析锁定版本，
-  未使用插件使用当前安装版本；服务端校验启用状态、精确版本、Artifact digest 和
-  `hostVersionRange`，响应不返回本地 `artifactReference`。
+  已安装插件 Manifest、当前安装版本锁和 Catalog fingerprint。编辑器始终以当前启用的
+  `PluginInstallation` 版本为准，请求中的草稿旧锁只作为兼容输入；服务端校验安装版本的启用状态、
+  Artifact digest 和 `hostVersionRange`，响应不返回本地 `artifactReference`。已发布和历史版本的
+  Server Catalog 仍按工作流精确锁解析。
 - `POST /plugins/publish`：使用 Bearer Token 和 `multipart/form-data` 上传 CLI `pack` 生成的
   `.tgz`；文件字段固定为 `file`，文本字段为 `visibility=PUBLIC|PRIVATE` 和最长 5000 字符的可选
   `changelog`。压缩包最大 50 MB，解压后最大 200 MB、最多 2048 个普通文件。
@@ -257,10 +258,14 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   `commandId`、`runId`、`nodeRunId`、`nodeId`、`executionKey` 和 `leaseToken`。Server 同时校验
   NodeRun、Run 状态与 deadline，从绑定的不可变 WorkflowVersion 重新解析 LLM Config，再按所属应用
   `ownerId` 解析启用的模型组与模型。
+- `POST /internal/executor/plugin-artifacts/resolve`：只供 `plugin-sandbox-js` Go Executor 使用；除完整
+  Command 身份和 Lease Token 外，还必须携带锁定的插件版本、整体 Artifact digest 和 Manifest 入口。
+  Server 只在 Run/NodeRun 租约有效、不可变 WorkflowVersion 依赖匹配、重新校验完整插件包摘要且入口
+  属于当前逻辑节点时返回 UTF-8 ESM 与单文件 SHA-256。不得接受 storage key 或任意文件路径。
 - 运行时只信任 Core Config 中的 `groupId` 与 `configuredModelId`；`groupName`、`modelId`、
   `modelName`、`providerType` 是展示快照，不得作为真实供应商配置。
 - 成功响应带本次执行所需的真实 `providerType`、`modelId`、`baseUrl` 和可选明文 `apiKey`，并设置
-  `Cache-Control: no-store`。该路由只能位于 Server 与 Executor 的受控内部网络并使用 TLS，不得经公网
+  模型与插件制品成功响应都设置 `Cache-Control: no-store`。这些路由只能位于 Server 与 Executor 的受控内部网络并使用 TLS，不得经公网
   网关、缓存或记录响应正文；错误日志不得包含 Lease Token、API Key 或完整请求/响应。
 
 ## 依赖方向

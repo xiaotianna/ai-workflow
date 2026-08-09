@@ -36,7 +36,8 @@
 
 ## 插件 Marketplace
 
-- Marketplace Header 在文档图标左侧固定提供插件发布入口，点击打开 `PluginPublishDialog`；发布表单
+- Marketplace Header 的文档图标在新窗口打开 `/docs/plugin`；其左侧固定提供插件发布入口，点击
+  打开 `PluginPublishDialog`；发布表单
   上传 CLI `pack` 生成的 `.tgz` 插件包，并填写公开范围和可选版本说明。package 名和版本以包内
   Manifest 为准；平台 UUID 由服务端生成，作者取当前认证用户，均不允许在表单或 CLI 中覆盖。Header 默认通过 `src/api/plugins` 调用真实
   `/plugins/publish`，同时允许用 `onPublish` 覆盖提交实现。请求失败由统一 API Client 展示错误并
@@ -70,7 +71,8 @@
 - 列表卡片和详情页的安装/更新操作统一打开 `PluginInstallationDialog`。权限只能使用服务端返回的
   最新版本 Manifest 权限，不允许前端自行补充；弹窗展示权限名称与风险说明，升级时对安装版本尚未
   授予的权限标记“新增权限”，无额外权限时也要明确说明。确认请求期间禁止关闭或重复提交，成功后
-  原位更新安装状态。插件安装升级不得暗示或触发已有工作流自动升级。
+  原位更新安装状态。插件安装升级后，编辑中的工作流在下次加载 Catalog 时使用当前安装版本；
+  已发布、历史版本及已创建的运行继续使用各自的精确插件锁。
 - 插件详情正文与版本更新日志保存为 Markdown，并通过 `fumadocs-core/content/md` 渲染，外层使用
   已接入的 `@fumadocs/tailwind/typography` `prose prose-sm` 样式，以 14px 作为基础字号。页面侧栏只
   展示最新版本；完整版本记录与 Markdown 更新日志放在版本历史 Dialog 中，版本记录表格复用 UI
@@ -309,6 +311,9 @@
 - 节点卡片、添加节点面板和 MiniMap 的节点标识色通过
   `@ai-workflow/nodes-ui` 的 `getNodeThemeColor(type)` 获取，不在 Web 组件中复制
   `NODE_THEMES` 或固定使用主色。
+- 画布 Header、节点选择器、配置面板、下一步、检查清单和运行追踪等 HTML 节点标识位统一使用
+  `@ai-workflow/nodes-ui` 的 `NodeIconBadge`；插件图标应铺满 Badge，禁止手写主题色容器后再缩小嵌入插件图片。
+  MiniMap 位于 SVG 上下文，插件图片必须使用 SVG `<image>`，不得把 `NodeIcon` 生成的 HTML `<img>` 放入 SVG。
 - 测试运行的节点状态直接透传给 Nodes UI：`RUNNING` 在 Header 右侧显示蓝色 loading，并用
   primary 边框标记当前运行节点；`SUCCEEDED` / `FAILED` 分别使用 Nodes UI 的成功、失败图标
   和同色边框。Web 不复制图标、色值或按节点类型增加状态分支。

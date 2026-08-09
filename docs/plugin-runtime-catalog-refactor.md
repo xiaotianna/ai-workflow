@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 状态：插件锁、静态 Manifest Catalog 与依赖投影已实施；Remote UI、沙箱执行与 Catalog 缓存待接入
+- 状态：插件锁、Manifest Catalog、Remote UI、依赖投影与 `sandbox-js` 路由已实施；Catalog 缓存待接入
 - 基线日期：2026-08-09
 - 适用范围：Workflow Core、Web 编辑器、Server 校验与执行路由
 - 目标：把 Web 与 Server 对全局 `nodeRegistry` 和内置路由表的直接依赖，统一收敛为按工作流插件锁构建的不可变运行时目录
@@ -10,22 +10,22 @@
 本文只描述现有节点体系的装配和注入重构，不重新定义 `NodeType`、`NodeRegistry`、
 `NodeUIRegistry`、表单协议或 Runtime 状态机。
 
-截至 2026-08-09，Workflow 已保存精确插件锁；Web 通过认证 Runtime Catalog 接口装配已安装插件的
-静态节点，Server 按锁校验精确版本、摘要和宿主兼容范围，并在草稿、测试版本和发布版本中维护制品
-依赖投影。插件节点当前执行能力登记为 `unsupported`，因此在发布或测试运行前失败。下一阶段继续
-接入授权 Remote UI、独立强沙箱、Catalog 缓存和客户端 fingerprint 并发校验，不得恢复全局
-singleton、静态 React Flow 类型表或 Routing Service 节点映射。
+截至 2026-08-09，Workflow 已保存精确插件锁；Web 通过认证 Runtime Catalog 接口装配当前启用安装版本的
+静态节点，已发布和历史 WorkflowVersion 的 Server Catalog 按锁校验精确版本、摘要和宿主兼容范围，并在草稿、测试版本和发布版本中维护制品
+依赖投影。声明 `sandbox-js` 的插件节点通过固定 `plugin-sandbox-js` executorType 进入 Sandbox
+Profile，按锁定版本和摘要从内部制品接口读取 ESM，再由 Go Executor 在独立临时目录的 Node.js 子进程
+中执行；`execution.kind: none` 继续登记为 `unsupported`。下一阶段继续完成 Catalog 缓存和客户端
+fingerprint 并发校验，不得恢复全局 singleton、静态 React Flow 类型表或 Routing Service 节点映射。
 
 ## 2. 核心结论
 
 这里的“统一目录”不是让 Web、Server 共用同一个包含 React、MQ 和执行函数的万能对象，而是：
 
-1. Web 与 Server 使用同一份 `WorkflowPluginLock` 和同一批经过摘要校验的 manifest；
+1. Web 编辑器使用当前启用的安装版本，Server 对不可变版本使用其 `WorkflowPluginLock`，两者都只从经过摘要校验的 manifest 构建 Catalog；
 2. 两端分别从这些纯数据构建适合自身环境的不可变 Catalog；
 3. Core Registry、节点 UI、表单 renderer、Runtime Config projector 和执行路由都必须属于同一个
    Catalog 版本；
-4. Catalog 通过稳定 `fingerprint` 标识，插件安装或升级后创建新 Catalog，不修改已经挂载或正在执行的
-   Catalog；
+4. Catalog 通过稳定 `fingerprint` 标识，插件安装或升级后编辑器下次加载时创建新 Catalog，不修改已经挂载、已发布或正在执行的 Catalog；
 5. 未知节点和缺少执行路由都必须明确失败，不允许回退到内置 singleton 或通用 Queue。
 
 推荐的分层如下：
@@ -160,7 +160,7 @@ export interface WorkflowWebCatalog {
 
 创建过程固定为：
 
-1. 读取工作流插件锁；
+1. 读取当前用户启用的插件安装版本；
 2. 校验并适配内置节点和 manifest 节点，构建 Core Registry；
 3. 注册内置节点 UI，再合并已经授权加载的插件 Web UI；
 4. 合并 Form 内置字段、Web Host Field renderer 和插件 renderer；
@@ -269,14 +269,14 @@ export interface WorkflowServerCatalog {
 }
 ```
 
-Resolver 的输入不是 `nodeType`，而是当前草稿或不可变 WorkflowVersion 的完整插件锁：
+Resolver 的输入不是 `nodeType`，而是不可变 WorkflowVersion 的完整插件锁：
 
 ```ts
 resolveForWorkflow(ownerId: string, pluginLock: WorkflowPluginLock): Promise<WorkflowServerCatalog>
 ```
 
 Catalog 可以按 fingerprint 使用有界 LRU/TTL 缓存。缓存对象必须不可变；权限、安装状态和 artifact
-摘要在创建 Catalog 前校验，发布版本运行时必须解析其精确锁定版本，不能改用用户当前安装的最新版本。
+摘要在创建 Catalog 前校验，发布、历史和已创建运行必须解析其精确锁定版本，不能改用用户当前安装的最新版本。
 
 ### 7.2 分离三个 Registry，不创建 Server 万能 Map
 
@@ -385,8 +385,7 @@ Workflow plugin lock
 ```
 
 建议 Server 返回给 Web 的 runtime catalog 响应携带 fingerprint。保存、发布和测试运行请求同时携带
-客户端 fingerprint；Server 解析插件锁后发现不一致时返回 `409`，提示重新加载编辑器，避免管理员在用户
-编辑期间升级插件导致两端使用不同能力集合。
+客户端 fingerprint；Server 发现客户端 Catalog 已过期时返回 `409`，提示重新加载编辑器，避免编辑期间升级插件导致两端使用不同能力集合。
 
 插件安装状态可以变化，但已发布 WorkflowVersion 的 artifact 必须保持可读取。安装禁用只阻止新建和升级，
 不能让历史运行静默改用另一版本。

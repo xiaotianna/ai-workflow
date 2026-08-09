@@ -3,7 +3,7 @@ import { BuiltinNodeType, type WorkflowNode } from '@ai-workflow/core'
 import { CodeEditor } from '@ai-workflow/ui/components/code-editor'
 import { Tabs, TabsContent } from '@ai-workflow/ui/components/tabs'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { NodeIconBadge } from '@ai-workflow/nodes-ui'
 import { Ban, Check, CheckCircle2, ChevronRight, CircleX, Clock3, LoaderCircle } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState, type ReactNode } from 'react'
@@ -231,12 +231,11 @@ function TraceNodeItem({
         >
           <ChevronRight className="size-3" />
         </motion.span>
-        <span
-          className="text-primary-foreground flex size-5 shrink-0 items-center justify-center rounded-md shadow-sm"
-          style={{ backgroundColor: getNodeThemeColor(node.type) }}
-        >
-          <NodeIcon icon={definition?.icon} className="size-3" aria-hidden />
-        </span>
+        <NodeIconBadge
+          type={node.type}
+          icon={definition?.icon}
+          className="size-5 rounded-md shadow-sm [&>svg]:size-3"
+        />
         <span className="text-foreground min-w-0 flex-1 truncate text-[13px] font-semibold">
           {nodeLabel}
         </span>

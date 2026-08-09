@@ -12,12 +12,22 @@ type ExecuteNodeCommand struct {
 	NodeRunID       string               `json:"nodeRunId"`
 	NodeID          string               `json:"nodeId"`
 	NodeType        string               `json:"nodeType"`
+	ExecutorType    string               `json:"executorType,omitempty"`
+	SandboxArtifact *SandboxArtifact     `json:"sandboxArtifact,omitempty"`
 	ExecutionKey    string               `json:"executionKey"`
 	Attempt         int                  `json:"attempt"`
 	LeaseToken      string               `json:"leaseToken"`
 	DeadlineAt      string               `json:"deadlineAt"`
 	Inputs          map[string]JSONValue `json:"inputs"`
 	Config          map[string]JSONValue `json:"config"`
+}
+
+type SandboxArtifact struct {
+	PluginVersionID    string `json:"pluginVersionId"`
+	ArtifactDigest     string `json:"artifactDigest"`
+	ArtifactPath       string `json:"artifactPath"`
+	NetworkPolicy      string `json:"networkPolicy"`
+	ErrorHandlingField string `json:"errorHandlingField,omitempty"`
 }
 
 type NodeResultStatus string

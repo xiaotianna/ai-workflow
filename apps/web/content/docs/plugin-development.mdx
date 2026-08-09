@@ -1,0 +1,72 @@
+---
+title: 开发与发布
+description: 插件契约、构建产物、权限与安全边界。
+---
+
+# 开发与发布
+
+## 根配置
+
+插件根入口默认导出配置：
+
+```ts
+import { defineConfig, defineNode, field, pluginSchema } from '@ai-workflow/plugin'
+
+export default defineConfig({
+  name: 'Example Plugin',
+  version: '1.0.0',
+  hostVersionRange: '^1.0.0',
+  nodes: [
+    defineNode({
+      key: 'example',
+      schema: pluginSchema.object({
+        message: pluginSchema.string(),
+      }),
+      form: [field.text({ name: 'message', label: '消息' })],
+      // 按节点实际能力继续声明 definition、ports 与 execution。
+    }),
+  ],
+})
+```
+
+具体字段以当前 SDK 类型为准。`defineConfig` 和 `defineNode` 只返回对象，完整约束由
+`pluginConfigSchema` 与 CLI 检查流程负责。
+
+## 可序列化约束
+
+Manifest 中的 Schema AST、初始配置、表单、端口和模块引用必须保持纯数据，不能写入：
+
+- Zod 对象、函数、class 或 React Element；
+- 绝对路径或越出 package 的相对路径；
+- 平台 UUID、上传作者或服务端生成字段。
+
+需要自定义 React UI 时从 `@ai-workflow/plugin/ui` 导入公共门面；需要执行逻辑时从
+`@ai-workflow/plugin/executor` 导入 `defineExecutor`，不要深层引用宿主仓库源码。
+
+## 构建产物
+
+```text
+dist/
+├── plugin.manifest.json
+├── integrity.json
+├── assets/
+├── web/
+│   ├── remoteEntry.js
+│   └── remote-manifest.json
+└── executor/
+```
+
+没有自定义 UI 时不生成 `web/`，没有 `sandbox-js` 节点时不生成 `executor/`。Artifact 路径、大小和
+文件摘要会聚合为 Manifest 完整性 digest；压缩包还有独立 SHA-256。
+
+## 权限与发布
+
+自定义 Content、节点 Renderer 或完整配置 Renderer 必须声明 `web:execute`。使用宿主字段时，
+`field.host()` 还必须与 `requires.hostFields` 对应。发布界面上传 CLI `pack` 生成的 `.tgz`，package
+名称与版本来自 Manifest，平台 UUID 和作者由服务端生成。
+
+## Executor 边界
+
+CLI 只编译和打包 Executor，不会 import 或调用第三方执行代码。运行时由 Go Executor 校验锁定制品
+摘要，并在独立 Node.js 子进程中执行。该方式不构成不可信多租户安全边界，只适用于本地开发和受信任
+插件；生产环境仍需使用独立容器、最小权限和网络策略。

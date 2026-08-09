@@ -20,6 +20,11 @@ Server 发给 Go Executor，表示“执行这一个节点”。
 - deadline：最晚执行时间，超过这个时间后 Go 应停止或拒绝继续执行
 - Runtime 已经解析完成的 inputs
 - Runtime 已经投影完成的 config
+- v2 的 executorType：稳定执行适配器类型，与逻辑 nodeType 分离
+- v2 可选 sandboxArtifact：第三方沙箱插件的锁定版本、摘要、安全入口和网络策略
+
+Server 当前生成 v2 Command；Go Worker 继续接受历史 v1。v1 使用 `nodeType` 选择 Executor，v2 使用
+`executorType`，未知执行适配器不得回退。
 
 ### 2. ExecuteNodeResult
 

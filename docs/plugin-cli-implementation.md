@@ -21,7 +21,7 @@ CLI 不负责：
 - 安装、启用、升级或发布插件版本；
 - 在 Web 中注册或运行插件节点和远程 UI；
 - 在 Server 中持久化插件、工作流插件锁或 Artifact；
-- 执行第三方 Executor 代码；`sandbox-js` 产物只能交给后续独立强沙箱。
+- 执行第三方 Executor 代码；`sandbox-js` 产物由 Go Executor 的本地 Node.js 子进程执行。
 
 ## 2. 总体流程
 
@@ -267,4 +267,4 @@ CLI 自身构建时必须把 `@ai-workflow/plugin` 及其可打包依赖内联�
 9. 包 README、项目架构文档和 `.agents/skills` 同步记录稳定公开行为。
 
 完成上述流程只代表阶段一“SDK、Schema 与构建工具”闭环。Web 插件运行时、Server 插件模型、
-Workflow 插件锁、声明式执行适配器和第三方强沙箱仍按后续阶段单独实施。
+Workflow 插件锁和声明式执行适配器仍按后续阶段单独实施。

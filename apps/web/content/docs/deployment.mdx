@@ -1,0 +1,57 @@
+---
+title: 部署指南
+description: AI Workflow 独立部署前的组件、配置与安全检查项。
+---
+
+# 部署指南
+
+AI Workflow 由 Web、NestJS Server、Go Executor、PostgreSQL、Redis 和 RabbitMQ 组成。生产环境需要
+分别部署应用服务与基础设施，并保证 Server 和 Executor 之间的内部接口与消息链路可达。
+
+> 仓库当前的 `compose.dev.yaml` 只用于本地基础设施，不是完整的生产部署方案。它把服务端口绑定到
+> `127.0.0.1`，并使用开发默认凭据。
+
+## 服务职责
+
+| 服务        | 主要职责                                              |
+| ----------- | ----------------------------------------------------- |
+| Web         | 工作流编辑、配置、运行观察和文档                      |
+| Server      | 鉴权、持久化、工作流调度、Outbox/Inbox 与运行状态     |
+| Go Executor | 消费 RabbitMQ Command 并执行单个业务节点              |
+| PostgreSQL  | 工作流、版本、运行、插件和业务数据                    |
+| Redis       | 缓存及服务端运行辅助状态                              |
+| RabbitMQ    | Server 与 Executor 之间的节点 Command/Result 消息链路 |
+
+## 部署顺序
+
+1. 准备 PostgreSQL、Redis 与 RabbitMQ，并使用独立的强凭据。
+2. 配置 Server 数据库连接、JWT、消息队列和内部服务参数，执行 Prisma 生产迁移。
+3. 部署 Server，确认健康检查与 Executor 内部接口只在受控网络可访问。
+4. 按节点执行类别部署一个或多个 Go Executor Profile。
+5. 构建并部署 Web，将 API 地址指向 Server 的对外入口。
+
+Server 的生产数据库迁移与启动脚本为：
+
+```bash
+pnpm --filter @ai-workflow/server start:prod:migrate
+```
+
+## Executor 安全边界
+
+Code 与受信任插件 Executor 会在独立 Node.js 子进程中运行，但本地进程隔离不是不可信多租户安全
+边界。生产环境至少应做到：
+
+- 使用非 root 用户和只读根文件系统；
+- 为 Executor 设置独立临时目录及 CPU、内存、PID 限制；
+- 不与 Server 或数据库共享宿主文件系统和高权限凭据；
+- 用网络策略限制 HTTP Worker 与 Sandbox Worker 的出站访问；
+- 为 Server 与 Executor 的租约、模型解析和插件制品接口配置相同的内部 Bearer Token；
+- 不让模型明文凭据经过公网网关、缓存或访问日志。
+
+## 上线检查
+
+- 数据库迁移可回滚，PostgreSQL 与 RabbitMQ 数据已配置备份。
+- RabbitMQ Publisher Confirm、死信队列和消费者积压已接入监控。
+- Server 与 Executor 的时钟同步，超时与租约配置一致。
+- 日志不记录工作流输入、模型凭据或插件私密配置。
+- Web、Server、Executor 和插件宿主契约使用兼容版本。

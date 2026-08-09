@@ -3,6 +3,7 @@ import {
   WORKFLOW_EXECUTION_CLASSES,
   type WorkflowExecutionClass,
   type WorkflowExecutionRegistry,
+  type SandboxArtifactExecutionReference,
 } from '@/workflow-catalog/workflow-execution.registry'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
@@ -11,6 +12,8 @@ import { WORKFLOW_COMMAND_ROUTING_KEY } from './workflow-mq.constants'
 export interface WorkflowExecutionRoute {
   executionClass: WorkflowExecutionClass
   routingKey: string
+  executorType: string
+  sandboxArtifact?: SandboxArtifactExecutionReference
 }
 
 @Injectable()
@@ -38,6 +41,7 @@ export class WorkflowExecutionRoutingService {
       return {
         executionClass: WORKFLOW_EXECUTION_CLASSES.RUNTIME_CONTROL,
         routingKey: registration.routingKey,
+        executorType: nodeType,
       }
     }
     if (!this.enabledClasses.has(registration.executionClass)) {
@@ -46,6 +50,8 @@ export class WorkflowExecutionRoutingService {
 
     return {
       executionClass: registration.executionClass,
+      executorType: registration.executorType ?? nodeType,
+      ...(registration.sandboxArtifact ? { sandboxArtifact: registration.sandboxArtifact } : {}),
       routingKey: this.classified
         ? registration.classifiedRoutingKey
         : WORKFLOW_COMMAND_ROUTING_KEY,

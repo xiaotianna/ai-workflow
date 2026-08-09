@@ -1,5 +1,5 @@
 import { Button } from '@ai-workflow/ui/components/button'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { getNodeThemeColor, NodeIcon, resolveNodeIconKind } from '@ai-workflow/nodes-ui'
 import {
   MiniMap,
   type MiniMapNodeProps,
@@ -33,6 +33,7 @@ const WorkflowMiniMapNode = ({
   const iconSize = Math.min(width, height) * 0.5
   const iconX = x + (width - iconSize) / 2
   const iconY = y + (height - iconSize) / 2
+  const pluginIcon = resolveNodeIconKind(icon) === 'plugin'
 
   return (
     <g className={className} onClick={onClick ? (event) => onClick(event, id) : undefined}>
@@ -48,18 +49,31 @@ const WorkflowMiniMapNode = ({
         strokeWidth={selected ? 3 : 0}
         shapeRendering="geometricPrecision"
       />
-      <NodeIcon
-        icon={icon}
-        x={iconX}
-        y={iconY}
-        width={iconSize}
-        height={iconSize}
-        color="var(--primary-foreground)"
-        fill={icon === 'play' ? 'var(--primary-foreground)' : 'none'}
-        strokeWidth={2.25}
-        pointerEvents="none"
-        aria-hidden
-      />
+      {pluginIcon ? (
+        <image
+          href={icon}
+          x={iconX}
+          y={iconY}
+          width={iconSize}
+          height={iconSize}
+          preserveAspectRatio="xMidYMid meet"
+          pointerEvents="none"
+          aria-hidden
+        />
+      ) : (
+        <NodeIcon
+          icon={icon}
+          x={iconX}
+          y={iconY}
+          width={iconSize}
+          height={iconSize}
+          color="var(--primary-foreground)"
+          fill={icon === 'play' ? 'var(--primary-foreground)' : 'none'}
+          strokeWidth={2.25}
+          pointerEvents="none"
+          aria-hidden
+        />
+      )}
     </g>
   )
 }

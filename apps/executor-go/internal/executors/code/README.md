@@ -1,8 +1,6 @@
-# Code Executor 进程后端执行流程
+# Code Executor 本地进程执行流程
 
-本文描述 `CODE_SANDBOX_BACKEND=process` 时的兼容执行流程。`remote` 后端不会在 Worker 内直接启动
-Node，而是把幂等任务提交给 `CODE_SANDBOX_CONTROLLER_URL`，再把 Controller 的结构化结果转换为
-相同的 Protocol Result。生产环境可设置 `CODE_SANDBOX_REQUIRE_REMOTE=true` 禁止回退到本进程后端。
+Code Executor 固定在 Worker 内启动独立 Node.js 子进程执行用户代码，不依赖外部执行服务。
 
 可以把 Code Executor 里的三个角色理解成：
 

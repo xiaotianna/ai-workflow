@@ -24,7 +24,7 @@ flowchart LR
   Queue --> Worker["对应 Profile Worker"]
   Worker --> Registry["Profile Registry 白名单"]
   Registry --> Executor["具体节点 Executor"]
-  Executor -->|Code| SandboxRunner["process 或 remote"]
+  Executor -->|Code| NodeProcess["本地 Node.js 子进程"]
   Executor -->|HTTP| HttpClient["标准 HTTP Client"]
 ```
 
@@ -34,8 +34,8 @@ flowchart LR
    Publisher 重试只使用已保存的值，避免配置切换使同一 Command 漂移到不同 Worker。
 2. Queue 隔离和 Registry 白名单同时生效。分类 Worker 收到错误节点时返回
    `EXECUTOR_PROFILE_MISMATCH`，不会回退到其他 Executor。
-3. Result Exchange、Result Queue 和 Protocol v1 保持不变，因此 Server 原有结果处理、租约和幂等链路
-   可以继续使用。
+3. Result Exchange 与 Result Queue 保持不变；新 Command 使用 Protocol v2 将逻辑 `nodeType` 与
+   `executorType` 分离，Worker 继续兼容已有 v1 消息。
 4. Server 路由、Go Profile 和 Code 后端默认都使用兼容模式；只有显式启用分类配置后才改变实际执行位置。
 
 推荐按以下顺序阅读：
@@ -68,19 +68,20 @@ flowchart LR
 
 1. 从当前 Profile 对应的持久队列手动消费 Command；
 2. 使用 `workflow-protocol` JSON Schema 解码和校验消息；
-3. 校验 `deadlineAt` 与 Server Command 租约，按 `nodeType` 从 Registry 解析 Executor；
+3. 校验 `deadlineAt` 与 Server Command 租约；v2 按 `executorType`、v1 按 `nodeType` 从 Registry
+   解析 Executor；
 4. 调用节点 Executor 并校验 Result；
 5. 将 Result 持久发布到 `ai-workflow.result.v1`，收到 Publisher Confirm 后才 Ack Command。
 
 Profile 与队列对应关系：
 
-| Profile   | 节点                            | Command Queue                         |
-| --------- | ------------------------------- | ------------------------------------- |
-| `legacy`  | LLM、RAG、HTTP、Code、Condition | `ai-workflow.node.execute.v1`         |
-| `compute` | Condition                       | `ai-workflow.node.execute.compute.v1` |
-| `model`   | LLM、RAG                        | `ai-workflow.node.execute.model.v1`   |
-| `http`    | HTTP                            | `ai-workflow.node.execute.http.v1`    |
-| `sandbox` | Code                            | `ai-workflow.node.execute.sandbox.v1` |
+| Profile   | 节点                                      | Command Queue                         |
+| --------- | ----------------------------------------- | ------------------------------------- |
+| `legacy`  | LLM、RAG、HTTP、Code、Condition、插件沙箱 | `ai-workflow.node.execute.v1`         |
+| `compute` | Condition                                 | `ai-workflow.node.execute.compute.v1` |
+| `model`   | LLM、RAG                                  | `ai-workflow.node.execute.model.v1`   |
+| `http`    | HTTP                                      | `ai-workflow.node.execute.http.v1`    |
+| `sandbox` | Code、`plugin-sandbox-js`                 | `ai-workflow.node.execute.sandbox.v1` |
 
 非法 Command 会进入当前 Profile 的 Command DLQ；Result 失败时原 Command 会重新入队。Worker
 断线后每 2 秒重连，RabbitMQ URL 通过 `RABBITMQ_URL` 配置，默认连接根目录 `compose.dev.yaml`
@@ -129,19 +130,13 @@ Code Executor 为每次执行创建独立临时目录和 Node.js 22+ ESM 子进�
 作为节点 outputs。Command context 到期或取消时会终止 Node 进程组，V8 Heap 限制为 64 MiB、
 调用栈限制为 1 MiB，外层继续限制 256 KiB 源码和 4 MiB 输出。
 
-Code 执行后端通过 `CODE_SANDBOX_BACKEND` 选择：
+Code 固定使用上述本地 Node.js 子进程执行。该进程具有完整 Node API，因此本地临时目录、资源参数和
+环境变量过滤只用于减少任务间干扰，不构成不可信多租户的安全边界。
 
-- `process`：默认兼容模式，复用上述 Node 子进程，不构成强安全边界；
-- `remote`：把带 `commandId`、deadline、源码和输入的幂等任务发送给
-  `CODE_SANDBOX_CONTROLLER_URL`，由独立 Sandbox Controller 执行。
-
-`CODE_SANDBOX_REQUIRE_REMOTE=true` 会在配置不是 `remote` 时拒绝启动，用于防止生产环境静默降级。
-Controller 可使用 `CODE_SANDBOX_CONTROLLER_TOKEN` Bearer Token 认证。仓库当前实现的是 Worker 侧
-远程契约和结果/错误边界；真正的逐任务容器、gVisor 或 microVM 由部署的 Controller 提供。
-生产还应设置 `CODE_SANDBOX_REQUIRE_TLS=true` 和 `CODE_SANDBOX_REQUIRE_AUTH=true`，避免 Controller
-通信意外使用明文或无认证模式。
-调用端已经覆盖的能力、当前默认行为以及尚未实现的 Controller 职责，见
-[远程沙箱调用实现状态](../../docs/remote-sandbox-call-implementation-status.md)。
+插件 `sandbox-js` 使用固定 `plugin-sandbox-js` 执行适配器。Go Worker 通过受 Command 租约和内部
+Bearer Token 保护的 `PLUGIN_ARTIFACT_RESOLVER_URL` 读取锁定版本 ESM，校验单文件 SHA-256 后，在
+独立临时目录中启动本地 Node.js 子进程执行。插件执行同样不提供强安全隔离，只适用于本地开发和
+受信任插件。
 
 第三方包从 `CODE_NODE_MODULES_PATH` 指定的目录加载；未配置时，Executor 会从自身启动目录逐级
 向上查找首个 `node_modules`。`CODE_NODE_BINARY` 可以覆盖默认的 `node` 命令。传给用户代码的

@@ -11,6 +11,7 @@ export interface ResolvedPluginCatalogVersion {
   readonly version: string
   readonly artifactDigest: string
   readonly manifest: PluginManifest
+  readonly grantedPermissions: readonly string[]
   readonly dependency: WorkflowPluginDependencyInput
 }
 
@@ -22,6 +23,8 @@ interface PluginVersionRecord {
   artifactReference: string | null
   artifactDigest: string
   artifactSize: number | null
+  grantedPermissions?: string[]
+  plugin?: { installations: Array<{ grantedPermissions: string[] }> }
 }
 
 @Injectable()
@@ -53,17 +56,15 @@ export class PluginCatalogService {
 
   async resolveEditorVersions(
     ownerId: string,
-    pluginLock: WorkflowPluginLock,
+    _pluginLock: WorkflowPluginLock,
   ): Promise<readonly ResolvedPluginCatalogVersion[]> {
-    const [installations, lockedVersions] = await Promise.all([
-      this.pluginRepository.listEnabledInstallations(ownerId),
-      this.resolveWorkflowVersions(ownerId, pluginLock),
-    ])
-    const lockedByPluginId = new Map(lockedVersions.map((version) => [version.pluginId, version]))
+    const installations = await this.pluginRepository.listEnabledInstallations(ownerId)
     const versions = installations.map((installation) => {
-      const locked = lockedByPluginId.get(installation.pluginId)
-      if (locked) return locked
-      return this.toResolvedVersion({ pluginId: installation.pluginId, ...installation.version })
+      return this.toResolvedVersion({
+        pluginId: installation.pluginId,
+        ...installation.version,
+        grantedPermissions: installation.grantedPermissions,
+      })
     })
 
     return versions.sort((left, right) => left.pluginId.localeCompare(right.pluginId))
@@ -89,6 +90,11 @@ export class PluginCatalogService {
       version: version.version,
       artifactDigest: version.artifactDigest,
       manifest: manifestResult.data,
+      grantedPermissions: Object.freeze([
+        ...(version.grantedPermissions ??
+          version.plugin?.installations[0]?.grantedPermissions ??
+          []),
+      ]),
       dependency: {
         pluginVersionId: version.id,
         manifest: manifestResult.data,

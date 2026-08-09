@@ -172,9 +172,10 @@ Sub Workflow 节点通过 `defineNodeUI(subWorkflowNode, SubWorkflowNodeContent)
 - `NodeIcon` 通过 `resolveNodeIconKind` 区分内置、插件与 unknown 三类图标：内置节点优先
   从 `NODE_ICONS` 渲染 Lucide 图标；插件节点在 `definition.icon` 为图片 URL、data URL 或常见
   图片扩展名时以 `<img>` 渲染；仅当内置映射与插件图片均不存在时回退 `unknown`。`NodeIconBadge`
-  统一封装画布 `NodeHeader` 与 `NodeSelectorNodeItem` 的图标容器：内置与 unknown 使用主题色或
-  `#94a3b8` 底 + `size-4` 图标，插件图标以 `size-full object-cover` 铺满 `size-6` 容器；插件
-  图片加载失败时回退 unknown 样式。
+  统一封装所有 HTML 工作流节点标识位的图标容器，包括画布 Header、节点选择器、配置面板、
+  下一步、检查清单和运行追踪：内置与 unknown 使用主题色或 `#94a3b8` 底 + `size-4` 图标，
+  插件图标以 `size-full object-cover` 铺满 `size-6` 容器，不得再套一层主题色底板；插件图片加载失败时
+  回退 unknown 样式。SVG MiniMap 不渲染 HTML `<img>`，必须在判定插件图片后使用 SVG `<image>`。
 - `AddNode` 通过可选的 `disabledNodeTypes` 接收调用方当前不可添加的节点类型集合；禁用项
   保留在搜索和列表结果中，使用原生 `disabled` 阻止选择，并展示禁用光标与透明度反馈。
   `AddNode` 需要由外部快捷键控制面板时，通过可选的 `open`、`onOpenChange` 使用受控模式；

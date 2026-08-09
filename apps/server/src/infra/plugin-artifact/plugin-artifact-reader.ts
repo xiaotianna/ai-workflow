@@ -4,6 +4,7 @@ import { gunzipSync } from 'node:zlib'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
 import { PluginArtifactStore } from './plugin-artifact-store'
+import { PluginPackageInspector } from './plugin-package-inspector'
 
 const TAR_BLOCK_SIZE = 512
 const MAX_UNPACKED_SIZE = 200 * 1024 * 1024
@@ -22,11 +23,32 @@ export interface PluginArtifactAsset {
 
 @Injectable()
 export class PluginArtifactReader {
-  constructor(private readonly artifactStore: PluginArtifactStore) {}
+  constructor(
+    private readonly artifactStore: PluginArtifactStore,
+    private readonly packageInspector: PluginPackageInspector,
+  ) {}
 
   async readAsset(artifactReference: string, assetPath: string): Promise<PluginArtifactAsset> {
     const normalizedPath = validateAssetPath(assetPath)
     const archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference))
+    return this.readAssetFromArchive(archive, normalizedPath)
+  }
+
+  async readVerifiedAsset(
+    artifactReference: string,
+    expectedArtifactDigest: string,
+    assetPath: string,
+  ): Promise<PluginArtifactAsset> {
+    const normalizedPath = validateAssetPath(assetPath)
+    const archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference))
+    const inspected = this.packageInspector.inspect(archive)
+    if (inspected.artifactDigest.toLowerCase() !== expectedArtifactDigest.toLowerCase()) {
+      throw new BadRequestException('插件包产物摘要与运行版本不匹配')
+    }
+    return this.readAssetFromArchive(archive, normalizedPath)
+  }
+
+  private readAssetFromArchive(archive: Buffer, normalizedPath: string): PluginArtifactAsset {
     const entry = this.readArchiveEntry(archive, normalizedPath)
 
     if (!entry) {

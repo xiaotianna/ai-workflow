@@ -1,0 +1,33 @@
+---
+title: 插件概览
+description: 了解 AI Workflow 插件 SDK、CLI 和运行时边界。
+---
+
+# 插件概览
+
+AI Workflow 插件允许第三方扩展节点定义、配置表单、画布内容、自定义节点 UI 和节点执行逻辑。
+插件开发由两个 workspace package 提供支持：
+
+- `@ai-workflow/plugin`：公共 SDK，负责描述插件，不负责构建、安装或运行。
+- `@ai-workflow/plugin-cli`：脚手架、检查、构建、打包和本地开发工具。
+
+## 插件可以包含什么
+
+| 能力     | 说明                                                   |
+| -------- | ------------------------------------------------------ |
+| Schema   | 使用可序列化 AST 描述节点配置数据                      |
+| Form     | 使用字段 DSL 组合宿主内置配置控件                      |
+| Content  | 自定义节点卡片的内容区域                               |
+| Renderer | 完整接管节点或配置表单的 React UI                      |
+| Executor | 使用 `defineExecutor()` 声明受信任的 `sandbox-js` 逻辑 |
+
+## 生命周期
+
+1. 插件源码默认导出 `defineConfig(...)` 配置。
+2. CLI 检查 package、配置、模块引用和宿主版本范围。
+3. Build 生成 Manifest、完整性信息和可选 Web/Executor Artifact。
+4. Pack 生成稳定 `.tgz` 与独立 SHA-256。
+5. Marketplace 在受控环境重新校验，平台绑定 UUID、版本与发布者。
+6. 工作流发布时锁定插件平台 UUID、版本与摘要，运行时按锁定制品解析。
+
+> 插件配置入口会在本地 CLI 进程中加载，因此只应对开发者主动构建的可信源码使用本地 CLI。

@@ -1,0 +1,49 @@
+---
+title: 插件快速开始
+description: 使用仓库内 CLI 创建、检查并打包第一个插件。
+---
+
+# 插件快速开始
+
+## 1. 创建插件
+
+在 AI Workflow 仓库根目录执行：
+
+```bash
+pnpm plugin:init ./examples/my-plugin
+```
+
+该命令默认创建 `basic` 模板，并自动使用当前 workspace 的 SDK 与 CLI。目标目录必须不存在或为空，
+生成流程不会覆盖非空目录。
+
+其他模板：
+
+```bash
+pnpm plugin:init ./examples/my-ui-plugin --template custom-ui
+pnpm plugin:init ./examples/my-executor-plugin --template executor
+```
+
+- `basic`：声明式 Schema 表单、静态端口，不包含执行逻辑。
+- `custom-ui`：增加 React 自定义 UI 与 `web:execute` 权限。
+- `executor`：增加 `defineExecutor()` 和 `sandbox-js` 声明。
+
+## 2. 安装与检查
+
+```bash
+cd examples/my-plugin
+pnpm install
+pnpm plugin:check
+```
+
+插件 package 的根 `exports["."]` 必须指向默认导出 `defineConfig(...)` 的入口。
+
+## 3. 开发与打包
+
+```bash
+pnpm plugin:dev
+pnpm plugin:build
+pnpm plugin:pack
+```
+
+`dev` 默认监听 `127.0.0.1:4174`，构建失败时会保留最后一次成功产物。`pack` 会重新执行确定性构建，
+然后生成用于 Marketplace 发布的 `.tgz` 和 SHA-256。

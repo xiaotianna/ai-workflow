@@ -62,7 +62,7 @@ export function PluginInstallationDialog({
           <DialogTitle>{updating ? `更新 ${plugin.title}` : `安装 ${plugin.title}`}</DialogTitle>
           <DialogDescription>
             {updating
-              ? `将从 v${plugin.installation?.version} 更新到 v${plugin.latestVersion.version}。更新只影响后续使用，已有工作流版本仍保留原插件版本。`
+              ? `将从 v${plugin.installation?.version} 更新到 v${plugin.latestVersion.version}。编辑中的工作流将使用新版本，已发布和历史版本不受影响。`
               : `即将安装 v${plugin.latestVersion.version}。请确认该版本需要的权限。`}
           </DialogDescription>
         </DialogHeader>

@@ -67,7 +67,7 @@ function createTsConfig(): string {
 function createReadme(context: PluginTemplateContext, options: CommonTemplateOptions): string {
   const executorNotice =
     options.template === 'executor'
-      ? '\n> 当前 Executor 只能由 CLI 构建，平台强沙箱落地前不能直接运行。\n'
+      ? '\n> Executor 产物由本地 Go Executor 的独立 Node.js 子进程运行，不提供不可信多租户安全隔离。\n'
       : ''
   const dependencyNotice = context.localDependencies
     ? '\n> 当前项目通过 `link:` 使用 AI Workflow 仓库中的本地 SDK 与 CLI，移动项目或仓库后需要重新生成链接路径。\n'

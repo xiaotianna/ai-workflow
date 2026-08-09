@@ -2,9 +2,15 @@ import { lazy } from 'react'
 import {
   BookMarked,
   BookOpenText,
+  Code2,
   Computer,
+  Download,
   FileText,
+  Lightbulb,
+  PackageOpen,
   Rocket,
+  ServerCog,
+  Sparkles,
   Target,
   Workflow,
   ScrollText,
@@ -37,6 +43,13 @@ const DocsPage = lazy(() => import('../pages/docs'))
 const DocsOverviewPage = lazy(() => import('../pages/docs/overview'))
 const DocsGettingStartedPage = lazy(() => import('../pages/docs/getting-started'))
 const DocsWorkflowBasicsPage = lazy(() => import('../pages/docs/workflow-basics'))
+const DocsDeploymentPage = lazy(() => import('../pages/docs/deployment'))
+const DocsProjectOverviewPage = lazy(() => import('../pages/docs/project-overview'))
+const DocsProjectHighlightsPage = lazy(() => import('../pages/docs/project-highlights'))
+const DocsProjectResumePage = lazy(() => import('../pages/docs/project-resume'))
+const DocsPluginOverviewPage = lazy(() => import('../pages/docs/plugin-overview'))
+const DocsPluginGettingStartedPage = lazy(() => import('../pages/docs/plugin-getting-started'))
+const DocsPluginDevelopmentPage = lazy(() => import('../pages/docs/plugin-development'))
 
 export const routes = [
   {
@@ -310,53 +323,274 @@ export const routes = [
     },
     children: [
       {
-        id: 'docs-overview',
+        id: 'docs-index',
         index: true,
-        element: (
-          <LazyLoad>
-            <DocsOverviewPage />
-          </LazyLoad>
-        ),
+        element: <Navigate to="/docs/ai-workflow" replace />,
         handle: {
           meta: {
-            title: '概览',
+            title: '文档',
             requiresAuth: false,
-            icon: BookOpenText,
-            navigationGroup: '开始',
           },
         },
       },
       {
-        id: 'docs-getting-started',
+        id: 'docs-ai-workflow',
+        path: 'ai-workflow',
+        handle: {
+          meta: {
+            title: 'AI Workflow',
+            requiresAuth: false,
+          },
+        },
+        children: [
+          {
+            id: 'docs-ai-workflow-overview',
+            index: true,
+            element: (
+              <LazyLoad>
+                <DocsOverviewPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '概览',
+                requiresAuth: false,
+                icon: BookOpenText,
+                navigationGroup: '开始',
+              },
+            },
+          },
+          {
+            id: 'docs-ai-workflow-getting-started',
+            path: 'getting-started',
+            element: (
+              <LazyLoad>
+                <DocsGettingStartedPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '快速开始',
+                requiresAuth: false,
+                icon: Rocket,
+                navigationGroup: '开始',
+              },
+            },
+          },
+          {
+            id: 'docs-ai-workflow-workflow-basics',
+            path: 'workflow-basics',
+            element: (
+              <LazyLoad>
+                <DocsWorkflowBasicsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '工作流基础',
+                requiresAuth: false,
+                icon: Workflow,
+                navigationGroup: '核心概念',
+              },
+            },
+          },
+          {
+            id: 'docs-ai-workflow-deployment',
+            path: 'deployment',
+            element: (
+              <LazyLoad>
+                <DocsDeploymentPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '部署指南',
+                requiresAuth: false,
+                icon: ServerCog,
+                navigationGroup: '运维',
+              },
+            },
+          },
+          {
+            id: 'docs-ai-workflow-fallback',
+            path: '*',
+            element: <Navigate to="/docs/ai-workflow" replace />,
+            handle: {
+              meta: {
+                title: 'AI Workflow',
+                requiresAuth: false,
+              },
+            },
+          },
+        ],
+      },
+      {
+        id: 'docs-project',
+        path: 'project',
+        handle: {
+          meta: {
+            title: '项目介绍',
+            requiresAuth: false,
+          },
+        },
+        children: [
+          {
+            id: 'docs-project-overview',
+            index: true,
+            element: (
+              <LazyLoad>
+                <DocsProjectOverviewPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '项目介绍',
+                requiresAuth: false,
+                icon: BookOpenText,
+                navigationGroup: '项目',
+              },
+            },
+          },
+          {
+            id: 'docs-project-highlights',
+            path: 'highlights',
+            element: (
+              <LazyLoad>
+                <DocsProjectHighlightsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '技术亮点',
+                requiresAuth: false,
+                icon: Lightbulb,
+                navigationGroup: '项目',
+              },
+            },
+          },
+          {
+            id: 'docs-project-resume',
+            path: 'resume',
+            element: (
+              <LazyLoad>
+                <DocsProjectResumePage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '简历表达',
+                requiresAuth: false,
+                icon: Sparkles,
+                navigationGroup: '面试',
+              },
+            },
+          },
+          {
+            id: 'docs-project-fallback',
+            path: '*',
+            element: <Navigate to="/docs/project" replace />,
+            handle: {
+              meta: {
+                title: '项目介绍',
+                requiresAuth: false,
+              },
+            },
+          },
+        ],
+      },
+      {
+        id: 'docs-plugin',
+        path: 'plugin',
+        handle: {
+          meta: {
+            title: '插件开发',
+            requiresAuth: false,
+          },
+        },
+        children: [
+          {
+            id: 'docs-plugin-overview',
+            index: true,
+            element: (
+              <LazyLoad>
+                <DocsPluginOverviewPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '插件概览',
+                requiresAuth: false,
+                icon: PackageOpen,
+                navigationGroup: '开始',
+              },
+            },
+          },
+          {
+            id: 'docs-plugin-getting-started',
+            path: 'getting-started',
+            element: (
+              <LazyLoad>
+                <DocsPluginGettingStartedPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '快速开始',
+                requiresAuth: false,
+                icon: Download,
+                navigationGroup: '开始',
+              },
+            },
+          },
+          {
+            id: 'docs-plugin-development',
+            path: 'development',
+            element: (
+              <LazyLoad>
+                <DocsPluginDevelopmentPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '开发与发布',
+                requiresAuth: false,
+                icon: Code2,
+                navigationGroup: '开发',
+              },
+            },
+          },
+          {
+            id: 'docs-plugin-fallback',
+            path: '*',
+            element: <Navigate to="/docs/plugin" replace />,
+            handle: {
+              meta: {
+                title: '插件开发',
+                requiresAuth: false,
+              },
+            },
+          },
+        ],
+      },
+      {
+        id: 'docs-legacy-getting-started',
         path: 'getting-started',
-        element: (
-          <LazyLoad>
-            <DocsGettingStartedPage />
-          </LazyLoad>
-        ),
+        element: <Navigate to="/docs/ai-workflow/getting-started" replace />,
         handle: {
           meta: {
             title: '快速开始',
             requiresAuth: false,
-            icon: Rocket,
-            navigationGroup: '开始',
           },
         },
       },
       {
-        id: 'docs-workflow-basics',
+        id: 'docs-legacy-workflow-basics',
         path: 'workflow-basics',
-        element: (
-          <LazyLoad>
-            <DocsWorkflowBasicsPage />
-          </LazyLoad>
-        ),
+        element: <Navigate to="/docs/ai-workflow/workflow-basics" replace />,
         handle: {
           meta: {
             title: '工作流基础',
             requiresAuth: false,
-            icon: Workflow,
-            navigationGroup: '核心概念',
           },
         },
       },

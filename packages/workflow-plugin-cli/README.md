@@ -167,4 +167,5 @@ SDK 的 TypeScript 源码入口；负责临时编译插件源码的 `esbuild` �
 ## 安全边界
 
 插件配置入口会在 CLI Node 进程中加载，所以本地 CLI 只应用于开发者主动构建的可信源码，它不是
-Marketplace 的安全执行环境。CLI 不调用 Executor；第三方 Executor 产物只能由后续独立强沙箱运行。
+Marketplace 的安全执行环境。CLI 不调用 Executor；Executor 产物由平台 `plugin-sandbox-js` 适配器
+交给 Go Executor 的独立 Node.js 子进程运行，禁止在 CLI、Server 或 Go Worker 主进程中直接 import。

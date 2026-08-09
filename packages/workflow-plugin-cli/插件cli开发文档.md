@@ -302,8 +302,8 @@ Web Remote 会导出稳定的模块名，并额外提供一个统一的 `pluginW
 `@ai-workflow/plugin` 不重复打进 Remote，而是保留为 external，由宿主提供共享实例。这样可以避免
 插件和宿主各自携带一份 React，造成上下文或 Hook 运行问题。
 
-Executor 只会被构建成文件，CLI 不会 `import` 或调用它。真正执行第三方 Executor，必须交给后续独立
-的强沙箱。
+Executor 只会被构建成文件，CLI 不会 `import` 或调用它。真正执行第三方 Executor，由 Go Executor
+在独立临时目录的 Node.js 子进程中完成。
 
 ### 5.6 计算完整性摘要
 
@@ -496,8 +496,8 @@ new PluginCliError('插件默认导出未通过 PluginConfig 校验', {
 - 充当 Marketplace 的安全沙箱；
 - 生成或接收平台插件 UUID、publisher 身份。
 
-它只负责从源码到标准产物。安装属于 Server/Web 插件运行时，Executor 执行属于独立强沙箱，平台发布
-还需要在受控环境中重新构建或校验；服务端发布接口使用当前认证用户作为作者。
+它只负责从源码到标准产物。安装属于 Server/Web 插件运行时，Executor 执行属于 Go Executor 的本地
+Node.js 子进程，平台发布还需要在受控环境中重新构建或校验；服务端发布接口使用当前认证用户作为作者。
 
 ## 12. 面试时可以直接这样讲
 

@@ -2,17 +2,17 @@
 
 ## 1. 文档状态
 
-- 状态：SDK、构建工具、Marketplace 发布/列表/安装已实现，工作流插件锁与执行阶段待实施
+- 状态：SDK、构建工具、Marketplace、工作流插件锁与本地进程执行已实现
 - 基线日期：2026-08-09
 - 适用范围：插件 SDK、插件构建工具、Workflow Core、Web 编辑器、Server、Runtime、Protocol 与 Executor
-- 目标：让第三方按照稳定公开规范开发工作流节点插件，并支持声明式节点、可选自定义节点 UI、可选完整自定义配置表单，以及后续的隔离执行能力
+- 目标：让第三方按照稳定公开规范开发工作流节点插件，并支持声明式节点、可选自定义节点 UI、可选完整自定义配置表单和本地插件执行
 
 本文描述目标架构，不表示仓库已经具备全部对应能力。当前 `packages/workflow-plugin` 已完成声明
 DSL、Schema AST 与编译器、源码配置和 manifest 契约，以及 `./ui`、`./executor` 公共入口；
 `packages/workflow-plugin-cli` 已实现 init、check、build、pack、dev、三套项目模板、ESM Web Remote
 与 Executor ESM 构建。Server 已接入 `.tgz` 校验、不可变版本发布、Marketplace 查询和用户安装，
-Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工作流插件锁、runtime catalog 和第三方执行
-仍待后续阶段实现。
+Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工作流插件锁、runtime catalog 和本地第三方
+执行链路也已接通。
 
 ## 2. 结论
 
@@ -23,8 +23,8 @@ Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工�
    `export default defineConfig(...)`。
 2. 构建工具读取默认导出并生成可序列化、可校验、可签名的 `plugin.manifest.json`。
 3. 只有声明自定义节点 UI 或自定义配置表单时，才生成 Web Remote。
-4. 只有声明第三方执行代码时，才生成 Executor ESM；该产物只能由独立强沙箱执行，不能被
-   NestJS、Go Worker 主进程或 Web 页面直接执行。
+4. 只有声明第三方执行代码时，才生成 Executor ESM；该产物由 Go Executor 启动的独立 Node.js
+   子进程执行，不能被 NestJS、Go Worker 主进程或 Web 页面直接 import。
 5. Workflow 草稿和不可变版本固定插件版本与产物摘要，保证历史版本可验证、可重放和可回滚。
 
 该设计直接复用现有的 `NodeRegistry`、`NodeUIRegistry`、`NodeConfigFields`、
@@ -43,7 +43,7 @@ Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工�
    不能引用 `apps/web/src` 内部文件。
 7. Web、Server、Runtime 和 Executor 对同一插件版本使用一致、不可变的 manifest。
 8. 未知插件、缺失版本、能力不兼容和 renderer 冲突都能在明确边界快速失败。
-9. 第三方执行代码默认按照 `untrusted-sandbox` 风险等级处理。
+9. 第三方执行代码默认路由到 `untrusted-sandbox` 执行类别，并使用独立 Node.js 子进程。
 
 ### 3.2 非目标
 
@@ -52,7 +52,7 @@ Web 已接入真实列表、搜索、筛选、权限确认与显式升级；工�
 - 第一阶段不允许插件覆盖 `start`、`end`、`llm`、`http` 等内置节点类型。
 - 第一阶段不支持任意 JavaScript schema refinement、transform 或服务端迁移函数。
 - 第一阶段不支持同一 Workflow 同时使用同一插件的多个版本。
-- 在强沙箱、产物签名和权限治理落地前，不宣称第三方 Executor 已具备生产安全边界。
+- 本地 Node.js 子进程不构成不可信多租户安全边界，只运行受信任插件。
 
 ## 4. 当前可复用能力与主要差距
 
@@ -103,7 +103,7 @@ flowchart LR
   Manifest --> WebRuntime["Web Plugin Runtime"]
   Manifest --> ServerRegistry["Server Plugin Registry"]
   WebRemote --> WebRuntime
-  ExecutorBundle --> Sandbox["Plugin Sandbox"]
+  ExecutorBundle --> PluginExecutor["Go Plugin Executor"]
 
   WebRuntime --> CoreRegistry["NodeRegistry"]
   WebRuntime --> UIRegistry["NodeUIRegistry"]
@@ -112,16 +112,16 @@ flowchart LR
   ServerRegistry --> Validation["保存、发布、执行前校验"]
   ServerRegistry --> Runtime["Runtime Config Projector"]
   Runtime --> Queue["Outbox / RabbitMQ"]
-  Queue --> Sandbox
+  Queue --> PluginExecutor
 ```
 
 ### 5.1 三种产物的信任边界
 
-| 产物                   | 内容                                                           | 消费方      | 信任边界                                   |
-| ---------------------- | -------------------------------------------------------------- | ----------- | ------------------------------------------ |
-| `plugin.manifest.json` | 元数据、节点定义、schema AST、form、端口、权限和 artifact 描述 | Web、Server | 纯数据，必须经过 schema 校验和摘要校验     |
-| Web Remote             | 自定义节点内容、完整节点 renderer、完整配置 renderer           | Web         | 与宿主同页面执行，属于特权代码             |
-| Executor ESM           | 第三方节点执行逻辑                                             | 强沙箱      | 不可信代码，不进入 Server 或 Worker 主进程 |
+| 产物                   | 内容                                                           | 消费方      | 信任边界                               |
+| ---------------------- | -------------------------------------------------------------- | ----------- | -------------------------------------- |
+| `plugin.manifest.json` | 元数据、节点定义、schema AST、form、端口、权限和 artifact 描述 | Web、Server | 纯数据，必须经过 schema 校验和摘要校验 |
+| Web Remote             | 自定义节点内容、完整节点 renderer、完整配置 renderer           | Web         | 与宿主同页面执行，属于特权代码         |
+| Executor ESM           | 第三方节点执行逻辑                                             | Node 子进程 | 不进入 Server 或 Go Worker 主进程      |
 
 声明式插件可以只有 manifest，不生成或加载任何第三方 JavaScript。
 
@@ -695,8 +695,8 @@ React 组件通过 `WorkflowPluginProvider` 使用 Runtime；非 React 工具函
 
 ### 14.3 加载时序
 
-1. Web 根据 Workflow ID 获取草稿和插件锁；
-2. 请求 Server 返回当前用户有权使用、且与插件锁精确匹配的 runtime catalog；
+1. Web 根据 Workflow ID 获取草稿和草稿上次保存的插件锁；
+2. 请求 Server 返回当前用户已启用安装版本的 runtime catalog；草稿旧锁不覆盖当前安装版本；
 3. 先解析全部 manifest 和兼容性；
 4. 只为需要自定义 UI 的插件加载 Web Remote；
 5. 创建并冻结 `WorkflowPluginRuntime`；
@@ -728,8 +728,8 @@ interface Workflow {
 - 第一次添加插件节点时写入对应 lock；
 - 同一 Workflow 第一版只允许同一插件出现一个版本；
 - 删除最后一个插件节点时可以移除草稿 lock，但不得影响历史 WorkflowVersion；
-- Marketplace 的“更新安装版本”不自动修改任何 Workflow；
-- 升级工作流插件必须是显式操作；
+- Marketplace 的“更新安装版本”不直接批量改写草稿，但编辑器下次加载时始终使用当前安装版本；
+- 草稿在下次保存、测试或发布时写入当前 Catalog 的精确插件锁；
 - 发布和测试运行创建的不可变 WorkflowVersion 保存精确 version 和 digest；
 - 恢复旧版本时同时恢复对应插件锁；
 - DSL 导出包含插件锁，但不包含插件 artifact 正文；
@@ -737,8 +737,9 @@ interface Workflow {
 - 插件缺失时工作流可只读展示，但不能执行；
 - 禁用安装只阻止新使用，不得破坏仍被发布版本引用的 artifact。
 
-配置迁移不能隐式发生在 Core schema parse 中。插件升级时由显式升级流程生成新草稿快照，并保留
-撤销能力；任意第三方迁移函数必须在独立沙箱执行，第一版可以直接不支持跨 schemaVersion 自动迁移。
+配置迁移不能隐式发生在 Core schema parse 中。编辑器加载新版 Catalog 后使用宿主通用的 schema 默认值和
+固定输出归一化；第一版不执行任意第三方迁移函数。当插件存在不兼容的 `schemaVersion` 变更时，
+编辑器必须显示校验问题并禁止使用旧配置发布，不得静默丢弃节点数据。
 
 ## 16. Server 与持久化
 
@@ -838,7 +839,7 @@ Server 不依赖 `@ai-workflow/ui`、`@ai-workflow/form`、`@ai-workflow/nodes-u
 
 - `http-action`：受控 HTTP Worker；
 - `model-action`：受控模型 Worker 和凭证网关；
-- `sandbox-js`：逐 Command 强沙箱；
+- `sandbox-js`：本地独立 Node.js 子进程；
 - 平台内部可信适配器：不属于 Marketplace 第三方 API。
 
 ### 18.2 逻辑节点类型与执行适配器
@@ -870,21 +871,17 @@ parser/validator 同步升级。
 
 ### 18.3 `sandbox-js`
 
-第三方 Executor ESM 只能由 Sandbox Controller 创建的逐 Command 沙箱运行：
+第三方 Executor ESM 由 Go Executor 在本地 Node.js 子进程中运行：
 
-- 非 root、只读根文件系统；
-- 独立临时目录、PID、CPU、内存、磁盘和时间限制；
-- 默认无平台内部网络；
-- 公网访问必须经过受控 Egress Proxy；
-- 禁止运行时 `npm install`；
-- artifact 通过固定 digest 下载并校验；
-- 不挂载宿主 workspace、共享 `node_modules`、Docker Socket 或 Service Account Token；
-- 租约失效和用户取消必须终止整个任务；
+- Server 按工作流插件锁解析 Artifact，并校验文件 SHA-256；
+- 每个 Command 使用独立临时目录、独立 Node.js 进程和最小化环境变量；
+- 租约失效和用户取消会终止整个进程组；
+- V8 Heap、调用栈、源码、输出和错误文本具有固定上限；
 - 输出只允许受限 JSON，不回传任意文件；
 - 日志不记录源码、Inputs、Config、凭证或输出正文。
 
-在 `docs/node-execution-isolation-implementation.md` 描述的 Sandbox Controller、生产远程后端和网络
-策略实际落地前，`sandbox-js` 只能标记为未支持，不能回退到 Go Worker 宿主进程或本地 Node 子进程。
+该模式只减少不同任务间的文件与进程状态干扰，不限制完整 Node.js 文件、网络和进程 API，因此不构成
+不可信多租户安全边界。当前只运行本地开发插件和受信任插件。
 
 ## 19. 安全与权限
 
@@ -894,7 +891,7 @@ parser/validator 同步升级。
 | -------------- | ----------------------------------------------- | ---------------- |
 | 声明式插件     | manifest、BaseNode、schema form、平台执行适配器 | 默认推荐         |
 | 自定义 UI 插件 | Web Remote                                      | 特权浏览器代码   |
-| 自定义执行插件 | Executor ESM                                    | 不可信沙箱代码   |
+| 自定义执行插件 | Executor ESM                                    | 受信任本地代码   |
 | 平台内部插件   | 受仓库代码审查的专属能力                        | 可信但仍最小权限 |
 
 ### 19.2 Web Remote
@@ -916,7 +913,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 - CSP 只允许平台插件资产来源；
 - 高权限插件需要签名和明确用户授权；
 - 插件不能读取其他插件 artifact；
-- runtime catalog 只返回当前用户、当前 Workflow、当前插件锁需要的版本；
+- 编辑器 runtime catalog 返回当前用户已启用的安装版本；不可变 WorkflowVersion 只解析自身精确锁；
 - 插件安装权限与 Workflow 运行时使用权限分别校验。
 
 ## 20. 插件安装、升级与卸载
@@ -928,7 +925,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
    artifact 校验在 runtime catalog 阶段补齐；
 3. 用户确认特权权限；
 4. 创建或更新 PluginInstallation；
-5. 安装只决定“允许新工作流使用的版本”，不自动修改现有草稿和版本。
+5. 安装决定编辑中工作流下次加载的版本，不批量改写草稿，也不修改已发布和历史版本。
 
 ### 20.2 升级
 
@@ -1012,17 +1009,14 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 
 完成标志：不包含第三方执行代码的插件可以通过平台受控 Worker 执行。
 
-### 阶段五：第三方沙箱执行
+### 阶段五：第三方本地进程执行（已实施）
 
-1. 完成远程 Sandbox Controller 和生产部署安全边界；
-2. 增加插件 executor artifact 下载、摘要校验和缓存；
-3. 增加 Protocol 新版本或正式的 executorType 方案；
-4. 增加租约取消、结果限制、稳定错误码和审计；
-5. 上线签名、权限和供应链扫描；
-6. 先私有插件灰度，再开放 Marketplace 第三方。
+1. 已增加受 Command 租约保护的插件 Executor Artifact 解析与文件摘要校验；
+2. 已增加 Protocol v2 `executorType` 与 `sandboxArtifact`，Worker 继续兼容 v1；
+3. 已使用独立 Node.js 子进程执行插件，并接入租约取消、结果限制、稳定错误码和基础任务日志；
+4. 后续只补充本地开发所需的缓存、指标和诊断，不建设远程执行服务。
 
-完成标志：插件代码不能读取 Worker/Server 文件和凭证，不能访问平台内网，资源、取消、重试和结果
-幂等均通过隔离执行验收。
+完成标志：受信任插件可以在本地完整执行，Command、取消、结果和摘要校验链路保持稳定。
 
 ## 23. MVP 范围建议
 
@@ -1037,10 +1031,10 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 - 可选 `node.custom: true` 和 `form.custom: true` Web Remote；
 - 复用 Form 内置字段和 Web Host Field Registry；
 - Workflow 保存插件版本锁；
-- 第三方执行先标记为不支持或只开放平台提供的声明式适配器；
-- 不开放异常分支以外的动态端口、任意迁移函数和宿主进程执行代码。
+- 第三方 Executor 通过本地独立 Node.js 子进程执行；
+- 不开放异常分支以外的动态端口、任意迁移函数和 Server/Go Worker 主进程执行代码。
 
-该范围能先验证 SDK、构建、manifest、注册表和自定义 UI 的主链路，又不会被尚未完成的强沙箱阻塞。
+该范围覆盖 SDK、构建、manifest、注册表、自定义 UI 和受信任插件本地执行主链路。
 
 ## 24. 验收标准
 
@@ -1077,7 +1071,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 
 - 未知逻辑 node type 或 executor type 不进入 fallback Queue；
 - 第三方代码只进入 `untrusted-sandbox`；
-- 强沙箱未配置时拒绝执行，不回退本地进程；
+- 插件在独立 Node.js 子进程运行，不进入 Server 或 Go Worker 主进程；
 - Command、Result、租约、Outbox/Inbox 和 RuntimeState 仍保持幂等语义；
 - 日志、错误、指标和 Trace 不包含源码、Inputs、Config、Output 或凭证正文。
 
@@ -1097,14 +1091,13 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 | `apps/server/src`                | PluginModule、runtime catalog、Registry 解析、权限和执行路由  |
 | `apps/server/prisma`             | Plugin、Version、Artifact、Installation 和 Workflow 引用投影  |
 | `apps/executor-go`               | 插件执行适配器、Profile 注册、sandbox artifact 调用           |
-| 部署与对象存储                   | 不可变插件资产、签名、CSP、Sandbox Controller 和网络策略      |
+| 部署与对象存储                   | 不可变插件资产、签名和 CSP                                    |
 
 ## 26. 相关文档
 
 - [远程组件动态加载方案](./remote-component-dynamic-loading.md)
 - [插件运行时目录重构方案](./plugin-runtime-catalog-refactor.md)
 - [节点分级隔离实现方案](./node-execution-isolation-implementation.md)
-- [远程沙箱调用实现状态](./remote-sandbox-call-implementation-status.md)
 - [Go 节点执行器架构](./go-node-executor-architecture.md)
 - [Runtime 与 Protocol 示例](./go-node-executor-runtime-protocol-examples.md)
 - [设计系统](./design-system.md)

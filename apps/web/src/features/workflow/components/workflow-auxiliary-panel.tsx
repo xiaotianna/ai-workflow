@@ -6,7 +6,7 @@ import {
 } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { VariableIcon } from '@ai-workflow/ui/components/variable-icon'
-import { getNodeThemeColor, NodeIcon } from '@ai-workflow/nodes-ui'
+import { NodeIconBadge } from '@ai-workflow/nodes-ui'
 import { ArrowRight, CircleCheck, X } from 'lucide-react'
 import type { ComponentType, ReactNode } from 'react'
 import { getWorkflowVariableDataTypeLabel } from '../utils/workflow-variable-presentation'
@@ -104,12 +104,11 @@ function CheckListPanelContent({ issues, onIssueSelect }: CheckListPanelContentP
             className="border-border/60 bg-background rounded-xl border-[0.5px] px-2 py-2 shadow-xs transition-shadow duration-200 ease-out focus-within:shadow-md hover:shadow-md motion-reduce:transition-none"
           >
             <div className="flex min-w-0 items-center px-1">
-              <span
-                className="text-primary-foreground flex size-6 shrink-0 items-center justify-center rounded-lg shadow-sm"
-                style={{ backgroundColor: getNodeThemeColor(node.nodeType) }}
-              >
-                <NodeIcon icon={definition?.icon} className="size-4" aria-hidden />
-              </span>
+              <NodeIconBadge
+                type={node.nodeType}
+                icon={definition?.icon}
+                className="rounded-lg shadow-sm"
+              />
               <span className="text-foreground ml-2 truncate text-sm font-semibold">
                 {node.nodeLabel}
               </span>

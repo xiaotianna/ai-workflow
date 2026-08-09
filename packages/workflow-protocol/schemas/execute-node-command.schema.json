@@ -19,14 +19,53 @@
     "inputs",
     "config"
   ],
+  "allOf": [
+    {
+      "if": {
+        "properties": { "protocolVersion": { "const": "2" } },
+        "required": ["protocolVersion"]
+      },
+      "then": {
+        "properties": {
+          "executorType": {}
+        },
+        "required": ["executorType"]
+      },
+      "else": {
+        "properties": {
+          "executorType": false,
+          "sandboxArtifact": false
+        }
+      }
+    }
+  ],
   "properties": {
-    "protocolVersion": { "const": "1" },
+    "protocolVersion": { "enum": ["1", "2"] },
     "commandId": { "type": "string", "minLength": 1 },
     "idempotencyKey": { "type": "string", "minLength": 1 },
     "runId": { "type": "string", "minLength": 1 },
     "nodeRunId": { "type": "string", "minLength": 1 },
     "nodeId": { "type": "string", "minLength": 1 },
     "nodeType": { "type": "string", "minLength": 1 },
+    "executorType": { "type": "string", "minLength": 1 },
+    "sandboxArtifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pluginVersionId", "artifactDigest", "artifactPath", "networkPolicy"],
+      "properties": {
+        "pluginVersionId": { "type": "string", "minLength": 1 },
+        "artifactDigest": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "artifactPath": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "pattern": "^[^/\\\\][^\\\\]*$",
+          "not": { "pattern": "(^|/)\\.\\.?(/|$)" }
+        },
+        "networkPolicy": { "enum": ["none", "public"] },
+        "errorHandlingField": { "type": "string", "minLength": 1 }
+      }
+    },
     "executionKey": { "type": "string", "minLength": 1 },
     "attempt": { "type": "integer", "minimum": 1 },
     "leaseToken": { "type": "string", "minLength": 1 },

@@ -17,7 +17,7 @@
         "activatedHandles"
       ],
       "properties": {
-        "protocolVersion": { "const": "1" },
+        "protocolVersion": { "enum": ["1", "2"] },
         "commandId": { "type": "string", "minLength": 1 },
         "nodeRunId": { "type": "string", "minLength": 1 },
         "executionKey": { "type": "string", "minLength": 1 },
@@ -49,7 +49,7 @@
         "error"
       ],
       "properties": {
-        "protocolVersion": { "const": "1" },
+        "protocolVersion": { "enum": ["1", "2"] },
         "commandId": { "type": "string", "minLength": 1 },
         "nodeRunId": { "type": "string", "minLength": 1 },
         "executionKey": { "type": "string", "minLength": 1 },

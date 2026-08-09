@@ -21,6 +21,7 @@ import (
 const defaultRabbitMQURL = "amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow"
 const defaultModelResolverURL = "http://127.0.0.1:3000/internal/executor/models/resolve"
 const defaultCommandLeaseURL = "http://127.0.0.1:3000/internal/executor/commands/lease"
+const defaultPluginArtifactResolverURL = "http://127.0.0.1:3000/internal/executor/plugin-artifacts/resolve"
 
 func main() {
 	logger := log.New(os.Stdout, "executor-go ", log.LstdFlags|log.LUTC)
@@ -39,6 +40,10 @@ func main() {
 		modelResolverURL = defaultModelResolverURL
 	}
 	internalAuthToken := os.Getenv("EXECUTOR_INTERNAL_AUTH_TOKEN")
+	pluginArtifactResolverURL := os.Getenv("PLUGIN_ARTIFACT_RESOLVER_URL")
+	if pluginArtifactResolverURL == "" {
+		pluginArtifactResolverURL = defaultPluginArtifactResolverURL
+	}
 	requireInternalAuth, err := environmentBool("EXECUTOR_REQUIRE_INTERNAL_AUTH")
 	if err != nil {
 		logger.Fatalf("executor internal auth configuration invalid: %v", err)
@@ -51,6 +56,7 @@ func main() {
 		profile,
 		logger,
 		modelResolverURL,
+		pluginArtifactResolverURL,
 		internalAuthToken,
 	); err != nil {
 		logger.Fatalf("executor profile registration failed: %v", err)

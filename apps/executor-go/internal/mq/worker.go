@@ -285,18 +285,23 @@ func (worker *Worker) executeCommand(
 		return commandExecutionOutcome{discard: true}
 	}
 
-	nodeExecutor, ok := worker.registry.Resolve(command.NodeType)
+	executorType := command.NodeType
+	if command.ProtocolVersion == "2" {
+		executorType = command.ExecutorType
+	}
+	nodeExecutor, ok := worker.registry.Resolve(executorType)
 	if !ok {
 		code := "NODE_EXECUTOR_NOT_REGISTERED"
-		message := fmt.Sprintf("节点类型 %s 没有注册执行器", command.NodeType)
+		message := fmt.Sprintf("执行适配器 %s 没有注册", executorType)
 		if worker.profile != executorprofile.Legacy.String() {
 			code = "EXECUTOR_PROFILE_MISMATCH"
-			message = fmt.Sprintf("节点类型 %s 不属于 Executor Profile %s", command.NodeType, worker.profile)
+			message = fmt.Sprintf("执行适配器 %s 不属于 Executor Profile %s", executorType, worker.profile)
 			worker.logger.Printf(
-				"executor profile mismatch profile=%s commandId=%s nodeType=%s",
+				"executor profile mismatch profile=%s commandId=%s nodeType=%s executorType=%s",
 				worker.profile,
 				command.CommandID,
 				command.NodeType,
+				executorType,
 			)
 		}
 		return commandExecutionOutcome{result: protocol.NewFailedResult(

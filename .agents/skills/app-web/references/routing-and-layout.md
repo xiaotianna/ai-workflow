@@ -19,9 +19,12 @@
 - `/knowledge-base/:id` 与 `/app/:id` 同级，为知识库详情布局；子路由包含 `documents` 和 `recall-test`，索引路由重定向到 `documents`。
 - `/share/api/:shareToken` 位于 `/` 鉴权路由树之外，通过公开接口校验分享状态后只展示应用 API
   文档正文；该路由不得挂载应用详情 Header、侧栏或读取用户登录会话。
-- `/docs` 位于 `/` 鉴权路由树之外，是公开的 Wiki 式文档布局；父路由保留 `Outlet`，当前子路由
-  包含概览、快速开始和工作流基础。左侧菜单从子路由 `handle.meta` 的标题、图标与分组派生，
-  MDX 内容来自 `apps/web/content/docs`，组件映射统一通过 `src/components/mdx.tsx` 提供。
+- `/docs` 位于 `/` 鉴权路由树之外，是公开的 Wiki 式文档布局；父路由保留 `Outlet`，并按
+  `/docs/ai-workflow`、`/docs/project`、`/docs/plugin` 划分平台部署与使用、项目面试材料、插件开发
+  三个文档空间。`/docs` 默认重定向到 `/docs/ai-workflow`，旧的快速开始与工作流基础路径保留兼容
+  重定向。桌面侧栏和移动端 Header 共用 `DocsProjectSwitcher` 切换文档空间；当前空间的菜单从对应
+  项目子路由 `handle.meta` 的标题、图标与分组派生。MDX 内容来自 `apps/web/content/docs`，组件映射
+  统一通过 `src/components/mdx.tsx` 提供。
 - 页面使用 React `lazy`，由 `LazyLoad` 统一提供 Suspense fallback。
 - 路由 `handle.meta` 保存标题、鉴权标记和导航图标；侧栏从路由配置派生导航。
 - `/auth` 仅允许未登录访问；已登录访问时重定向到 `/`。登录成功也统一重定向到 `/`，
@@ -42,7 +45,10 @@
 ## 布局规则
 
 - 页面只负责自身内容，不重复创建全局侧栏或根级加载遮罩。
-- 首页布局在页面中直接组合 `LayoutSidebar`；应用与知识库详情页复用 `DetailLayout`，统一使用 `h-svh overflow-hidden p-1` 的外层容器，主内容区使用 `min-h-0 overflow-auto`，确保共享侧栏及底部账户菜单在路由切换时保持相同位置。
+- 首页布局在页面中直接组合 `LayoutSidebar`；应用与知识库详情页复用 `DetailLayout`，统一使用
+  `h-svh overflow-hidden p-1` 的外层容器，主内容区使用 `min-h-0 overflow-auto`，确保共享侧栏及
+  底部账户菜单、帮助文档菜单在路由切换时保持相同位置。帮助菜单在新窗口打开工作流文档、插件
+  文档和项目亮点文档。
 - 详情页导航项通过 `router/navigation` 的 `getNavigationItemsFromRoute` 从子路由 `handle.meta` 派生，不在页面中复制导航配置。
 - 主布局保持 `min-w-0` 和可滚动内容区域，避免子页面撑破横向布局。
 - 页面级空态、错误态和局部加载态靠近数据消费区域；只有路由代码块加载使用全页 `LazyLoad`。

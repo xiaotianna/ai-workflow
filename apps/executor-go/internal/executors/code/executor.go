@@ -21,7 +21,7 @@ type Executor struct {
 }
 
 func New(logger *log.Logger) (*Executor, error) {
-	runner, err := newCodeRunnerFromEnvironment()
+	runner, err := newNodeJSProcessRunner()
 	if err != nil {
 		return nil, err
 	}
@@ -47,10 +47,8 @@ func (nodeExecutor *Executor) Execute(
 	}
 
 	outputs, failure := nodeExecutor.runner.Execute(ctx, codeExecutionRequest{
-		CommandID:  command.CommandID,
-		DeadlineAt: command.DeadlineAt,
-		Source:     config.Code,
-		Inputs:     command.Inputs,
+		Source: config.Code,
+		Inputs: command.Inputs,
 	})
 	if failure != nil {
 		return executor.ApplyFailure(

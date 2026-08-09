@@ -8,7 +8,10 @@ import {
   type Workflow,
   type WorkflowPluginLock,
 } from '@ai-workflow/core'
-import { createNodeTypesFromPluginManifest } from '@ai-workflow/plugin'
+import {
+  createNodeTypesFromPluginManifest,
+  getPluginErrorHandlingFieldName,
+} from '@ai-workflow/plugin'
 import {
   projectConditionNodeConfig,
   projectHttpNodeConfig,
@@ -184,14 +187,51 @@ export class WorkflowCatalogResolver {
     const executionRegistry = new WorkflowExecutionRegistry([
       ...BUILTIN_EXECUTION_REGISTRATIONS,
       ...resolvedPlugins.flatMap((plugin) =>
-        plugin.manifest.nodes.map((node) => ({
-          nodeType: node.type,
-          kind: 'unsupported' as const,
-          reason:
-            node.execution.kind === 'sandbox-js'
-              ? `插件节点 ${node.label} 尚未接入独立沙箱执行器`
-              : `插件节点 ${node.label} 未声明服务端执行能力`,
-        })),
+        plugin.manifest.nodes.map((node): WorkflowNodeExecutionRegistration => {
+          if (node.execution.kind !== 'sandbox-js') {
+            return {
+              nodeType: node.type,
+              kind: 'unsupported',
+              reason: `插件节点 ${node.label} 未声明服务端执行能力`,
+            }
+          }
+          const missingPermissions = plugin.manifest.permissions.filter(
+            (permission) => !plugin.grantedPermissions.includes(permission),
+          )
+          if (missingPermissions.length > 0) {
+            return {
+              nodeType: node.type,
+              kind: 'unsupported',
+              reason: `插件节点 ${node.label} 缺少执行授权：${missingPermissions.join('、')}`,
+            }
+          }
+          if (plugin.manifest.permissions.includes('secrets:read')) {
+            return {
+              nodeType: node.type,
+              kind: 'unsupported',
+              reason: `插件节点 ${node.label} 的密钥代理尚未配置`,
+            }
+          }
+          const requestsPublicNetwork = plugin.manifest.permissions.includes('network:public')
+          return {
+            nodeType: node.type,
+            kind: 'executor',
+            executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
+            classifiedRoutingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
+            executorType: 'plugin-sandbox-js',
+            sandboxArtifact: {
+              pluginVersionId: plugin.versionId,
+              artifactDigest: plugin.artifactDigest,
+              artifactPath: node.execution.artifact,
+              networkPolicy: requestsPublicNetwork ? 'public' : 'none',
+              ...(getPluginErrorHandlingFieldName(node.form)
+                ? {
+                    errorHandlingField: getPluginErrorHandlingFieldName(node.form),
+                  }
+                : {}),
+            },
+          }
+        }),
       ),
     ])
 

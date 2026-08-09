@@ -1,0 +1,54 @@
+---
+title: 技术亮点
+description: 面试时值得展开讲解的工程难点与设计取舍。
+---
+
+# 技术亮点
+
+面试时不要只罗列技术名词，应围绕“问题、约束、方案、结果”解释设计。下面这些主题都能在仓库中找到
+对应实现和架构文档。
+
+## 1. 可恢复的工作流运行时
+
+Runtime 被设计为纯状态机：输入当前 Workflow 与 RuntimeState，输出新状态和 Effect。数据库事务、
+RabbitMQ 和节点副作用由 NestJS 宿主接管。这样可以持久化 revision，在进程重启或消息重投后继续推进，
+并避免把调度逻辑散落在 Controller、Repository 和 Worker 中。
+
+可重点说明：执行计划索引、变量解析、Ready/Skipped 状态、CAS revision 与状态恢复校验。
+
+## 2. 跨语言协议与单一事实来源
+
+TypeScript 调度层与 Go Executor 不共享进程，也不直接共享语言类型。项目使用版本化 JSON Schema 定义
+Command/Result，并在两端校验；Core 负责静态工作流契约，Protocol 负责运行消息边界。
+
+可重点说明：为什么不让 Go 直接解释完整 Workflow，以及协议升级如何保持向后兼容。
+
+## 3. Outbox/Inbox 与幂等执行
+
+Server 在同一事务中写入 RuntimeState、NodeRun 和 Outbox，再由 Publisher 可靠投递。消费 Result 时
+使用 Inbox 与运行 revision 防止重复消息推进两次。执行路由在创建 Command 时固化，重试不会因为配置
+变化漂移到另一个 Worker。
+
+可重点说明：数据库提交成功但 MQ 发布失败、Result 重复投递、消费者重启这三类故障如何处理。
+
+## 4. 分级 Executor 隔离
+
+节点按 compute、model、http、sandbox 等 Profile 进入不同 Queue；每个 Go Worker 的 Registry 只注册
+对应能力。队列隔离与执行器白名单同时生效，错投节点会返回稳定错误，不会静默回退。
+
+可重点说明：资源隔离、网络策略、最小权限，以及为什么 Node.js 子进程不等于不可信代码沙箱。
+
+## 5. 可序列化插件 DSL
+
+插件 SDK 不把 Zod 对象、React Element 或函数写入 Manifest，而是使用可序列化 Schema AST、字段 DSL
+和模块引用。Web、Server 与 CLI 可以从同一份 Manifest 确定性重建校验和节点定义；自定义 UI 与
+Executor 作为独立 Artifact 构建并做完整性校验。
+
+可重点说明：宿主版本范围、权限声明、插件版本锁和 SHA-256 digest 如何一起保证可复现性。
+
+## 6. Schema 驱动的编辑体验
+
+节点定义、端口、配置表单和运行前校验共享领域契约。前端只组合字段 renderer 与宿主资源选择器，
+避免每种节点各写一套不可复用的表单状态和校验逻辑。
+
+可重点说明：静态校验与运行时动态校验的边界，以及为什么校验必须只有一个所有者。

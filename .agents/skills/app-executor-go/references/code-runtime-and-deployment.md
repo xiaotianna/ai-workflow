@@ -19,20 +19,14 @@
 
 ## 执行隔离
 
-- Code Executor 通过 `CODE_SANDBOX_BACKEND=process|remote` 选择执行后端；未配置时默认为
-  `process`，保持现有本地行为
+- Code Executor 固定在 Worker 内启动本地 Node.js 子进程，不依赖外部 Sandbox Controller
 - 每次 Code 节点运行都使用唯一临时目录、独立 Node 进程、独立 ESM 模块命名空间和独立输入输出文件
 - 内部导出名 `__aiWorkflowMain_6f7dd58d` 只存在于单次执行的用户模块命名空间，不会因并发用户共用名称而互相覆盖
 - 临时目录和独立进程解决执行文件与模块状态冲突，但不构成不可信多租户的强安全边界
 - 完整 Node 能力允许用户代码访问 Executor 容器内的文件、网络和进程 API，真正的安全边界是容器、运行用户和基础设施策略
-- 不可信多租户场景需要按任务或租户提供更强的容器或虚拟化隔离，不能只依赖 `runner.mjs`
-- `remote` 后端要求配置完整的 `CODE_SANDBOX_CONTROLLER_URL`，使用 `commandId` 作为幂等键，并限制
-  Controller 响应大小和结构；`CODE_SANDBOX_CONTROLLER_TOKEN` 可附加 Bearer Token
-- `CODE_SANDBOX_REQUIRE_REMOTE=true` 用于生产启动保护，配置为 `process` 时 Executor 必须拒绝启动
-- 生产远程后端同时设置 `CODE_SANDBOX_REQUIRE_TLS=true` 和 `CODE_SANDBOX_REQUIRE_AUTH=true`，禁止
-  明文或无认证 Controller 连接
-- 仓库内的远程后端只是 Worker 与 Controller 的边界，不等于 Controller 已经提供逐任务容器、gVisor
-  或 microVM；部署验收必须验证实际 Controller 的隔离能力
+- 本地进程模式只适用于本地开发和受信任代码，不应宣称具备不可信多租户安全边界
+- 插件 `sandbox-js` 同样使用独立临时目录和 Node.js 子进程；插件 Artifact 通过受租约保护的内部接口
+  读取并校验文件 SHA-256
 
 ## Worker Profile
 
@@ -58,8 +52,7 @@
 6. 临时目录可写且每次执行后能够清理
 7. 配置容器级 CPU、内存和 PID 限制
 8. 配置最小网络权限且不向用户代码暴露 Server、数据库或模型凭证
-9. 生产 Sandbox Profile 设置 `CODE_SANDBOX_BACKEND=remote` 和
-   `CODE_SANDBOX_REQUIRE_REMOTE=true`
+9. 只运行受信任的 Code 和插件源码，并明确本地子进程不提供多租户强隔离
 
 ## Command 租约
 

@@ -131,13 +131,19 @@ export function PluginMarketplaceHeader({
             <Upload className="size-4 shrink-0" />
           </Button>
           <Button
-            type="button"
+            asChild
             variant="ghost"
             size="icon-sm"
-            aria-label="申请或发布"
             className="text-muted-foreground hover:text-foreground size-8"
           >
-            <BookOpen className="size-4 shrink-0" />
+            <Link
+              to="/docs/plugin"
+              target="_blank"
+              rel="noreferrer"
+              aria-label="在新窗口查看插件文档"
+            >
+              <BookOpen className="size-4 shrink-0" />
+            </Link>
           </Button>
         </div>
       </div>
