@@ -1,4 +1,4 @@
-import { defineNode, pluginSchema as s } from '@ai-workflow/plugin'
+import { defineNode, field, pluginSchema as s } from '@ai-workflow/plugin'
 
 export const visualBuilderNode = defineNode({
   key: 'visual-builder',
@@ -14,6 +14,7 @@ export const visualBuilderNode = defineNode({
       secondaryColor: s.string({ minLength: 4 }),
       showGrid: s.boolean(),
       caption: s.string({ minLength: 1 }),
+      errorHandling: s.errorHandling(),
     }),
     initial: {
       theme: 'aurora',
@@ -21,8 +22,14 @@ export const visualBuilderNode = defineNode({
       secondaryColor: '#ec4899',
       showGrid: true,
       caption: '拖拽变量或调整主题，预览会实时更新',
+      errorHandling: { mode: 'none' },
     },
-    form: {},
+    form: {
+      errorHandling: field.errorHandling({
+        label: '异常处理',
+        required: true,
+      }),
+    },
   },
 
   ports: {

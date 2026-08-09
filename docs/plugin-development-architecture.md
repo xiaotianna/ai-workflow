@@ -398,9 +398,13 @@ type PluginFormUI =
 - 不直接修改 Workflow、Edge、端口或持久化状态；
 - 不通过自定义 UI 绕过 Core schema。
 
-第一版插件只使用静态端口和静态初始配置。动态端口需要先设计可序列化的安全规则 DSL，不能把
-第三方 `resolvePorts()` 函数加载进 Server。确有需要时可先作为受信任平台插件能力，不直接开放给
-Marketplace 第三方。
+插件普通端口和初始配置保持静态，不能把第三方 `resolvePorts()` 函数加载进 Server。异常处理是
+当前唯一开放给 Marketplace 的宿主确定性动态端口能力：插件使用
+`pluginSchema.errorHandling()` 与同名 `field.errorHandling()` 声明配置，宿主通过 Core
+`resolveErrorHandlingPorts()` 在 `error_branch` 模式生成保留的 `error` 输出端口。启用该能力的
+插件不得静态声明同名端口，也不得提供自定义端口派生函数；未声明异常处理字段的 `1.0.0` 历史
+Manifest 仍兼容已有静态 `error` 输出，但它不会触发宿主异常处理 UI。其他动态端口仍需先设计
+可序列化的安全规则 DSL。
 
 ## 11. 宿主字段能力
 
@@ -416,7 +420,7 @@ interface WorkflowHostFieldRegistry {
 }
 ```
 
-Web 初始化时注册：
+Web 初始化时把当前 Catalog 的字段 renderer 注册进 `HostFieldProvider`，其中应用数据字段包括：
 
 ```ts
 hostFieldRegistry.register(FIELD_UI_TYPES.LLM_MODEL, LlmModelField)
@@ -967,7 +971,7 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 2. 新增 `packages/workflow-plugin-cli`；
 3. 实现 `defineConfig`、`defineNode`、`pluginSchema` 和 manifest Zod schema；
 4. 实现 `exports["."]`、默认导出、check、build、pack；
-5. 支持静态端口、静态初始配置和 schema form；
+5. 支持普通静态端口、静态初始配置、schema form，以及宿主确定性的异常分支动态端口；
 6. 支持生成可选 Web Remote；
 7. 为两个 package 更新 package 技能文档和公开 API 说明。
 
@@ -1027,14 +1031,14 @@ React Context、BaseNode 和 Form 组件，属于另一种能力，不应伪装�
 - 默认导出 `defineConfig`；
 - `exports["."]` 是唯一配置入口；
 - 可序列化 Schema DSL；
-- 静态端口和静态初始配置；
+- 普通静态端口、静态初始配置和宿主确定性的异常分支动态端口；
 - `node.custom: false` 完整可用；
 - 可选自定义 content；
 - 可选 `node.custom: true` 和 `form.custom: true` Web Remote；
 - 复用 Form 内置字段和 Web Host Field Registry；
 - Workflow 保存插件版本锁；
 - 第三方执行先标记为不支持或只开放平台提供的声明式适配器；
-- 不开放动态端口、任意迁移函数和宿主进程执行代码。
+- 不开放异常分支以外的动态端口、任意迁移函数和宿主进程执行代码。
 
 该范围能先验证 SDK、构建、manifest、注册表和自定义 UI 的主链路，又不会被尚未完成的强沙箱阻塞。
 

@@ -91,9 +91,15 @@ export function HostField<TValue = unknown>({
 }
 
 export function createWorkflowHostFieldRegistry(
-  renderers: Readonly<Record<string, PluginHostFieldRenderer>>,
+  renderers: Readonly<Record<string, PluginHostFieldRenderer | undefined>>,
 ): WorkflowHostFieldRegistry {
-  const entries = Object.freeze({ ...renderers })
+  const entries = Object.freeze(
+    Object.fromEntries(
+      Object.entries(renderers).filter(
+        (entry): entry is [string, PluginHostFieldRenderer] => entry[1] !== undefined,
+      ),
+    ),
+  )
 
   return Object.freeze({
     has: (type: string) => entries[type] !== undefined,

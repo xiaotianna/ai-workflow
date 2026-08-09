@@ -8,6 +8,11 @@ import {
   type WorkflowPluginLockItem,
 } from '@ai-workflow/core'
 import { createNodeTypesFromPluginManifest, pluginManifestSchema } from '@ai-workflow/plugin'
+import {
+  createWorkflowHostFieldRegistry,
+  HostFieldProvider,
+  type WorkflowHostFieldRegistry,
+} from '@ai-workflow/plugin/ui'
 import { builtinFields } from '@ai-workflow/form'
 import type { NodeConfigFieldRendererMap } from '@ai-workflow/form/components/node-config-fields'
 import {
@@ -28,6 +33,7 @@ export interface WorkflowWebCatalog {
   readonly nodeRegistry: WorkflowNodeCatalog['nodeRegistry']
   readonly nodeUIRegistry: NodeUIRegistryReader
   readonly fieldRenderers: NodeConfigFieldRendererMap
+  readonly hostFieldRegistry: WorkflowHostFieldRegistry
   readonly configRenderers: NodeConfigRendererMap
 }
 
@@ -48,6 +54,8 @@ export function createWorkflowWebCatalog({
   pluginLockByNodeType = new Map(),
   pluginGroupLabelByNodeType = new Map(),
 }: CreateWorkflowWebCatalogOptions): WorkflowWebCatalog {
+  const resolvedFieldRenderers = Object.freeze({ ...fieldRenderers })
+
   return Object.freeze({
     fingerprint: coreCatalog.fingerprint,
     pluginLock: coreCatalog.pluginLock,
@@ -55,7 +63,8 @@ export function createWorkflowWebCatalog({
     pluginGroupLabelByNodeType,
     nodeRegistry: coreCatalog.nodeRegistry,
     nodeUIRegistry,
-    fieldRenderers: Object.freeze({ ...fieldRenderers }),
+    fieldRenderers: resolvedFieldRenderers,
+    hostFieldRegistry: createWorkflowHostFieldRegistry(resolvedFieldRenderers),
     configRenderers: Object.freeze({ ...configRenderers }),
   })
 }
@@ -131,7 +140,9 @@ export function WorkflowCatalogProvider({
   children: ReactNode
 }) {
   return (
-    <WorkflowCatalogContext.Provider value={catalog}>{children}</WorkflowCatalogContext.Provider>
+    <WorkflowCatalogContext.Provider value={catalog}>
+      <HostFieldProvider registry={catalog.hostFieldRegistry}>{children}</HostFieldProvider>
+    </WorkflowCatalogContext.Provider>
   )
 }
 

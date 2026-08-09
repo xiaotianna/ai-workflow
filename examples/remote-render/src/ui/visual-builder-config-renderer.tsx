@@ -1,13 +1,20 @@
-import { useFormData, type PluginConfigRendererProps } from '@ai-workflow/plugin/ui'
+import {
+  HostField,
+  PLUGIN_FIELD_UI_TYPES,
+  useFormData,
+  type ErrorHandling,
+  type PluginConfigRendererProps,
+} from '@ai-workflow/plugin/ui'
 
 import { GradientBadge, PreviewPanel, cn } from '../components/visual-kit'
 
-interface VisualBuilderConfig {
+type VisualBuilderConfig = Record<string, unknown> & {
   readonly theme: 'aurora' | 'sunset' | 'forest' | 'mono'
   readonly primaryColor: string
   readonly secondaryColor: string
   readonly showGrid: boolean
   readonly caption: string
+  readonly errorHandling: ErrorHandling
 }
 
 const THEME_OPTIONS = [
@@ -143,6 +150,18 @@ export default function VisualBuilderConfigRenderer({
           />
           {errors.caption ? <p className="text-destructive text-xs">{errors.caption}</p> : null}
         </div>
+
+        <HostField<ErrorHandling>
+          type={PLUGIN_FIELD_UI_TYPES.ERROR_HANDLING}
+          name="errorHandling"
+          label="异常处理"
+          required
+          value={form.errorHandling}
+          error={errors.errorHandling}
+          errors={errors}
+          disabled={disabled}
+          onChange={(value) => updateField('errorHandling', value ?? { mode: 'none' })}
+        />
 
         {availableVariables.length > 0 ? (
           <div className="space-y-2">

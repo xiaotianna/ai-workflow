@@ -120,6 +120,9 @@ Nodes UI 保持 schema 和组件类型关联。
   `default_value` 和 `error_branch`；字段缺省时由 schema 补为 `none`。默认值模式保存经过
   `jsonValueSchema` 校验的可序列化 JSON；异常分支模式通过统一 `resolveErrorHandlingPorts`
   在原输出端口之外增加稳定且允许多条连线的 `error` 输出端口，切换到其他模式后该端口不再存在。
+  插件 SDK 的 `pluginSchema.errorHandling()` 直接编译为同一 Core Schema；Manifest 编译节点类型时
+  通过同一 `resolveErrorHandlingPorts` 派生端口，不允许启用该动态能力的插件复制异常模式或静态
+  声明 `error` 端口；未启用该能力的 `1.0.0` 历史 Manifest 继续兼容已有静态端口。
 - `NodeType.configRenderer` 为确实无法按顶层配置字段拆分的完整表单声明专属 renderer 名称；
   可按单个配置键表达的复杂控件应先形成字段 UI 类型并进入 `NodeType.form`。Core 只通过
   `NODE_CONFIG_RENDERER_TYPES` 保存字符串契约，整节点 React renderer 与内置注册表属于

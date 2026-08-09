@@ -27,7 +27,7 @@ export const fullShellNode = defineNode({
     },
     outputs: {
       out: { label: '输出' },
-      error: { label: '异常', dataType: 'json' },
+      fallback: { label: '备用输出', dataType: 'json' },
     },
   },
 

@@ -33,13 +33,15 @@ import {
 
 - `defineConfig`、`defineNode` 只返回原对象，不执行校验、日志、环境读取或文件访问。
 - `pluginSchema` 只生成纯数据 AST；支持 object、array、string、number、boolean、literal、enum、
-  union、optional、nullable、default、JSON、VariableValue、DataType 和资源引用。
+  union、optional、nullable、default、JSON、ErrorHandling、VariableValue、DataType 和资源引用。
 - `field` 覆盖文本、数字、文本域、选择、开关、滑块、代码编辑器、键值表、请求体、条件规则、
   条件分支、上下文消息和异常处理等 Form 内置 renderer；LLM、知识库、子工作流等应用数据字段
   必须使用 `field.host()`。
 - `compilePluginSchemaToZod()` 是 Web、Server 和 CLI 重建业务校验规则的统一入口。
-- `createNodeTypesFromPluginManifest()` 将已校验 Manifest 的静态 schema、definition、form、端口、
-  固定输出和初始配置编译为 Core `NodeType`；它不加载 Remote UI，也不执行第三方代码。
+- `createNodeTypesFromPluginManifest()` 将已校验 Manifest 的 schema、definition、form、端口、
+  固定输出和初始配置编译为 Core `NodeType`；声明 `pluginSchema.errorHandling()` 与
+  `field.errorHandling()` 时，额外使用宿主可信规则按模式派生稳定 `error` 端口。它不加载
+  Remote UI，也不执行第三方代码。
 - `PLUGIN_HOST_VERSION` 是 Manifest `hostVersionRange` 的当前兼容版本基线，调整宿主插件契约时必须
   显式升级，不得复用 Core Catalog fingerprint 版本充当 SemVer。
 - `pluginConfigSchema` 校验插件源码默认导出的配置，包含初始配置、form 顶层字段、重复节点 Key、
@@ -47,7 +49,11 @@ import {
   宿主 SemVer 版本范围，不用于选择节点执行器。
 - `pluginManifestSchema` 校验构建后的纯数据 manifest，并校验节点 type 必须由
   `plugin:<package-name>/<node-key>` 生成。Manifest 不承载平台 UUID 或上传作者。
-- 节点配置 schema 顶层必须是 object；第一阶段只支持静态初始配置和静态端口。
+- 节点配置 schema 顶层必须是 object；初始配置保持静态，普通端口保持静态。异常处理是当前唯一
+  允许的宿主确定性动态端口能力：每个节点最多声明一个异常处理字段，Schema 与 Form 必须同名
+  配对；启用该能力的节点不得再静态声明宿主保留的 `error` 输出端口。为兼容 `1.0.0` 历史
+  Manifest，未声明异常处理字段的节点仍可保留已有的静态 `error` 输出，但 Web 不将它展示为
+  宿主异常处理分组。
 
 React 能力只从 `./ui` 使用：
 
@@ -59,7 +65,9 @@ import {
   HostVariablePicker,
   NodeContentItem,
   NodeContentList,
+  PLUGIN_FIELD_UI_TYPES,
   createWorkflowHostFieldRegistry,
+  type ErrorHandling,
   type PluginConfigRendererProps,
   type PluginNodeContentProps,
   type PluginNodeRendererProps,
@@ -67,9 +75,10 @@ import {
 } from '@ai-workflow/plugin/ui'
 ```
 
-`HostField` 只通过 `WorkflowHostFieldRegistry` 取得宿主 renderer，不导入 `apps/web/src`。完整自定义
-表单仍应使用该入口导出的 `useFormData` 和 `validateFormByZod`，并透传受控 config、errors、
-disabled 与 availableVariables。
+`HostField` 只通过 `WorkflowHostFieldRegistry` 取得宿主 renderer，不导入 `apps/web/src`。Web Catalog
+会把当前已注册字段 renderer 注入 `HostFieldProvider`；完整自定义表单可用 `HostField` 复用
+`error_handling` 等宿主字段。完整自定义表单仍应使用该入口导出的 `useFormData` 和
+`validateFormByZod`，并透传受控 config、errors、disabled 与 availableVariables。
 
 Executor 源码只从 `./executor` 使用：
 

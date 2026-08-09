@@ -1,5 +1,6 @@
 export * from './contracts'
 export * from './host-field'
+export { PLUGIN_FIELD_UI_TYPES } from '../contracts/field'
 
 export {
   BaseNode,
@@ -22,3 +23,5 @@ export {
   type ZodFormErrors,
   type ZodFormValidationResult,
 } from '@ai-workflow/shared/utils/validate-form-by-zod'
+
+export { ERROR_HANDLING_MODES, type ErrorHandling, type ErrorHandlingMode } from '@ai-workflow/core'

@@ -5,6 +5,7 @@ import type {
   InferPluginSchemaInput,
   InferPluginSchemaOutput,
   PluginDataType,
+  PluginErrorHandlingSchema,
   PluginObjectSchema,
   PluginResourceReference,
   PluginSchema,
@@ -110,6 +111,10 @@ function json(): PluginSchema<JsonValue> {
   return { kind: 'json' }
 }
 
+function errorHandling(): PluginErrorHandlingSchema {
+  return { kind: 'error-handling' }
+}
+
 function variableValue(): PluginSchema<VariableValue> {
   return { kind: 'variable-value' }
 }
@@ -137,6 +142,7 @@ export const pluginSchema = {
   nullable,
   default: withDefault,
   json,
+  errorHandling,
   variableValue,
   dataType,
   resourceReference,

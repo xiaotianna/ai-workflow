@@ -1,4 +1,9 @@
-import { DATA_TYPE_VALUES, jsonValueSchema, variableValueSchema } from '@ai-workflow/core'
+import {
+  DATA_TYPE_VALUES,
+  errorHandlingSchema,
+  jsonValueSchema,
+  variableValueSchema,
+} from '@ai-workflow/core'
 import { z } from 'zod'
 
 import type {
@@ -66,6 +71,9 @@ function compileAst(schema: PluginSchemaAst): z.ZodType {
     }
     case 'json': {
       return jsonValueSchema
+    }
+    case 'error-handling': {
+      return errorHandlingSchema
     }
     case 'variable-value': {
       return variableValueSchema

@@ -113,6 +113,7 @@ export const pluginSchemaAstSchema: z.ZodType<PluginSchemaAst> = z
         })
         .strict(),
       z.object({ kind: z.literal('json') }).strict(),
+      z.object({ kind: z.literal('error-handling') }).strict(),
       z.object({ kind: z.literal('variable-value') }).strict(),
       z.object({ kind: z.literal('data-type') }).strict(),
       z

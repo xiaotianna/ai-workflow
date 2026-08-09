@@ -2,6 +2,7 @@ import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import { ActionMenuContent, type ActionMenuAction } from '@/components/action-menu-content'
 import {
   ERROR_HANDLING_PORT_ID,
+  FIELD_UI_TYPES,
   getNodePorts,
   type NodeType,
   type WorkflowEdge,
@@ -227,10 +228,13 @@ export function WorkflowNextStep({
   const parsedConfig = sourceNode ? nodeType.schema.safeParse(sourceNode.data.config) : undefined
   const outputPorts =
     parsedConfig?.success === true ? getNodePorts(nodeType, parsedConfig.data).outputs : {}
+  const hasErrorHandlingField = Object.values(nodeType.form ?? {}).some(
+    (field) => field.ui === FIELD_UI_TYPES.ERROR_HANDLING,
+  )
   const regularOutputPortIds = new Set(
     Object.keys(outputPorts).filter((portId) => portId !== ERROR_HANDLING_PORT_ID),
   )
-  const hasErrorBranch = Boolean(outputPorts[ERROR_HANDLING_PORT_ID])
+  const hasErrorBranch = hasErrorHandlingField && Boolean(outputPorts[ERROR_HANDLING_PORT_ID])
   const nextNodes = getDirectDownstreamNodes(nodeId, regularOutputPortIds, nodes, edges)
   const errorBranchNodes = hasErrorBranch
     ? getDirectDownstreamNodes(nodeId, new Set([ERROR_HANDLING_PORT_ID]), nodes, edges)
@@ -295,7 +299,7 @@ export function WorkflowNextStep({
           </div>
 
           {hasErrorBranch ? (
-            <div className="border-warning/30 ml-15 rounded-xl border-[0.5px] bg-[#fffaeb] p-0.5">
+            <div className="border-warning/30 ml-12 rounded-xl border-[0.5px] bg-[#fffaeb] p-0.5">
               <div className="px-2.5 py-1 text-[11px] leading-4 font-semibold text-[#dc6803]">
                 异常时
               </div>

@@ -2,6 +2,7 @@ import { jsonValueSchema } from '@ai-workflow/core'
 import { z } from 'zod'
 
 import { PLUGIN_PERMISSION_VALUES } from './config'
+import { getPluginErrorHandlingContractIssues } from './error-handling'
 import { pluginFieldSchema } from './field'
 import {
   createPluginNodeType,
@@ -104,6 +105,17 @@ export const pluginManifestNodeSchema = z
           message: `表单字段未在配置 schema 中声明：${fieldName}`,
         })
       }
+    }
+
+    for (const issue of getPluginErrorHandlingContractIssues({
+      configProperties: node.configSchema.properties,
+      configPath: ['configSchema'],
+      form: node.form,
+      formPath: ['form'],
+      outputPortIds: Object.keys(node.ports.outputs),
+      outputPortsPath: ['ports', 'outputs'],
+    })) {
+      context.addIssue({ code: 'custom', path: [...issue.path], message: issue.message })
     }
   })
 

@@ -1,17 +1,21 @@
-import type { NodeType } from '@ai-workflow/core'
+import { errorHandlingSchema, resolveErrorHandlingPorts, type NodeType } from '@ai-workflow/core'
 
+import { getPluginErrorHandlingFieldName } from '../contracts/error-handling'
 import type { PluginManifest } from '../contracts/manifest'
 import { compilePluginSchemaToZod } from '../schema/compiler'
 
 export const PLUGIN_HOST_VERSION = '1.0.0'
 
 /**
- * 将已经过 manifest 校验的插件节点编译成宿主 Core 可以注册的静态节点类型。
+ * 将已经过 manifest 校验的插件节点编译成宿主 Core 可以注册的节点类型。
+ * 普通端口保持静态；异常处理端口只通过宿主可信规则确定性派生。
  * 自定义 Remote UI 和沙箱执行由各宿主分别装载，不在此处执行第三方代码。
  */
 export function createNodeTypesFromPluginManifest(manifest: PluginManifest): readonly NodeType[] {
   return manifest.nodes.map((node) => {
     const schema = compilePluginSchemaToZod(node.configSchema)
+    const initialConfig = schema.parse(node.initialConfig)
+    const errorHandlingFieldName = getPluginErrorHandlingFieldName(node.form)
 
     return {
       schema,
@@ -25,7 +29,16 @@ export function createNodeTypesFromPluginManifest(manifest: PluginManifest): rea
       form: node.form,
       ...(node.ui.form.custom ? { configRenderer: node.type } : {}),
       fixedOutputs: node.fixedOutputs,
-      createInitialConfig: () => structuredClone(node.initialConfig),
+      createInitialConfig: () => structuredClone(initialConfig),
+      ...(errorHandlingFieldName
+        ? {
+            resolvePorts: (config: Record<string, unknown>) =>
+              resolveErrorHandlingPorts(
+                node.ports,
+                errorHandlingSchema.parse(config[errorHandlingFieldName]),
+              ),
+          }
+        : {}),
     } as unknown as NodeType
   })
 }

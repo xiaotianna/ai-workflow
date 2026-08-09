@@ -3,6 +3,7 @@ import { DATA_TYPE_VALUES, jsonValueSchema, nodeOutputDefinitionSchema } from '@
 import { z } from 'zod'
 
 import { pluginFieldSchema, type PluginFieldSchema } from './field'
+import { getPluginErrorHandlingContractIssues } from './error-handling'
 import { pluginNodeKeySchema, pluginPortIdSchema } from './identifiers'
 import { pluginModuleReferenceSchema, type PluginModuleReference } from './module-reference'
 import { compilePluginSchemaToZod } from '../schema/compiler'
@@ -199,6 +200,17 @@ export const pluginNodeDefinitionSchema = z
           message: `表单字段未在配置 schema 中声明：${fieldName}`,
         })
       }
+    }
+
+    for (const issue of getPluginErrorHandlingContractIssues({
+      configProperties: node.config.schema.properties,
+      configPath: ['config', 'schema'],
+      form: node.config.form ?? {},
+      formPath: ['config', 'form'],
+      outputPortIds: Object.keys(node.ports.outputs),
+      outputPortsPath: ['ports', 'outputs'],
+    })) {
+      context.addIssue({ code: 'custom', path: [...issue.path], message: issue.message })
     }
   })
 

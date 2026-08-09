@@ -1,4 +1,10 @@
-import type { DataType, JsonValue, VariableValue } from '@ai-workflow/core'
+import type {
+  DataType,
+  ErrorHandling,
+  ErrorHandlingInput,
+  JsonValue,
+  VariableValue,
+} from '@ai-workflow/core'
 
 declare const pluginSchemaInput: unique symbol
 declare const pluginSchemaOutput: unique symbol
@@ -70,6 +76,10 @@ export interface PluginJsonSchemaAst {
   readonly kind: 'json'
 }
 
+export interface PluginErrorHandlingSchemaAst {
+  readonly kind: 'error-handling'
+}
+
 export interface PluginVariableValueSchemaAst {
   readonly kind: 'variable-value'
 }
@@ -96,6 +106,7 @@ export type PluginSchemaAst =
   | PluginNullableSchemaAst
   | PluginDefaultSchemaAst
   | PluginJsonSchemaAst
+  | PluginErrorHandlingSchemaAst
   | PluginVariableValueSchemaAst
   | PluginDataTypeSchemaAst
   | PluginResourceReferenceSchemaAst
@@ -106,6 +117,8 @@ export type PluginSchema<TOutput = unknown, TInput = TOutput> = PluginSchemaAst 
 }
 
 export type AnyPluginSchema = PluginSchema<any, any>
+
+export type PluginErrorHandlingSchema = PluginSchema<ErrorHandling, ErrorHandlingInput>
 
 export type InferPluginSchemaOutput<TSchema extends AnyPluginSchema> =
   NonNullable<TSchema[typeof pluginSchemaOutput]> extends () => infer TOutput ? TOutput : never

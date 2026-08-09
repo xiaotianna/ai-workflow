@@ -149,8 +149,10 @@
   合并当前安装版本和工作流锁定版本，对 Server 校验只解析工作流锁；Manifest、制品引用、摘要和
   大小分别投影到 `WorkflowDraftPluginDependency` 与 `WorkflowVersionPluginDependency`。草稿保存、
   测试版本、发布版本和版本恢复必须与定义在同一事务内同步投影。
-- Manifest 可以先编译为静态 Core 节点供编辑与保存；在独立沙箱尚未落地前，插件节点执行能力统一
-  登记为 `unsupported`，发布和测试运行在创建版本或 Outbox 前明确拒绝。
+- Manifest 可以先编译为 Core 节点供编辑与保存；普通端口保持静态，声明
+  `pluginSchema.errorHandling()` 与 `field.errorHandling()` 时由宿主可信规则按配置模式派生
+  `error` 端口。在独立沙箱尚未落地前，插件节点执行能力仍统一登记为 `unsupported`，发布和测试
+  运行在创建版本或 Outbox 前明确拒绝，不能因为已具备异常配置与端口能力而绕过执行隔离。
 
 ## Redis
 

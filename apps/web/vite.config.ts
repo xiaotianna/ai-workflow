@@ -8,6 +8,9 @@ import path from 'node:path'
 
 export default defineConfig({
   plugins: [mdx(), react(), tailwindcss(), babel({ presets: [reactCompilerPreset()] })],
+  optimizeDeps: {
+    include: ['react-router'],
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

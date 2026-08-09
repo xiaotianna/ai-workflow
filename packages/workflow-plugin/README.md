@@ -37,13 +37,14 @@ contracts 描述的是完整插件、节点和 Manifest
 const configSchema = pluginSchema.object({
   url: pluginSchema.string(),
   timeout: pluginSchema.default(pluginSchema.number(), 30),
+  errorHandling: pluginSchema.errorHandling(),
 })
 ```
 
 目录里的职责是：
 
 - `types.ts`：Schema AST 的 TypeScript 类型和类型推导。
-- `builders.ts`：pluginSchema.string()、object()、array() 等声明 DSL。
+- `builders.ts`：pluginSchema.string()、object()、array()、errorHandling() 等声明 DSL。
 - `ast-schema.ts`：检查序列化后的 AST（Schema 字段值） 本身是否合法。
 - `compiler.ts`：通过 compilePluginSchemaToZod() 把 AST 重建成 Zod Schema。
 
