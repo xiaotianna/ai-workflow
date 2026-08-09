@@ -3,6 +3,7 @@ import { z } from 'zod'
 
 import { PLUGIN_PERMISSION_VALUES } from './config'
 import { getPluginErrorHandlingContractIssues } from './error-handling'
+import { getHostLlmContractIssues } from './host-llm'
 import { pluginFieldSchema } from './field'
 import {
   createPluginNodeType,
@@ -61,6 +62,7 @@ const manifestFormUISchema = z.discriminatedUnion('custom', [
 
 const manifestExecutionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('none') }).strict(),
+  z.object({ kind: z.literal('host-llm') }).strict(),
   z.object({ kind: z.literal('sandbox-js'), artifact: artifactPathSchema }).strict(),
 ])
 
@@ -116,6 +118,18 @@ export const pluginManifestNodeSchema = z
       outputPortsPath: ['ports', 'outputs'],
     })) {
       context.addIssue({ code: 'custom', path: [...issue.path], message: issue.message })
+    }
+
+    if (node.execution.kind === 'host-llm') {
+      for (const issue of getHostLlmContractIssues({
+        initialConfig: node.initialConfig,
+        form: node.form,
+        inputPorts: node.ports.inputs,
+        outputPorts: node.ports.outputs,
+        fixedOutputs: node.fixedOutputs,
+      })) {
+        context.addIssue({ code: 'custom', path: [...issue.path], message: issue.message })
+      }
     }
   })
 

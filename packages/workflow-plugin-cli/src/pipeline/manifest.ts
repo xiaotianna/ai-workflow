@@ -116,6 +116,7 @@ export function createPluginBuildPlan(checkedPlugin: CheckedPlugin): PluginBuild
 
     let execution:
       | { readonly kind: 'none' }
+      | { readonly kind: 'host-llm' }
       | {
           readonly kind: 'sandbox-js'
           readonly artifact: string
@@ -124,6 +125,8 @@ export function createPluginBuildPlan(checkedPlugin: CheckedPlugin): PluginBuild
       const artifact = `executor/${node.key}.mjs`
       executors.push({ nodeKey: node.key, sourceEntry: node.execution.entry, artifact })
       execution = { kind: 'sandbox-js', artifact }
+    } else if (node.execution.kind === 'host-llm') {
+      execution = { kind: 'host-llm' }
     } else {
       execution = { kind: 'none' }
     }

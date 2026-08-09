@@ -196,10 +196,15 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   安装数、可见范围与 opaque `nextCursor`，前端不得解析或自行构造游标。
 - `GET /plugins/:pluginId`：`pluginId` 固定为 `Plugin.id` UUID，按列表相同的可见范围返回真实详情和
   不可变版本历史；详情路由不得使用作者或 package 名充当平台 ID。
-- `PUT /plugins/:pluginId/installation`：安装或把当前用户的安装升级到最新版本。请求必须提交列表或
-  详情返回的最新 `versionId`，以及用户确认的完整权限集合；服务端重新从该版本 Manifest 读取权限，
-  版本已变化返回 `409`，权限集合不一致返回 `400`。接口只更新 `PluginInstallation`，不得改写任何
-  工作流草稿或不可变 `WorkflowVersion`。
+- `PUT /plugins/:pluginId/installation`：安装或切换当前用户的插件版本。请求必须提交详情版本历史中属于
+  该插件的 `versionId`，以及用户确认的完整权限集合；服务端重新从目标版本 Manifest 读取权限，版本不存在返回
+  `404`，权限集合不一致返回 `400`。安装非最新版本时响应的 `updateAvailable` 为 `true`。
+- `PATCH /plugins/:pluginId/installation`：使用 `{ enabled: boolean }` 启用或禁用当前用户的安装记录；未安装时返回
+  `404`。禁用后编辑器 Runtime Catalog 不再加载该插件。
+- `DELETE /plugins/:pluginId/installation`：卸载当前用户的插件；未安装时返回 `404`。卸载只删除
+  `PluginInstallation`，不得改写已发布、历史版本、运行或其精确插件锁。
+- 上述安装、版本切换、启停与卸载接口只修改 `PluginInstallation`，不得改写任何工作流草稿或不可变
+  `WorkflowVersion`。
 - `POST /plugins/runtime-catalog/resolve`：提交当前工作流的 `pluginLock`，返回该用户编辑器可用的
   已安装插件 Manifest、当前安装版本锁和 Catalog fingerprint。编辑器始终以当前启用的
   `PluginInstallation` 版本为准，请求中的草稿旧锁只作为兼容输入；服务端校验安装版本的启用状态、
@@ -256,8 +261,9 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   丢弃且不发布 Result，正在执行的命令通过取消 context 停止。
 - `POST /internal/executor/models/resolve`：只供 Go LLM Executor 使用，不接受用户 Bearer Token；请求必须携带
   `commandId`、`runId`、`nodeRunId`、`nodeId`、`executionKey` 和 `leaseToken`。Server 同时校验
-  NodeRun、Run 状态与 deadline，从绑定的不可变 WorkflowVersion 重新解析 LLM Config，再按所属应用
-  `ownerId` 解析启用的模型组与模型。
+  NodeRun、Run 状态与 deadline，从绑定的不可变 WorkflowVersion 重新解析 LLM Config；除内置 LLM
+  外，只接受工作流锁定 Manifest 中明确声明 `host-llm` 的插件节点，再按所属应用 `ownerId` 解析启用
+  的模型组与模型。
 - `POST /internal/executor/plugin-artifacts/resolve`：只供 `plugin-sandbox-js` Go Executor 使用；除完整
   Command 身份和 Lease Token 外，还必须携带锁定的插件版本、整体 Artifact digest 和 Manifest 入口。
   Server 只在 Run/NodeRun 租约有效、不可变 WorkflowVersion 依赖匹配、重新校验完整插件包摘要且入口

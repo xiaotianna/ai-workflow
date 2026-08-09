@@ -161,6 +161,24 @@ export class PluginRepository {
     })
   }
 
+  findInstallableVersion(ownerId: string, pluginId: string, versionId: string) {
+    return this.prisma.pluginVersion.findFirst({
+      where: {
+        id: versionId,
+        pluginId,
+        plugin: {
+          status: PluginStatus.PUBLISHED,
+          AND: [this.createAccessFilter(ownerId)],
+        },
+      },
+      select: {
+        id: true,
+        manifest: true,
+        plugin: { select: { latestVersionId: true } },
+      },
+    })
+  }
+
   list(options: ListPluginsOptions) {
     const direction = options.sort === 'name_asc' ? 'asc' : 'desc'
     const sortField =
@@ -304,6 +322,31 @@ export class PluginRepository {
         version: { select: { version: true } },
       },
     })
+  }
+
+  async updateInstallationEnabled(ownerId: string, pluginId: string, enabled: boolean) {
+    return this.prisma.$transaction(async (transaction) => {
+      const result = await transaction.pluginInstallation.updateMany({
+        where: { ownerId, pluginId },
+        data: { enabled },
+      })
+      if (result.count === 0) return null
+
+      return transaction.pluginInstallation.findUnique({
+        where: { ownerId_pluginId: { ownerId, pluginId } },
+        select: {
+          versionId: true,
+          enabled: true,
+          grantedPermissions: true,
+          version: { select: { version: true } },
+          plugin: { select: { latestVersionId: true } },
+        },
+      })
+    })
+  }
+
+  removeInstallation(ownerId: string, pluginId: string) {
+    return this.prisma.pluginInstallation.deleteMany({ where: { ownerId, pluginId } })
   }
 
   async publishVersion(options: PublishPluginVersionOptions): Promise<PublishPluginVersionResult> {

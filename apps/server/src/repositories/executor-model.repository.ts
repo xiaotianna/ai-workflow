@@ -22,7 +22,6 @@ export class ExecutorModelRepository {
         commandId: identity.commandId,
         runId: identity.runId,
         nodeId: identity.nodeId,
-        nodeType: 'llm',
         executionKey: identity.executionKey,
         leaseToken: identity.leaseToken,
         status: WorkflowNodeRunStatus.RUNNING,

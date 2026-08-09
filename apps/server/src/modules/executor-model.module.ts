@@ -7,7 +7,10 @@ import { ExecutorModelService } from '@/services/executor-model.service'
 import { ExecutorInternalAuthGuard } from '@/guards/executor-internal-auth.guard'
 import { Module } from '@nestjs/common'
 
+import { PluginModule } from './plugin.module'
+
 @Module({
+  imports: [PluginModule],
   controllers: [ExecutorModelController],
   providers: [
     ExecutorModelService,

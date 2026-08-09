@@ -85,6 +85,8 @@ CLI workspace package 的 `link:` 相对路径。两处都只使用当前 worksp
   `PluginWebModule`。
 - `sandbox-js` 为每个节点生成 `executor/<node-key>.mjs`。CLI 只编译和打包，禁止 import 或调用
   Executor Artifact；实际运行由 Go Executor 的独立 Node.js 子进程负责。
+- `host-llm` 只作为纯数据执行声明写入 Manifest，不生成 `executor/` Artifact；Server 会把该逻辑
+  插件节点注册到宿主固定的 `llm` Executor。
 
 ## `dev` 行为
 

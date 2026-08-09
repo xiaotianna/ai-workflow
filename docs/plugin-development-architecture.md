@@ -835,11 +835,14 @@ Server 不依赖 `@ai-workflow/ui`、`@ai-workflow/form`、`@ai-workflow/nodes-u
 - 平台提供的声明式执行适配器；
 - 不开放任意第三方执行代码。
 
+当前已开放：
+
+- `host-llm`：复用宿主受控模型 Worker 和凭证解析，不向插件暴露凭证；
+- `sandbox-js`：本地独立 Node.js 子进程。
+
 后续再开放：
 
 - `http-action`：受控 HTTP Worker；
-- `model-action`：受控模型 Worker 和凭证网关；
-- `sandbox-js`：本地独立 Node.js 子进程；
 - 平台内部可信适配器：不属于 Marketplace 第三方 API。
 
 ### 18.2 逻辑节点类型与执行适配器
@@ -858,18 +861,21 @@ plugin-model
 plugin-sandbox-js
 ```
 
-当前 Protocol v1 的 `nodeType` 同时承担 Executor Registry 选择，尚不能无歧义表达二者。开放插件
-执行前需要选择并完整实施一种方案：
+当前 Protocol v2 保留 `nodeType` 表示逻辑节点类型，并使用稳定的 `executorType` 选择 Go Registry。
+`host-llm` 的插件节点因此保留 `plugin:<package>/<key>` 追踪身份，同时由 Server 把 `executorType`
+固定为 `llm`；`sandbox-js` 则固定为 `plugin-sandbox-js`。
 
-1. 推荐升级 Protocol，保留 `nodeType` 表示逻辑节点类型，新增稳定的 `executorType` 作为 Go
-   Registry 选择键；或
-2. Server 在 Protocol 外持久化逻辑 node type，Command `nodeType` 只发送固定执行适配器类型。
+### 18.3 `host-llm`
 
-推荐方案一，语义更清晰，运行追踪也不会把插件节点错误显示成 `plugin-http`。这属于后续执行阶段，
-不能向现有 Protocol v1 静默添加字段；需要新版本 Schema、TypeScript 生成类型、Go 生成类型和双端
-parser/validator 同步升级。
+`host-llm` 是声明式宿主执行能力：
 
-### 18.3 `sandbox-js`
+- 插件节点使用宿主 `llm_model`、`context_messages` 和 `error_handling` 字段；
+- Core LLM Schema 校验运行配置，Runtime 复用内置 LLM projector 替换上下文变量；
+- Server 按不可变工作流插件锁验证 Manifest 声明，再解析真实模型与凭证；
+- Go Worker 只接收固定 `executorType: llm`，输出与内置 LLM 一样为字符串 `result`；
+- Base URL、API Key 和真实供应商配置不会进入插件源码或 Manifest。
+
+### 18.4 `sandbox-js`
 
 第三方 Executor ESM 由 Go Executor 在本地 Node.js 子进程中运行：
 

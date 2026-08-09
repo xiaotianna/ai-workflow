@@ -5,6 +5,7 @@ import {
   ListPluginsDto,
   PublishPluginDto,
   ResolvePluginRuntimeCatalogDto,
+  UpdatePluginInstallationDto,
 } from '@/dto/plugin.dto'
 import { PluginService, type UploadedPluginPackage } from '@/services/plugin.service'
 import type {
@@ -13,13 +14,16 @@ import type {
   PluginListVo,
   PluginRuntimeCatalogVo,
   PublishedPluginVersionVo,
+  UninstalledPluginVo,
 } from '@/vo/plugin.vo'
 import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   ParseUUIDPipe,
   Post,
   Query,
@@ -78,6 +82,23 @@ export class PluginController {
     @Body() dto: InstallPluginDto,
   ): Promise<InstalledPluginVo> {
     return this.pluginService.install(request.auth.userId, pluginId, dto)
+  }
+
+  @Patch(':pluginId/installation')
+  updateInstallation(
+    @Req() request: AuthenticatedRequest,
+    @Param('pluginId', new ParseUUIDPipe({ version: '4' })) pluginId: string,
+    @Body() dto: UpdatePluginInstallationDto,
+  ): Promise<InstalledPluginVo> {
+    return this.pluginService.updateInstallation(request.auth.userId, pluginId, dto)
+  }
+
+  @Delete(':pluginId/installation')
+  uninstall(
+    @Req() request: AuthenticatedRequest,
+    @Param('pluginId', new ParseUUIDPipe({ version: '4' })) pluginId: string,
+  ): Promise<UninstalledPluginVo> {
+    return this.pluginService.uninstall(request.auth.userId, pluginId)
   }
 
   @Post('publish')

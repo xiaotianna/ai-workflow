@@ -91,15 +91,20 @@ export function PluginCard({ plugin, className, onInstalled }: PluginCardProps) 
           </div>
 
           <div className="pointer-events-none absolute inset-x-4 bottom-4 z-20 flex items-center gap-2 opacity-0 transition-opacity duration-200 group-focus-within:pointer-events-auto group-focus-within:opacity-100 group-hover:pointer-events-auto group-hover:opacity-100">
-            <Button
-              type="button"
-              size="sm"
-              className="h-8 flex-1 rounded-lg"
-              disabled={installedLatest}
-              onClick={() => setInstallationOpen(true)}
-            >
-              {actionLabel}
-            </Button>
+            {installedLatest ? (
+              <span className="bg-primary text-primary-foreground flex h-8 flex-1 items-center justify-center rounded-lg px-3.5 text-[13px] leading-4 font-medium shadow-xs">
+                {plugin.installation?.enabled ? '已安装' : '已禁用'}
+              </span>
+            ) : (
+              <Button
+                type="button"
+                size="sm"
+                className="h-8 flex-1 rounded-lg"
+                onClick={() => setInstallationOpen(true)}
+              >
+                {actionLabel}
+              </Button>
+            )}
             <Button asChild variant="secondary" size="sm" className="h-8 rounded-lg px-3">
               <Link to={detailPath}>
                 详情

@@ -176,9 +176,17 @@ export class WorkflowCatalogResolver {
       nodes: [...Object.values(builtinNodeStrategies), ...pluginNodeTypes],
       pluginLock: workflow.plugins,
     })
+    const pluginExecutionByNodeType = new Map(
+      resolvedPlugins.flatMap((plugin) =>
+        plugin.manifest.nodes.map((node) => [node.type, node.execution] as const),
+      ),
+    )
     const pluginProjectors = pluginNodeTypes.map((nodeType) => ({
       nodeType: nodeType.definition.type,
-      projector: projectStaticJsonNodeConfig,
+      projector:
+        pluginExecutionByNodeType.get(nodeType.definition.type)?.kind === 'host-llm'
+          ? projectLlmNodeConfig
+          : projectStaticJsonNodeConfig,
     }))
     const configProjectors = new RuntimeNodeConfigProjectorRegistry([
       ...BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
@@ -188,6 +196,15 @@ export class WorkflowCatalogResolver {
       ...BUILTIN_EXECUTION_REGISTRATIONS,
       ...resolvedPlugins.flatMap((plugin) =>
         plugin.manifest.nodes.map((node): WorkflowNodeExecutionRegistration => {
+          if (node.execution.kind === 'host-llm') {
+            return {
+              nodeType: node.type,
+              kind: 'executor',
+              executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
+              classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
+              executorType: BuiltinNodeType.LLM,
+            }
+          }
           if (node.execution.kind !== 'sandbox-js') {
             return {
               nodeType: node.type,

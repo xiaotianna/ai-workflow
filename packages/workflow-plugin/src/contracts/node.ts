@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 import { pluginFieldSchema, type PluginFieldSchema } from './field'
 import { getPluginErrorHandlingContractIssues } from './error-handling'
+import { getHostLlmContractIssues } from './host-llm'
 import { pluginNodeKeySchema, pluginPortIdSchema } from './identifiers'
 import { pluginModuleReferenceSchema, type PluginModuleReference } from './module-reference'
 import { compilePluginSchemaToZod } from '../schema/compiler'
@@ -64,6 +65,7 @@ export type PluginFormUI =
 
 export type PluginExecution =
   | { readonly kind: 'none' }
+  | { readonly kind: 'host-llm' }
   | { readonly kind: 'sandbox-js'; readonly entry: string }
 
 export type PluginNodeForm<TConfig extends object> = Partial<
@@ -150,6 +152,7 @@ const safeExecutorEntrySchema = pluginModuleReferenceSchema.shape.entry
 
 const pluginExecutionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('none') }).strict(),
+  z.object({ kind: z.literal('host-llm') }).strict(),
   z.object({ kind: z.literal('sandbox-js'), entry: safeExecutorEntrySchema }).strict(),
 ])
 
@@ -211,6 +214,23 @@ export const pluginNodeDefinitionSchema = z
       outputPortsPath: ['ports', 'outputs'],
     })) {
       context.addIssue({ code: 'custom', path: [...issue.path], message: issue.message })
+    }
+
+    if (node.execution.kind === 'host-llm') {
+      for (const issue of getHostLlmContractIssues({
+        initialConfig: node.config.initial,
+        form: node.config.form ?? {},
+        inputPorts: node.ports.inputs,
+        outputPorts: node.ports.outputs,
+        fixedOutputs: node.fixedOutputs ?? [],
+      })) {
+        const [scope, ...path] = issue.path
+        context.addIssue({
+          code: 'custom',
+          path: scope === 'initialConfig' ? ['config', 'initial', ...path] : [...issue.path],
+          message: issue.message,
+        })
+      }
     }
   })
 

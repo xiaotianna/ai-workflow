@@ -54,7 +54,11 @@ export interface PluginDetailVo extends PluginListItemVo {
 export interface InstalledPluginVo {
   pluginId: string
   installation: PluginInstallationVo
-  updateAvailable: false
+  updateAvailable: boolean
+}
+
+export interface UninstalledPluginVo {
+  pluginId: string
 }
 
 export interface PublishedPluginVersionVo {

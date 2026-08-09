@@ -3,6 +3,7 @@ import { ModelCredentialService } from '@/infra/model-provider/model-credential.
 import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
+import { PluginCatalogService } from '@/services/plugin-catalog.service'
 import { MODEL_PROVIDER_TYPES, type ModelProviderTypeValue } from '@/constant/model'
 import type { ResolveExecutorModelDto } from '@/dto/executor-model.dto'
 import type { ExecutorModelResolutionVo } from '@/vo/executor-model.vo'
@@ -10,6 +11,7 @@ import {
   BuiltinNodeType,
   llmNodeSchema,
   type LlmNodeConfig,
+  type Workflow,
   workflowSchema,
 } from '@ai-workflow/core'
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
@@ -21,6 +23,7 @@ export class ExecutorModelService {
     private readonly modelGroupRepository: ModelGroupRepository,
     private readonly credentialService: ModelCredentialService,
     private readonly providerRegistry: ModelProviderRegistry,
+    private readonly pluginCatalogService: PluginCatalogService,
   ) {}
 
   async resolve(dto: ResolveExecutorModelDto): Promise<ExecutorModelResolutionVo> {
@@ -33,7 +36,14 @@ export class ExecutorModelService {
     }
 
     const node = parsedWorkflow.data.nodes.find((candidate) => candidate.id === dto.nodeId)
-    if (!node || node.type !== BuiltinNodeType.LLM) {
+    if (
+      !node ||
+      !(await this.supportsLlmExecution(
+        context.run.workflow.app.ownerId,
+        parsedWorkflow.data,
+        node.type,
+      ))
+    ) {
       throw new NotFoundException('LLM 节点不存在')
     }
 
@@ -43,6 +53,24 @@ export class ExecutorModelService {
     }
 
     return this.resolveConfiguredModel(context.run.workflow.app.ownerId, parsedConfig.data)
+  }
+
+  private async supportsLlmExecution(
+    ownerId: string,
+    workflow: Workflow,
+    nodeType: string,
+  ): Promise<boolean> {
+    if (nodeType === BuiltinNodeType.LLM) return true
+
+    const plugins = await this.pluginCatalogService.resolveWorkflowVersions(
+      ownerId,
+      workflow.plugins,
+    )
+    return plugins.some((plugin) =>
+      plugin.manifest.nodes.some(
+        (node) => node.type === nodeType && node.execution.kind === 'host-llm',
+      ),
+    )
   }
 
   private async resolveConfiguredModel(

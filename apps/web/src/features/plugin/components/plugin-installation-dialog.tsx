@@ -14,13 +14,14 @@ import { useState } from 'react'
 
 import { installPlugin, type InstalledPluginDto } from '@/api/plugins'
 import { pluginPermissionDetails } from '../permissions'
-import type { PluginListItem } from '../types'
+import type { PluginListItem, PluginVersion } from '../types'
 
 interface PluginInstallationDialogProps {
   plugin: PluginListItem
   open: boolean
   onOpenChange: (open: boolean) => void
   onInstalled: (result: InstalledPluginDto) => void
+  version?: PluginVersion
 }
 
 export function PluginInstallationDialog({
@@ -28,11 +29,16 @@ export function PluginInstallationDialog({
   open,
   onOpenChange,
   onInstalled,
+  version,
 }: PluginInstallationDialogProps) {
   const [installing, setInstalling] = useState(false)
   const updating = plugin.installation !== null
+  const targetVersion = version ?? plugin.latestVersion
+  const switchingVersion =
+    plugin.installation !== null && plugin.installation.versionId !== targetVersion.id
+  const updatingToLatest = plugin.updateAvailable && targetVersion.id === plugin.latestVersion.id
   const grantedPermissions = new Set(plugin.installation?.grantedPermissions)
-  const permissions = plugin.latestVersion.permissions
+  const permissions = targetVersion.permissions
 
   function handleOpenChange(nextOpen: boolean) {
     if (installing && !nextOpen) return
@@ -44,12 +50,17 @@ export function PluginInstallationDialog({
 
     try {
       const result = await installPlugin(plugin.id, {
-        versionId: plugin.latestVersion.id,
+        versionId: targetVersion.id,
         permissions,
       })
       onInstalled(result)
-      showToast('success', updating ? '插件已更新' : '插件已安装')
+      showToast(
+        'success',
+        updatingToLatest ? '插件已更新' : switchingVersion ? '插件版本已切换' : '插件已安装',
+      )
       onOpenChange(false)
+    } catch {
+      // 请求错误由统一 API 拦截器提示，保留弹窗供用户重试。
     } finally {
       setInstalling(false)
     }
@@ -59,11 +70,11 @@ export function PluginInstallationDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-lg" showCloseButton={!installing}>
         <DialogHeader>
-          <DialogTitle>{updating ? `更新 ${plugin.title}` : `安装 ${plugin.title}`}</DialogTitle>
+          <DialogTitle>{`${updatingToLatest ? '更新' : '安装'} ${plugin.title} v${targetVersion.version}`}</DialogTitle>
           <DialogDescription>
             {updating
-              ? `将从 v${plugin.installation?.version} 更新到 v${plugin.latestVersion.version}。编辑中的工作流将使用新版本，已发布和历史版本不受影响。`
-              : `即将安装 v${plugin.latestVersion.version}。请确认该版本需要的权限。`}
+              ? `将当前安装版本从 v${plugin.installation?.version} 切换到 v${targetVersion.version}。编辑中的工作流将使用新版本，已发布和历史版本不受影响。`
+              : `即将安装 v${targetVersion.version}。请确认该版本需要的权限。`}
           </DialogDescription>
         </DialogHeader>
 
@@ -121,10 +132,10 @@ export function PluginInstallationDialog({
             onClick={handleConfirm}
           >
             {installing
-              ? updating
+              ? updatingToLatest
                 ? '更新中…'
                 : '安装中…'
-              : updating
+              : updatingToLatest
                 ? '同意并更新'
                 : '同意并安装'}
           </Button>

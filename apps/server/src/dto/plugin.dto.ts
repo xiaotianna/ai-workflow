@@ -3,6 +3,7 @@ import { PLUGIN_PERMISSION_VALUES, type PluginPermission } from '@ai-workflow/pl
 import {
   ArrayUnique,
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -72,6 +73,11 @@ export class InstallPluginDto {
   })
   @IsArray({ message: '授权权限必须是数组' })
   permissions!: PluginPermission[]
+}
+
+export class UpdatePluginInstallationDto {
+  @IsBoolean({ message: '插件启用状态必须是布尔值' })
+  enabled!: boolean
 }
 
 export class WorkflowPluginLockItemDto {

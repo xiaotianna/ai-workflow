@@ -43,7 +43,11 @@ import {
   `field.errorHandling()` 时，额外使用宿主可信规则按模式派生稳定 `error` 端口。它不加载
   Remote UI，也不执行第三方代码。
 - `PLUGIN_HOST_VERSION` 是 Manifest `hostVersionRange` 的当前兼容版本基线，调整宿主插件契约时必须
-  显式升级，不得复用 Core Catalog fingerprint 版本充当 SemVer。
+  显式升级，不得复用 Core Catalog fingerprint 版本充当 SemVer。当前固定为 `1.0.0`；新增兼容性
+  能力或修改插件实现时不得自行调整，只有用户明确要求发布新的宿主契约版本时才能变更。
+- `execution.kind: 'host-llm'` 声明插件节点复用宿主受控 LLM 能力。宿主使用 Core LLM Schema
+  校验配置，以内置 LLM Config projector 解析上下文变量，并把逻辑插件节点路由到固定 `llm`
+  Executor；插件不获得模型 Base URL、API Key 或其他凭证。
 - `pluginConfigSchema` 校验插件源码默认导出的配置，包含初始配置、form 顶层字段、重复节点 Key、
   宿主字段能力和自定义 UI 权限等跨字段约束。`hostVersionRange` 表示插件兼容的平台
   宿主 SemVer 版本范围，不用于选择节点执行器。
@@ -91,7 +95,8 @@ import {
 ```
 
 该入口只定义纯 JSON 输入、输出、运行标识和取消信号，不依赖 React、DOM UI、NestJS、RabbitMQ
-或 Go Worker。`sandbox-js` 由 Server 编译为固定 `plugin-sandbox-js` 执行适配器，通过受租约保护的
+或 Go Worker。`host-llm` 不使用插件 Executor 源码；`sandbox-js` 由 Server 编译为固定
+`plugin-sandbox-js` 执行适配器，通过受租约保护的
 制品解析接口读取锁定版本 ESM，并交给 Go Executor 在独立临时目录的 Node.js 子进程中运行。该执行
 模式不构成不可信多租户安全边界，只适用于本地开发和受信任插件。
 

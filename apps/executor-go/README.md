@@ -79,7 +79,7 @@ Profile 与队列对应关系：
 | --------- | ----------------------------------------- | ------------------------------------- |
 | `legacy`  | LLM、RAG、HTTP、Code、Condition、插件沙箱 | `ai-workflow.node.execute.v1`         |
 | `compute` | Condition                                 | `ai-workflow.node.execute.compute.v1` |
-| `model`   | LLM、RAG                                  | `ai-workflow.node.execute.model.v1`   |
+| `model`   | LLM、RAG、插件 `host-llm`                 | `ai-workflow.node.execute.model.v1`   |
 | `http`    | HTTP                                      | `ai-workflow.node.execute.http.v1`    |
 | `sandbox` | Code、`plugin-sandbox-js`                 | `ai-workflow.node.execute.sandbox.v1` |
 
@@ -103,6 +103,9 @@ Profile 只注册自己的节点。legacy 未注册节点返回 `NODE_EXECUTOR_N
 身份并组装协议 Result。
 
 LLM 已接入真实执行逻辑：`config.go` 对齐 Core 的模型引用、上下文、参数和异常处理契约；Provider Registry 动态注册 OpenAI、DeepSeek 与 Ollama 适配器。运行时只信任 `groupId` 和 `configuredModelId`，Go 使用当前 Command 的 NodeRun 身份与租约向 Server 解析真实模型、Base URL 和凭证，不使用 `modelId`、`providerType` 展示快照。API Key 不进入 RabbitMQ Command，也不会写入日志。节点只公开最终 `result`：优先使用供应商的最终回答；最终回答为空时，才把 OpenAI 兼容接口的 `reasoning_content` / `reasoning` / `thinking` 或 Ollama 的 `message.thinking` 归一为 `result` 兜底，不向前端单独暴露模型推理过程。
+
+插件 `host-llm` 保留自身逻辑 node type，但 Server 在 Protocol v2 Command 中把 `executorType` 固定为
+`llm`，因此直接复用上述实现；模型解析接口会额外核验当前不可变工作流锁中的 Manifest 执行声明。
 
 模型解析地址通过 `MODEL_RUNTIME_RESOLVER_URL` 配置，默认是 `http://127.0.0.1:3000/internal/executor/models/resolve`。该接口会返回本次调用需要的明文凭证，部署时只能暴露在 Server 与 Executor 的受控内部网络中，并应使用 TLS；不得经过公网网关、缓存或访问日志正文。
 

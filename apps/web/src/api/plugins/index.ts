@@ -90,7 +90,11 @@ export interface InstallPluginParams {
 export interface InstalledPluginDto {
   pluginId: string
   installation: PluginInstallationDto
-  updateAvailable: false
+  updateAvailable: boolean
+}
+
+export interface UninstalledPluginDto {
+  pluginId: string
 }
 
 export interface PluginRuntimeCatalogDto {
@@ -135,6 +139,22 @@ export function installPlugin(
   return apiClient.put<InstalledPluginDto, InstallPluginParams>(
     `/plugins/${encodeURIComponent(pluginId)}/installation`,
     values,
+  )
+}
+
+export function updatePluginInstallation(
+  pluginId: string,
+  enabled: boolean,
+): Promise<InstalledPluginDto> {
+  return apiClient.patch<InstalledPluginDto, { enabled: boolean }>(
+    `/plugins/${encodeURIComponent(pluginId)}/installation`,
+    { enabled },
+  )
+}
+
+export function uninstallPlugin(pluginId: string): Promise<UninstalledPluginDto> {
+  return apiClient.delete<UninstalledPluginDto>(
+    `/plugins/${encodeURIComponent(pluginId)}/installation`,
   )
 }
 

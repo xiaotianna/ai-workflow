@@ -2,6 +2,7 @@ import { defineConfig } from '@ai-workflow/plugin'
 
 import { executableModelNode } from './nodes/executable-model'
 import { fullShellNode } from './nodes/full-shell'
+import { hostLlmNode } from './nodes/host-llm'
 import { metricDashboardNode } from './nodes/metric-dashboard'
 import { richCardNode } from './nodes/rich-card'
 import { visualBuilderNode } from './nodes/visual-builder'
@@ -14,5 +15,12 @@ export default defineConfig({
   requires: {
     hostFields: ['llm_model'],
   },
-  nodes: [richCardNode, metricDashboardNode, fullShellNode, visualBuilderNode, executableModelNode],
+  nodes: [
+    richCardNode,
+    metricDashboardNode,
+    fullShellNode,
+    visualBuilderNode,
+    executableModelNode,
+    hostLlmNode,
+  ],
 })

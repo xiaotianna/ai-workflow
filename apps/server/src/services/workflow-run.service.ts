@@ -68,6 +68,7 @@ import {
   WorkflowCatalogResolver,
   type WorkflowServerCatalog,
 } from '@/workflow-catalog/workflow-server-catalog'
+import { WORKFLOW_EXECUTION_CLASSES } from '@/workflow-catalog/workflow-execution.registry'
 
 const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用'
 const DEFAULT_EXECUTION_DEADLINE_MS = 30_000
@@ -828,6 +829,9 @@ export class WorkflowRunService {
       const routedCommand = parseExecuteNodeCommand({
         ...command,
         executorType: route.executorType,
+        deadlineAt: new Date(
+          Date.now() + resolveExecutionDeadlineMs(command.nodeType, route.executionClass),
+        ).toISOString(),
         ...(route.sandboxArtifact ? { sandboxArtifact: route.sandboxArtifact } : {}),
       })
       return {
@@ -906,8 +910,10 @@ export class WorkflowRunService {
   }
 }
 
-function resolveExecutionDeadlineMs(nodeType: string): number {
-  return nodeType === BuiltinNodeType.LLM || nodeType === BuiltinNodeType.SUB_WORKFLOW
+function resolveExecutionDeadlineMs(nodeType: string, executionClass?: string): number {
+  return executionClass === WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL ||
+    nodeType === BuiltinNodeType.LLM ||
+    nodeType === BuiltinNodeType.SUB_WORKFLOW
     ? LONG_RUNNING_EXECUTION_DEADLINE_MS
     : DEFAULT_EXECUTION_DEADLINE_MS
 }

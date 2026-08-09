@@ -91,3 +91,7 @@ defineExecutor(async ({ config, inputs, signal }) => ({
 `sandbox-js` ESM 由 Server 按工作流锁和摘要解析，再交给 Go Executor 在独立临时目录的 Node.js
 子进程中执行；SDK 本身不接触运行基础设施。该模式不构成不可信多租户安全边界，只适用于本地开发和
 受信任插件。
+
+需要使用平台模型配置时，节点可以声明 `execution: { kind: 'host-llm' }`。这种节点不提供 Executor
+源码，由宿主使用 Core LLM Schema 校验配置、解析上下文变量并路由到固定 `llm` Executor；插件不会
+接触模型 Base URL 或凭证。

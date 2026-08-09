@@ -3,6 +3,7 @@ import type {
   ListPluginsDto,
   PluginListSort,
   PublishPluginDto,
+  UpdatePluginInstallationDto,
 } from '@/dto/plugin.dto'
 import { PluginCatalogService } from '@/services/plugin-catalog.service'
 import type { Prisma } from '@/generated/prisma/client'
@@ -17,6 +18,7 @@ import type {
   InstalledPluginVo,
   PublishedPluginVersionVo,
   PluginRuntimeCatalogVo,
+  UninstalledPluginVo,
 } from '@/vo/plugin.vo'
 import {
   BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
@@ -193,13 +195,14 @@ export class PluginService {
     pluginId: string,
     dto: InstallPluginDto,
   ): Promise<InstalledPluginVo> {
-    const plugin = await this.pluginRepository.findById(ownerId, pluginId)
-    if (!plugin?.latestVersion) throw new NotFoundException('未找到该插件')
-    if (plugin.latestVersion.id !== dto.versionId) {
-      throw new ConflictException('插件版本已更新，请刷新后重试')
-    }
+    const version = await this.pluginRepository.findInstallableVersion(
+      ownerId,
+      pluginId,
+      dto.versionId,
+    )
+    if (!version) throw new NotFoundException('未找到该插件版本')
 
-    const requiredPermissions = this.readManifestPermissions(plugin.latestVersion.manifest)
+    const requiredPermissions = this.readManifestPermissions(version.manifest)
     if (!hasSamePermissions(requiredPermissions, dto.permissions)) {
       throw new BadRequestException('授权权限与插件版本要求不一致')
     }
@@ -207,7 +210,7 @@ export class PluginService {
     const installation = await this.pluginRepository.saveInstallation({
       ownerId,
       pluginId,
-      versionId: plugin.latestVersion.id,
+      versionId: version.id,
       permissions: requiredPermissions,
     })
 
@@ -219,8 +222,38 @@ export class PluginService {
         enabled: installation.enabled,
         grantedPermissions: this.readGrantedPermissions(installation.grantedPermissions),
       },
-      updateAvailable: false,
+      updateAvailable: version.id !== version.plugin.latestVersionId,
     }
+  }
+
+  async updateInstallation(
+    ownerId: string,
+    pluginId: string,
+    dto: UpdatePluginInstallationDto,
+  ): Promise<InstalledPluginVo> {
+    const installation = await this.pluginRepository.updateInstallationEnabled(
+      ownerId,
+      pluginId,
+      dto.enabled,
+    )
+    if (!installation) throw new NotFoundException('未找到该插件的安装记录')
+
+    return {
+      pluginId,
+      installation: {
+        versionId: installation.versionId,
+        version: installation.version.version,
+        enabled: installation.enabled,
+        grantedPermissions: this.readGrantedPermissions(installation.grantedPermissions),
+      },
+      updateAvailable: installation.versionId !== installation.plugin.latestVersionId,
+    }
+  }
+
+  async uninstall(ownerId: string, pluginId: string): Promise<UninstalledPluginVo> {
+    const result = await this.pluginRepository.removeInstallation(ownerId, pluginId)
+    if (result.count === 0) throw new NotFoundException('未找到该插件的安装记录')
+    return { pluginId }
   }
 
   async publish(

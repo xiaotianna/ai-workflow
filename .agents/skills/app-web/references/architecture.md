@@ -28,7 +28,7 @@
 - 应用 API 管理与公开分享请求放在 `src/api/app-api`，接口文档、密钥和分享交互放在
   `features/app-api`；受保护页面与公开分享页面复用同一个文档正文组件，但只有受保护页面
   可以挂载管理头部。
-- 插件 Marketplace 的列表、详情、安装/升级与 Multipart 发布请求统一放在 `src/api/plugins`；插件
+- 插件 Marketplace 的列表、详情、安装/版本切换、启停、卸载与 Multipart 发布请求统一放在 `src/api/plugins`；插件
   Feature 管理搜索防抖、筛选、排序、游标续载、权限确认、发布 Dialog 和 Header 交互，不直接创建
   Axios 实例或拼接认证 Header。工作流页通过 `src/features/workflow/plugin-runtime` 解析 Runtime
   Catalog、动态加载 `web/remoteEntry.js`，并把 Remote UI 注册进 `NodeUIRegistry`；机制见仓库

@@ -143,8 +143,8 @@
   自己的私有插件。安装数通过 `PluginInstallation` 关系聚合，列表和详情通过
   `latestVersionId` 读取最新版本，不在 Web 用 Mock 或客户端过滤模拟服务端数据。
 - `PluginInstallation` 以 `(ownerId, pluginId)` 唯一，保存当前选择的精确 `versionId`、启用状态与
-  从该版本 Manifest 重新校验后的权限授权快照。安装升级只切换这条记录；历史工作流版本继续引用
-  原精确版本。
+  从该版本 Manifest 重新校验后的权限授权快照。版本切换和启停只更新这条记录，卸载只删除这条记录；历史
+  工作流版本继续引用原精确版本。
 - Workflow 顶层 `plugins` 保存 `(pluginId, version, digest)` 精确锁。`PluginCatalogService` 为编辑器
   始终解析当前启用的安装版本，并在草稿下次保存时写入新锁；已发布、历史版本和已创建运行的
   Server Catalog 仍只解析各自的工作流精确锁。Manifest、制品引用、摘要和

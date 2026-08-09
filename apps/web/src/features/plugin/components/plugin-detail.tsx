@@ -1,13 +1,26 @@
 import { Button } from '@ai-workflow/ui/components/button'
-import { ChevronDown, Download } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+} from '@ai-workflow/ui/components/select'
+import { showToast } from '@ai-workflow/ui/lib/toast'
+import { Download } from 'lucide-react'
 import { useState } from 'react'
 
-import type { InstalledPluginDto } from '@/api/plugins'
+import {
+  updatePluginInstallation,
+  type InstalledPluginDto,
+  type UninstalledPluginDto,
+} from '@/api/plugins'
 import { formatPluginInstallCount } from '../data'
-import type { PluginDetail as PluginDetailData } from '../types'
+import type { PluginDetail as PluginDetailData, PluginVersion } from '../types'
 import { PluginIcon } from './plugin-icon'
 import { PluginInstallationDialog } from './plugin-installation-dialog'
 import { PluginMarkdown } from './plugin-markdown'
+import { PluginUninstallationDialog } from './plugin-uninstallation-dialog'
 import {
   formatPluginVersionDate,
   PluginVersionHistoryDialog,
@@ -16,14 +29,48 @@ import {
 interface PluginDetailProps {
   plugin: PluginDetailData
   onInstalled: (result: InstalledPluginDto) => void
+  onUninstalled: (result: UninstalledPluginDto) => void
 }
 
-export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
+export function PluginDetail({ plugin, onInstalled, onUninstalled }: PluginDetailProps) {
   const [installationOpen, setInstallationOpen] = useState(false)
+  const [installationVersion, setInstallationVersion] = useState<PluginVersion>()
+  const [installationChanging, setInstallationChanging] = useState(false)
+  const [uninstallationOpen, setUninstallationOpen] = useState(false)
   const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
   const latestVersion = plugin.versions[0]
   const installedLatest = plugin.installation !== null && !plugin.updateAvailable
   const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
+
+  function openInstallation(version?: PluginVersion) {
+    setInstallationVersion(version)
+    setInstallationOpen(true)
+  }
+
+  function handleInstallVersion(version: PluginVersion) {
+    setVersionHistoryOpen(false)
+    openInstallation(version)
+  }
+
+  async function handleInstallationAction(action: string) {
+    if (action === 'uninstall') {
+      setUninstallationOpen(true)
+      return
+    }
+    if (action !== 'enable' && action !== 'disable') return
+
+    setInstallationChanging(true)
+    try {
+      const enabled = action === 'enable'
+      const result = await updatePluginInstallation(plugin.id, enabled)
+      onInstalled(result)
+      showToast('success', enabled ? '插件已启用' : '插件已禁用')
+    } catch {
+      // 请求错误由统一 API 拦截器提示。
+    } finally {
+      setInstallationChanging(false)
+    }
+  }
 
   return (
     <>
@@ -72,28 +119,45 @@ export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 lg:pl-8">
-            <div className="flex shrink-0 overflow-hidden rounded-lg">
-              <Button
-                type="button"
-                className="h-9 w-33.75 rounded-none rounded-l-lg px-3 font-semibold"
-                disabled={installedLatest}
-                onClick={() => setInstallationOpen(true)}
-              >
-                {actionLabel}
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                className="border-primary-foreground/15 h-9 rounded-none rounded-r-lg border-l"
-                aria-label="更多安装选项"
-                onClick={() => setVersionHistoryOpen(true)}
-              >
-                <ChevronDown aria-hidden className="size-4" />
-              </Button>
+            <div className="bg-primary flex h-9 shrink-0 items-stretch overflow-hidden rounded-lg shadow-xs">
+              {installedLatest ? (
+                <span className="text-primary-foreground flex h-full w-33.75 items-center justify-center px-3 text-sm font-semibold">
+                  {plugin.installation?.enabled ? '已安装' : '已禁用'}
+                </span>
+              ) : (
+                <Button
+                  type="button"
+                  className="h-full w-33.75 rounded-none px-3 font-semibold shadow-none"
+                  onClick={() => openInstallation()}
+                >
+                  {actionLabel}
+                </Button>
+              )}
+              {plugin.installation ? (
+                <Select
+                  value=""
+                  disabled={installationChanging}
+                  onValueChange={handleInstallationAction}
+                >
+                  <SelectTrigger
+                    aria-label="管理插件安装状态"
+                    aria-busy={installationChanging}
+                    className="bg-primary hover:bg-primary/85 focus-visible:bg-primary/85 border-primary-foreground/15 text-primary-foreground [&>svg]:text-primary-foreground !h-full !w-9 justify-center gap-0 rounded-none border-y-0 border-r-0 border-l !p-0 shadow-none"
+                  >
+                    <span className="sr-only">管理插件安装状态</span>
+                  </SelectTrigger>
+                  <SelectContent position="popper" align="end" sideOffset={4}>
+                    <SelectItem value={plugin.installation.enabled ? 'disable' : 'enable'}>
+                      {plugin.installation.enabled ? '禁用插件' : '启用插件'}
+                    </SelectItem>
+                    <SelectSeparator />
+                    <SelectItem value="uninstall" className="text-destructive">
+                      卸载插件
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
-            <Button type="button" variant="secondary" size="icon" aria-label="下载插件">
-              <Download aria-hidden />
-            </Button>
           </div>
         </div>
       </section>
@@ -133,12 +197,23 @@ export function PluginDetail({ plugin, onInstalled }: PluginDetailProps) {
         plugin={plugin}
         open={versionHistoryOpen}
         onOpenChange={setVersionHistoryOpen}
+        onInstallVersion={handleInstallVersion}
       />
       <PluginInstallationDialog
         plugin={plugin}
         open={installationOpen}
-        onOpenChange={setInstallationOpen}
+        onOpenChange={(open) => {
+          setInstallationOpen(open)
+          if (!open) setInstallationVersion(undefined)
+        }}
         onInstalled={onInstalled}
+        version={installationVersion}
+      />
+      <PluginUninstallationDialog
+        plugin={plugin}
+        open={uninstallationOpen}
+        onOpenChange={setUninstallationOpen}
+        onUninstalled={onUninstalled}
       />
     </>
   )

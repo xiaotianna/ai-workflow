@@ -1,3 +1,4 @@
+import { Button } from '@ai-workflow/ui/components/button'
 import {
   Dialog,
   DialogContent,
@@ -19,13 +20,14 @@ import { useState, type UIEvent } from 'react'
 
 import { PanelTabsList, PanelTabsTrigger } from '@/components/panel-tabs'
 
-import type { PluginDetail } from '../types'
+import type { PluginDetail, PluginVersion } from '../types'
 import { PluginMarkdown } from './plugin-markdown'
 
 interface PluginVersionHistoryDialogProps {
   plugin: PluginDetail
   open: boolean
   onOpenChange: (open: boolean) => void
+  onInstallVersion: (version: PluginVersion) => void
 }
 
 const VERSION_BATCH_SIZE = 5
@@ -36,6 +38,7 @@ export function PluginVersionHistoryDialog({
   plugin,
   open,
   onOpenChange,
+  onInstallVersion,
 }: PluginVersionHistoryDialogProps) {
   const [activeTab, setActiveTab] = useState<VersionHistoryTab>('versions')
   const [visibleVersionCount, setVisibleVersionCount] = useState(VERSION_BATCH_SIZE)
@@ -106,7 +109,8 @@ export function PluginVersionHistoryDialog({
                   <TableRow className="bg-input hover:bg-input border-0">
                     <TableHead className="w-44 rounded-l-lg">版本</TableHead>
                     <TableHead className="w-56">更新于</TableHead>
-                    <TableHead className="rounded-r-lg">发布者</TableHead>
+                    <TableHead>发布者</TableHead>
+                    <TableHead className="w-24 rounded-r-lg text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -128,12 +132,25 @@ export function PluginVersionHistoryDialog({
                         </time>
                       </TableCell>
                       <TableCell>{version.author}</TableCell>
+                      <TableCell className="text-right">
+                        {plugin.installation?.versionId !== version.id ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="xs"
+                            aria-label={`安装 v${version.version}`}
+                            onClick={() => onInstallVersion(version)}
+                          >
+                            安装
+                          </Button>
+                        ) : null}
+                      </TableCell>
                     </TableRow>
                   ))}
                   {hasMoreVersions ? (
                     <TableRow className="hover:bg-transparent">
                       <TableCell
-                        colSpan={3}
+                        colSpan={4}
                         role="status"
                         className="text-muted-foreground text-center"
                       >
