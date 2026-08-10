@@ -11,20 +11,15 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { Separator } from '@ai-workflow/ui/components/separator'
-import { Slider } from '@ai-workflow/ui/components/slider'
-import {
-  ArrowLeft,
-  Bot,
-  FileSearch,
-  FileText,
-  Grid3X3,
-  RotateCcw,
-  Save,
-  Search,
-  Settings2,
-} from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { ArrowLeft, FileSearch, FileText, RotateCcw, Save, Search, Settings2 } from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 
+import {
+  documentSegmentationModeOptions,
+  getDocumentSegmentationModeOption,
+  type DocumentSegmentationMode,
+} from '../constants'
+import type { DocumentPreview } from '../types'
 import { AddDocumentStepHeader } from './add-document-step-header'
 
 interface AddDocumentSegmentationStepProps {
@@ -32,20 +27,18 @@ interface AddDocumentSegmentationStepProps {
   files: readonly File[]
   maxSegmentLength: number
   overlapLength: number
-  removeUrlsAndEmails: boolean
   replaceWhitespace: boolean
-  segmentIdentifier: string
-  topK: number
+  segmentationMode: DocumentSegmentationMode
+  submitting: boolean
   onBack: () => void
   onClose: () => void
   onMaxSegmentLengthChange: (value: number) => void
   onOverlapLengthChange: (value: number) => void
-  onRemoveUrlsAndEmailsChange: (checked: boolean) => void
   onReplaceWhitespaceChange: (checked: boolean) => void
   onReset: () => void
-  onSegmentIdentifierChange: (value: string) => void
+  onPreview: () => Promise<DocumentPreview>
+  onSegmentationModeChange: (value: DocumentSegmentationMode) => void
   onSubmit: () => void
-  onTopKChange: (value: number) => void
 }
 
 function SettingCard({
@@ -82,24 +75,30 @@ export function AddDocumentSegmentationStep({
   files,
   maxSegmentLength,
   overlapLength,
-  removeUrlsAndEmails,
   replaceWhitespace,
-  segmentIdentifier,
-  topK,
+  segmentationMode,
+  submitting,
   onBack,
   onClose,
   onMaxSegmentLengthChange,
   onOverlapLengthChange,
-  onRemoveUrlsAndEmailsChange,
   onReplaceWhitespaceChange,
   onReset,
-  onSegmentIdentifierChange,
+  onPreview,
+  onSegmentationModeChange,
   onSubmit,
-  onTopKChange,
 }: AddDocumentSegmentationStepProps) {
   const [selectedFileIndex, setSelectedFileIndex] = useState('0')
   const [previewVisible, setPreviewVisible] = useState(false)
-  const selectedFile = files[Number(selectedFileIndex)] ?? files[0]
+  const [previewing, setPreviewing] = useState(false)
+  const [preview, setPreview] = useState<DocumentPreview>()
+  const selectedPreview = preview?.files[Number(selectedFileIndex)]
+  const segmentationModeOption = getDocumentSegmentationModeOption(segmentationMode)
+
+  useEffect(() => {
+    setPreviewVisible(false)
+    setPreview(undefined)
+  }, [maxSegmentLength, overlapLength, replaceWhitespace, segmentationMode])
 
   return (
     <section className="bg-background flex h-full min-h-0 flex-col">
@@ -114,19 +113,42 @@ export function AddDocumentSegmentationStep({
                   分段设置
                 </h1>
                 <SettingCard
-                  title="通用"
-                  description="通用文本分块模式，检索和召回的块保持一致。"
+                  title={segmentationModeOption.label}
+                  description={segmentationModeOption.description}
                   icon={<Settings2 aria-hidden className="size-4" />}
                 >
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Form.Field required label="分段标识符" error={errors.segmentIdentifier}>
-                      <Input
-                        value={segmentIdentifier}
-                        aria-label="分段标识符"
-                        aria-invalid={Boolean(errors.segmentIdentifier)}
-                        onChange={(event) => onSegmentIdentifierChange(event.target.value)}
-                      />
-                    </Form.Field>
+                  <Form.Field required label="分段模式" error={errors.segmentationMode}>
+                    <Select
+                      value={segmentationMode}
+                      onValueChange={(value) =>
+                        onSegmentationModeChange(value as DocumentSegmentationMode)
+                      }
+                    >
+                      <SelectTrigger
+                        aria-label="分段模式"
+                        aria-invalid={Boolean(errors.segmentationMode)}
+                        className="w-full"
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent
+                        position="popper"
+                        align="start"
+                        sideOffset={4}
+                        className="w-(--radix-select-trigger-width)"
+                      >
+                        {documentSegmentationModeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Form.Field>
+
+                  <Separator className="my-4" />
+
+                  <div className="grid gap-4 md:grid-cols-2">
                     <Form.Field required label="分段最大长度" error={errors.maxSegmentLength}>
                       <div className="relative">
                         <Input
@@ -176,18 +198,10 @@ export function AddDocumentSegmentationStep({
                     <label className="text-foreground flex cursor-pointer items-center gap-2.5 text-sm">
                       <Checkbox
                         checked={replaceWhitespace}
-                        aria-label="替换连续的空格、换行符和制表符"
+                        aria-label="规范化多余空白"
                         onCheckedChange={(checked) => onReplaceWhitespaceChange(checked === true)}
                       />
-                      替换连续的空格、换行符和制表符
-                    </label>
-                    <label className="text-foreground flex cursor-pointer items-center gap-2.5 text-sm">
-                      <Checkbox
-                        checked={removeUrlsAndEmails}
-                        aria-label="删除所有 URL 和电子邮件地址"
-                        onCheckedChange={(checked) => onRemoveUrlsAndEmailsChange(checked === true)}
-                      />
-                      删除所有 URL 和电子邮件地址
+                      规范化多余空白（保留段落、列表、表格与代码结构）
                     </label>
                   </fieldset>
 
@@ -196,10 +210,20 @@ export function AddDocumentSegmentationStep({
                       type="button"
                       variant="secondary"
                       size="sm"
-                      onClick={() => setPreviewVisible(true)}
+                      disabled={previewing}
+                      onClick={() => {
+                        setPreviewing(true)
+                        void onPreview()
+                          .then((result) => {
+                            setPreview(result)
+                            setPreviewVisible(true)
+                          })
+                          .catch(() => undefined)
+                          .finally(() => setPreviewing(false))
+                      }}
                     >
                       <FileSearch aria-hidden className="size-4" />
-                      预览块
+                      {previewing ? '生成中…' : '预览块'}
                     </Button>
                     <Button type="button" variant="ghost" size="sm" onClick={onReset}>
                       <RotateCcw aria-hidden className="size-4" />
@@ -207,73 +231,6 @@ export function AddDocumentSegmentationStep({
                     </Button>
                   </div>
                 </SettingCard>
-              </section>
-
-              <Separator />
-
-              <section aria-labelledby="index-method-heading">
-                <h2 id="index-method-heading" className="mb-2 text-sm font-semibold">
-                  索引方式
-                </h2>
-                <div className="opacity-60">
-                  <SettingCard
-                    title="经济"
-                    description="每个数据块使用 10 个关键词进行检索，不会消耗额外 token。"
-                    icon={<Bot aria-hidden className="size-4" />}
-                  />
-                </div>
-                <p className="text-muted-foreground mt-2 text-xs">
-                  如需更改索引方式和 embedding 模型，请前往
-                  <span className="text-primary ml-1 font-medium">知识库设置</span>。
-                </p>
-              </section>
-
-              <Separator />
-
-              <section aria-labelledby="retrieval-settings-heading">
-                <h2 id="retrieval-settings-heading" className="mb-2 text-sm font-semibold">
-                  检索设置
-                </h2>
-                <div className="border-primary/60 overflow-hidden rounded-xl border shadow-xs">
-                  <div className="bg-primary/5 flex items-center gap-3 px-4 py-3">
-                    <span className="bg-background text-primary flex size-8 shrink-0 items-center justify-center rounded-lg shadow-xs">
-                      <Grid3X3 aria-hidden className="size-4" />
-                    </span>
-                    <span>
-                      <span className="text-foreground block text-sm font-semibold">倒排索引</span>
-                      <span className="text-muted-foreground mt-0.5 block text-xs leading-4">
-                        通过关键词结构定位与查询最匹配的文档块。
-                      </span>
-                    </span>
-                  </div>
-                  <div className="px-4 py-4">
-                    <Form.Field required label="Top K" error={errors.topK}>
-                      <div className="flex items-center gap-4">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={10}
-                          value={topK}
-                          aria-label="Top K"
-                          aria-invalid={Boolean(errors.topK)}
-                          className="w-20 shrink-0"
-                          onChange={(event) => {
-                            const value = event.currentTarget.valueAsNumber
-                            if (Number.isFinite(value)) onTopKChange(value)
-                          }}
-                        />
-                        <Slider
-                          min={1}
-                          max={10}
-                          step={1}
-                          value={[topK]}
-                          aria-label="Top K"
-                          onValueChange={(value) => onTopKChange(value[0] ?? 3)}
-                        />
-                      </div>
-                    </Form.Field>
-                  </div>
-                </div>
               </section>
             </div>
           </div>
@@ -309,19 +266,30 @@ export function AddDocumentSegmentationStep({
                     ))}
                   </SelectContent>
                 </Select>
-                <Badge variant="outline">{previewVisible ? '1 个预览块' : '0 个预览块'}</Badge>
+                <Badge variant="outline">{selectedPreview?.total ?? 0} 个预览块</Badge>
               </div>
 
-              {previewVisible ? (
-                <div className="border-border bg-background mt-6 rounded-xl border p-4 shadow-xs">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium">预览块 1</span>
-                    <Badge variant="secondary">约 {maxSegmentLength} 字符</Badge>
-                  </div>
-                  <p className="text-muted-foreground mt-3 text-sm leading-6">
-                    {selectedFile?.name} 将按“{segmentIdentifier}”进行分段，并保留 {overlapLength}{' '}
-                    个字符的上下文重叠。实际内容会在文件解析后显示。
-                  </p>
+              {previewVisible && selectedPreview ? (
+                <div className="mt-6 space-y-3">
+                  {selectedPreview.items.map((item) => (
+                    <article
+                      key={item.sequence}
+                      className="border-border bg-background rounded-xl border p-4 shadow-xs"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-sm font-medium">预览块 {item.sequence}</span>
+                        <Badge variant="secondary">{item.characterCount} 字符</Badge>
+                      </div>
+                      <p className="text-muted-foreground mt-3 text-sm leading-6 whitespace-pre-wrap">
+                        {item.content}
+                      </p>
+                    </article>
+                  ))}
+                  {selectedPreview.truncated ? (
+                    <p className="text-muted-foreground text-center text-xs">
+                      预览最多展示前 20 个分段
+                    </p>
+                  ) : null}
                 </div>
               ) : (
                 <div className="text-muted-foreground flex min-h-72 flex-1 flex-col items-center justify-center text-center">
@@ -335,13 +303,13 @@ export function AddDocumentSegmentationStep({
       </div>
 
       <footer className="border-border flex h-14 shrink-0 items-center justify-between border-t px-5 sm:px-8">
-        <Button type="button" variant="secondary" size="sm" onClick={onBack}>
+        <Button type="button" variant="secondary" size="sm" disabled={submitting} onClick={onBack}>
           <ArrowLeft aria-hidden className="size-4" />
           上一步
         </Button>
-        <Button type="button" variant="confirm" size="sm" onClick={onSubmit}>
+        <Button type="button" variant="confirm" size="sm" disabled={submitting} onClick={onSubmit}>
           <Save aria-hidden className="size-4" />
-          保存并处理
+          {submitting ? '处理中…' : '保存并处理'}
         </Button>
       </footer>
     </section>

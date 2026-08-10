@@ -1,6 +1,10 @@
 import { z } from 'zod'
 
-import { documentAcceptedFileExtensions, documentMaxFileSizeBytes } from './constants'
+import {
+  documentAcceptedFileExtensions,
+  documentMaxFileSizeBytes,
+  documentSegmentationModeValues,
+} from './constants'
 
 export const knowledgeBaseIcons = ['📚', '📄', '📁', '🔍', '💡', '🧠'] as const
 
@@ -32,6 +36,7 @@ export const addDocumentFilesSchema = z.object({
   files: z
     .array(documentFileSchema)
     .min(1, '请至少选择一个文件')
+    .max(10, '一次最多上传 10 个文件')
     .superRefine((files, context) => {
       files.forEach((file, index) => {
         const extension = file.name.split('.').pop()?.toLowerCase() ?? ''
@@ -57,7 +62,7 @@ export const addDocumentFilesSchema = z.object({
 
 export const addDocumentSchema = addDocumentFilesSchema
   .extend({
-    segmentIdentifier: z.string().min(1, '请输入分段标识符'),
+    segmentationMode: z.enum(documentSegmentationModeValues),
     maxSegmentLength: z.coerce
       .number<number>()
       .int('分段最大长度必须是整数')
@@ -68,8 +73,6 @@ export const addDocumentSchema = addDocumentFilesSchema
       .int('分段重叠长度必须是整数')
       .min(0, '分段重叠长度不能小于 0'),
     replaceWhitespace: z.boolean(),
-    removeUrlsAndEmails: z.boolean(),
-    topK: z.coerce.number<number>().int().min(1).max(10),
   })
   .superRefine((value, context) => {
     if (value.overlapLength >= value.maxSegmentLength) {
@@ -86,10 +89,50 @@ export type AddDocumentInput = z.output<typeof addDocumentSchema>
 
 export const ADD_DOCUMENT_INITIAL_VALUES = {
   files: [],
-  segmentIdentifier: '\\n',
+  segmentationMode: 'general',
   maxSegmentLength: 1024,
   overlapLength: 50,
   replaceWhitespace: true,
-  removeUrlsAndEmails: false,
-  topK: 3,
 } satisfies AddDocumentFormInput
+
+export const knowledgeBaseSettingsSchema = z
+  .object({
+    segmentationMode: z.enum(documentSegmentationModeValues),
+    maxSegmentLength: z.coerce
+      .number<number>()
+      .int('分段最大长度必须是整数')
+      .min(100, '分段最大长度不能小于 100')
+      .max(4000, '分段最大长度不能超过 4000'),
+    overlapLength: z.coerce
+      .number<number>()
+      .int('分段重叠长度必须是整数')
+      .min(0, '分段重叠长度不能小于 0'),
+    replaceWhitespace: z.boolean(),
+    retrievalProfile: z.enum(['hybrid-accurate', 'hybrid-fast']),
+    retrievalTopK: z.coerce
+      .number<number>()
+      .int('默认返回数量必须是整数')
+      .min(1, '默认返回数量不能小于 1')
+      .max(20, '默认返回数量不能超过 20'),
+  })
+  .superRefine((value, context) => {
+    if (value.overlapLength >= value.maxSegmentLength) {
+      context.addIssue({
+        code: 'custom',
+        message: '分段重叠长度必须小于分段最大长度',
+        path: ['overlapLength'],
+      })
+    }
+  })
+
+export type KnowledgeBaseSettingsFormInput = z.input<typeof knowledgeBaseSettingsSchema>
+export type KnowledgeBaseSettingsInput = z.output<typeof knowledgeBaseSettingsSchema>
+
+export const KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES = {
+  segmentationMode: 'general',
+  maxSegmentLength: 1024,
+  overlapLength: 50,
+  replaceWhitespace: true,
+  retrievalProfile: 'hybrid-accurate',
+  retrievalTopK: 8,
+} satisfies KnowledgeBaseSettingsFormInput

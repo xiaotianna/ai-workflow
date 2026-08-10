@@ -1,5 +1,7 @@
 import type { KnowledgeBaseSort as ApiKnowledgeBaseSort } from '@/api/knowledge-bases'
 
+import type { DocumentSegmentationMode } from './constants'
+
 export interface KnowledgeBaseListItem {
   id: string
   title: string
@@ -19,9 +21,7 @@ export type KnowledgeBaseActionHandler = (
   knowledgeBase: KnowledgeBaseListItem,
 ) => void
 
-export type DocumentSegmentationMode = 'general' | 'qa' | 'parent-child'
-
-export type DocumentStatus = 'available' | 'indexing' | 'error' | 'disabled'
+export type DocumentStatus = 'available' | 'indexing' | 'error' | 'disabled' | 'stale'
 
 export interface KnowledgeBaseDocument {
   id: string
@@ -29,7 +29,6 @@ export interface KnowledgeBaseDocument {
   name: string
   fileType: 'markdown' | 'pdf' | 'text' | 'other'
   segmentationMode: DocumentSegmentationMode
-  segmentationModeLabel: string
   characterCount: number
   recallCount: number
   uploadedAt: string
@@ -37,6 +36,8 @@ export interface KnowledgeBaseDocument {
   status: DocumentStatus
   statusLabel: string
   enabled: boolean
+  chunkCount: number
+  needsReindex: boolean
 }
 
 export type DocumentAction = 'rename' | 'delete' | 'reindex'
@@ -45,3 +46,17 @@ export type DocumentActionHandler = (
   action: DocumentAction,
   document: KnowledgeBaseDocument,
 ) => void
+
+export interface DocumentPreview {
+  files: Array<{
+    name: string
+    total: number
+    truncated: boolean
+    items: Array<{
+      sequence: number
+      content: string
+      characterCount: number
+      metadata: Record<string, string | number>
+    }>
+  }>
+}

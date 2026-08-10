@@ -24,8 +24,9 @@ import {
 } from '@tanstack/react-table'
 import { FileText, Puzzle } from 'lucide-react'
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 
-import { documentFileTypeIconBackground } from '../constants'
+import { documentFileTypeIconBackground, getDocumentSegmentationModeOption } from '../constants'
 import { formatDocumentCharacterCount } from '../data'
 import type { DocumentActionHandler, KnowledgeBaseDocument } from '../types'
 import { DocumentActionMenu } from './document-action-menu'
@@ -68,6 +69,7 @@ function getDocumentColumnStyle(
 
 interface DocumentTableProps {
   documents: KnowledgeBaseDocument[]
+  total: number
   pageIndex: number
   pageSize: number
   rowSelection: RowSelectionState
@@ -89,6 +91,7 @@ function DocumentStatusBadge({
       className={cn(
         'inline-flex items-center gap-1.5',
         status === 'available' && 'text-success',
+        status === 'stale' && 'text-warning',
         status === 'indexing' && 'text-info',
         status === 'error' && 'text-destructive',
         status === 'disabled' && 'text-muted-foreground',
@@ -99,6 +102,7 @@ function DocumentStatusBadge({
         className={cn(
           'size-1.5 rounded-full',
           status === 'available' && 'bg-success',
+          status === 'stale' && 'bg-warning',
           status === 'indexing' && 'bg-info',
           status === 'error' && 'bg-destructive',
           status === 'disabled' && 'bg-muted-foreground',
@@ -111,6 +115,7 @@ function DocumentStatusBadge({
 
 export function DocumentTable({
   documents,
+  total,
   pageIndex,
   pageSize,
   rowSelection,
@@ -174,7 +179,12 @@ export function DocumentTable({
             >
               <FileText className="text-primary size-3.5" />
             </span>
-            <span className="truncate">{row.original.name}</span>
+            <Link
+              to={`/knowledge-base/${encodeURIComponent(row.original.knowledgeBaseId)}/documents/${encodeURIComponent(row.original.id)}`}
+              className="hover:text-primary focus-visible:text-primary truncate rounded-sm transition-colors outline-none"
+            >
+              {row.original.name}
+            </Link>
           </div>
         ),
         size: 240,
@@ -182,7 +192,7 @@ export function DocumentTable({
         maxSize: 320,
       },
       {
-        accessorKey: 'segmentationModeLabel',
+        accessorKey: 'segmentationMode',
         header: '分段模式',
         cell: ({ row }) => (
           <Badge
@@ -190,7 +200,7 @@ export function DocumentTable({
             className="bg-muted text-muted-foreground h-6 gap-1 rounded-full border-0 px-2 font-normal"
           >
             <Puzzle aria-hidden className="size-3" />
-            {row.original.segmentationModeLabel}
+            {getDocumentSegmentationModeOption(row.original.segmentationMode).label}
           </Badge>
         ),
         enableSorting: false,
@@ -208,9 +218,9 @@ export function DocumentTable({
         maxSize: 88,
       },
       {
-        accessorKey: 'recallCount',
-        header: '召回次数',
-        cell: ({ row }) => row.original.recallCount,
+        accessorKey: 'chunkCount',
+        header: '分段数',
+        cell: ({ row }) => row.original.chunkCount,
         enableSorting: false,
         size: 96,
         minSize: 96,
@@ -299,6 +309,8 @@ export function DocumentTable({
     },
     enableRowSelection: true,
     enableSorting: false,
+    manualPagination: true,
+    pageCount: Math.max(Math.ceil(total / pageSize), 1),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

@@ -16,6 +16,7 @@ import {
   ScrollText,
   SquareMousePointer,
   SquareTerminal,
+  Settings2,
   ToolCase,
   ToyBrick,
 } from 'lucide-react'
@@ -37,7 +38,9 @@ const AppApiPage = lazy(() => import('../pages/app/api'))
 const AppLogsPage = lazy(() => import('../pages/app/logs'))
 const KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base'))
 const KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents'))
+const KnowledgeDocumentDetailPage = lazy(() => import('../pages/knowledge-base/document-detail'))
 const KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test'))
+const KnowledgeBaseSettingsPage = lazy(() => import('../pages/knowledge-base/settings'))
 const SharedAppApiPage = lazy(() => import('../pages/shared/app-api'))
 const DocsPage = lazy(() => import('../pages/docs'))
 const DocsOverviewPage = lazy(() => import('../pages/docs/overview'))
@@ -212,6 +215,21 @@ export const routes = [
             },
           },
           {
+            id: 'knowledge-base-document-detail',
+            path: 'documents/:documentId',
+            element: (
+              <LazyLoad>
+                <KnowledgeDocumentDetailPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '文档分段',
+                requiresAuth: true,
+              },
+            },
+          },
+          {
             id: 'knowledge-base-recall-test',
             path: 'recall-test',
             element: (
@@ -224,6 +242,22 @@ export const routes = [
                 title: '召回测试',
                 requiresAuth: true,
                 icon: Target,
+              },
+            },
+          },
+          {
+            id: 'knowledge-base-settings',
+            path: 'settings',
+            element: (
+              <LazyLoad>
+                <KnowledgeBaseSettingsPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '设置',
+                requiresAuth: true,
+                icon: Settings2,
               },
             },
           },

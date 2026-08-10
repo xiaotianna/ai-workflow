@@ -20,6 +20,8 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 设计 Controller、DTO、错误、鉴权或配置：读取 [references/api-and-boundaries.md](references/api-and-boundaries.md)。
 - 接入 Prisma、PostgreSQL、Redis、LangGraph 或工作流 package：读取 [references/data-and-workflow.md](references/data-and-workflow.md)。
 - 实施节点执行类别、分级 Command Queue、Outbox 路由或 Worker 能力校验：读取 [`docs/node-execution-isolation-implementation.md`](../../../docs/node-execution-isolation-implementation.md)。
+- 实施知识库文档入库、OpenSearch 混合检索、准确性评测或对外知识库 API：读取
+  [`docs/knowledge-base-production-api-design.md`](../../../docs/knowledge-base-production-api-design.md)，并组合读取接口与数据引用。
 
 ## 当前结论
 
@@ -32,7 +34,9 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
   开放只读正文，公开读取不经过用户 JWT。
 - 知识库已落地最小 `KnowledgeBase` Prisma 模型和迁移，并通过 `KnowledgeBaseModule` 提供按用户
   隔离的空白知识库创建、列表、详情、编辑和删除接口；删除会阻止仍被工作流草稿或版本引用的
-  知识库。文档、索引代际、向量和异步任务尚未实现。
+  知识库。生产目标采用 PostgreSQL 事实表、RabbitMQ + Outbox 入库任务、OpenSearch
+  `BM25 + Dense + RRF` 混合召回和全局 Rerank，并通过独立 `kb-` API Key 提供 `/v1/knowledge/*`
+  Service API；文档、索引代际、检索链路和这些外部接口均尚未实现。
 - 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
   TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包
   保存到可配置的本地产物目录。Marketplace 列表已接入真实数据、访问范围、搜索、筛选、排序和

@@ -64,3 +64,20 @@ enum PluginStatus {
   PUBLISHED
   DEPRECATED
 }
+
+enum KnowledgeSegmentationMode {
+  GENERAL
+  QA
+  PARENT_CHILD
+}
+
+enum KnowledgeRetrievalProfile {
+  HYBRID_ACCURATE
+  HYBRID_FAST
+}
+
+enum KnowledgeDocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}

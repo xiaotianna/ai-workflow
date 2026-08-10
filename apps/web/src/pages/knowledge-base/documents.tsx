@@ -1,6 +1,17 @@
+import {
+  createKnowledgeDocuments,
+  deleteKnowledgeDocument,
+  getKnowledgeBaseSettings,
+  listKnowledgeDocuments,
+  previewKnowledgeDocuments,
+  reindexKnowledgeDocument,
+  updateKnowledgeDocument,
+  type KnowledgeBaseSettingsDto,
+} from '@/api/knowledge-bases'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import type { RowSelectionState, SortingState } from '@tanstack/react-table'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 
 import { PageContent } from '@/components/page-content'
@@ -8,187 +19,136 @@ import { PageHeaderActions } from '@/components/page-header-actions'
 import { PageTitle } from '@/components/page-title'
 import {
   AddDocumentPage,
-  createMockDocuments,
+  DeleteDocumentDialog,
+  documentPageSizeOptions,
   DocumentTable,
   DocumentToolbar,
+  toKnowledgeBaseDocument,
   type AddDocumentInput,
   type DocumentAction,
-  type DocumentActionHandler,
   type KnowledgeBaseDocument,
 } from '@/features/knowledge-base'
-import { documentPageSizeOptions } from '@/features/knowledge-base/constants'
 
 import type { KnowledgeBaseDetailOutletContext } from '.'
 
-const uploadedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-const sortFieldMap = {
-  'uploaded-at': 'uploadedAt',
-  'recall-count': 'recallCount',
-  'character-count': 'characterCount',
-  name: 'name',
+const segmentationModeToApi = {
+  general: 'GENERAL',
+  qa: 'QA',
+  'parent-child': 'PARENT_CHILD',
 } as const
 
-export interface KnowledgeBaseDocumentsPageProps {
-  onDocumentAction?: DocumentActionHandler
-}
+const segmentationModeFromApi = {
+  GENERAL: 'general',
+  QA: 'qa',
+  PARENT_CHILD: 'parent-child',
+} as const
 
-export default function KnowledgeBaseDocumentsPage({
-  onDocumentAction,
-}: KnowledgeBaseDocumentsPageProps) {
+export default function KnowledgeBaseDocumentsPage() {
   const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
   const { isResourceAvailable, knowledgeBase } =
     useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const [documents, setDocuments] = useState(() => createMockDocuments(knowledgeBaseId))
-  const [category, setCategory] = useState('all')
+  const [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([])
+  const [settings, setSettings] = useState<KnowledgeBaseSettingsDto>()
   const [search, setSearch] = useState('')
-  const [sortBy, setSortBy] = useState('uploaded-at')
-  const [sortDescending, setSortDescending] = useState(true)
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
+  const [total, setTotal] = useState(0)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [addPageOpen, setAddPageOpen] = useState(false)
-  const [slideDirection, setSlideDirection] = useState(1)
+  const [deletingDocument, setDeletingDocument] = useState<KnowledgeBaseDocument>()
+  const [loading, setLoading] = useState(false)
+  const [reloadVersion, setReloadVersion] = useState(0)
+  const sorting: SortingState = []
 
   useEffect(() => {
-    setDocuments(createMockDocuments(knowledgeBaseId))
-    setPageIndex(0)
-    setRowSelection({})
-  }, [knowledgeBaseId])
+    if (!isResourceAvailable || !knowledgeBaseId) return
+    const controller = new AbortController()
+    void getKnowledgeBaseSettings(knowledgeBaseId, controller.signal)
+      .then(setSettings)
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [isResourceAvailable, knowledgeBaseId, reloadVersion])
 
-  const sorting = useMemo<SortingState>(
-    () => [
-      {
-        id: sortFieldMap[sortBy as keyof typeof sortFieldMap] ?? 'uploadedAt',
-        desc: sortDescending,
-      },
-    ],
-    [sortBy, sortDescending],
-  )
+  useEffect(() => {
+    if (!isResourceAvailable || !knowledgeBaseId) return
+    const controller = new AbortController()
+    const timer = globalThis.setTimeout(() => {
+      setLoading(true)
+      void listKnowledgeDocuments(
+        knowledgeBaseId,
+        { search: search.trim() || undefined, page: pageIndex + 1, pageSize },
+        controller.signal,
+      )
+        .then((result) => {
+          setDocuments(result.items.map(toKnowledgeBaseDocument))
+          setTotal(result.total)
+          setRowSelection({})
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false)
+        })
+    }, 300)
 
-  const visibleDocuments = useMemo(() => {
-    const normalizedQuery = search.trim().toLowerCase()
+    return () => {
+      globalThis.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [isResourceAvailable, knowledgeBaseId, pageIndex, pageSize, reloadVersion, search])
 
-    return documents.filter((document) => {
-      if (category !== 'all' && document.fileType !== category) {
-        return false
-      }
-
-      if (!normalizedQuery) {
-        return true
-      }
-
-      return document.name.toLowerCase().includes(normalizedQuery)
+  async function handleAddDocument(input: AddDocumentInput) {
+    await createKnowledgeDocuments(knowledgeBaseId, {
+      files: input.files,
+      segmentationMode: segmentationModeToApi[input.segmentationMode],
+      maxSegmentLength: input.maxSegmentLength,
+      overlapLength: input.overlapLength,
+      normalizeWhitespace: input.replaceWhitespace,
     })
-  }, [category, documents, search])
-
-  function handleSortingChange(updater: SortingState | ((old: SortingState) => SortingState)) {
-    const nextSorting = typeof updater === 'function' ? updater(sorting) : updater
-    const activeSort = nextSorting[0]
-
-    if (!activeSort) return
-
-    const nextSortBy =
-      (Object.entries(sortFieldMap).find(([, columnId]) => columnId === activeSort.id)?.[0] as
-        | keyof typeof sortFieldMap
-        | undefined) ?? 'uploaded-at'
-
-    setSortBy(nextSortBy)
-    setSortDescending(activeSort.desc ?? true)
     setPageIndex(0)
+    setReloadVersion((value) => value + 1)
+    showToast('success', '文档已完成解析和分段')
   }
 
-  function handleDocumentEnabledChange(documentId: string, enabled: boolean) {
-    setDocuments((currentDocuments) =>
-      currentDocuments.map((document) =>
-        document.id === documentId
+  async function handleDocumentEnabledChange(documentId: string, enabled: boolean) {
+    const current = documents
+    setDocuments((items) =>
+      items.map((item) =>
+        item.id === documentId
           ? {
-              ...document,
+              ...item,
               enabled,
-              status: enabled ? 'available' : 'disabled',
-              statusLabel: enabled ? '可用' : '已禁用',
+              status: enabled ? (item.needsReindex ? 'stale' : 'available') : 'disabled',
+              statusLabel: enabled ? (item.needsReindex ? '待更新' : '可用') : '已禁用',
             }
-          : document,
+          : item,
       ),
     )
+    try {
+      await updateKnowledgeDocument(knowledgeBaseId, documentId, { enabled })
+    } catch {
+      setDocuments(current)
+    }
   }
 
-  function handleDocumentAction(action: DocumentAction, document: KnowledgeBaseDocument) {
+  async function handleDocumentAction(action: DocumentAction, document: KnowledgeBaseDocument) {
+    if (action === 'reindex') {
+      await reindexKnowledgeDocument(knowledgeBaseId, document.id)
+      setReloadVersion((value) => value + 1)
+      showToast('success', '文档分段已按当前设置更新')
+      return
+    }
+
     if (action === 'delete') {
-      setDocuments((currentDocuments) => currentDocuments.filter((item) => item.id !== document.id))
-      setRowSelection((currentSelection) => {
-        const nextSelection = { ...currentSelection }
-        delete nextSelection[document.id]
-        return nextSelection
-      })
-      return
+      setDeletingDocument(document)
     }
-
-    if (action === 'rename' || action === 'reindex') {
-      return
-    }
-  }
-
-  function handleAddDocument(input: AddDocumentInput) {
-    const uploadedAt = new Date()
-    const uploadedDocuments = input.files.map((file, index) => {
-      const extension = file.name.split('.').pop()?.toLowerCase() ?? 'other'
-      const fileType =
-        extension === 'md' || extension === 'mdx' || extension === 'markdown'
-          ? 'markdown'
-          : extension === 'pdf'
-            ? 'pdf'
-            : extension === 'txt'
-              ? 'text'
-              : 'other'
-
-      return {
-        id: `local-${uploadedAt.getTime()}-${index}`,
-        knowledgeBaseId,
-        name: file.name,
-        fileType,
-        segmentationMode: 'general' as const,
-        segmentationModeLabel: '通用',
-        characterCount: Math.max(Math.round(file.size / 2), 1),
-        recallCount: 0,
-        uploadedAt: uploadedAt.toISOString(),
-        uploadedAtLabel: uploadedAtFormatter.format(uploadedAt),
-        status: 'indexing' as const,
-        statusLabel: '索引中',
-        enabled: true,
-      }
-    })
-
-    setDocuments((currentDocuments) => [...uploadedDocuments, ...currentDocuments])
-    setPageIndex(0)
-  }
-
-  function openAddPage() {
-    setSlideDirection(1)
-    setAddPageOpen(true)
-  }
-
-  function closeAddPage() {
-    setSlideDirection(-1)
-    setAddPageOpen(false)
   }
 
   if (!isResourceAvailable) {
     return (
       <div className="flex h-full min-h-0 flex-col overflow-hidden px-6 pt-4 pb-2">
         <PageTitle title="文档" subtitle="管理知识库中的文档与分段内容" />
-
-        <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div className="text-muted-foreground flex min-h-48 items-center justify-center text-sm">
-            知识库不可用或正在加载
-          </div>
+        <PageContent className="text-muted-foreground mt-4 flex min-h-0 flex-1 items-center justify-center text-sm">
+          知识库不可用或正在加载
         </PageContent>
       </div>
     )
@@ -196,12 +156,25 @@ export default function KnowledgeBaseDocumentsPage({
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
+      {deletingDocument ? (
+        <DeleteDocumentDialog
+          document={deletingDocument}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDeletingDocument(undefined)
+          }}
+          onDelete={async () => {
+            await deleteKnowledgeDocument(knowledgeBaseId, deletingDocument.id)
+            setReloadVersion((value) => value + 1)
+            showToast('success', '文档已删除')
+          }}
+        />
+      ) : null}
       <MotionConfig reducedMotion="user" transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
-        <AnimatePresence initial={false} mode="popLayout" custom={slideDirection}>
+        <AnimatePresence initial={false} mode="popLayout">
           {addPageOpen ? (
             <motion.div
               key="add-document-page"
-              custom={slideDirection}
               initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: '100%' }}
@@ -209,59 +182,70 @@ export default function KnowledgeBaseDocumentsPage({
             >
               <AddDocumentPage
                 knowledgeBaseName={knowledgeBase?.title}
+                initialSettings={
+                  settings
+                    ? {
+                        segmentationMode: segmentationModeFromApi[settings.segmentationMode],
+                        maxSegmentLength: settings.maxSegmentLength,
+                        overlapLength: settings.overlapLength,
+                        replaceWhitespace: settings.normalizeWhitespace,
+                      }
+                    : undefined
+                }
                 onAdd={handleAddDocument}
-                onClose={closeAddPage}
+                onPreview={(input) =>
+                  previewKnowledgeDocuments(knowledgeBaseId, {
+                    files: input.files,
+                    segmentationMode: segmentationModeToApi[input.segmentationMode],
+                    maxSegmentLength: input.maxSegmentLength,
+                    overlapLength: input.overlapLength,
+                    normalizeWhitespace: input.replaceWhitespace,
+                  })
+                }
+                onClose={() => setAddPageOpen(false)}
               />
             </motion.div>
           ) : (
             <motion.div
               key="document-list-page"
-              custom={slideDirection}
               initial={{ opacity: 0, x: '-100%' }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: '-100%' }}
               className="absolute inset-0 flex min-h-0 flex-col overflow-hidden px-6 pt-4 pb-2"
             >
               <PageTitle title="文档" subtitle="管理知识库中的文档与分段内容" />
-
               <PageHeaderActions>
                 <DocumentToolbar
-                  category={category}
                   search={search}
-                  sortBy={sortBy}
-                  onAddDocument={openAddPage}
-                  onCategoryChange={(nextCategory) => {
-                    setCategory(nextCategory)
-                    setPageIndex(0)
-                  }}
-                  onMetadataClick={() => undefined}
-                  onSearchChange={(nextSearch) => {
-                    setSearch(nextSearch)
-                    setPageIndex(0)
-                  }}
-                  onSortByChange={(nextSortBy) => {
-                    setSortBy(nextSortBy)
+                  disabled={loading}
+                  onAddDocument={() => setAddPageOpen(true)}
+                  onSearchChange={(value) => {
+                    setSearch(value)
                     setPageIndex(0)
                   }}
                 />
               </PageHeaderActions>
-
               <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <DocumentTable
-                  documents={visibleDocuments}
+                  documents={documents}
+                  total={total}
                   pageIndex={pageIndex}
                   pageSize={pageSize}
                   rowSelection={rowSelection}
                   sorting={sorting}
-                  onDocumentAction={onDocumentAction ?? handleDocumentAction}
-                  onDocumentEnabledChange={handleDocumentEnabledChange}
+                  onDocumentAction={(action, document) =>
+                    void handleDocumentAction(action, document)
+                  }
+                  onDocumentEnabledChange={(documentId, enabled) =>
+                    void handleDocumentEnabledChange(documentId, enabled)
+                  }
                   onPageChange={setPageIndex}
-                  onPageSizeChange={(nextPageSize) => {
-                    setPageSize(nextPageSize)
+                  onPageSizeChange={(value) => {
+                    setPageSize(value)
                     setPageIndex(0)
                   }}
                   onRowSelectionChange={setRowSelection}
-                  onSortingChange={handleSortingChange}
+                  onSortingChange={() => undefined}
                 />
               </PageContent>
             </motion.div>

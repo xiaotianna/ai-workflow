@@ -9,6 +9,72 @@ model KnowledgeBase {
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
 
+  settings  KnowledgeBaseSettings?
+  documents KnowledgeDocument[]
+
   @@index([ownerId, updatedAt])
   @@map("knowledge_bases")
+}
+
+model KnowledgeBaseSettings {
+  knowledgeBaseId      String                    @id @db.Uuid
+  segmentationMode     KnowledgeSegmentationMode @default(GENERAL)
+  maxSegmentLength     Int                       @default(1024)
+  overlapLength        Int                       @default(50)
+  normalizeWhitespace  Boolean                   @default(true)
+  segmentationRevision Int                       @default(1)
+  retrievalProfile     KnowledgeRetrievalProfile @default(HYBRID_ACCURATE)
+  retrievalTopK        Int                       @default(8)
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@map("knowledge_base_settings")
+}
+
+model KnowledgeDocument {
+  id                          String                    @id @default(uuid()) @db.Uuid
+  knowledgeBaseId             String                    @db.Uuid
+  name                        String                    @db.VarChar(255)
+  fileType                    String                    @db.VarChar(32)
+  sourceStorageKey            String                    @unique @db.VarChar(512)
+  sourceMimeType              String                    @db.VarChar(128)
+  sourceSize                  BigInt
+  sourceChecksum              String                    @db.VarChar(64)
+  segmentationMode            KnowledgeSegmentationMode
+  maxSegmentLength            Int
+  overlapLength               Int
+  normalizeWhitespace         Boolean
+  indexedSegmentationRevision Int
+  status                      KnowledgeDocumentStatus   @default(PROCESSING)
+  enabled                     Boolean                   @default(true)
+  characterCount              Int                       @default(0)
+  chunkCount                  Int                       @default(0)
+  errorMessage                String?                   @db.Text
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
+
+  knowledgeBase KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        KnowledgeChunk[]
+
+  @@index([knowledgeBaseId, createdAt])
+  @@index([knowledgeBaseId, enabled])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id         String   @id @default(uuid()) @db.Uuid
+  documentId String   @db.Uuid
+  sequence   Int
+  content    String   @db.Text
+  tokenCount Int
+  metadata   Json     @default("{}")
+  createdAt  DateTime @default(now())
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, sequence])
+  @@index([documentId, sequence])
+  @@map("knowledge_chunks")
 }

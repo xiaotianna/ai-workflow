@@ -53,6 +53,7 @@ const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) =>
           'trusted-compute,controlled-model,controlled-http,untrusted-sandbox',
         ),
         PLUGIN_ARTIFACT_DIRECTORY: Joi.string().trim().min(1).default('var/plugin-artifacts'),
+        KNOWLEDGE_SOURCE_DIRECTORY: Joi.string().trim().min(1).default('var/knowledge-sources'),
       }),
       validationOptions: {
         // 一次显示全部配置错误

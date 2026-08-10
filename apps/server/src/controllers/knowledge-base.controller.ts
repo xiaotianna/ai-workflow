@@ -1,12 +1,28 @@
 import type { AuthenticatedRequest } from '@/common/interfaces/auth-context.interface'
 import { JwtAuth } from '@/decorators/jwt-auth.decorator'
 import {
+  CreateKnowledgeDocumentsDto,
   CreateKnowledgeBaseDto,
+  ListKnowledgeChunksDto,
   ListKnowledgeBasesDto,
+  ListKnowledgeDocumentsDto,
+  UpdateKnowledgeBaseSettingsDto,
   UpdateKnowledgeBaseDto,
+  UpdateKnowledgeDocumentDto,
 } from '@/dto/knowledge-base.dto'
-import { KnowledgeBaseService } from '@/services/knowledge-base.service'
-import type { KnowledgeBaseListVo, KnowledgeBaseVo } from '@/vo/knowledge-base.vo'
+import {
+  KnowledgeBaseService,
+  type UploadedKnowledgeDocument,
+} from '@/services/knowledge-base.service'
+import type {
+  KnowledgeBaseListVo,
+  KnowledgeBaseSettingsVo,
+  KnowledgeBaseVo,
+  KnowledgeChunkListVo,
+  KnowledgeDocumentListVo,
+  KnowledgeDocumentPreviewVo,
+  KnowledgeDocumentVo,
+} from '@/vo/knowledge-base.vo'
 import {
   BadRequestException,
   Body,
@@ -19,7 +35,13 @@ import {
   Post,
   Query,
   Req,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common'
+import { FilesInterceptor } from '@nestjs/platform-express'
+
+const MAX_KNOWLEDGE_DOCUMENT_SIZE = 15 * 1024 * 1024
+const MAX_KNOWLEDGE_DOCUMENT_FILES = 10
 
 @JwtAuth()
 @Controller('knowledge-bases')
@@ -55,6 +77,143 @@ export class KnowledgeBaseController {
     @Body() dto: CreateKnowledgeBaseDto,
   ): Promise<KnowledgeBaseVo> {
     return this.knowledgeBaseService.create(request.auth.userId, dto)
+  }
+
+  @Get(':knowledgeBaseId/settings')
+  getSettings(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseSettingsVo> {
+    return this.knowledgeBaseService.getSettings(request.auth.userId, knowledgeBaseId)
+  }
+
+  @Patch(':knowledgeBaseId/settings')
+  updateSettings(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Body() dto: UpdateKnowledgeBaseSettingsDto,
+  ): Promise<KnowledgeBaseSettingsVo> {
+    return this.knowledgeBaseService.updateSettings(request.auth.userId, knowledgeBaseId, dto)
+  }
+
+  @Get(':knowledgeBaseId/documents')
+  listDocuments(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Query() query: ListKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentListVo> {
+    return this.knowledgeBaseService.listDocuments(request.auth.userId, knowledgeBaseId, query)
+  }
+
+  @Post(':knowledgeBaseId/documents')
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_KNOWLEDGE_DOCUMENT_FILES, {
+      limits: {
+        fileSize: MAX_KNOWLEDGE_DOCUMENT_SIZE,
+        files: MAX_KNOWLEDGE_DOCUMENT_FILES,
+      },
+    }),
+  )
+  createDocuments(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @UploadedFiles() files: UploadedKnowledgeDocument[] | undefined,
+    @Body() dto: CreateKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentVo[]> {
+    return this.knowledgeBaseService.createDocuments(
+      request.auth.userId,
+      knowledgeBaseId,
+      files ?? [],
+      dto,
+    )
+  }
+
+  @Post(':knowledgeBaseId/documents/preview')
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_KNOWLEDGE_DOCUMENT_FILES, {
+      limits: {
+        fileSize: MAX_KNOWLEDGE_DOCUMENT_SIZE,
+        files: MAX_KNOWLEDGE_DOCUMENT_FILES,
+      },
+    }),
+  )
+  previewDocuments(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @UploadedFiles() files: UploadedKnowledgeDocument[] | undefined,
+    @Body() dto: CreateKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentPreviewVo> {
+    return this.knowledgeBaseService.previewDocuments(
+      request.auth.userId,
+      knowledgeBaseId,
+      files ?? [],
+      dto,
+    )
+  }
+
+  @Get(':knowledgeBaseId/documents/:documentId')
+  getDocument(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+  ): Promise<KnowledgeDocumentVo> {
+    return this.knowledgeBaseService.getDocument(request.auth.userId, knowledgeBaseId, documentId)
+  }
+
+  @Patch(':knowledgeBaseId/documents/:documentId')
+  updateDocument(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Body() dto: UpdateKnowledgeDocumentDto,
+  ): Promise<KnowledgeDocumentVo> {
+    return this.knowledgeBaseService.updateDocument(
+      request.auth.userId,
+      knowledgeBaseId,
+      documentId,
+      dto,
+    )
+  }
+
+  @Delete(':knowledgeBaseId/documents/:documentId')
+  removeDocument(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+  ): Promise<void> {
+    return this.knowledgeBaseService.removeDocument(
+      request.auth.userId,
+      knowledgeBaseId,
+      documentId,
+    )
+  }
+
+  @Post(':knowledgeBaseId/documents/:documentId/reindex')
+  reindexDocument(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+  ): Promise<KnowledgeDocumentVo> {
+    return this.knowledgeBaseService.reindexDocument(
+      request.auth.userId,
+      knowledgeBaseId,
+      documentId,
+    )
+  }
+
+  @Get(':knowledgeBaseId/documents/:documentId/chunks')
+  listChunks(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Query() query: ListKnowledgeChunksDto,
+  ): Promise<KnowledgeChunkListVo> {
+    return this.knowledgeBaseService.listChunks(
+      request.auth.userId,
+      knowledgeBaseId,
+      documentId,
+      query,
+    )
   }
 
   @Patch(':knowledgeBaseId')

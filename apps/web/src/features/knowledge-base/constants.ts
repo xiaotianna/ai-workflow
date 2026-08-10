@@ -1,38 +1,43 @@
 export const knowledgeBaseIconBackground = 'rgb(219, 234, 254)'
 
-export const documentCategoryOptions = [
-  { value: 'all', label: '全部' },
-  { value: 'markdown', label: 'Markdown' },
-  { value: 'pdf', label: 'PDF' },
-  { value: 'text', label: '文本' },
-] as const
-
-export const documentSortOptions = [
-  { value: 'uploaded-at', label: '上传时间' },
-  { value: 'recall-count', label: '召回次数' },
-  { value: 'character-count', label: '字符数' },
-  { value: 'name', label: '名称' },
-] as const
-
 export const documentPageSizeOptions = [10, 25, 50] as const
 
-export const documentAcceptedFileTypes =
-  '.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.html,.md,.mdx,.markdown,.txt'
+export const documentSegmentationModeValues = ['general', 'qa', 'parent-child'] as const
 
-export const documentAcceptedFileExtensions = [
-  'pdf',
-  'doc',
-  'docx',
-  'ppt',
-  'pptx',
-  'xls',
-  'xlsx',
-  'html',
-  'md',
-  'mdx',
-  'markdown',
-  'txt',
-] as const
+export type DocumentSegmentationMode = (typeof documentSegmentationModeValues)[number]
+
+export const documentSegmentationModeOptions = [
+  {
+    value: 'general',
+    label: '通用',
+    description: '按标题、段落和长度切分，适合一般文档。',
+  },
+  {
+    value: 'qa',
+    label: 'Q&A',
+    description: '按问答对组织检索单元，适合结构化问答内容。',
+  },
+  {
+    value: 'parent-child',
+    label: '父子分段',
+    description: '使用子块精准召回，并返回父块补充完整上下文。',
+  },
+] as const satisfies readonly {
+  value: DocumentSegmentationMode
+  label: string
+  description: string
+}[]
+
+export function getDocumentSegmentationModeOption(mode: DocumentSegmentationMode) {
+  return (
+    documentSegmentationModeOptions.find((option) => option.value === mode) ??
+    documentSegmentationModeOptions[0]
+  )
+}
+
+export const documentAcceptedFileTypes = '.md,.markdown,.txt'
+
+export const documentAcceptedFileExtensions = ['md', 'markdown', 'txt'] as const
 
 export const documentMaxFileSizeBytes = 15 * 1024 * 1024
 

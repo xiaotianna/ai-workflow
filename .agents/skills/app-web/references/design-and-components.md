@@ -25,10 +25,16 @@
 - 知识库创建和编辑复用 `KnowledgeBaseFormDialog`；编辑时回填名称、图标和描述，请求期间禁止
   关闭或重复提交。删除统一使用 `DeleteKnowledgeBaseDialog` 二次确认；请求期间禁止关闭，失败
   时保留弹窗，列表成功后刷新当前查询，详情成功后返回知识库列表。
-- 文档页（`/knowledge-base/:id/documents`）在真实文档接口接入前，使用 `createMockDocuments`
-  按当前知识库 ID 生成前端预览数据，并挂载 `DocumentToolbar`、`DocumentTable`、
-  `DocumentPagination` 与添加文件弹窗；启停、删除、本地添加仅更新页面状态，不请求后端。接入
-  真实接口后移除 mock，并遵守下方「知识库文档表格」约定。
+- 文档页（`/knowledge-base/:id/documents`）使用真实分页接口，搜索、启停、删除、上传和手动重新索引都必须持久化，不得回退为本地 mock。点击文件名进入 `/knowledge-base/:id/documents/:documentId`，该页展示真实分段、分页搜索、文档信息和当前分段参数。
+- 知识库设置页将入库侧“文本分段”与查询侧“检索”分区编辑。保存分段配置只提升配置修订号并将旧文档标记为待更新，不在保存时覆盖已有 Chunk；只有用户明确点击“重新索引”时才使用当前配置替换该文档分段。
+- 添加文件固定使用“选择数据源 → 文本分段与清洗 → 处理并完成”三步。步骤 2 左侧选择“通用 / Q&A /
+  父子分段”之一，并只编辑该模式允许调整的文档级分段与保守清洗配置；右侧始终保留按文件切换
+  的预览区，列表和处理摘要使用模式值映射展示名称，不冗余保存 label。点击“预览块”后显示服务端
+  用当前配置生成的临时块，配置变化时旧预览必须标记过期。清洗默认保留 URL、邮箱、编号、标点、
+  段落、列表、表格与代码结构，不提供删除全部 URL 和邮箱的选项；预览和正式处理复用同一
+  Parser、Cleaner 与 Chunker 配置解释。
+  上传步骤不编辑“经济 / 高质量”、倒排 / 向量 / 混合方式或 `TopK`；索引与检索配置最多显示
+  当前知识库配置的只读摘要和设置入口。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。下拉操作项默认只显示文字，不提供通用 `icon` 配置；只有用户或业务规范明确要求时才单独实现图标。

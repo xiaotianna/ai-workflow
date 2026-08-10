@@ -23,7 +23,6 @@ function SidebarNavItem({ to, label, icon: Icon }: LayoutSidebarNavigationItem) 
   return (
     <NavLink
       to={to}
-      end
       className={cn(
         'group relative flex h-8 w-full cursor-pointer items-center gap-2 rounded-[10px] border-x border-y-0 border-x-transparent px-2 py-1.5 text-sm font-medium outline-hidden transition-[background-color,border-color,color,box-shadow]',
         'not-aria-[current=page]:text-muted-foreground not-aria-[current=page]:hover:bg-muted not-aria-[current=page]:bg-transparent',

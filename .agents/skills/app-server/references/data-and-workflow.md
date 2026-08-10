@@ -98,10 +98,11 @@
 
 ## 知识库持久化
 
-- 完整表设计和状态流程以根目录 `docs/knowledge-base-design.md` 为准。当前已建立最小
-  `KnowledgeBase` Prisma 模型和迁移，包含 UUID、`ownerId`、名称、描述、图标、时间字段以及
-  `(ownerId, updatedAt)` 列表索引；空白知识库创建、列表、详情、编辑和删除接口已经实现，其余
-  知识库表与文档、索引、检索能力尚未实现。
+- 通用领域模型和状态流程以根目录 `docs/knowledge-base-design.md` 为准；生产检索、准确性评测与
+  外部 API 目标以 `docs/knowledge-base-production-api-design.md` 为准，冲突时以后者为准。当前已建立
+  `KnowledgeBase`、`KnowledgeBaseSettings`、`KnowledgeDocument` 和 `KnowledgeChunk` 的同步管理基线；生产 Index/Source/Version/Head、任务、投影和检索日志仍按目标模型后续接入。
+- `KnowledgeBaseSettings.segmentationRevision` 是当前分段设置修订号，文档保存入库时的 `indexedSegmentationRevision` 和实际分段参数快照。修改知识库分段设置不允许自动覆盖已有 Chunk；只有用户显式重新索引才在事务内替换单文档 Chunk 并更新修订快照。
+- 当前原文经 `KnowledgeSourceStore` 存在 `KNOWLEDGE_SOURCE_DIRECTORY`（默认 `var/knowledge-sources`）下，数据库只保存受控相对 storage key。该边界用于本地 Markdown/纯文本闭环，生产环境必须替换为对象存储适配器与异步入库任务。
 - 当前删除使用硬删除，并通过 PostgreSQL JSONB `array_contains` 同时检查当前用户的工作流草稿
   和版本中的 RAG 引用；匹配当前 `knowledgeBases: [{ id }]` 引用快照，以及历史
   `knowledgeBaseIds` 数组和 `knowledgeBaseId` 单值，存在任一引用时拒绝删除。引用投影表落地后
@@ -114,15 +115,27 @@
 - 原始文件、文档索引结果和 Worker 尝试分别使用 `KnowledgeDocumentSource`、
   `KnowledgeDocumentVersion` 和 `KnowledgeIngestionAttempt` 建模；文档在每个 Index 下的当前成功
   版本由 `KnowledgeDocumentIndexHead` 维护。
-- 文档入库、重建和清理任务通过同事务 `OutboxEvent` 可靠发布；Redis 不作为任务事实来源。
+- 文档分段模式使用 `GENERAL/QA/PARENT_CHILD` 稳定枚举，并在 `KnowledgeDocumentVersion` 保存实际
+  模式和参数快照。Chunker 决定分段边界，当前 Index 的 Embedding 模型向量化检索单元；父子分段
+  只索引子块并保留父块关系，召回后扩展父块。三种模式共用 OpenSearch BM25 + Dense 投影与检索
+  管线，不建立按模式分叉的索引实现。
+- 文档入库、重建和清理任务通过同事务 `OutboxEvent` 可靠发布到 RabbitMQ 的知识库专用
+  Exchange/Queue；不得与工作流 Command Queue 混用，Redis 不作为任务事实来源。
   `KnowledgeCleanupJob` 保留外部资源清理进度，清理成功前业务行保持删除中状态。
 - 工作流草稿和版本分别使用具有真实知识库外键的引用投影表；工作流 JSON 仍是事实来源，保存
   JSON 与重建投影必须在同一事务完成。
 - 检索次数从 `KnowledgeRetrievalLog` 与 `KnowledgeRetrievalHit` 聚合，召回测试不计入生产召回；
   不在知识库或文档行维护高频递增计数。
-- pgvector 列、维度 CHECK、部分向量索引和 Prisma 无法表达的复合约束使用自定义 migration；
-  Prisma 模型中的向量列使用 `Unsupported("vector")`，向量查询封装在 `VectorStore`/Repository
-  边界内。
+- OpenSearch 是生产检索投影，同时保存用于 BM25 的文本字段、Dense 向量、`generationId`、文档状态
+  和 ACL 元数据；PostgreSQL 仍是唯一业务事实来源，OpenSearch 投影必须可以按 Index 代际全量重建。
+- 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。多个知识库必须先按
+  `embeddingSpaceKey` 分组，在各自兼容索引内执行 `BM25 + Dense + RRF`，再由同一个 Cross-Encoder
+  对所有候选全局 Rerank；禁止直接比较不同嵌入空间的向量分数。
+- pgvector 仅作为本地或小规模回退基线：如果启用，其列、维度 CHECK、部分向量索引和 Prisma 无法
+  表达的复合约束使用自定义 migration，查询封装在 `VectorStore`/Repository 边界内，不得与
+  OpenSearch 同时成为生产事实源。
+- 对外知识库调用使用独立 `kb-` Key、作用域和知识库授权快照，不复用应用 `app-` Key；Key 只保存
+  哈希和展示后缀，检索日志必须记录租户、Key、Profile 版本、候选阶段和最终命中，且不得记录原始密钥。
 
 ## 插件发布持久化
 

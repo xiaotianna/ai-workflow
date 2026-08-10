@@ -1,8 +1,9 @@
 import { Badge } from '@ai-workflow/ui/components/badge'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Separator } from '@ai-workflow/ui/components/separator'
-import { CircleCheck, FileText, Grid3X3, LoaderCircle } from 'lucide-react'
+import { CircleCheck, FileText } from 'lucide-react'
 
+import { getDocumentSegmentationModeOption } from '../constants'
 import type { AddDocumentInput } from '../schema'
 import { AddDocumentStepHeader } from './add-document-step-header'
 
@@ -20,6 +21,7 @@ export function AddDocumentProcessingStep({
   const fileNames = input.files.map((file) => file.name)
   const uploadedDescription =
     fileNames.length === 1 ? fileNames[0] : `${fileNames[0]} 等 ${fileNames.length} 个文件`
+  const segmentationModeOption = getDocumentSegmentationModeOption(input.segmentationMode)
 
   return (
     <section className="bg-background flex h-full min-h-0 flex-col">
@@ -42,11 +44,8 @@ export function AddDocumentProcessingStep({
           </div>
 
           <div className="mt-8 flex items-center gap-2 text-sm font-semibold">
-            <LoaderCircle
-              aria-hidden
-              className="text-primary size-4 animate-spin motion-reduce:animate-none"
-            />
-            嵌入处理中...
+            <CircleCheck aria-hidden className="text-success size-4" />
+            文本处理完成
           </div>
 
           <div className="mt-4 space-y-2">
@@ -62,11 +61,11 @@ export function AddDocumentProcessingStep({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{file.name}</span>
                   <Badge variant="outline">标准</Badge>
                   <span className="text-muted-foreground w-9 text-right text-sm tabular-nums">
-                    0%
+                    100%
                   </span>
                 </div>
                 <div className="bg-muted h-1 w-full overflow-hidden">
-                  <div className="bg-primary h-full w-0" />
+                  <div className="bg-success h-full w-full" />
                 </div>
               </div>
             ))}
@@ -76,25 +75,13 @@ export function AddDocumentProcessingStep({
 
           <dl className="grid gap-x-8 gap-y-4 text-sm md:grid-cols-[10rem_1fr]">
             <dt className="text-muted-foreground">分段模式</dt>
-            <dd className="text-foreground font-medium">通用</dd>
+            <dd className="text-foreground font-medium">{segmentationModeOption.label}</dd>
             <dt className="text-muted-foreground">最大分段长度</dt>
             <dd className="text-foreground font-medium tabular-nums">{input.maxSegmentLength}</dd>
             <dt className="text-muted-foreground">文本预处理规则</dt>
             <dd className="text-foreground flex flex-wrap gap-x-2 gap-y-1 font-medium">
-              {input.replaceWhitespace ? <span>替换连续的空格、换行符和制表符</span> : null}
-              {input.replaceWhitespace && input.removeUrlsAndEmails ? <span>·</span> : null}
-              {input.removeUrlsAndEmails ? <span>删除所有 URL 和电子邮件地址</span> : null}
-              {!input.replaceWhitespace && !input.removeUrlsAndEmails ? <span>无</span> : null}
-            </dd>
-            <dt className="text-muted-foreground">索引方式</dt>
-            <dd className="text-foreground flex items-center gap-2 font-medium">
-              <Grid3X3 aria-hidden className="text-primary size-4" />
-              经济
-            </dd>
-            <dt className="text-muted-foreground">检索设置</dt>
-            <dd className="text-foreground flex items-center gap-2 font-medium">
-              <Grid3X3 aria-hidden className="text-primary size-4" />
-              倒排索引 · Top K {input.topK}
+              {input.replaceWhitespace ? <span>规范化多余空白</span> : null}
+              {!input.replaceWhitespace ? <span>无</span> : null}
             </dd>
           </dl>
         </div>

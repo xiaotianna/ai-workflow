@@ -169,7 +169,7 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 
 以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离知识库：
 
-- `GET /knowledge-bases`：获取当前用户的全部空白知识库；支持最长 40 字符的 `search` 与
+- `GET /knowledge-bases`：获取当前用户的全部知识库；支持最长 40 字符的 `search` 与
   `updated_desc`、`created_desc`、`created_asc` 排序，返回 `{ items }`。当前阶段不分页，不得
   在前端模拟截断；需要分页时在保持 `items` 的基础上增加 opaque cursor。
 - `GET /knowledge-bases/:knowledgeBaseId`：获取知识库详情；路径参数不是 UUID v4 时返回 `400`，
@@ -178,13 +178,33 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   嵌入模型、文档或索引配置。
 - `PATCH /knowledge-bases/:knowledgeBaseId`：修改名称、图标或描述，至少提供一个字段；空描述
   清理数据库中的可选描述。
-- `DELETE /knowledge-bases/:knowledgeBaseId`：永久删除当前空白知识库；删除前检查当前用户工作流
+- `DELETE /knowledge-bases/:knowledgeBaseId`：永久删除当前知识库；删除前检查当前用户工作流
   草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
-  当前没有文档或外部对象，因此不创建异步清理任务；后续接入这些资源时保持路由不变并升级为
-  删除生命周期。
+  当前同步删除 PostgreSQL 文档/Chunk，并通过存储适配器清理本地原文；生产对象存储接入后升级为异步清理生命周期。
+- `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库分段与检索设置。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
+- `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 Markdown/纯文本并同步保存分段；上传最多 10 个文件，单文件最大 15 MiB。
+- `POST /knowledge-bases/:knowledgeBaseId/documents/preview`：使用与正式入库相同的 Parser/Cleaner/Chunker 生成临时预览，不写入数据库或原文存储。
+- `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档。
+- `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/reindex`：用知识库当前分段设置重新解析保存的原文，在单个数据库事务内替换该文档 Chunk；这是配置变更后更新旧分段的唯一入口。
+- `GET /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：分页搜索当前文档分段。
 
-知识库响应使用显式 VO，包含 `id`、`title`、`author`、`description?`、`icon?`、`createdAt` 和
-`updatedAt`，不得暴露 Prisma model 或返回尚未实现的文档数量、索引状态。
+知识库响应使用显式 VO，不得暴露 Prisma model。文档和 Chunk 列表返回 `items/total/page/pageSize`；文档响应显式返回当前分段快照与 `needsReindex`，不伪造尚未实现的向量状态或召回次数。
+
+### 知识库外部 Service API 目标（尚未实现）
+
+生产契约以 `docs/knowledge-base-production-api-design.md` 为准：外部接口统一位于
+`/v1/knowledge`，使用独立 `Authorization: Bearer kb-...` 鉴权，不得复用工作流应用的 `app-` Key。
+Key 必须同时校验 `knowledge:retrieve`、`knowledge:answer`、`knowledge:documents:read`、
+`knowledge:documents:write` 或 `knowledge:debug` 等作用域，以及允许访问的知识库授权快照。
+
+- `POST /v1/knowledge/retrieve`：只执行 ACL 过滤后的混合检索和 Rerank，返回稳定的 Chunk、文档、
+  引用、相关性与可选调试信息；默认不生成答案，适合其他项目自行组合上下文。
+- `POST /v1/knowledge/answer`：复用同一检索结果后生成带引用答案，支持阻塞 JSON 和 SSE；证据不足时
+  必须明确拒答或降低置信度，不允许生成没有命中来源的引用。
+- 文档上传采用上传会话与异步入库任务，写接口返回任务 ID；查询接口显式返回排队、处理中、成功或
+  失败状态，不用超长 HTTP 请求等待解析、切分和索引结束。
+- Service API 使用稳定错误码并至少区分 `400`、`401`、`403`、`404`、`409`、`413`、`429`、
+  `503` 和 `504`；所有响应携带 `requestId`，只有 `knowledge:debug` 允许看到候选阶段和分数明细。
 
 ## 当前插件接口
 

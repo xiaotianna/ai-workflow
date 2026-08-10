@@ -11,13 +11,19 @@ import {
   type AddDocumentFormInput,
   type AddDocumentInput,
 } from '../schema'
+import type { DocumentPreview } from '../types'
 import { AddDocumentProcessingStep } from './add-document-processing-step'
 import { AddDocumentSegmentationStep } from './add-document-segmentation-step'
 import { AddDocumentSourceStep } from './add-document-source-step'
 
 interface AddDocumentPageProps {
   knowledgeBaseName?: string
-  onAdd: (input: AddDocumentInput) => void
+  initialSettings?: Pick<
+    AddDocumentFormInput,
+    'segmentationMode' | 'maxSegmentLength' | 'overlapLength' | 'replaceWhitespace'
+  >
+  onAdd: (input: AddDocumentInput) => Promise<void>
+  onPreview: (input: AddDocumentInput) => Promise<DocumentPreview>
   onClose: () => void
 }
 
@@ -33,16 +39,26 @@ function getFilesError(errors: Record<string, string>) {
   return Object.entries(errors).find(([key]) => key === 'files' || key.startsWith('files.'))?.[1]
 }
 
-export function AddDocumentPage({ knowledgeBaseName, onAdd, onClose }: AddDocumentPageProps) {
-  const { form, updateForm, updateFormField } = useFormData<AddDocumentFormInput>(
-    ADD_DOCUMENT_INITIAL_VALUES,
-  )
+export function AddDocumentPage({
+  knowledgeBaseName,
+  initialSettings,
+  onAdd,
+  onPreview,
+  onClose,
+}: AddDocumentPageProps) {
+  const { form, updateForm, updateFormField } = useFormData<AddDocumentFormInput>({
+    ...ADD_DOCUMENT_INITIAL_VALUES,
+    ...initialSettings,
+  })
   const [step, setStep] = useState<AddDocumentStep>(1)
   const [direction, setDirection] = useState(1)
   const [filesSubmitted, setFilesSubmitted] = useState(false)
   const [settingsSubmitted, setSettingsSubmitted] = useState(false)
   const [submittedInput, setSubmittedInput] = useState<AddDocumentInput>()
-  const filesValidation = validateFormByZod(addDocumentFilesSchema, { files: form.files })
+  const [submitting, setSubmitting] = useState(false)
+  const filesValidation = validateFormByZod(addDocumentFilesSchema, {
+    files: form.files,
+  })
   const formValidation = validateFormByZod(addDocumentSchema, form)
   const filesError =
     filesSubmitted && !filesValidation.success ? getFilesError(filesValidation.errors) : undefined
@@ -64,27 +80,37 @@ export function AddDocumentPage({ knowledgeBaseName, onAdd, onClose }: AddDocume
     moveToStep(2)
   }
 
-  function handleSubmit(event?: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     setSettingsSubmitted(true)
 
     const result = validateFormByZod(addDocumentSchema, form)
     if (!result.success) return
 
-    setSubmittedInput(result.data)
-    onAdd(result.data)
-    moveToStep(3)
+    setSubmitting(true)
+    try {
+      await onAdd(result.data)
+      setSubmittedInput(result.data)
+      moveToStep(3)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handlePreview() {
+    setSettingsSubmitted(true)
+    const result = validateFormByZod(addDocumentSchema, form)
+    if (!result.success) throw new Error('请先修正分段设置')
+    return onPreview(result.data)
   }
 
   function handleResetSettings() {
     setSettingsSubmitted(false)
     updateForm({
-      segmentIdentifier: ADD_DOCUMENT_INITIAL_VALUES.segmentIdentifier,
+      segmentationMode: ADD_DOCUMENT_INITIAL_VALUES.segmentationMode,
       maxSegmentLength: ADD_DOCUMENT_INITIAL_VALUES.maxSegmentLength,
       overlapLength: ADD_DOCUMENT_INITIAL_VALUES.overlapLength,
       replaceWhitespace: ADD_DOCUMENT_INITIAL_VALUES.replaceWhitespace,
-      removeUrlsAndEmails: ADD_DOCUMENT_INITIAL_VALUES.removeUrlsAndEmails,
-      topK: ADD_DOCUMENT_INITIAL_VALUES.topK,
     })
   }
 
@@ -117,24 +143,20 @@ export function AddDocumentPage({ knowledgeBaseName, onAdd, onClose }: AddDocume
                 files={form.files}
                 maxSegmentLength={form.maxSegmentLength}
                 overlapLength={form.overlapLength}
-                removeUrlsAndEmails={form.removeUrlsAndEmails}
                 replaceWhitespace={form.replaceWhitespace}
-                segmentIdentifier={form.segmentIdentifier}
-                topK={form.topK}
+                segmentationMode={form.segmentationMode}
+                submitting={submitting}
                 onBack={() => moveToStep(1)}
                 onClose={onClose}
                 onMaxSegmentLengthChange={(value) => updateFormField('maxSegmentLength', value)}
                 onOverlapLengthChange={(value) => updateFormField('overlapLength', value)}
-                onRemoveUrlsAndEmailsChange={(checked) =>
-                  updateFormField('removeUrlsAndEmails', checked)
-                }
                 onReplaceWhitespaceChange={(checked) =>
                   updateFormField('replaceWhitespace', checked)
                 }
                 onReset={handleResetSettings}
-                onSegmentIdentifierChange={(value) => updateFormField('segmentIdentifier', value)}
-                onSubmit={() => handleSubmit()}
-                onTopKChange={(value) => updateFormField('topK', value)}
+                onPreview={handlePreview}
+                onSegmentationModeChange={(value) => updateFormField('segmentationMode', value)}
+                onSubmit={() => void handleSubmit()}
               />
             ) : null}
 

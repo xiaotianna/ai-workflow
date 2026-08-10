@@ -16,7 +16,7 @@
   规范化为 `tab=chat`，切换时保留其他查询参数。
 - `/app/:id` 与 `/knowledge-base/:id` 是与首页布局并列的根级详情布局，不渲染首页侧栏内容；两者复用 `components/detail-layout`，由内容区承载子路由。
 - 应用卡片进入 `/app/:id/workflow`；应用内页面使用 `/app/:id/:section` 形式的嵌套路由，当前包含 `workflow`、`api` 和 `logs`，父路由保留 `Outlet`，索引路由重定向到 `workflow`。
-- `/knowledge-base/:id` 与 `/app/:id` 同级，为知识库详情布局；子路由包含 `documents` 和 `recall-test`，索引路由重定向到 `documents`。
+- `/knowledge-base/:id` 与 `/app/:id` 同级，为知识库详情布局；子路由包含 `documents`、`settings` 和 `recall-test`，索引路由重定向到 `documents`。`documents/:documentId` 是文档分段详情子路由，不提供侧栏图标，不作为独立导航项。
 - `/share/api/:shareToken` 位于 `/` 鉴权路由树之外，通过公开接口校验分享状态后只展示应用 API
   文档正文；该路由不得挂载应用详情 Header、侧栏或读取用户登录会话。
 - `/docs` 位于 `/` 鉴权路由树之外，是公开的 Wiki 式文档布局；父路由保留 `Outlet`，并按

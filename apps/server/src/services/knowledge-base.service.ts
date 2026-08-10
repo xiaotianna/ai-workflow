@@ -1,13 +1,35 @@
 import {
+  CreateKnowledgeDocumentsDto,
   CreateKnowledgeBaseDto,
+  ListKnowledgeChunksDto,
   ListKnowledgeBasesDto,
+  ListKnowledgeDocumentsDto,
+  UpdateKnowledgeBaseSettingsDto,
   UpdateKnowledgeBaseDto,
+  UpdateKnowledgeDocumentDto,
 } from '@/dto/knowledge-base.dto'
+import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
 import {
   KnowledgeBaseRepository,
   type KnowledgeBaseRecord,
+  type KnowledgeBaseSettingsRecord,
+  type KnowledgeChunkRecord,
+  type KnowledgeDocumentRecord,
 } from '@/repositories/knowledge-base.repository'
+import {
+  KnowledgeChunkerService,
+  type KnowledgeChunkConfig,
+} from '@/services/knowledge-chunker.service'
 import type { KnowledgeBaseListVo, KnowledgeBaseVo } from '@/vo/knowledge-base.vo'
+import type {
+  KnowledgeBaseSettingsVo,
+  KnowledgeChunkListVo,
+  KnowledgeChunkVo,
+  KnowledgeDocumentListVo,
+  KnowledgeDocumentPreviewVo,
+  KnowledgeDocumentVo,
+} from '@/vo/knowledge-base.vo'
+import { createHash } from 'node:crypto'
 import {
   BadRequestException,
   ConflictException,
@@ -17,7 +39,11 @@ import {
 
 @Injectable()
 export class KnowledgeBaseService {
-  constructor(private readonly knowledgeBaseRepository: KnowledgeBaseRepository) {}
+  constructor(
+    private readonly knowledgeBaseRepository: KnowledgeBaseRepository,
+    private readonly knowledgeSourceStore: KnowledgeSourceStore,
+    private readonly knowledgeChunkerService: KnowledgeChunkerService,
+  ) {}
 
   async list(ownerId: string, query: ListKnowledgeBasesDto): Promise<KnowledgeBaseListVo> {
     const knowledgeBases = await this.knowledgeBaseRepository.list({
@@ -93,10 +119,266 @@ export class KnowledgeBaseService {
       throw new ConflictException('知识库正在被工作流使用，无法删除')
     }
 
+    const sources = await this.knowledgeBaseRepository.listSourceStorageKeys(
+      ownerId,
+      knowledgeBaseId,
+    )
     const removed = await this.knowledgeBaseRepository.remove(ownerId, knowledgeBaseId)
 
     if (!removed) {
       throw new NotFoundException('知识库不存在')
+    }
+
+    await Promise.all(
+      sources.map((source) => this.knowledgeSourceStore.remove(source.sourceStorageKey)),
+    )
+  }
+
+  async getSettings(ownerId: string, knowledgeBaseId: string): Promise<KnowledgeBaseSettingsVo> {
+    const result = await this.knowledgeBaseRepository.getSettings(ownerId, knowledgeBaseId)
+    if (!result) throw new NotFoundException('知识库不存在')
+    return this.toSettingsVo(result.settings, result.staleDocumentCount)
+  }
+
+  async updateSettings(
+    ownerId: string,
+    knowledgeBaseId: string,
+    dto: UpdateKnowledgeBaseSettingsDto,
+  ): Promise<KnowledgeBaseSettingsVo> {
+    if (dto.overlapLength >= dto.maxSegmentLength) {
+      throw new BadRequestException('重叠长度必须小于分段最大长度')
+    }
+
+    const result = await this.knowledgeBaseRepository.updateSettings(ownerId, knowledgeBaseId, dto)
+    if (!result) throw new NotFoundException('知识库不存在')
+    return this.toSettingsVo(result.settings, result.staleDocumentCount)
+  }
+
+  async listDocuments(
+    ownerId: string,
+    knowledgeBaseId: string,
+    query: ListKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentListVo> {
+    const result = await this.knowledgeBaseRepository.listDocuments({
+      ownerId,
+      knowledgeBaseId,
+      search: query.search || undefined,
+      page: query.page,
+      pageSize: query.pageSize,
+    })
+    if (!result) throw new NotFoundException('知识库不存在')
+
+    return {
+      items: result.items.map((document) => this.toDocumentVo(document)),
+      total: result.total,
+      page: query.page,
+      pageSize: query.pageSize,
+    }
+  }
+
+  async createDocuments(
+    ownerId: string,
+    knowledgeBaseId: string,
+    files: UploadedKnowledgeDocument[],
+    dto: CreateKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentVo[]> {
+    if (!files.length) throw new BadRequestException('请至少选择一个文件')
+    if (dto.overlapLength >= dto.maxSegmentLength) {
+      throw new BadRequestException('重叠长度必须小于分段最大长度')
+    }
+    await this.requireKnowledgeBase(ownerId, knowledgeBaseId)
+
+    const config: KnowledgeChunkConfig = {
+      segmentationMode: dto.segmentationMode,
+      maxSegmentLength: dto.maxSegmentLength,
+      overlapLength: dto.overlapLength,
+      normalizeWhitespace: dto.normalizeWhitespace,
+    }
+    return Promise.all(
+      files.map(async (file) => {
+        const text = this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+        const chunks = this.knowledgeChunkerService.chunk(text, config)
+        if (!chunks.length) throw new BadRequestException(`${file.originalname} 没有可用的分段内容`)
+
+        const sourceStorageKey = await this.knowledgeSourceStore.store(
+          knowledgeBaseId,
+          file.originalname,
+          file.buffer,
+        )
+
+        try {
+          const document = await this.knowledgeBaseRepository.createDocument({
+            ownerId,
+            knowledgeBaseId,
+            name: file.originalname,
+            fileType: this.resolveFileType(file.originalname),
+            sourceStorageKey,
+            sourceMimeType: file.mimetype || 'text/plain',
+            sourceSize: BigInt(file.size),
+            sourceChecksum: createHash('sha256').update(file.buffer).digest('hex'),
+            ...config,
+            characterCount: text.length,
+            chunks: chunks.map((chunk) => ({
+              content: chunk.content,
+              tokenCount: 0,
+              metadata: chunk.metadata,
+            })),
+          })
+          return this.toDocumentVo(document)
+        } catch (error) {
+          await this.knowledgeSourceStore.remove(sourceStorageKey)
+          throw error
+        }
+      }),
+    )
+  }
+
+  async previewDocuments(
+    ownerId: string,
+    knowledgeBaseId: string,
+    files: UploadedKnowledgeDocument[],
+    dto: CreateKnowledgeDocumentsDto,
+  ): Promise<KnowledgeDocumentPreviewVo> {
+    if (!files.length) throw new BadRequestException('请至少选择一个文件')
+    if (dto.overlapLength >= dto.maxSegmentLength) {
+      throw new BadRequestException('重叠长度必须小于分段最大长度')
+    }
+    await this.requireKnowledgeBase(ownerId, knowledgeBaseId)
+
+    const config: KnowledgeChunkConfig = {
+      segmentationMode: dto.segmentationMode,
+      maxSegmentLength: dto.maxSegmentLength,
+      overlapLength: dto.overlapLength,
+      normalizeWhitespace: dto.normalizeWhitespace,
+    }
+
+    return {
+      files: files.map((file) => {
+        const text = this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+        const chunks = this.knowledgeChunkerService.chunk(text, config)
+        return {
+          name: file.originalname,
+          total: chunks.length,
+          truncated: chunks.length > 20,
+          items: chunks.slice(0, 20).map((chunk, index) => ({
+            sequence: index + 1,
+            content: chunk.content,
+            characterCount: chunk.content.length,
+            metadata: chunk.metadata,
+          })),
+        }
+      }),
+    }
+  }
+
+  async getDocument(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<KnowledgeDocumentVo> {
+    const document = await this.knowledgeBaseRepository.findDocument(
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+    )
+    if (!document) throw new NotFoundException('文档不存在')
+    return this.toDocumentVo(document)
+  }
+
+  async updateDocument(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    dto: UpdateKnowledgeDocumentDto,
+  ): Promise<KnowledgeDocumentVo> {
+    if (dto.name === undefined && dto.enabled === undefined) {
+      throw new BadRequestException('至少需要提供一个待修改字段')
+    }
+    const document = await this.knowledgeBaseRepository.updateDocument(
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      dto,
+    )
+    if (!document) throw new NotFoundException('文档不存在')
+    return this.toDocumentVo(document)
+  }
+
+  async removeDocument(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<void> {
+    const sourceStorageKey = await this.knowledgeBaseRepository.removeDocument(
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+    )
+    if (!sourceStorageKey) throw new NotFoundException('文档不存在')
+    await this.knowledgeSourceStore.remove(sourceStorageKey)
+  }
+
+  async reindexDocument(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<KnowledgeDocumentVo> {
+    const [document, settingsResult] = await Promise.all([
+      this.knowledgeBaseRepository.findDocument(ownerId, knowledgeBaseId, documentId),
+      this.knowledgeBaseRepository.getSettings(ownerId, knowledgeBaseId),
+    ])
+    if (!document || !settingsResult) throw new NotFoundException('文档不存在')
+
+    const source = await this.knowledgeSourceStore.read(document.sourceStorageKey)
+    const sourceName = document.fileType === 'markdown' ? 'source.md' : 'source.txt'
+    const text = this.knowledgeChunkerService.parseText(source, sourceName)
+    const config: KnowledgeChunkConfig = {
+      segmentationMode: settingsResult.settings.segmentationMode,
+      maxSegmentLength: settingsResult.settings.maxSegmentLength,
+      overlapLength: settingsResult.settings.overlapLength,
+      normalizeWhitespace: settingsResult.settings.normalizeWhitespace,
+    }
+    const chunks = this.knowledgeChunkerService.chunk(text, config)
+    if (!chunks.length) {
+      throw new BadRequestException('原文中没有可用的分段内容')
+    }
+    const updated = await this.knowledgeBaseRepository.replaceDocumentChunks({
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      characterCount: text.length,
+      chunks: chunks.map((chunk) => ({
+        content: chunk.content,
+        tokenCount: 0,
+        metadata: chunk.metadata,
+      })),
+    })
+    if (!updated) throw new NotFoundException('文档不存在')
+    return this.toDocumentVo(updated)
+  }
+
+  async listChunks(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    query: ListKnowledgeChunksDto,
+  ): Promise<KnowledgeChunkListVo> {
+    const result = await this.knowledgeBaseRepository.listChunks({
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      search: query.search || undefined,
+      page: query.page,
+      pageSize: query.pageSize,
+    })
+    if (!result) throw new NotFoundException('文档不存在')
+
+    return {
+      document: this.toDocumentVo(result.document),
+      items: result.items.map((chunk) => this.toChunkVo(chunk)),
+      total: result.total,
+      page: query.page,
+      pageSize: query.pageSize,
     }
   }
 
@@ -111,4 +393,64 @@ export class KnowledgeBaseService {
       updatedAt: knowledgeBase.updatedAt,
     }
   }
+
+  private async requireKnowledgeBase(ownerId: string, knowledgeBaseId: string): Promise<void> {
+    const knowledgeBase = await this.knowledgeBaseRepository.findById(ownerId, knowledgeBaseId)
+    if (!knowledgeBase) throw new NotFoundException('知识库不存在')
+  }
+
+  private toSettingsVo(
+    settings: KnowledgeBaseSettingsRecord,
+    staleDocumentCount: number,
+  ): KnowledgeBaseSettingsVo {
+    return { ...settings, staleDocumentCount }
+  }
+
+  private toDocumentVo(document: KnowledgeDocumentRecord): KnowledgeDocumentVo {
+    const currentRevision = document.knowledgeBase.settings?.segmentationRevision ?? 1
+    return {
+      id: document.id,
+      knowledgeBaseId: document.knowledgeBaseId,
+      name: document.name,
+      fileType: document.fileType,
+      sourceMimeType: document.sourceMimeType,
+      sourceSize: document.sourceSize.toString(),
+      segmentationMode: document.segmentationMode,
+      maxSegmentLength: document.maxSegmentLength,
+      overlapLength: document.overlapLength,
+      normalizeWhitespace: document.normalizeWhitespace,
+      status: document.status,
+      enabled: document.enabled,
+      characterCount: document.characterCount,
+      chunkCount: document.chunkCount,
+      needsReindex: document.indexedSegmentationRevision < currentRevision,
+      ...(document.errorMessage ? { errorMessage: document.errorMessage } : {}),
+      createdAt: document.createdAt,
+      updatedAt: document.updatedAt,
+    }
+  }
+
+  private toChunkVo(chunk: KnowledgeChunkRecord): KnowledgeChunkVo {
+    return {
+      id: chunk.id,
+      sequence: chunk.sequence,
+      content: chunk.content,
+      characterCount: chunk.content.length,
+      tokenCount: chunk.tokenCount,
+      metadata: chunk.metadata as Record<string, unknown>,
+      createdAt: chunk.createdAt,
+    }
+  }
+
+  private resolveFileType(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase()
+    return extension === 'md' || extension === 'markdown' ? 'markdown' : 'text'
+  }
+}
+
+export interface UploadedKnowledgeDocument {
+  originalname: string
+  mimetype: string
+  size: number
+  buffer: Buffer
 }
