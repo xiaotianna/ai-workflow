@@ -63,7 +63,7 @@ export default function KnowledgeBaseDocumentsPage() {
   const [addPageOpen, setAddPageOpen] = useState(false)
   const [deletingDocument, setDeletingDocument] = useState<KnowledgeBaseDocument>()
   const [renamingDocument, setRenamingDocument] = useState<KnowledgeBaseDocument>()
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [reloadVersion, setReloadVersion] = useState(0)
 
   useEffect(() => {
@@ -129,6 +129,19 @@ export default function KnowledgeBaseDocumentsPage() {
     setReloadVersion((value) => value + 1)
     showToast('success', '文档已上传，正在处理')
     return createdDocuments
+  }
+
+  function handlePageChange(value: number) {
+    setLoading(true)
+    setRowSelection({})
+    setPageIndex(value)
+  }
+
+  function handlePageSizeChange(value: number) {
+    setLoading(true)
+    setRowSelection({})
+    setPageSize(value)
+    setPageIndex(0)
   }
 
   async function handleDocumentEnabledChange(documentId: string, enabled: boolean) {
@@ -286,6 +299,7 @@ export default function KnowledgeBaseDocumentsPage() {
               <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <DocumentTable
                   documents={documents}
+                  loading={loading}
                   total={total}
                   pageIndex={pageIndex}
                   pageSize={pageSize}
@@ -296,11 +310,8 @@ export default function KnowledgeBaseDocumentsPage() {
                   onDocumentEnabledChange={(documentId, enabled) =>
                     void handleDocumentEnabledChange(documentId, enabled)
                   }
-                  onPageChange={setPageIndex}
-                  onPageSizeChange={(value) => {
-                    setPageSize(value)
-                    setPageIndex(0)
-                  }}
+                  onPageChange={handlePageChange}
+                  onPageSizeChange={handlePageSizeChange}
                   onRowSelectionChange={setRowSelection}
                 />
               </PageContent>

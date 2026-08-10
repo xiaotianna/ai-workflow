@@ -77,7 +77,7 @@
 | 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                     |
 | 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                     |
 | 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                        |
-| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                        |
+| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                  |
 | 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                   |
 | 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                   |
 

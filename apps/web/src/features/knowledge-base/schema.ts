@@ -101,6 +101,16 @@ export const renameDocumentSchema = z.object({
 
 export type RenameDocumentFormInput = z.input<typeof renameDocumentSchema>
 
+export const knowledgeChunkEditSchema = z.object({
+  content: z
+    .string()
+    .max(10_000, '分段内容不能超过 10000 个字符')
+    .refine((value) => value.trim().length > 0, '分段内容不能为空'),
+})
+
+export type KnowledgeChunkEditFormInput = z.input<typeof knowledgeChunkEditSchema>
+export type KnowledgeChunkEditInput = z.output<typeof knowledgeChunkEditSchema>
+
 export const knowledgeBaseSettingsSchema = z
   .object({
     embeddingModelGroupId: z.uuid('嵌入模型组 ID 无效').nullable(),

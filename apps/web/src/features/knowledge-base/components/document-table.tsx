@@ -1,5 +1,6 @@
 import { Badge } from '@ai-workflow/ui/components/badge'
 import { Checkbox } from '@ai-workflow/ui/components/checkbox'
+import { Skeleton } from '@ai-workflow/ui/components/skeleton'
 import { Switch } from '@ai-workflow/ui/components/switch'
 import {
   Table,
@@ -68,6 +69,7 @@ function getDocumentColumnStyle(
 
 interface DocumentTableProps {
   documents: KnowledgeBaseDocument[]
+  loading: boolean
   total: number
   pageIndex: number
   pageSize: number
@@ -77,6 +79,58 @@ interface DocumentTableProps {
   onPageChange: (pageIndex: number) => void
   onPageSizeChange: (pageSize: number) => void
   onRowSelectionChange: OnChangeFn<RowSelectionState>
+}
+
+function DocumentTableSkeletonBody({ rowCount }: { rowCount: number }) {
+  return (
+    <TableBody aria-label="正在加载文档">
+      {Array.from({ length: rowCount }, (_, index) => (
+        <TableRow key={index} className="hover:bg-transparent">
+          <TableCell>
+            <div className="flex items-center gap-3">
+              <Skeleton className="size-4 rounded" />
+              <Skeleton className="h-3.5 w-4" />
+            </div>
+          </TableCell>
+          <TableCell>
+            <div className="flex min-w-0 items-center gap-2">
+              <Skeleton className="size-5 shrink-0 rounded-sm" />
+              <Skeleton className={cn('h-3.5', index % 3 === 0 ? 'w-24' : 'w-36')} />
+            </div>
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-6 w-20 rounded-full" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-3.5 w-10" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-3.5 w-7" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-3.5 w-5" />
+          </TableCell>
+          <TableCell>
+            <Skeleton className="h-3.5 w-32" />
+          </TableCell>
+          <TableCell>
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="size-1.5 rounded-full" />
+              <Skeleton className="h-3.5 w-10" />
+            </div>
+          </TableCell>
+          <TableCell className={cn('z-10 text-center', stickyEnabledColumnClassName)}>
+            <Skeleton className="mx-auto h-5 w-9 rounded-full" />
+          </TableCell>
+          <TableCell className={cn('z-10 px-1 text-center', stickyMenuColumnClassName)}>
+            <div className={stickyMenuBodySeparatorClassName}>
+              <Skeleton className="size-5 rounded-md" />
+            </div>
+          </TableCell>
+        </TableRow>
+      ))}
+    </TableBody>
+  )
 }
 
 function DocumentStatusBadge({
@@ -112,6 +166,7 @@ function DocumentStatusBadge({
 
 export function DocumentTable({
   documents,
+  loading,
   total,
   pageIndex,
   pageSize,
@@ -330,6 +385,7 @@ export function DocumentTable({
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
         <Table
+          aria-busy={loading}
           containerClassName="overflow-visible"
           className="w-full table-fixed border-separate border-spacing-0"
           style={{ minWidth: documentTableMinWidth }}
@@ -364,55 +420,59 @@ export function DocumentTable({
             ))}
           </TableHeader>
 
-          <TableBody>
-            {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() ? 'selected' : undefined}
-                  className="group/row cursor-pointer hover:bg-transparent data-[state=selected]:bg-transparent"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
-                      className={cn(
-                        documentTableRowCellClassName,
-                        (cell.column.id === 'enabled' || cell.column.id === 'menu') &&
-                          'text-center',
-                        cell.column.id === 'enabled' && 'z-10',
-                        cell.column.id === 'enabled' && stickyEnabledColumnClassName,
-                        cell.column.id === 'menu' && 'z-10 px-1',
-                        cell.column.id === 'menu' && stickyMenuColumnClassName,
-                      )}
-                      style={getDocumentColumnStyle(
-                        cell.column.id,
-                        cell.column.getSize(),
-                        cell.column.columnDef.minSize,
-                        cell.column.columnDef.maxSize,
-                      )}
-                    >
-                      {cell.column.id === 'menu' ? (
-                        <div className={stickyMenuBodySeparatorClassName}>
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                        </div>
-                      ) : (
-                        flexRender(cell.column.columnDef.cell, cell.getContext())
-                      )}
-                    </TableCell>
-                  ))}
+          {loading ? (
+            <DocumentTableSkeletonBody rowCount={Math.min(pageSize, 10)} />
+          ) : (
+            <TableBody>
+              {table.getRowModel().rows.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() ? 'selected' : undefined}
+                    className="group/row cursor-pointer hover:bg-transparent data-[state=selected]:bg-transparent"
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell
+                        key={cell.id}
+                        className={cn(
+                          documentTableRowCellClassName,
+                          (cell.column.id === 'enabled' || cell.column.id === 'menu') &&
+                            'text-center',
+                          cell.column.id === 'enabled' && 'z-10',
+                          cell.column.id === 'enabled' && stickyEnabledColumnClassName,
+                          cell.column.id === 'menu' && 'z-10 px-1',
+                          cell.column.id === 'menu' && stickyMenuColumnClassName,
+                        )}
+                        style={getDocumentColumnStyle(
+                          cell.column.id,
+                          cell.column.getSize(),
+                          cell.column.columnDef.minSize,
+                          cell.column.columnDef.maxSize,
+                        )}
+                      >
+                        {cell.column.id === 'menu' ? (
+                          <div className={stickyMenuBodySeparatorClassName}>
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          </div>
+                        ) : (
+                          flexRender(cell.column.columnDef.cell, cell.getContext())
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={columns.length}
+                    className="text-muted-foreground h-32 text-center"
+                  >
+                    暂无文档
+                  </TableCell>
                 </TableRow>
-              ))
-            ) : (
-              <TableRow className="hover:bg-transparent">
-                <TableCell
-                  colSpan={columns.length}
-                  className="text-muted-foreground h-32 text-center"
-                >
-                  暂无文档
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
+              )}
+            </TableBody>
+          )}
         </Table>
       </div>
 

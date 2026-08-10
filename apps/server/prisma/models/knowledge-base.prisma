@@ -91,6 +91,7 @@ model KnowledgeChunk {
   content              String   @db.Text
   contentHash          String?  @db.VarChar(64)
   tokenCount           Int
+  enabled              Boolean  @default(true)
   metadata             Json     @default("{}")
   createdAt            DateTime @default(now())
 
@@ -102,6 +103,7 @@ model KnowledgeChunk {
   @@index([documentVersionId, sequence])
   @@index([knowledgeBaseIndexId, documentId])
   @@index([documentId, sequence])
+  @@index([documentId, enabled, sequence])
   @@map("knowledge_chunks")
 }
 

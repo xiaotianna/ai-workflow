@@ -96,19 +96,26 @@ export class KnowledgeRetrievalService {
       ownerId,
       candidateVersionIds,
     )
+    const enabledChunkIds = await this.knowledgeRetrievalRepository.findEnabledChunkIds(
+      channels.flatMap((channel) =>
+        [...channel.bm25, ...channel.dense].map(({ chunkId }) => chunkId),
+      ),
+    )
 
     const scores = new Map<string, { hit: KnowledgeRetrievalDocumentVo; score: number }>()
     for (const channel of channels) {
       addRrfScores(
         scores,
-        channel.bm25.filter(({ documentVersionId }) =>
-          retrievableVersionIds.has(documentVersionId),
+        channel.bm25.filter(
+          ({ chunkId, documentVersionId }) =>
+            enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
         ),
       )
       addRrfScores(
         scores,
-        channel.dense.filter(({ documentVersionId }) =>
-          retrievableVersionIds.has(documentVersionId),
+        channel.dense.filter(
+          ({ chunkId, documentVersionId }) =>
+            enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
         ),
       )
     }

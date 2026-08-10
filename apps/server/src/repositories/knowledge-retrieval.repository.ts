@@ -91,6 +91,16 @@ export class KnowledgeRetrievalRepository {
     return new Set(heads.map(({ currentVersionId }) => currentVersionId))
   }
 
+  async findEnabledChunkIds(chunkIds: string[]): Promise<Set<string>> {
+    if (!chunkIds.length) return new Set()
+
+    const chunks = await this.prisma.knowledgeChunk.findMany({
+      where: { id: { in: chunkIds }, enabled: true },
+      select: { id: true },
+    })
+    return new Set(chunks.map(({ id }) => id))
+  }
+
   async recordWorkflowRetrieval(options: {
     ownerId: string
     commandId: string

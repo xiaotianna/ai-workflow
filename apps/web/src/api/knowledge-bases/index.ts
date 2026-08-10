@@ -100,6 +100,8 @@ export interface KnowledgeChunkDto {
   content: string
   characterCount: number
   tokenCount: number
+  recallCount: number
+  enabled: boolean
   metadata: Record<string, unknown>
   createdAt: string
 }
@@ -281,12 +283,29 @@ export function reindexKnowledgeDocument(
 export function listKnowledgeChunks(
   knowledgeBaseId: string,
   documentId: string,
-  params: { search?: string; page: number; pageSize: number },
+  params: {
+    search?: string
+    status?: 'enabled' | 'disabled'
+    page: number
+    pageSize: number
+  },
   signal?: AbortSignal,
 ): Promise<KnowledgeChunkListDto> {
   return apiClient.get<KnowledgeChunkListDto>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/chunks`,
     { params, signal },
+  )
+}
+
+export function updateKnowledgeChunk(
+  knowledgeBaseId: string,
+  documentId: string,
+  chunkId: string,
+  values: { content?: string; enabled?: boolean },
+): Promise<KnowledgeChunkDto> {
+  return apiClient.patch<KnowledgeChunkDto, typeof values>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/chunks/${encodeURIComponent(chunkId)}`,
+    values,
   )
 }
 

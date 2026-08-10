@@ -85,6 +85,8 @@ export interface KnowledgeChunkVo {
   content: string
   characterCount: number
   tokenCount: number
+  recallCount: number
+  enabled: boolean
   metadata: Record<string, unknown>
   createdAt: Date
 }

@@ -114,6 +114,7 @@ export const knowledgeChunkSelect = {
   sequence: true,
   content: true,
   tokenCount: true,
+  enabled: true,
   metadata: true,
   createdAt: true,
 } satisfies Prisma.KnowledgeChunkSelect
@@ -121,6 +122,13 @@ export const knowledgeChunkSelect = {
 export type KnowledgeChunkRecord = Prisma.KnowledgeChunkGetPayload<{
   select: typeof knowledgeChunkSelect
 }>
+
+export type KnowledgeChunkListRecord = KnowledgeChunkRecord & { recallCount: number }
+
+export type UpdateChunkContentResult =
+  | { status: 'updated'; chunk: KnowledgeChunkListRecord }
+  | { status: 'not-found' }
+  | { status: 'busy' }
 
 interface ListKnowledgeBasesOptions {
   ownerId: string
@@ -726,11 +734,12 @@ export class KnowledgeBaseRepository {
     knowledgeBaseId: string
     documentId: string
     search?: string
+    status?: 'enabled' | 'disabled'
     page: number
     pageSize: number
   }): Promise<{
     document: KnowledgeDocumentRecord
-    items: KnowledgeChunkRecord[]
+    items: KnowledgeChunkListRecord[]
     total: number
   } | null> {
     const document = await this.findDocument(
@@ -764,6 +773,7 @@ export class KnowledgeBaseRepository {
             content: { contains: options.search, mode: 'insensitive' as const },
           }
         : {}),
+      ...(options.status ? { enabled: options.status === 'enabled' } : {}),
     }
     const [items, total] = await Promise.all([
       this.prisma.knowledgeChunk.findMany({
@@ -776,7 +786,305 @@ export class KnowledgeBaseRepository {
       this.prisma.knowledgeChunk.count({ where }),
     ])
 
-    return { document, items, total }
+    const recallCounts = items.length
+      ? await this.prisma.knowledgeRetrievalHit.groupBy({
+          by: ['firstChunkId'],
+          where: { firstChunkId: { in: items.map(({ id }) => id) } },
+          _count: { _all: true },
+        })
+      : []
+    const recallCountByChunkId = new Map(
+      recallCounts.map((item) => [item.firstChunkId, item._count._all]),
+    )
+
+    return {
+      document,
+      items: items.map((item) => ({
+        ...item,
+        recallCount: recallCountByChunkId.get(item.id) ?? 0,
+      })),
+      total,
+    }
+  }
+
+  async updateChunkEnabled(options: {
+    ownerId: string
+    knowledgeBaseId: string
+    documentId: string
+    chunkId: string
+    enabled: boolean
+  }): Promise<KnowledgeChunkListRecord | null> {
+    const document = await this.findDocument(
+      options.ownerId,
+      options.knowledgeBaseId,
+      options.documentId,
+    )
+    if (!document) return null
+
+    const activeHead = document.knowledgeBase.activeIndexId
+      ? await this.prisma.knowledgeDocumentIndexHead.findUnique({
+          where: {
+            documentId_knowledgeBaseIndexId: {
+              documentId: options.documentId,
+              knowledgeBaseIndexId: document.knowledgeBase.activeIndexId,
+            },
+          },
+          select: { currentVersionId: true },
+        })
+      : null
+    let documentVersionId: string | null = null
+    if (document.knowledgeBase.activeIndexId) {
+      if (!activeHead?.currentVersionId) return null
+      documentVersionId = activeHead.currentVersionId
+    }
+    const result = await this.prisma.knowledgeChunk.updateMany({
+      where: {
+        id: options.chunkId,
+        documentId: options.documentId,
+        documentVersionId,
+      },
+      data: { enabled: options.enabled },
+    })
+    if (!result.count) return null
+
+    const [chunk, recallCount] = await Promise.all([
+      this.prisma.knowledgeChunk.findUnique({
+        where: { id: options.chunkId },
+        select: knowledgeChunkSelect,
+      }),
+      this.prisma.knowledgeRetrievalHit.count({
+        where: { firstChunkId: options.chunkId },
+      }),
+    ])
+    return chunk ? { ...chunk, recallCount } : null
+  }
+
+  async updateChunkContent(options: {
+    ownerId: string
+    knowledgeBaseId: string
+    documentId: string
+    chunkId: string
+    content: string
+  }): Promise<UpdateChunkContentResult> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_documents" WHERE "id" = ${options.documentId}::uuid FOR UPDATE`,
+      )
+      const document = await transaction.knowledgeDocument.findFirst({
+        where: {
+          id: options.documentId,
+          knowledgeBaseId: options.knowledgeBaseId,
+          lifecycleStatus: 'ACTIVE',
+          knowledgeBase: {
+            ownerId: options.ownerId,
+            lifecycleStatus: 'ACTIVE',
+          },
+        },
+        select: {
+          id: true,
+          characterCount: true,
+          knowledgeBase: { select: { activeIndexId: true } },
+        },
+      })
+      if (!document) return { status: 'not-found' }
+
+      const [pendingVersion, buildingIndex] = await Promise.all([
+        transaction.knowledgeDocumentVersion.findFirst({
+          where: {
+            documentId: options.documentId,
+            status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
+          },
+          select: { id: true },
+        }),
+        transaction.knowledgeBaseIndex.findFirst({
+          where: { knowledgeBaseId: options.knowledgeBaseId, status: 'BUILDING' },
+          select: { id: true },
+        }),
+      ])
+      if (pendingVersion || buildingIndex) return { status: 'busy' }
+
+      const activeIndexId = document.knowledgeBase.activeIndexId
+      if (!activeIndexId) {
+        const chunk = await transaction.knowledgeChunk.findFirst({
+          where: {
+            id: options.chunkId,
+            documentId: options.documentId,
+            documentVersionId: null,
+          },
+          select: knowledgeChunkSelect,
+        })
+        if (!chunk) return { status: 'not-found' }
+        if (chunk.content === options.content) {
+          const recallCount = await transaction.knowledgeRetrievalHit.count({
+            where: { firstChunkId: chunk.id },
+          })
+          return { status: 'updated', chunk: { ...chunk, recallCount } }
+        }
+
+        const updatedChunk = await transaction.knowledgeChunk.update({
+          where: { id: chunk.id },
+          data: {
+            content: options.content,
+            contentHash: createHash('sha256').update(options.content).digest('hex'),
+            tokenCount: 0,
+          },
+          select: knowledgeChunkSelect,
+        })
+        await transaction.knowledgeDocument.update({
+          where: { id: document.id },
+          data: {
+            characterCount: {
+              increment: options.content.length - chunk.content.length,
+            },
+          },
+        })
+        const recallCount = await transaction.knowledgeRetrievalHit.count({
+          where: { firstChunkId: chunk.id },
+        })
+        return { status: 'updated', chunk: { ...updatedChunk, recallCount } }
+      }
+
+      const head = await transaction.knowledgeDocumentIndexHead.findUnique({
+        where: {
+          documentId_knowledgeBaseIndexId: {
+            documentId: options.documentId,
+            knowledgeBaseIndexId: activeIndexId,
+          },
+        },
+        select: { currentVersionId: true },
+      })
+      if (!head) return { status: 'not-found' }
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_document_versions" WHERE "id" = ${head.currentVersionId}::uuid FOR UPDATE`,
+      )
+
+      const currentVersion = await transaction.knowledgeDocumentVersion.findUnique({
+        where: { id: head.currentVersionId },
+        select: {
+          sourceId: true,
+          version: true,
+          parserVersion: true,
+          cleanerVersion: true,
+          cleaningConfig: true,
+          segmentationMode: true,
+          chunkConfig: true,
+          configHash: true,
+          chunks: {
+            orderBy: { sequence: 'asc' },
+            select: {
+              id: true,
+              sequence: true,
+              content: true,
+              tokenCount: true,
+              enabled: true,
+              metadata: true,
+            },
+          },
+        },
+      })
+      const targetChunk = currentVersion?.chunks.find(({ id }) => id === options.chunkId)
+      if (!currentVersion || !targetChunk) return { status: 'not-found' }
+      if (targetChunk.content === options.content) {
+        const chunk = await transaction.knowledgeChunk.findUnique({
+          where: { id: targetChunk.id },
+          select: knowledgeChunkSelect,
+        })
+        if (!chunk) return { status: 'not-found' }
+        const recallCount = await transaction.knowledgeRetrievalHit.count({
+          where: { firstChunkId: chunk.id },
+        })
+        return { status: 'updated', chunk: { ...chunk, recallCount } }
+      }
+
+      const latestVersion = await transaction.knowledgeDocumentVersion.findFirst({
+        where: { documentId: options.documentId, knowledgeBaseIndexId: activeIndexId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      })
+      const versionId = randomUUID()
+      const versionNumber = (latestVersion?.version ?? currentVersion.version) + 1
+      const clonedChunks = currentVersion.chunks.map((chunk) => ({
+        id: randomUUID(),
+        sequence: chunk.sequence,
+        content: chunk.id === targetChunk.id ? options.content : chunk.content,
+        tokenCount: chunk.id === targetChunk.id ? 0 : chunk.tokenCount,
+        enabled: chunk.enabled,
+        metadata: chunk.metadata,
+      }))
+      const expectedChecksum = createHash('sha256')
+        .update(clonedChunks.map(({ content }) => content).join('\u0000'))
+        .digest('hex')
+
+      await transaction.knowledgeDocumentVersion.create({
+        data: {
+          id: versionId,
+          knowledgeBaseId: options.knowledgeBaseId,
+          documentId: options.documentId,
+          sourceId: currentVersion.sourceId,
+          knowledgeBaseIndexId: activeIndexId,
+          version: versionNumber,
+          idempotencyKey: createHash('sha256')
+            .update(
+              `${activeIndexId}:${options.documentId}:chunk-edit:${options.chunkId}:${versionNumber}:${expectedChecksum}`,
+            )
+            .digest('hex'),
+          parserVersion: currentVersion.parserVersion,
+          cleanerVersion: currentVersion.cleanerVersion,
+          cleaningConfig: currentVersion.cleaningConfig as Prisma.InputJsonValue,
+          segmentationMode: currentVersion.segmentationMode,
+          chunkConfig: currentVersion.chunkConfig as Prisma.InputJsonValue,
+          configHash: currentVersion.configHash,
+          status: 'EMBEDDING',
+          progress: 50,
+          characterCount: clonedChunks.reduce((total, chunk) => total + chunk.content.length, 0),
+          tokenCount: clonedChunks.reduce((total, chunk) => total + chunk.tokenCount, 0),
+          chunkCount: clonedChunks.length,
+          startedAt: new Date(),
+        },
+      })
+      await transaction.knowledgeChunk.createMany({
+        data: clonedChunks.map((chunk) => ({
+          id: chunk.id,
+          documentId: options.documentId,
+          documentVersionId: versionId,
+          knowledgeBaseIndexId: activeIndexId,
+          sequence: chunk.sequence,
+          content: chunk.content,
+          contentHash: createHash('sha256').update(chunk.content).digest('hex'),
+          tokenCount: chunk.tokenCount,
+          enabled: chunk.enabled,
+          metadata: chunk.metadata as Prisma.InputJsonValue,
+        })),
+      })
+      await transaction.knowledgeSearchProjection.create({
+        data: {
+          knowledgeBaseIndexId: activeIndexId,
+          documentVersionId: versionId,
+          expectedChunkCount: clonedChunks.length,
+          expectedChecksum,
+        },
+      })
+      await transaction.knowledgeOutboxEvent.create({
+        data: {
+          knowledgeBaseId: options.knowledgeBaseId,
+          eventType: 'KNOWLEDGE_DOCUMENT_PROJECTION_REQUESTED',
+          aggregateType: 'KNOWLEDGE_DOCUMENT_VERSION',
+          aggregateId: versionId,
+          idempotencyKey: `knowledge-document-project:${versionId}`,
+          payload: { documentVersionId: versionId },
+        },
+      })
+
+      const editedChunk = clonedChunks.find(({ sequence }) => sequence === targetChunk.sequence)
+      if (!editedChunk) return { status: 'not-found' }
+      const chunk = await transaction.knowledgeChunk.findUnique({
+        where: { id: editedChunk.id },
+        select: knowledgeChunkSelect,
+      })
+      return chunk
+        ? { status: 'updated', chunk: { ...chunk, recallCount: 0 } }
+        : { status: 'not-found' }
+    })
   }
 
   async updateDocument(

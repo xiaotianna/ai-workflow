@@ -9,6 +9,7 @@ import {
   IsUUID,
   Max,
   MaxLength,
+  Matches,
   Min,
 } from 'class-validator'
 
@@ -142,6 +143,10 @@ export class ListKnowledgeChunksDto {
   @IsOptional()
   search?: string
 
+  @IsIn(['enabled', 'disabled'], { message: '不支持当前分段状态' })
+  @IsOptional()
+  status?: 'enabled' | 'disabled'
+
   @Transform(({ value }) => Number(value))
   @Min(1, { message: '页码不能小于 1' })
   @IsInt({ message: '页码必须是整数' })
@@ -150,6 +155,18 @@ export class ListKnowledgeChunksDto {
   @Transform(({ value }) => Number(value))
   @IsIn([10, 25, 50], { message: '不支持当前每页数量' })
   pageSize = 10
+}
+
+export class UpdateKnowledgeChunkDto {
+  @IsBoolean({ message: '分段启用状态无效' })
+  @IsOptional()
+  enabled?: boolean
+
+  @Matches(/\S/u, { message: '分段内容不能为空' })
+  @MaxLength(10_000, { message: '分段内容不能超过 10000 个字符' })
+  @IsString({ message: '分段内容必须是字符串' })
+  @IsOptional()
+  content?: string
 }
 
 export class RetrieveKnowledgeBaseDto {

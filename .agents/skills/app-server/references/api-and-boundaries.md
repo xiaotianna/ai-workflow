@@ -192,7 +192,12 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档；
   单文档读取是管理 Web 恢复和轮询异步入库状态的事实接口，当前不为知识库状态单独提供 SSE。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/reindex`：用知识库当前分段设置重新解析保存的原文，在单个数据库事务内替换该文档 Chunk；这是配置变更后更新旧分段的唯一入口。
-- `GET /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：分页搜索当前文档分段。
+- `GET /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：分页搜索当前文档分段，支持
+  `status=enabled|disabled` 状态筛选；响应显式返回单条分段的 `enabled` 和正式工作流召回次数。
+- `PATCH /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks/:chunkId`：启停或编辑当前活动
+  Head 中的单条分段，每次只允许提交 `enabled` / `content` 中的一个字段；资源归属与活动版本
+  必须同时匹配。正文编辑不原地改写活动版本，有活动 Index 时创建新版本并完成 Embedding
+  与 OpenSearch 投影后原子切换 Head；同一文档已有处理中版本时返回 `409`。
 
 知识库响应使用显式 VO，不得暴露 Prisma model。文档和 Chunk 列表返回 `items/total/page/pageSize`；
 文档响应显式返回当前分段快照、`needsReindex`、异步入库状态、失败信息和从正式检索命中事实聚合的

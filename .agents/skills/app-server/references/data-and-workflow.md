@@ -122,6 +122,12 @@
   模式和参数快照。Chunker 决定分段边界，当前 Index 的 Embedding 模型向量化检索单元；父子分段
   只索引子块并保留父块关系，召回后扩展父块。三种模式共用 OpenSearch BM25 + Dense 投影与检索
   管线，不建立按模式分叉的索引实现。
+- `KnowledgeChunk.enabled` 是活动 Head 分段的管理面状态。单条禁用不改写不可变正文或向量投影；
+  OpenSearch 先召回候选，服务端返回前再用 PostgreSQL `enabled` 强一致过滤，因此残留投影不会被
+  返回；重新启用后可继续使用原投影。
+- 手动编辑分段正文必须保留当前 Head 可服务：复制当前版本全部 Chunk，只在新版本替换目标
+  正文，继承其他 Chunk 的元数据与启用状态，直接进入 Embedding / Projection 链路；投影完整性
+  校验成功后才切换 `KnowledgeDocumentIndexHead`。无活动 Index 的兼容 Chunk 可直接修改事实行。
 - 文档入库、重建和清理任务通过同事务 `OutboxEvent` 可靠发布到 RabbitMQ 的知识库专用
   Exchange/Queue；不得与工作流 Command Queue 混用，Redis 不作为任务事实来源。
   `KnowledgeCleanupJob` 保留外部资源清理进度，清理成功前业务行保持删除中状态。

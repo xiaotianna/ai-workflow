@@ -10,6 +10,7 @@ import {
   UpdateKnowledgeBaseSettingsDto,
   UpdateKnowledgeBaseDto,
   UpdateKnowledgeDocumentDto,
+  UpdateKnowledgeChunkDto,
 } from '@/dto/knowledge-base.dto'
 import {
   KnowledgeBaseService,
@@ -21,6 +22,7 @@ import type {
   KnowledgeBaseSettingsVo,
   KnowledgeBaseVo,
   KnowledgeChunkListVo,
+  KnowledgeChunkVo,
   KnowledgeDocumentListVo,
   KnowledgeDocumentPreviewVo,
   KnowledgeDocumentVo,
@@ -242,6 +244,23 @@ export class KnowledgeBaseController {
       knowledgeBaseId,
       documentId,
       query,
+    )
+  }
+
+  @Patch(':knowledgeBaseId/documents/:documentId/chunks/:chunkId')
+  updateChunk(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('chunkId', new ParseUUIDPipe({ version: '4' })) chunkId: string,
+    @Body() dto: UpdateKnowledgeChunkDto,
+  ): Promise<KnowledgeChunkVo> {
+    return this.knowledgeBaseService.updateChunk(
+      request.auth.userId,
+      knowledgeBaseId,
+      documentId,
+      chunkId,
+      dto,
     )
   }
 

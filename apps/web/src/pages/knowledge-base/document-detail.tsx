@@ -1,22 +1,46 @@
 import {
   listKnowledgeChunks,
   reindexKnowledgeDocument,
+  updateKnowledgeChunk,
   updateKnowledgeDocument,
   type KnowledgeChunkDto,
   type KnowledgeDocumentDto,
 } from '@/api/knowledge-bases'
 import { Button } from '@ai-workflow/ui/components/button'
+import { Checkbox } from '@ai-workflow/ui/components/checkbox'
 import { Input } from '@ai-workflow/ui/components/input'
 import { Pagination } from '@ai-workflow/ui/components/pagination'
+import { Skeleton } from '@ai-workflow/ui/components/skeleton'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ai-workflow/ui/components/select'
 import { Switch } from '@ai-workflow/ui/components/switch'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { ArrowLeft, ArrowRight, Plus, RefreshCw, Search } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  CircleCheck,
+  CircleX,
+  Grip,
+  PencilLine,
+  Plus,
+  RefreshCw,
+  Search,
+  Trash2,
+} from 'lucide-react'
+import { AnimatePresence, motion, MotionConfig } from 'motion/react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
 import {
   documentPageSizeOptions,
+  KnowledgeChunkContent,
+  KnowledgeChunkEditPanel,
   KnowledgeDocumentSwitcher,
   knowledgeSegmentationModeLabels,
 } from '@/features/knowledge-base'
@@ -40,23 +64,237 @@ function formatBytes(value: string) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
-function ChunkItem({ chunk }: { chunk: KnowledgeChunkDto }) {
+type ChunkStatusFilter = 'all' | 'disabled' | 'enabled'
+
+const chunkStatusFilterLabels: Record<ChunkStatusFilter, string> = {
+  all: '全部',
+  disabled: '已禁用',
+  enabled: '已启用',
+}
+
+const chunkSelectionActionButtonClassName =
+  'hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))]'
+const chunkSelectionDestructiveButtonClassName =
+  'text-destructive hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] hover:text-destructive focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] focus-visible:text-destructive dark:hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))]'
+
+const chunkSkeletonWidths = ['w-2/3', 'w-4/5', 'w-3/5', 'w-3/4', 'w-1/2', 'w-5/6']
+
+function ChunkListSkeleton({ count = 6 }: { count?: number }) {
   return (
-    <article className="border-border border-b py-5 last:border-b-0">
-      <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-xs">
-        <span className="text-foreground font-medium">
-          分段-{String(chunk.sequence).padStart(2, '0')}
-        </span>
-        <span>·</span>
-        <span>{chunk.characterCount} 字符</span>
-      </div>
-      <p className="text-foreground mt-2 text-sm leading-7 whitespace-pre-wrap">{chunk.content}</p>
-      {typeof chunk.metadata.parentSequence === 'number' ? (
-        <div className="text-muted-foreground mt-3 text-xs">
-          所属父分段 {chunk.metadata.parentSequence}
+    <div role="status" aria-label="正在加载分段列表">
+      <span className="sr-only">正在加载分段列表</span>
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          key={`chunk-skeleton-${index}`}
+          aria-hidden
+          className="grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-4"
+        >
+          <Skeleton className="mt-3 size-4 rounded-sm" />
+          <div className="min-w-0">
+            <div className="px-3 pt-2.5 pb-2">
+              <div className="flex h-5 items-center justify-between gap-4 pr-1">
+                <Skeleton className="h-3.5 w-48 max-w-[55%] rounded-sm" />
+                <Skeleton className="h-3.5 w-16 shrink-0 rounded-sm" />
+              </div>
+              <Skeleton
+                className={cn(
+                  'mt-3 h-4 max-w-full rounded-sm',
+                  chunkSkeletonWidths[index % chunkSkeletonWidths.length],
+                )}
+              />
+              <Skeleton className="mt-2 h-3.5 w-2/5 max-w-56 rounded-sm" />
+              <Skeleton className="mt-3 h-3 w-24 rounded-sm" />
+            </div>
+            <div className="bg-border/60 mx-3 my-2 h-px" />
+          </div>
         </div>
-      ) : null}
-    </article>
+      ))}
+    </div>
+  )
+}
+
+function DocumentInformationSkeleton() {
+  return (
+    <div role="status" aria-label="正在加载文档信息">
+      <span className="sr-only">正在加载文档信息</span>
+      <dl aria-hidden className="mt-3 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-2 gap-y-1">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={`document-information-skeleton-${index}`} className="contents">
+            <dt className="py-1">
+              <Skeleton className="h-3 w-20 rounded-sm" />
+            </dt>
+            <dd className="py-1">
+              <Skeleton className={cn('h-3 rounded-sm', index === 0 ? 'w-32' : 'w-24')} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <h2 className="mt-6 text-xs leading-5 font-semibold">技术参数</h2>
+      <dl aria-hidden className="mt-3 grid grid-cols-[8rem_minmax(0,1fr)] gap-x-2 gap-y-1">
+        {Array.from({ length: 5 }, (_, index) => (
+          <div key={`document-parameter-skeleton-${index}`} className="contents">
+            <dt className="py-1">
+              <Skeleton className="h-3 w-16 rounded-sm" />
+            </dt>
+            <dd className="py-1">
+              <Skeleton className={cn('h-3 rounded-sm', index === 0 ? 'w-28' : 'w-20')} />
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  )
+}
+
+function getChunkTags(metadata: Record<string, unknown>): string[] {
+  const value = metadata.tags ?? metadata.keywords
+  if (!Array.isArray(value)) return []
+  return [
+    ...new Set(
+      value
+        .filter((item): item is string => typeof item === 'string' && Boolean(item.trim()))
+        .map((item) => item.trim()),
+    ),
+  ]
+}
+
+function ChunkItem({
+  chunk,
+  editing,
+  editDisabled,
+  selected,
+  selectionDisabled,
+  updatingEnabled,
+  onEdit,
+  onEnabledChange,
+  onSelectedChange,
+}: {
+  chunk: KnowledgeChunkDto
+  editing: boolean
+  editDisabled: boolean
+  selected: boolean
+  selectionDisabled: boolean
+  updatingEnabled: boolean
+  onEdit: () => void
+  onEnabledChange: (enabled: boolean) => void
+  onSelectedChange: (selected: boolean) => void
+}) {
+  const tags = getChunkTags(chunk.metadata)
+
+  return (
+    <div className="grid grid-cols-[1rem_minmax(0,1fr)] items-start gap-4">
+      <Checkbox
+        checked={selected}
+        disabled={selectionDisabled}
+        aria-label={`选择分段-${String(chunk.sequence).padStart(2, '0')}`}
+        className="mt-3"
+        onCheckedChange={(checked) => onSelectedChange(Boolean(checked))}
+      />
+
+      <div className="min-w-0">
+        <article
+          data-edit-disabled={editDisabled || undefined}
+          data-selected={selected || undefined}
+          className="group/card data-[selected=true]:bg-muted/60 hover:bg-muted/60 focus-within:bg-muted/60 relative cursor-pointer rounded-xl px-3 pt-2.5 pb-2 transition-colors data-[edit-disabled=true]:cursor-not-allowed"
+          onClick={() => {
+            if (!editDisabled) onEdit()
+          }}
+        >
+          <div className="relative flex h-5 items-center justify-between gap-4 pr-1">
+            <div className="text-muted-foreground flex min-w-0 flex-wrap items-center gap-2 text-[13px] leading-5 font-medium">
+              <button
+                type="button"
+                aria-label={`${editing ? '当前正在编辑' : '编辑'}分段-${String(chunk.sequence).padStart(2, '0')}`}
+                aria-pressed={editing}
+                className={cn(
+                  'hover:text-primary focus-visible:text-primary flex cursor-pointer items-center gap-1 transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                  editing && 'text-primary',
+                )}
+                disabled={editDisabled}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onEdit()
+                }}
+              >
+                <Grip aria-hidden className="size-3.5" />
+                分段-{String(chunk.sequence).padStart(2, '0')}
+              </button>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{chunk.characterCount} 字符</span>
+              <span className="text-muted-foreground/50">·</span>
+              <span>{chunk.recallCount} 召回次数</span>
+            </div>
+
+            <div className="text-muted-foreground flex shrink-0 items-center gap-2 text-[13px] group-focus-within/card:invisible group-hover/card:invisible">
+              <span>{chunk.enabled ? '已启用' : '已禁用'}</span>
+              <span
+                aria-hidden
+                className={cn(
+                  'size-2 rounded-[3px] border shadow-xs',
+                  chunk.enabled
+                    ? 'border-success/60 bg-success/70'
+                    : 'border-muted-foreground/40 bg-muted-foreground/30',
+                )}
+              />
+            </div>
+
+            <div
+              className="border-border bg-popover/95 pointer-events-none absolute -top-2 -right-2 z-10 flex items-center gap-0.5 rounded-[10px] border-[0.5px] p-1 opacity-0 shadow-lg backdrop-blur-[5px] transition-opacity group-focus-within/card:pointer-events-auto group-focus-within/card:opacity-100 group-hover/card:pointer-events-auto group-hover/card:opacity-100"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground size-7 rounded-lg"
+                aria-label={`编辑分段-${String(chunk.sequence).padStart(2, '0')}`}
+                disabled={editDisabled}
+                onClick={onEdit}
+              >
+                <PencilLine aria-hidden className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive size-7 rounded-lg"
+                aria-label={`删除分段-${String(chunk.sequence).padStart(2, '0')}`}
+                onClick={() => showToast('info', '暂不支持手动删除分段')}
+              >
+                <Trash2 aria-hidden className="size-4" />
+              </Button>
+              <div aria-hidden className="bg-border mx-1.5 h-3.5 w-px" />
+              <Switch
+                checked={chunk.enabled}
+                disabled={updatingEnabled}
+                aria-label={`${chunk.enabled ? '禁用' : '启用'}分段-${String(chunk.sequence).padStart(2, '0')}`}
+                onCheckedChange={(checked) => onEnabledChange(Boolean(checked))}
+              />
+            </div>
+          </div>
+
+          <KnowledgeChunkContent>{chunk.content}</KnowledgeChunkContent>
+
+          {tags.length > 0 ? (
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 text-xs">
+              {tags.slice(0, 5).map((tag) => (
+                <span key={tag} className="inline-flex min-w-0 items-center gap-0.5">
+                  <span className="text-muted-foreground/60">#</span>
+                  <span className="max-w-20 truncate">{tag}</span>
+                </span>
+              ))}
+            </div>
+          ) : typeof chunk.metadata.parentSequence === 'number' ? (
+            <div className="text-muted-foreground py-1.5 text-xs">
+              所属父分段 {chunk.metadata.parentSequence}
+            </div>
+          ) : null}
+        </article>
+
+        <div aria-hidden className="bg-border/60 mx-3 my-2 h-px" />
+      </div>
+    </div>
   )
 }
 
@@ -70,10 +308,16 @@ export default function KnowledgeDocumentDetailPage() {
   const [document, setDocument] = useState<KnowledgeDocumentDto>()
   const [chunks, setChunks] = useState<KnowledgeChunkDto[]>([])
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ChunkStatusFilter>('all')
+  const [selectedChunkIds, setSelectedChunkIds] = useState<Set<string>>(() => new Set())
+  const [updatingChunkIds, setUpdatingChunkIds] = useState<Set<string>>(() => new Set())
+  const [batchUpdatingChunks, setBatchUpdatingChunks] = useState(false)
+  const [editingChunk, setEditingChunk] = useState<KnowledgeChunkDto>()
+  const [savingChunk, setSavingChunk] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [reindexing, setReindexing] = useState(false)
   const [updatingEnabled, setUpdatingEnabled] = useState(false)
   const [reloadVersion, setReloadVersion] = useState(0)
@@ -81,18 +325,24 @@ export default function KnowledgeDocumentDetailPage() {
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId || !documentId) return
     const controller = new AbortController()
+    setLoading(true)
     const timer = globalThis.setTimeout(() => {
-      setLoading(true)
       void listKnowledgeChunks(
         knowledgeBaseId,
         documentId,
-        { search: search.trim() || undefined, page: pageIndex + 1, pageSize },
+        {
+          search: search.trim() || undefined,
+          status: statusFilter === 'all' ? undefined : statusFilter,
+          page: pageIndex + 1,
+          pageSize,
+        },
         controller.signal,
       )
         .then((result) => {
           setDocument(result.document)
           setChunks(result.items)
           setTotal(result.total)
+          setSelectedChunkIds(new Set())
         })
         .catch(() => undefined)
         .finally(() => {
@@ -104,7 +354,25 @@ export default function KnowledgeDocumentDetailPage() {
       globalThis.clearTimeout(timer)
       controller.abort()
     }
-  }, [documentId, isResourceAvailable, knowledgeBaseId, pageIndex, pageSize, reloadVersion, search])
+  }, [
+    documentId,
+    isResourceAvailable,
+    knowledgeBaseId,
+    pageIndex,
+    pageSize,
+    reloadVersion,
+    search,
+    statusFilter,
+  ])
+
+  const selectedChunkCount = useMemo(
+    () => chunks.reduce((count, chunk) => count + Number(selectedChunkIds.has(chunk.id)), 0),
+    [chunks, selectedChunkIds],
+  )
+  const allPageChunksSelected = chunks.length > 0 && selectedChunkCount === chunks.length
+  const selectedChunksHavePendingUpdate = chunks.some(
+    (chunk) => selectedChunkIds.has(chunk.id) && updatingChunkIds.has(chunk.id),
+  )
 
   async function handleReindex() {
     setReindexing(true)
@@ -122,10 +390,135 @@ export default function KnowledgeDocumentDetailPage() {
     setChunks([])
     setTotal(nextDocument.chunkCount)
     setSearch('')
+    setStatusFilter('all')
+    setSelectedChunkIds(new Set())
+    setEditingChunk(undefined)
     setPageIndex(0)
     void navigate(
       `/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(nextDocument.id)}`,
     )
+  }
+
+  function handleChunkSelectedChange(chunkId: string, selected: boolean) {
+    setSelectedChunkIds((currentIds) => {
+      const nextIds = new Set(currentIds)
+      if (selected) nextIds.add(chunkId)
+      else nextIds.delete(chunkId)
+      return nextIds
+    })
+  }
+
+  async function handleChunkEnabledChange(chunk: KnowledgeChunkDto, enabled: boolean) {
+    if (updatingChunkIds.has(chunk.id)) return
+    setUpdatingChunkIds((currentIds) => new Set(currentIds).add(chunk.id))
+    setChunks((currentChunks) =>
+      currentChunks.map((item) => (item.id === chunk.id ? { ...item, enabled } : item)),
+    )
+    try {
+      const updatedChunk = await updateKnowledgeChunk(knowledgeBaseId, documentId, chunk.id, {
+        enabled,
+      })
+      setChunks((currentChunks) =>
+        currentChunks.map((item) => (item.id === updatedChunk.id ? updatedChunk : item)),
+      )
+      if (statusFilter !== 'all') setReloadVersion((value) => value + 1)
+    } catch {
+      setChunks((currentChunks) =>
+        currentChunks.map((item) => (item.id === chunk.id ? chunk : item)),
+      )
+    } finally {
+      setUpdatingChunkIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+        nextIds.delete(chunk.id)
+        return nextIds
+      })
+    }
+  }
+
+  async function handleSelectedChunksEnabledChange(enabled: boolean) {
+    if (batchUpdatingChunks || selectedChunksHavePendingUpdate) return
+    const selectedChunks = chunks.filter((chunk) => selectedChunkIds.has(chunk.id))
+    if (selectedChunks.length === 0) return
+
+    const selectedIds = new Set(selectedChunks.map((chunk) => chunk.id))
+    setBatchUpdatingChunks(true)
+    setUpdatingChunkIds((currentIds) => new Set([...currentIds, ...selectedIds]))
+
+    try {
+      const results = await Promise.allSettled(
+        selectedChunks.map((chunk) =>
+          updateKnowledgeChunk(knowledgeBaseId, documentId, chunk.id, {
+            enabled,
+          }),
+        ),
+      )
+      const updatedChunks = results.flatMap((result) =>
+        result.status === 'fulfilled' ? [result.value] : [],
+      )
+      const updatedChunksById = new Map(updatedChunks.map((chunk) => [chunk.id, chunk]))
+
+      setChunks((currentChunks) =>
+        currentChunks.map((chunk) => updatedChunksById.get(chunk.id) ?? chunk),
+      )
+      setSelectedChunkIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+        updatedChunks.forEach((chunk) => nextIds.delete(chunk.id))
+        return nextIds
+      })
+
+      if (updatedChunks.length > 0) {
+        showToast('success', `已${enabled ? '启用' : '禁用'} ${updatedChunks.length} 个分段`)
+        if (statusFilter !== 'all') setReloadVersion((value) => value + 1)
+      }
+    } finally {
+      setUpdatingChunkIds((currentIds) => {
+        const nextIds = new Set(currentIds)
+        selectedIds.forEach((id) => nextIds.delete(id))
+        return nextIds
+      })
+      setBatchUpdatingChunks(false)
+    }
+  }
+
+  async function handleChunkContentSave(content: string) {
+    if (!editingChunk || savingChunk) return
+    const previousChunk = editingChunk
+    setSavingChunk(true)
+    try {
+      const updatedChunk = await updateKnowledgeChunk(
+        knowledgeBaseId,
+        documentId,
+        previousChunk.id,
+        { content },
+      )
+      setChunks((currentChunks) =>
+        currentChunks.map((item) => (item.id === previousChunk.id ? updatedChunk : item)),
+      )
+      setSelectedChunkIds((currentIds) => {
+        if (!currentIds.has(previousChunk.id)) return currentIds
+        const nextIds = new Set(currentIds)
+        nextIds.delete(previousChunk.id)
+        nextIds.add(updatedChunk.id)
+        return nextIds
+      })
+      setDocument((currentDocument) =>
+        currentDocument
+          ? {
+              ...currentDocument,
+              characterCount:
+                currentDocument.characterCount -
+                previousChunk.characterCount +
+                updatedChunk.characterCount,
+            }
+          : currentDocument,
+      )
+      setEditingChunk(undefined)
+      showToast('success', '分段内容已保存')
+    } catch {
+      // 请求错误由统一 API Client 展示，保留面板便于重试。
+    } finally {
+      setSavingChunk(false)
+    }
   }
 
   async function handleEnabledChange(checked: boolean) {
@@ -235,38 +628,186 @@ export default function KnowledgeDocumentDetailPage() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="flex min-h-0 flex-col overflow-hidden pt-3 pr-11 pb-2 pl-5">
-          <div className="flex shrink-0 items-center gap-3">
-            <span className="text-sm font-semibold">{total} 个分段</span>
-            <div className="relative ml-auto w-72 max-w-full">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-              <Input
-                value={search}
-                onChange={(event) => {
-                  setSearch(event.target.value)
+      <div className="relative grid min-h-0 flex-1 grid-cols-1 overflow-hidden xl:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="relative flex min-h-0 flex-col overflow-hidden pt-3 pr-11 pb-2 pl-5">
+          <div className="flex shrink-0 items-center gap-4 pr-2">
+            <Checkbox
+              aria-label="全选当前页分段"
+              checked={
+                loading
+                  ? false
+                  : allPageChunksSelected
+                    ? true
+                    : selectedChunkCount > 0
+                      ? 'indeterminate'
+                      : false
+              }
+              disabled={loading || chunks.length === 0 || batchUpdatingChunks}
+              onCheckedChange={(checked) => {
+                const nextIds = checked === true ? chunks.map(({ id }) => id) : []
+                setSelectedChunkIds(new Set(nextIds))
+              }}
+            />
+            <span className="text-sm font-semibold">{total} 分段</span>
+
+            <div className="ml-auto flex min-w-0 items-center gap-2">
+              <Select
+                value={statusFilter}
+                onValueChange={(value) => {
+                  setStatusFilter(value as ChunkStatusFilter)
                   setPageIndex(0)
                 }}
-                placeholder="搜索分段内容"
-                aria-label="搜索分段内容"
-                className="pl-9"
-              />
+              >
+                <SelectTrigger
+                  size="sm"
+                  aria-label="分段状态"
+                  className="w-42 justify-between rounded-lg px-2.5 text-left"
+                >
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    <span className="text-muted-foreground shrink-0">分段状态</span>
+                    <SelectValue />
+                  </span>
+                </SelectTrigger>
+                <SelectContent
+                  position="popper"
+                  align="start"
+                  sideOffset={4}
+                  className="w-(--radix-select-trigger-width)"
+                >
+                  {(Object.keys(chunkStatusFilterLabels) as ChunkStatusFilter[]).map((value) => (
+                    <SelectItem
+                      key={value}
+                      value={value}
+                      className="data-[state=checked]:bg-accent"
+                    >
+                      {chunkStatusFilterLabels[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="relative min-w-0 max-sm:w-full sm:min-w-44">
+                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+                <Input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value)
+                    setPageIndex(0)
+                  }}
+                  placeholder="搜索分段"
+                  aria-label="搜索分段内容"
+                  className="bg-input focus-visible:bg-background h-8 rounded-lg border-transparent pr-3 pl-9 text-sm shadow-none"
+                />
+              </div>
             </div>
           </div>
 
           <div className="mt-3 min-h-0 flex-1 overflow-auto pr-2">
-            {loading && chunks.length === 0 ? (
-              <div className="text-muted-foreground flex min-h-48 items-center justify-center text-sm">
-                正在加载分段
-              </div>
+            {loading ? (
+              <ChunkListSkeleton count={Math.min(pageSize, 6)} />
             ) : chunks.length > 0 ? (
-              chunks.map((chunk) => <ChunkItem key={chunk.id} chunk={chunk} />)
+              <div>
+                {chunks.map((chunk) => (
+                  <ChunkItem
+                    key={chunk.id}
+                    chunk={chunk}
+                    editing={editingChunk?.id === chunk.id}
+                    editDisabled={savingChunk}
+                    selected={selectedChunkIds.has(chunk.id)}
+                    selectionDisabled={batchUpdatingChunks}
+                    updatingEnabled={updatingChunkIds.has(chunk.id)}
+                    onEdit={() => setEditingChunk(chunk)}
+                    onSelectedChange={(selected) => handleChunkSelectedChange(chunk.id, selected)}
+                    onEnabledChange={(enabled) => void handleChunkEnabledChange(chunk, enabled)}
+                  />
+                ))}
+              </div>
             ) : (
               <div className="text-muted-foreground flex min-h-48 items-center justify-center text-sm">
                 没有匹配的分段
               </div>
             )}
           </div>
+
+          <MotionConfig reducedMotion="user">
+            <AnimatePresence>
+              {!loading && selectedChunkCount > 0 ? (
+                <motion.div
+                  key="knowledge-chunk-selection-actions"
+                  className="pointer-events-none absolute bottom-16 left-0 z-20 flex w-full justify-center px-4"
+                  initial={{ y: 8, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: 8, opacity: 0 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                >
+                  <div
+                    role="toolbar"
+                    aria-label="已选择分段操作"
+                    aria-busy={batchUpdatingChunks}
+                    className="border-primary/40 pointer-events-auto flex items-center gap-x-1 rounded-[10px] border bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))] p-1 shadow-xl"
+                  >
+                    <div className="inline-flex items-center gap-x-2 py-1 pr-3 pl-2">
+                      <span className="bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-md text-xs font-medium">
+                        {selectedChunkCount}
+                      </span>
+                      <span className="text-primary text-[13px] leading-4 font-semibold">
+                        已选择
+                      </span>
+                    </div>
+
+                    <div aria-hidden className="bg-border mx-0.5 h-3.5 w-px shrink-0" />
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(chunkSelectionActionButtonClassName, 'gap-x-0.5 px-3')}
+                      disabled={batchUpdatingChunks || selectedChunksHavePendingUpdate}
+                      onClick={() => void handleSelectedChunksEnabledChange(true)}
+                    >
+                      <CircleCheck aria-hidden className="size-4" />
+                      <span className="px-0.5">启用</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(chunkSelectionActionButtonClassName, 'gap-x-0.5 px-3')}
+                      disabled={batchUpdatingChunks || selectedChunksHavePendingUpdate}
+                      onClick={() => void handleSelectedChunksEnabledChange(false)}
+                    >
+                      <CircleX aria-hidden className="size-4" />
+                      <span className="px-0.5">禁用</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(chunkSelectionDestructiveButtonClassName, 'gap-x-0.5 px-3')}
+                      disabled={batchUpdatingChunks}
+                      onClick={() => showToast('info', '暂不支持手动删除分段')}
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                      <span className="px-0.5">删除</span>
+                    </Button>
+
+                    <div aria-hidden className="bg-border mx-0.5 h-3.5 w-px shrink-0" />
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className={cn(chunkSelectionActionButtonClassName, 'px-3')}
+                      disabled={batchUpdatingChunks}
+                      onClick={() => setSelectedChunkIds(new Set())}
+                    >
+                      <span className="px-0.5">取消</span>
+                    </Button>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </MotionConfig>
 
           <Pagination
             className="shrink-0"
@@ -360,9 +901,36 @@ export default function KnowledgeDocumentDetailPage() {
                   <dd className="min-w-0 py-1">{document.chunkCount}</dd>
                 </dl>
               </>
-            ) : null}
+            ) : (
+              <DocumentInformationSkeleton />
+            )}
           </div>
         </aside>
+
+        <MotionConfig reducedMotion="user">
+          <AnimatePresence>
+            {editingChunk ? (
+              <motion.div
+                key="knowledge-chunk-editor"
+                className="absolute inset-y-2 right-2 z-20 w-[min(34rem,calc(100%-1rem))]"
+                initial={{ x: 'calc(100% + 1rem)', opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 'calc(100% + 1rem)', opacity: 0 }}
+                transition={{ duration: 0.22, ease: 'easeOut' }}
+              >
+                <KnowledgeChunkEditPanel
+                  key={editingChunk.id}
+                  chunk={editingChunk}
+                  saving={savingChunk}
+                  onClose={() => {
+                    if (!savingChunk) setEditingChunk(undefined)
+                  }}
+                  onSave={handleChunkContentSave}
+                />
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </MotionConfig>
       </div>
     </div>
   )

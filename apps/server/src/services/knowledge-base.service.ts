@@ -7,6 +7,7 @@ import {
   UpdateKnowledgeBaseSettingsDto,
   UpdateKnowledgeBaseDto,
   UpdateKnowledgeDocumentDto,
+  UpdateKnowledgeChunkDto,
 } from '@/dto/knowledge-base.dto'
 import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
 import {
@@ -14,8 +15,9 @@ import {
   type KnowledgeBaseRecord,
   type KnowledgeBaseIndexRecord,
   type KnowledgeBaseSettingsRecord,
-  type KnowledgeChunkRecord,
+  type KnowledgeChunkListRecord,
   type KnowledgeDocumentRecord,
+  type UpdateChunkContentResult,
 } from '@/repositories/knowledge-base.repository'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
 import {
@@ -60,6 +62,50 @@ export class KnowledgeBaseService {
     return {
       items: knowledgeBases.map((knowledgeBase) => this.toVo(knowledgeBase)),
     }
+  }
+
+  async updateChunk(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    chunkId: string,
+    dto: UpdateKnowledgeChunkDto,
+  ): Promise<KnowledgeChunkVo> {
+    if (dto.enabled === undefined && dto.content === undefined) {
+      throw new BadRequestException('至少需要提供一个待修改字段')
+    }
+    if (dto.enabled !== undefined && dto.content !== undefined) {
+      throw new BadRequestException('每次只能修改一个分段字段')
+    }
+
+    if (dto.content !== undefined) {
+      const result: UpdateChunkContentResult =
+        await this.knowledgeBaseRepository.updateChunkContent({
+          ownerId,
+          knowledgeBaseId,
+          documentId,
+          chunkId,
+          content: dto.content,
+        })
+      if (result.status === 'not-found') throw new NotFoundException('分段不存在')
+      if (result.status === 'busy') {
+        throw new ConflictException('文档分段正在更新，请稍后重试')
+      }
+      return this.toChunkVo(result.chunk)
+    }
+
+    if (dto.enabled === undefined) {
+      throw new BadRequestException('分段启用状态无效')
+    }
+    const chunk = await this.knowledgeBaseRepository.updateChunkEnabled({
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      chunkId,
+      enabled: dto.enabled,
+    })
+    if (!chunk) throw new NotFoundException('分段不存在')
+    return this.toChunkVo(chunk)
   }
 
   async getById(ownerId: string, knowledgeBaseId: string): Promise<KnowledgeBaseVo> {
@@ -491,6 +537,7 @@ export class KnowledgeBaseService {
       knowledgeBaseId,
       documentId,
       search: query.search || undefined,
+      status: query.status,
       page: query.page,
       pageSize: query.pageSize,
     })
@@ -595,13 +642,15 @@ export class KnowledgeBaseService {
     }
   }
 
-  private toChunkVo(chunk: KnowledgeChunkRecord): KnowledgeChunkVo {
+  private toChunkVo(chunk: KnowledgeChunkListRecord): KnowledgeChunkVo {
     return {
       id: chunk.id,
       sequence: chunk.sequence,
       content: chunk.content,
       characterCount: chunk.content.length,
       tokenCount: chunk.tokenCount,
+      recallCount: chunk.recallCount,
+      enabled: chunk.enabled,
       metadata: chunk.metadata as Record<string, unknown>,
       createdAt: chunk.createdAt,
     }

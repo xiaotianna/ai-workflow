@@ -8,6 +8,8 @@ export { EditKnowledgeBaseDialog } from './components/edit-knowledge-base-dialog
 export { getDocumentActions } from './components/document-actions'
 export { KnowledgeBaseDetailIdentity } from './components/knowledge-base-detail-identity'
 export { KnowledgeDocumentSwitcher } from './components/knowledge-document-switcher'
+export { KnowledgeChunkContent } from './components/knowledge-chunk-content'
+export { KnowledgeChunkEditPanel } from './components/knowledge-chunk-edit-panel'
 export { RenameDocumentDialog } from './components/rename-document-dialog'
 export { getKnowledgeBaseActions } from './components/knowledge-base-actions'
 export { KnowledgeBaseGrid } from './components/knowledge-base-grid'
@@ -30,10 +32,16 @@ export {
   documentSortValues,
 } from './document-query-strategies'
 export type { DocumentSegmentationMode } from './constants'
-export { KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES, knowledgeBaseSettingsSchema } from './schema'
+export {
+  KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES,
+  knowledgeBaseSettingsSchema,
+  knowledgeChunkEditSchema,
+} from './schema'
 export type {
   AddDocumentInput,
   CreateKnowledgeBaseInput,
+  KnowledgeChunkEditFormInput,
+  KnowledgeChunkEditInput,
   KnowledgeBaseSettingsFormInput,
   KnowledgeBaseSettingsInput,
 } from './schema'
