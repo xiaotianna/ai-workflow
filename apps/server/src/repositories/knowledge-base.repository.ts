@@ -98,6 +98,11 @@ export const knowledgeDocumentSelect = {
       },
     },
   },
+  _count: {
+    select: {
+      retrievalHits: true,
+    },
+  },
 } satisfies Prisma.KnowledgeDocumentSelect
 
 export type KnowledgeDocumentRecord = Prisma.KnowledgeDocumentGetPayload<{
@@ -373,6 +378,8 @@ export class KnowledgeBaseRepository {
     ownerId: string
     knowledgeBaseId: string
     search?: string
+    fileType?: 'pdf' | 'markdown' | 'text'
+    sort: 'uploaded_desc' | 'recall_desc' | 'character_desc' | 'name_asc'
     page: number
     pageSize: number
   }): Promise<{ items: KnowledgeDocumentRecord[]; total: number } | null> {
@@ -387,11 +394,20 @@ export class KnowledgeBaseRepository {
       ...(options.search
         ? { name: { contains: options.search, mode: 'insensitive' as const } }
         : {}),
+      ...(options.fileType ? { fileType: options.fileType } : {}),
     }
+    const orderBy: Prisma.KnowledgeDocumentOrderByWithRelationInput[] =
+      options.sort === 'recall_desc'
+        ? [{ retrievalHits: { _count: 'desc' } }, { createdAt: 'desc' }, { id: 'desc' }]
+        : options.sort === 'character_desc'
+          ? [{ characterCount: 'desc' }, { id: 'desc' }]
+          : options.sort === 'name_asc'
+            ? [{ name: 'asc' }, { id: 'asc' }]
+            : [{ createdAt: 'desc' }, { id: 'desc' }]
     const [items, total] = await Promise.all([
       this.prisma.knowledgeDocument.findMany({
         where,
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        orderBy,
         skip: (options.page - 1) * options.pageSize,
         take: options.pageSize,
         select: knowledgeDocumentSelect,
@@ -462,7 +478,7 @@ export class KnowledgeBaseRepository {
           overlapLength: options.overlapLength,
           normalizeWhitespace: options.normalizeWhitespace,
           indexedSegmentationRevision: settings.segmentationRevision,
-          status: 'READY',
+          status: targetIndexes.length ? 'PROCESSING' : 'READY',
           characterCount: options.characterCount,
           chunkCount: options.chunks.length,
           sources: {

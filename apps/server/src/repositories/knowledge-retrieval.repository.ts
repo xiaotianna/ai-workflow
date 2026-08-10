@@ -90,4 +90,39 @@ export class KnowledgeRetrievalRepository {
 
     return new Set(heads.map(({ currentVersionId }) => currentVersionId))
   }
+
+  async recordWorkflowRetrieval(options: {
+    ownerId: string
+    commandId: string
+    queryHash: string
+    latencyMs: number
+    hits: Array<{
+      documentId: string
+      firstChunkId: string
+      documentVersionId: string
+      rank: number
+      scoreSnapshot: number
+      matchedChunkCount: number
+    }>
+  }): Promise<void> {
+    await this.prisma.knowledgeRetrievalLog.upsert({
+      where: {
+        source_sourceRequestId: {
+          source: 'WORKFLOW',
+          sourceRequestId: options.commandId,
+        },
+      },
+      create: {
+        ownerId: options.ownerId,
+        sourceRequestId: options.commandId,
+        source: 'WORKFLOW',
+        queryHash: options.queryHash,
+        latencyMs: options.latencyMs,
+        hits: {
+          create: options.hits,
+        },
+      },
+      update: {},
+    })
+  }
 }

@@ -1,3 +1,5 @@
+import type { KnowledgeSegmentationMode } from '@/api/knowledge-bases'
+
 export const knowledgeBaseIconBackground = 'rgb(219, 234, 254)'
 
 export const documentPageSizeOptions = [10, 25, 50] as const
@@ -35,10 +37,14 @@ export function getDocumentSegmentationModeOption(mode: DocumentSegmentationMode
   )
 }
 
+export const knowledgeSegmentationModeLabels = {
+  GENERAL: '通用',
+  QA: 'Q&A',
+  PARENT_CHILD: '父子分段',
+} as const satisfies Record<KnowledgeSegmentationMode, string>
+
 export const documentAcceptedFileTypes = '.pdf,.md,.markdown,.txt'
 
 export const documentAcceptedFileExtensions = ['pdf', 'md', 'markdown', 'txt'] as const
 
 export const documentMaxFileSizeBytes = 15 * 1024 * 1024
-
-export const documentFileTypeIconBackground = 'rgb(219, 234, 254)'

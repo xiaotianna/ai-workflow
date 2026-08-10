@@ -156,6 +156,10 @@ function ExampleForm() {
   不在前端模拟分页或截断。
 - 知识库列表编辑或删除成功后刷新当前搜索与排序；详情页编辑成功后直接使用接口响应更新父级
   资源状态，删除成功后返回知识库列表。删除失败保留确认弹窗，错误继续由统一 API 客户端提示。
+- 添加文档提交后必须保留创建接口返回的真实文档 ID 和 `PROCESSING / READY / FAILED` 状态；步骤 3
+  只对仍为 `PROCESSING` 的文档使用单文档 GET 接口做 1.5 秒短轮询，全部进入终态后停止。Effect
+  必须清理定时器和 AbortController；请求失败时停止自动轮询并提供显式重试，避免持续 Toast。
+  知识库当前没有跨实例状态事件通道，不借用工作流 SSE，也不得在上传响应后直接显示嵌入完成。
 - 工作流编辑器通过 `WorkflowKnowledgeBaseCatalogProvider` 缓存当前用户的知识库目录，但目录
   只在 RAG 配置面板中的 `KnowledgeBaseField` 挂载后加载；Provider 挂载、草稿加载和纯画布
   渲染不得请求目录。多选 Dialog 的临时选择使用 `useFormData` 管理，并通过 Core schema 校验；

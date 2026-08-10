@@ -1,4 +1,7 @@
-import type { KnowledgeBaseSort as ApiKnowledgeBaseSort } from '@/api/knowledge-bases'
+import type {
+  KnowledgeBaseSort as ApiKnowledgeBaseSort,
+  KnowledgeDocumentSort as ApiKnowledgeDocumentSort,
+} from '@/api/knowledge-bases'
 
 import type { DocumentSegmentationMode } from './constants'
 
@@ -13,6 +16,8 @@ export interface KnowledgeBaseListItem {
 }
 
 export type KnowledgeBaseSort = ApiKnowledgeBaseSort
+export type KnowledgeDocumentSort = ApiKnowledgeDocumentSort
+export type KnowledgeDocumentFileTypeFilter = 'all' | 'pdf' | 'markdown' | 'text'
 
 export type KnowledgeBaseAction = 'edit' | 'delete'
 

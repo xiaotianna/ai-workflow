@@ -75,6 +75,7 @@ model KnowledgeDocument {
   sources       KnowledgeDocumentSource[]
   versions      KnowledgeDocumentVersion[]
   indexHeads    KnowledgeDocumentIndexHead[]
+  retrievalHits KnowledgeRetrievalHit[]
 
   @@index([knowledgeBaseId, createdAt])
   @@index([knowledgeBaseId, enabled])
@@ -285,4 +286,40 @@ model KnowledgeOutboxEvent {
   @@index([status, availableAt])
   @@index([knowledgeBaseId, createdAt])
   @@map("knowledge_outbox_events")
+}
+
+model KnowledgeRetrievalLog {
+  id              String                   @id @default(uuid()) @db.Uuid
+  ownerId         String                   @db.Uuid
+  sourceRequestId String                   @db.VarChar(128)
+  source          KnowledgeRetrievalSource
+  queryHash       String                   @db.VarChar(64)
+  latencyMs       Int
+  createdAt       DateTime                 @default(now())
+
+  owner User                    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hits  KnowledgeRetrievalHit[]
+
+  @@unique([source, sourceRequestId])
+  @@index([ownerId, createdAt])
+  @@map("knowledge_retrieval_logs")
+}
+
+model KnowledgeRetrievalHit {
+  id                String   @id @default(uuid()) @db.Uuid
+  logId             String   @db.Uuid
+  documentId        String   @db.Uuid
+  firstChunkId      String   @db.Uuid
+  documentVersionId String   @db.Uuid
+  rank              Int
+  scoreSnapshot     Float
+  matchedChunkCount Int      @default(1)
+  createdAt         DateTime @default(now())
+
+  log      KnowledgeRetrievalLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+  document KnowledgeDocument     @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([logId, documentId])
+  @@index([documentId, createdAt])
+  @@map("knowledge_retrieval_hits")
 }

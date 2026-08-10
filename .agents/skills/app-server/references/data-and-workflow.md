@@ -100,7 +100,9 @@
 
 - 通用领域模型和状态流程以根目录 `docs/knowledge-base-design.md` 为准；生产检索、准确性评测与
   外部 API 目标以 `docs/knowledge-base-production-api-design.md` 为准，冲突时以后者为准。当前已建立
-  `KnowledgeBase`、`KnowledgeBaseSettings`、`KnowledgeDocument` 和 `KnowledgeChunk` 的同步管理基线；生产 Index/Source/Version/Head、任务、投影和检索日志仍按目标模型后续接入。
+  Index/Source/Version/Head/Attempt/Projection/Outbox 事实模型、RabbitMQ 异步入库、Embedding、
+  OpenSearch 投影和检索日志；`KnowledgeDocument.status` 是管理面的当前可服务状态，创建索引任务时
+  为 `PROCESSING`，当前活动索引或首个构建索引投影完成后为 `READY`，不可重试失败为 `FAILED`。
 - `KnowledgeBaseSettings.segmentationRevision` 是当前分段设置修订号，文档保存入库时的 `indexedSegmentationRevision` 和实际分段参数快照。修改知识库分段设置不允许自动覆盖已有 Chunk；只有用户显式重新索引才在事务内替换单文档 Chunk 并更新修订快照。
 - `KnowledgeBaseSettings.embeddingModelGroupId` 与 `embeddingConfiguredModelId` 同时为空或同时存在，引用模型管理中的稳定 UUID，知识库不得复制模型凭证。当前字段表达目标索引配置；在 `KnowledgeBaseIndex` 代际完成前，不得把它解释为已有 Chunk 已完成向量化。
 - 当前原文经 `KnowledgeSourceStore` 存在 `KNOWLEDGE_SOURCE_DIRECTORY`（默认 `var/knowledge-sources`）下，数据库只保存受控相对 storage key。该边界用于本地 Markdown/纯文本闭环，生产环境必须替换为对象存储适配器与异步入库任务。
@@ -125,8 +127,9 @@
   `KnowledgeCleanupJob` 保留外部资源清理进度，清理成功前业务行保持删除中状态。
 - 工作流草稿和版本分别使用具有真实知识库外键的引用投影表；工作流 JSON 仍是事实来源，保存
   JSON 与重建投影必须在同一事务完成。
-- 检索次数从 `KnowledgeRetrievalLog` 与 `KnowledgeRetrievalHit` 聚合，召回测试不计入生产召回；
-  不在知识库或文档行维护高频递增计数。
+- 检索次数从 `KnowledgeRetrievalLog` 与 `KnowledgeRetrievalHit` 聚合：工作流 RAG 的最终结果按
+  “一次检索 + 一个文档”去重记录，同一次检索命中该文档多个 Chunk 只计一次；Web 召回测试不计入生产召回。
+  工作流日志以 Command ID 作为幂等键，消息重投不重复计数；不在知识库或文档行维护高频递增计数。
 - OpenSearch 是生产检索投影，同时保存用于 BM25 的文本字段、Dense 向量、`generationId`、文档状态
   和 ACL 元数据；PostgreSQL 仍是唯一业务事实来源，OpenSearch 投影必须可以按 Index 代际全量重建。
 - 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。多个知识库必须先按

@@ -344,7 +344,9 @@ export class KnowledgeIngestionRepository {
         where: { id: version.id },
         data: { status: 'CHUNKING', progress: 35 },
       })
-      await transaction.knowledgeChunk.deleteMany({ where: { documentVersionId: version.id } })
+      await transaction.knowledgeChunk.deleteMany({
+        where: { documentVersionId: version.id },
+      })
       await transaction.knowledgeChunk.createMany({
         data: options.chunks.map((chunk, index) => ({
           documentId: version.documentId,
@@ -410,8 +412,18 @@ export class KnowledgeIngestionRepository {
     errorMessage: string
     retryable: boolean
   }): Promise<void> {
-    await this.prisma.$transaction([
-      this.prisma.knowledgeDocumentVersion.updateMany({
+    await this.prisma.$transaction(async (transaction) => {
+      const version = await transaction.knowledgeDocumentVersion.findUnique({
+        where: { id: options.documentVersionId },
+        select: {
+          documentId: true,
+          knowledgeBaseId: true,
+          knowledgeBaseIndexId: true,
+        },
+      })
+      if (!version) return
+
+      const updated = await transaction.knowledgeDocumentVersion.updateMany({
         where: {
           id: options.documentVersionId,
           status: { in: ['PARSING', 'CHUNKING'] },
@@ -422,8 +434,8 @@ export class KnowledgeIngestionRepository {
           errorCode: options.errorCode,
           errorMessage: options.errorMessage.slice(0, 4000),
         },
-      }),
-      this.prisma.knowledgeIngestionAttempt.updateMany({
+      })
+      await transaction.knowledgeIngestionAttempt.updateMany({
         where: { id: options.attemptId, status: 'RUNNING' },
         data: {
           status: 'FAILED',
@@ -432,8 +444,27 @@ export class KnowledgeIngestionRepository {
           errorMessage: options.errorMessage.slice(0, 4000),
           finishedAt: new Date(),
         },
-      }),
-    ])
+      })
+      if (options.retryable || !updated.count) return
+
+      const knowledgeBase = await transaction.knowledgeBase.findUnique({
+        where: { id: version.knowledgeBaseId },
+        select: { activeIndexId: true },
+      })
+      if (
+        knowledgeBase?.activeIndexId &&
+        knowledgeBase.activeIndexId !== version.knowledgeBaseIndexId
+      ) {
+        return
+      }
+      await transaction.knowledgeDocument.update({
+        where: { id: version.documentId },
+        data: {
+          status: 'FAILED',
+          errorMessage: options.errorMessage.slice(0, 4000),
+        },
+      })
+    })
   }
 
   async claimProjection(
@@ -452,7 +483,11 @@ export class KnowledgeIngestionRepository {
           attemptCount: true,
           document: { select: { id: true, name: true, enabled: true } },
           projection: {
-            select: { status: true, expectedChecksum: true, expectedChunkCount: true },
+            select: {
+              status: true,
+              expectedChecksum: true,
+              expectedChunkCount: true,
+            },
           },
           chunks: {
             orderBy: { sequence: 'asc' },
@@ -565,9 +600,15 @@ export class KnowledgeIngestionRepository {
           cleaningConfig: true,
           characterCount: true,
           chunkCount: true,
-          projection: { select: { expectedChunkCount: true, expectedChecksum: true } },
+          projection: {
+            select: { expectedChunkCount: true, expectedChecksum: true },
+          },
           knowledgeBaseIndex: {
-            select: { status: true, embeddingDimension: true, embeddingSpaceKey: true },
+            select: {
+              status: true,
+              embeddingDimension: true,
+              embeddingSpaceKey: true,
+            },
           },
         },
       })
@@ -616,20 +657,29 @@ export class KnowledgeIngestionRepository {
         where: { knowledgeBaseId: version.knowledgeBaseId },
         select: { segmentationRevision: true },
       })
-      await transaction.knowledgeDocument.update({
-        where: { id: version.documentId },
-        data: {
-          status: 'READY',
-          segmentationMode: version.segmentationMode,
-          maxSegmentLength: chunkConfig.maxSegmentLength,
-          overlapLength: chunkConfig.overlapLength,
-          normalizeWhitespace: cleaningConfig.normalizeWhitespace,
-          indexedSegmentationRevision: settings?.segmentationRevision ?? 1,
-          characterCount: version.characterCount ?? 0,
-          chunkCount: version.chunkCount ?? options.projectedChunkCount,
-          errorMessage: null,
-        },
+      const knowledgeBase = await transaction.knowledgeBase.findUnique({
+        where: { id: version.knowledgeBaseId },
+        select: { activeIndexId: true },
       })
+      if (
+        !knowledgeBase?.activeIndexId ||
+        knowledgeBase.activeIndexId === version.knowledgeBaseIndexId
+      ) {
+        await transaction.knowledgeDocument.update({
+          where: { id: version.documentId },
+          data: {
+            status: 'READY',
+            segmentationMode: version.segmentationMode,
+            maxSegmentLength: chunkConfig.maxSegmentLength,
+            overlapLength: chunkConfig.overlapLength,
+            normalizeWhitespace: cleaningConfig.normalizeWhitespace,
+            indexedSegmentationRevision: settings?.segmentationRevision ?? 1,
+            characterCount: version.characterCount ?? 0,
+            chunkCount: version.chunkCount ?? options.projectedChunkCount,
+            errorMessage: null,
+          },
+        })
+      }
       await transaction.knowledgeDocumentIndexHead.upsert({
         where: {
           documentId_knowledgeBaseIndexId: {
@@ -656,7 +706,10 @@ export class KnowledgeIngestionRepository {
       })
 
       const incompleteCount = await transaction.knowledgeDocumentVersion.count({
-        where: { knowledgeBaseIndexId: version.knowledgeBaseIndexId, status: { not: 'READY' } },
+        where: {
+          knowledgeBaseIndexId: version.knowledgeBaseIndexId,
+          status: { not: 'READY' },
+        },
       })
       if (version.knowledgeBaseIndex.status === 'BUILDING' && incompleteCount === 0) {
         const previous = await transaction.knowledgeBase.findUnique({
@@ -671,7 +724,11 @@ export class KnowledgeIngestionRepository {
         }
         await transaction.knowledgeBaseIndex.update({
           where: { id: version.knowledgeBaseIndexId },
-          data: { status: 'READY', readyAt: new Date(), activatedAt: new Date() },
+          data: {
+            status: 'READY',
+            readyAt: new Date(),
+            activatedAt: new Date(),
+          },
         })
         await transaction.knowledgeBase.update({
           where: { id: version.knowledgeBaseId },
@@ -691,12 +748,19 @@ export class KnowledgeIngestionRepository {
     await this.prisma.$transaction(async (transaction) => {
       const version = await transaction.knowledgeDocumentVersion.findUnique({
         where: { id: options.documentVersionId },
-        select: { knowledgeBaseIndexId: true },
+        select: {
+          documentId: true,
+          knowledgeBaseId: true,
+          knowledgeBaseIndexId: true,
+        },
       })
       if (!version) return
 
       await transaction.knowledgeSearchProjection.updateMany({
-        where: { documentVersionId: options.documentVersionId, status: 'WRITING' },
+        where: {
+          documentVersionId: options.documentVersionId,
+          status: 'WRITING',
+        },
         data: {
           status: options.retryable ? 'PENDING' : 'FAILED',
           errorCode: 'PROJECTION_FAILED',
@@ -731,12 +795,34 @@ export class KnowledgeIngestionRepository {
             retiredAt: new Date(),
           },
         })
+        const knowledgeBase = await transaction.knowledgeBase.findUnique({
+          where: { id: version.knowledgeBaseId },
+          select: { activeIndexId: true },
+        })
+        if (
+          !knowledgeBase?.activeIndexId ||
+          knowledgeBase.activeIndexId === version.knowledgeBaseIndexId
+        ) {
+          await transaction.knowledgeDocument.update({
+            where: { id: version.documentId },
+            data: {
+              status: 'FAILED',
+              errorMessage: options.errorMessage.slice(0, 4000),
+            },
+          })
+        }
       }
     })
   }
 
   async failIndexBuild(knowledgeBaseIndexId: string, errorMessage: string): Promise<void> {
     await this.prisma.$transaction(async (transaction) => {
+      const index = await transaction.knowledgeBaseIndex.findUnique({
+        where: { id: knowledgeBaseIndexId },
+        select: { knowledgeBase: { select: { activeIndexId: true } } },
+      })
+      if (!index) return
+
       const updated = await transaction.knowledgeBaseIndex.updateMany({
         where: { id: knowledgeBaseIndexId, status: 'BUILDING' },
         data: {
@@ -753,7 +839,7 @@ export class KnowledgeIngestionRepository {
           knowledgeBaseIndexId,
           status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
         },
-        select: { id: true },
+        select: { id: true, documentId: true },
       })
       const versionIds = runningVersions.map(({ id }) => id)
       await transaction.knowledgeDocumentVersion.updateMany({
@@ -769,6 +855,17 @@ export class KnowledgeIngestionRepository {
           finishedAt: new Date(),
         },
       })
+      if (!index.knowledgeBase.activeIndexId) {
+        await transaction.knowledgeDocument.updateMany({
+          where: {
+            id: { in: runningVersions.map(({ documentId }) => documentId) },
+          },
+          data: {
+            status: 'FAILED',
+            errorMessage: errorMessage.slice(0, 4000),
+          },
+        })
+      }
     })
   }
 }
@@ -796,7 +893,9 @@ function parseChunkConfig(value: Prisma.JsonValue): {
   }
 }
 
-function parseCleaningConfig(value: Prisma.JsonValue): { normalizeWhitespace: boolean } {
+function parseCleaningConfig(value: Prisma.JsonValue): {
+  normalizeWhitespace: boolean
+} {
   if (!isRecord(value) || typeof value.normalizeWhitespace !== 'boolean') {
     throw new Error('索引清洗配置损坏')
   }

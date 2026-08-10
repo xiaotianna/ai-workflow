@@ -25,16 +25,18 @@
 - 知识库创建和编辑复用 `KnowledgeBaseFormDialog`；编辑时回填名称、图标和描述，请求期间禁止
   关闭或重复提交。删除统一使用 `DeleteKnowledgeBaseDialog` 二次确认；请求期间禁止关闭，失败
   时保留弹窗，列表成功后刷新当前查询，详情成功后返回知识库列表。
-- 文档页（`/knowledge-base/:id/documents`）使用真实分页接口，搜索、启停、删除、上传和手动重新索引都必须持久化，不得回退为本地 mock。点击文件名进入 `/knowledge-base/:id/documents/:documentId`，该页展示真实分段、分页搜索、文档信息和当前分段参数。
+- 文档页（`/knowledge-base/:id/documents`）使用真实分页接口，搜索、启停、删除、上传和手动重新索引都必须持久化，不得回退为本地 mock。点击文件名进入 `/knowledge-base/:id/documents/:documentId`，该页展示真实分段、分页搜索、文档信息和当前分段参数；Header 通过 Feature 内的 `KnowledgeDocumentSwitcher` 搜索并切换同一知识库中的文档，候选列表使用 50 条一批的触底续载与虚拟渲染，请求失败后停止自动续载并提供重试入口。
 - 知识库设置页将“索引模型”、入库侧“文本分段”与查询侧“检索”分区编辑。嵌入模型复用 `GET /models/groups?modelType=embedding`，只允许选择已启用组中的已启用模型，保存模型组和模型稳定 UUID；失效旧引用保留并提示不可用，设置页提供 `/models?tab=embedding` 管理入口。保存分段配置只提升配置修订号并将旧文档标记为待更新，不在保存时覆盖已有 Chunk；只有用户明确点击“重新索引”时才使用当前配置替换该文档分段。
 - 添加文件固定使用“选择数据源 → 文本分段与清洗 → 处理并完成”三步。步骤 2 左侧选择“通用 / Q&A /
   父子分段”之一，并只编辑该模式允许调整的文档级分段与保守清洗配置；右侧始终保留按文件切换
   的预览区，列表和处理摘要使用模式值映射展示名称，不冗余保存 label。点击“预览块”后显示服务端
-  用当前配置生成的临时块，配置变化时旧预览必须标记过期。清洗默认保留 URL、邮箱、编号、标点、
+  用当前配置生成的临时块，配置变化时旧预览必须标记过期。左侧设置容器和右侧预览容器统一使用 `border-border/50`、0.5px 边框、`rounded-xl` 与 `shadow-xs`；嵌套的预览块降一级使用 `border-border/60`、0.5px 边框与 `rounded-lg`，Hover 时切换 `border-input-focus` 和完整内容卡片规格的 `shadow-lg`。字符数使用浅色 `bg-input/70`、低对比细边框的紧凑元信息徽标，禁止使用深色实心胶囊。预览区的标题、文件选择、计数和内容统一放在满高圆角容器中，头部固定、内容独立滚动；右栏外层使用紧凑的 16–20px 间距，头部使用 14–20px 内边距，内容区使用 16–20px 内边距，避免多层容器留白叠加；请求期间使用多组块标题和正文骨架展示加载结构。步骤 2 底部操作栏与步骤 1、步骤 3 一致使用 `border-border border-t` 顶部分隔线。清洗默认保留 URL、邮箱、编号、标点、
   段落、列表、表格与代码结构，不提供删除全部 URL 和邮箱的选项；预览和正式处理复用同一
   Parser、Cleaner 与 Chunker 配置解释。
   上传步骤不编辑“经济 / 高质量”、倒排 / 向量 / 混合方式或 `TopK`；索引与检索配置最多显示
-  当前知识库配置的只读摘要和设置入口。
+  当前知识库配置的只读摘要和设置入口。步骤 3 的标题和每个文件状态必须消费服务端返回的
+  `PROCESSING / READY / FAILED`，分别展示处理中、完成和失败语义；不得在上传接口返回后固定显示
+  “嵌入已完成”。
 - `PageTitle` 支持可选 `subtitle`，样式为 `flex items-center space-x-0.5 text-sm font-normal text-muted-foreground mt-1`；各 feature 的工具栏只负责业务控件，外层间距由 `PageHeaderActions` 统一提供。
 - 资源操作菜单统一使用 `components/action-menu-content` 渲染操作项、分组与危险状态，调用方只负责提供 Dropdown 触发器和操作项配置。
 - 操作项使用稳定的 `id`，通过 `separatorBefore` 分组；危险操作设置 `destructive`，暂不可用的操作设置 `disabled`。下拉操作项默认只显示文字，不提供通用 `icon` 配置；只有用户或业务规范明确要求时才单独实现图标。
@@ -184,6 +186,16 @@
 
 参考实现：`features/knowledge-base/components/document-table.tsx`、`document-action-menu.tsx`、`document-pagination.tsx`。
 
+- 知识库文档的文件类型图标统一复用 `features/knowledge-base/components/document-file-type-icon.tsx`
+  中的 `DocumentFileTypeIcon`，调用方按数据条件传入 `fileType`、`fileName` 或两者；PDF、Markdown、
+  Word、PPT、Excel 与未知类型的图标映射及扩展名别名只在该组件内维护，图标资源统一使用
+  `apps/web/public` 下对应的 SVG，不在表格、文档切换器和上传步骤中直接使用 Lucide 文件图标或
+  重复类型分支。SVG 不增加浅色外围背景，知识库内的紧凑文档列表和选择器统一使用 20px 图标；
+  文档数据尚未加载时使用同尺寸骨架屏，不用未知类型图标表达加载状态。
+- 文档工具栏提供文件类型、排序、搜索和添加文件；文件类型默认“全部”，并与服务端实际支持的
+  PDF / Markdown / TXT 保持一致。排序提供上传时间、召回次数、字符数和名称；查询变化后回到第一页，禁止只对当前页做本地筛选或排序。
+  列表请求期间搜索框必须保持可输入和当前焦点，不得因 loading 切换为 `disabled`；旧请求通过 AbortController 取消。
+
 ### 页面高度与滚动
 
 - 文档页根容器使用 `flex h-full min-h-0 flex-col overflow-hidden`，占满详情布局主内容区剩余高度，不在页面级滚动。
@@ -193,6 +205,7 @@
 ### 列结构
 
 - 使用 TanStack Table 管理列定义、排序、分页与行选择；表格设置 `minWidth` 保证窄屏时可横向滚动。
+- 文档列展示名称、分段模式、字符数、分段数、召回次数、上传时间、状态、操作和 dot 菜单。
 - 「操作」列与 dot 菜单列分离：操作列表头为「操作」，内容为 `Switch`；其后为**无表头**的 dot 列，内容为 `DocumentActionMenu`（`MoreHorizontal`）。
 - dot 列 `sticky right-0`；横向滚动时两列始终贴在右侧。默认 `bg-background` 遮挡下层内容，行态背景与其他列保持一致（见下方行背景）。
 - dot 列左侧使用**短竖线**分隔，不用整列 `border-l`；在数据行单元格**内部容器**上用 `before` 伪元素实现，高度约 `h-3.5`，垂直居中；表头对应单元格不显示竖线。sticky 单元格本身不可加 `relative`，否则会覆盖 `sticky` 定位。

@@ -12,6 +12,11 @@ export function getDocumentActions(
 
   return [
     {
+      id: 'rename',
+      label: '重命名',
+      onSelect: createHandler('rename'),
+    },
+    {
       id: 'reindex',
       label: '重新索引',
       onSelect: createHandler('reindex'),

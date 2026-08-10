@@ -1,11 +1,12 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { ArrowRight, CloudUpload, FileText, Trash2 } from 'lucide-react'
+import { ArrowRight, CloudUpload, Trash2 } from 'lucide-react'
 import { useRef, useState, type DragEvent } from 'react'
 
 import { documentAcceptedFileTypes } from '../constants'
 import { AddDocumentStepHeader } from './add-document-step-header'
+import { DocumentFileTypeIcon } from './document-file-type-icon'
 
 interface AddDocumentSourceStepProps {
   error?: string
@@ -76,7 +77,7 @@ export function AddDocumentSourceStep({
 
       <div className="min-h-0 flex-1 overflow-auto px-5 pb-8 sm:px-8">
         <div className="mx-auto w-full max-w-3xl">
-          <div className="text-text-secondary mt-[30px] mb-[44px] text-lg/6 font-semibold">
+          <div className="text-text-secondary mt-7.5 mb-4 text-lg/6 font-semibold">
             上传文本文件
           </div>
 
@@ -140,9 +141,10 @@ export function AddDocumentSourceStep({
                   key={`${file.name}:${file.size}:${file.lastModified}`}
                   className="border-border/60 bg-background flex min-h-11 items-center gap-2.5 rounded-lg border-[0.5px] px-2.5 py-2 shadow-xs transition-shadow duration-200 ease-out hover:shadow-md motion-reduce:transition-none"
                 >
-                  <span className="bg-primary/8 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg">
-                    <FileText aria-hidden className="size-4" />
-                  </span>
+                  <DocumentFileTypeIcon
+                    fileName={file.name}
+                    className="size-5 shrink-0 object-contain"
+                  />
                   <span className="min-w-0 flex-1">
                     <span className="text-foreground block truncate text-sm font-medium">
                       {file.name}
@@ -168,7 +170,7 @@ export function AddDocumentSourceStep({
         </div>
       </div>
 
-      <footer className="border-border flex h-14 shrink-0 items-center justify-end border-t px-5 sm:px-8">
+      <footer className="border-border flex h-14 shrink-0 items-center justify-end border-t-[0.5px] px-5 sm:px-8">
         <Button
           type="button"
           size="sm"

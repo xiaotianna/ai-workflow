@@ -182,13 +182,21 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
   当前同步删除 PostgreSQL 文档/Chunk，并通过存储适配器清理本地原文；生产对象存储接入后升级为异步清理生命周期。
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库嵌入模型、分段与检索设置。嵌入模型使用可同时为空的 `embeddingModelGroupId` / `embeddingConfiguredModelId` 稳定引用；修改引用时服务端校验 owner、`EMBEDDING` 类型以及组和模型启用状态。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
-- `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 Markdown/纯文本并同步保存分段；上传最多 10 个文件，单文件最大 15 MiB。
+- `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 PDF、
+  Markdown、TXT；上传最多 10 个文件，单文件最大 15 MiB。上传接口保存 Source、Document、Version
+  与 Outbox 后返回文档数组；存在活动或构建中索引时初始状态为 `PROCESSING`，Worker 完成当前可服务
+  索引的 Embedding 与 OpenSearch 投影后转为 `READY`，不可重试失败转为 `FAILED`。列表查询支持
+  `fileType=pdf|markdown|text`，以及 `uploaded_desc`、`recall_desc`、`character_desc`、`name_asc`
+  排序；筛选、排序和分页都由服务端执行。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/preview`：使用与正式入库相同的 Parser/Cleaner/Chunker 生成临时预览，不写入数据库或原文存储。
-- `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档。
+- `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档；
+  单文档读取是管理 Web 恢复和轮询异步入库状态的事实接口，当前不为知识库状态单独提供 SSE。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/reindex`：用知识库当前分段设置重新解析保存的原文，在单个数据库事务内替换该文档 Chunk；这是配置变更后更新旧分段的唯一入口。
 - `GET /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：分页搜索当前文档分段。
 
-知识库响应使用显式 VO，不得暴露 Prisma model。文档和 Chunk 列表返回 `items/total/page/pageSize`；文档响应显式返回当前分段快照与 `needsReindex`，不伪造尚未实现的向量状态或召回次数。
+知识库响应使用显式 VO，不得暴露 Prisma model。文档和 Chunk 列表返回 `items/total/page/pageSize`；
+文档响应显式返回当前分段快照、`needsReindex`、异步入库状态、失败信息和从正式检索命中事实聚合的
+`recallCount`。`READY` 只允许在当前可服务索引投影完成或无需索引任务时返回。
 
 ### 知识库外部 Service API 目标（尚未实现）
 

@@ -4,6 +4,8 @@ import { Form } from '@ai-workflow/ui/components/form'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 
+import type { KnowledgeDocumentDto } from '@/api/knowledge-bases'
+
 import {
   ADD_DOCUMENT_INITIAL_VALUES,
   addDocumentFilesSchema,
@@ -17,13 +19,15 @@ import { AddDocumentSegmentationStep } from './add-document-segmentation-step'
 import { AddDocumentSourceStep } from './add-document-source-step'
 
 interface AddDocumentPageProps {
+  embeddingEnabled?: boolean
   knowledgeBaseName?: string
   initialSettings?: Pick<
     AddDocumentFormInput,
     'segmentationMode' | 'maxSegmentLength' | 'overlapLength' | 'replaceWhitespace'
   >
-  onAdd: (input: AddDocumentInput) => Promise<void>
+  onAdd: (input: AddDocumentInput) => Promise<KnowledgeDocumentDto[]>
   onPreview: (input: AddDocumentInput) => Promise<DocumentPreview>
+  onRefreshDocument: (documentId: string, signal?: AbortSignal) => Promise<KnowledgeDocumentDto>
   onClose: () => void
 }
 
@@ -40,10 +44,12 @@ function getFilesError(errors: Record<string, string>) {
 }
 
 export function AddDocumentPage({
+  embeddingEnabled = false,
   knowledgeBaseName,
   initialSettings,
   onAdd,
   onPreview,
+  onRefreshDocument,
   onClose,
 }: AddDocumentPageProps) {
   const { form, updateForm, updateFormField } = useFormData<AddDocumentFormInput>({
@@ -55,6 +61,7 @@ export function AddDocumentPage({
   const [filesSubmitted, setFilesSubmitted] = useState(false)
   const [settingsSubmitted, setSettingsSubmitted] = useState(false)
   const [submittedInput, setSubmittedInput] = useState<AddDocumentInput>()
+  const [submittedDocuments, setSubmittedDocuments] = useState<KnowledgeDocumentDto[]>()
   const [submitting, setSubmitting] = useState(false)
   const filesValidation = validateFormByZod(addDocumentFilesSchema, {
     files: form.files,
@@ -89,8 +96,9 @@ export function AddDocumentPage({
 
     setSubmitting(true)
     try {
-      await onAdd(result.data)
+      const documents = await onAdd(result.data)
       setSubmittedInput(result.data)
+      setSubmittedDocuments(documents)
       moveToStep(3)
     } finally {
       setSubmitting(false)
@@ -160,11 +168,14 @@ export function AddDocumentPage({
               />
             ) : null}
 
-            {step === 3 && submittedInput ? (
+            {step === 3 && submittedInput && submittedDocuments ? (
               <AddDocumentProcessingStep
+                documents={submittedDocuments}
+                embeddingEnabled={embeddingEnabled}
                 input={submittedInput}
                 knowledgeBaseName={knowledgeBaseName}
                 onClose={onClose}
+                onRefreshDocument={onRefreshDocument}
               />
             ) : null}
           </motion.div>

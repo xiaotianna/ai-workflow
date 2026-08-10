@@ -95,6 +95,12 @@ export const ADD_DOCUMENT_INITIAL_VALUES = {
   replaceWhitespace: true,
 } satisfies AddDocumentFormInput
 
+export const renameDocumentSchema = z.object({
+  name: z.string().trim().min(1, '文档名称不能为空').max(255, '文档名称不能超过 255 个字符'),
+})
+
+export type RenameDocumentFormInput = z.input<typeof renameDocumentSchema>
+
 export const knowledgeBaseSettingsSchema = z
   .object({
     embeddingModelGroupId: z.uuid('嵌入模型组 ID 无效').nullable(),

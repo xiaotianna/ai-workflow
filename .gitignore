@@ -15,6 +15,7 @@ dist-ssr
 *.local
 apps/server/src/generated/prisma
 apps/server/var/plugin-artifacts
+apps/server/var/knowledge-sources
 apps/web/.source/
 
 # Environment variables

@@ -65,6 +65,7 @@ export interface KnowledgeDocumentVo {
   enabled: boolean
   characterCount: number
   chunkCount: number
+  recallCount: number
   needsReindex: boolean
   errorMessage?: string
   createdAt: Date

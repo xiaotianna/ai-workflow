@@ -79,6 +79,7 @@
 | 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                        |
 | 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                        |
 | 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                   |
+| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                   |
 
 下一批工作按以下顺序继续：
 

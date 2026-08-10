@@ -14,26 +14,25 @@ import {
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
-  getSortedRowModel,
   useReactTable,
   type ColumnDef,
   type OnChangeFn,
   type PaginationState,
   type RowSelectionState,
-  type SortingState,
 } from '@tanstack/react-table'
-import { FileText, Puzzle } from 'lucide-react'
+import { Puzzle } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 
-import { documentFileTypeIconBackground, getDocumentSegmentationModeOption } from '../constants'
+import { getDocumentSegmentationModeOption } from '../constants'
 import { formatDocumentCharacterCount } from '../data'
 import type { DocumentActionHandler, KnowledgeBaseDocument } from '../types'
 import { DocumentActionMenu } from './document-action-menu'
 import { getDocumentActions } from './document-actions'
+import { DocumentFileTypeIcon } from './document-file-type-icon'
 import { DocumentPagination } from './document-pagination'
 
-const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 168 + 88 + 72 + 48
+const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 88 + 168 + 88 + 72 + 48
 
 const documentTableRowCellClassName =
   'group-hover/row:bg-input group-data-[state=selected]/row:bg-input group-has-[[data-state=open]]/row:bg-input'
@@ -73,13 +72,11 @@ interface DocumentTableProps {
   pageIndex: number
   pageSize: number
   rowSelection: RowSelectionState
-  sorting: SortingState
   onDocumentAction?: DocumentActionHandler
   onDocumentEnabledChange: (documentId: string, enabled: boolean) => void
   onPageChange: (pageIndex: number) => void
   onPageSizeChange: (pageSize: number) => void
   onRowSelectionChange: OnChangeFn<RowSelectionState>
-  onSortingChange: OnChangeFn<SortingState>
 }
 
 function DocumentStatusBadge({
@@ -119,13 +116,11 @@ export function DocumentTable({
   pageIndex,
   pageSize,
   rowSelection,
-  sorting,
   onDocumentAction,
   onDocumentEnabledChange,
   onPageChange,
   onPageSizeChange,
   onRowSelectionChange,
-  onSortingChange,
 }: DocumentTableProps) {
   const columns = useMemo<ColumnDef<KnowledgeBaseDocument>[]>(
     () => [
@@ -172,13 +167,11 @@ export function DocumentTable({
         header: '名称',
         cell: ({ row }) => (
           <div className="flex min-w-0 items-center gap-2">
-            <span
-              aria-hidden
-              className="flex size-6 shrink-0 items-center justify-center rounded-md"
-              style={{ backgroundColor: documentFileTypeIconBackground }}
-            >
-              <FileText className="text-primary size-3.5" />
-            </span>
+            <DocumentFileTypeIcon
+              fileName={row.original.name}
+              fileType={row.original.fileType}
+              className="size-5 shrink-0 object-contain"
+            />
             <Link
               to={`/knowledge-base/${encodeURIComponent(row.original.knowledgeBaseId)}/documents/${encodeURIComponent(row.original.id)}`}
               className="hover:text-primary focus-visible:text-primary truncate rounded-sm transition-colors outline-none"
@@ -225,6 +218,15 @@ export function DocumentTable({
         size: 96,
         minSize: 96,
         maxSize: 96,
+      },
+      {
+        accessorKey: 'recallCount',
+        header: '召回次数',
+        cell: ({ row }) => row.original.recallCount,
+        enableSorting: false,
+        size: 88,
+        minSize: 88,
+        maxSize: 88,
       },
       {
         accessorKey: 'uploadedAt',
@@ -300,7 +302,6 @@ export function DocumentTable({
     state: {
       pagination,
       rowSelection,
-      sorting,
     },
     defaultColumn: {
       size: 150,
@@ -313,7 +314,6 @@ export function DocumentTable({
     pageCount: Math.max(Math.ceil(total / pageSize), 1),
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
     onPaginationChange: (updater) => {
       const nextPagination = typeof updater === 'function' ? updater(pagination) : updater
       if (nextPagination.pageIndex !== pageIndex) {
@@ -324,7 +324,6 @@ export function DocumentTable({
       }
     },
     onRowSelectionChange,
-    onSortingChange,
   })
 
   return (

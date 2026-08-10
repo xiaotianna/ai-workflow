@@ -115,6 +115,16 @@ export class ListKnowledgeDocumentsDto {
   @IsOptional()
   search?: string
 
+  @IsIn(['pdf', 'markdown', 'text'], { message: '不支持当前文件类型' })
+  @IsOptional()
+  fileType?: 'pdf' | 'markdown' | 'text'
+
+  @IsIn(['uploaded_desc', 'recall_desc', 'character_desc', 'name_asc'], {
+    message: '不支持当前排序方式',
+  })
+  @IsOptional()
+  sort: 'uploaded_desc' | 'recall_desc' | 'character_desc' | 'name_asc' = 'uploaded_desc'
+
   @Transform(({ value }) => Number(value))
   @Min(1, { message: '页码不能小于 1' })
   @IsInt({ message: '页码必须是整数' })

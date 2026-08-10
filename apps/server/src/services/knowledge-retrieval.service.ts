@@ -17,6 +17,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common'
+import { createHash } from 'node:crypto'
 
 const RRF_RANK_CONSTANT = 60
 const MAX_CANDIDATES_PER_CHANNEL = 100
@@ -48,6 +49,7 @@ export class KnowledgeRetrievalService {
       knowledgeBaseIds,
       dto.query,
       config.data.topK,
+      { workflowCommandId: dto.commandId },
     )
   }
 
@@ -56,7 +58,9 @@ export class KnowledgeRetrievalService {
     knowledgeBaseIds: string[],
     query: string,
     topK: number,
+    options: { workflowCommandId?: string } = {},
   ): Promise<KnowledgeRetrievalVo> {
+    const startedAt = Date.now()
     const indexes = await this.knowledgeRetrievalRepository.findActiveIndexes(
       ownerId,
       knowledgeBaseIds,
@@ -108,16 +112,65 @@ export class KnowledgeRetrievalService {
         ),
       )
     }
-    return {
-      documents: [...scores.values()]
-        .sort(
-          (left, right) =>
-            right.score - left.score || left.hit.chunkId.localeCompare(right.hit.chunkId),
-        )
-        .slice(0, topK)
-        .map(({ hit, score }) => ({ ...hit, score })),
+    const documents = [...scores.values()]
+      .sort(
+        (left, right) =>
+          right.score - left.score || left.hit.chunkId.localeCompare(right.hit.chunkId),
+      )
+      .slice(0, topK)
+      .map(({ hit, score }) => ({ ...hit, score }))
+
+    if (options.workflowCommandId) {
+      await this.knowledgeRetrievalRepository.recordWorkflowRetrieval({
+        ownerId,
+        commandId: options.workflowCommandId,
+        queryHash: createHash('sha256').update(query).digest('hex'),
+        latencyMs: Date.now() - startedAt,
+        hits: collapseDocumentHits(documents),
+      })
     }
+
+    return { documents }
   }
+}
+
+function collapseDocumentHits(documents: KnowledgeRetrievalDocumentVo[]): Array<{
+  documentId: string
+  firstChunkId: string
+  documentVersionId: string
+  rank: number
+  scoreSnapshot: number
+  matchedChunkCount: number
+}> {
+  const hits = new Map<
+    string,
+    {
+      documentId: string
+      firstChunkId: string
+      documentVersionId: string
+      rank: number
+      scoreSnapshot: number
+      matchedChunkCount: number
+    }
+  >()
+
+  documents.forEach((document, index) => {
+    const current = hits.get(document.documentId)
+    if (current) {
+      current.matchedChunkCount += 1
+      return
+    }
+    hits.set(document.documentId, {
+      documentId: document.documentId,
+      firstChunkId: document.chunkId,
+      documentVersionId: document.documentVersionId,
+      rank: index + 1,
+      scoreSnapshot: document.score,
+      matchedChunkCount: 1,
+    })
+  })
+
+  return [...hits.values()]
 }
 
 function groupIndexes(indexes: KnowledgeRetrievalIndex[]): KnowledgeRetrievalIndex[][] {

@@ -10,8 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Separator } from '@ai-workflow/ui/components/separator'
-import { ArrowLeft, FileSearch, FileText, RotateCcw, Save, Search, Settings2 } from 'lucide-react'
+import { Skeleton } from '@ai-workflow/ui/components/skeleton'
+import { ArrowLeft, FileSearch, RotateCcw, Save, Search, Settings2 } from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
@@ -21,6 +21,7 @@ import {
 } from '../constants'
 import type { DocumentPreview } from '../types'
 import { AddDocumentStepHeader } from './add-document-step-header'
+import { DocumentFileTypeIcon } from './document-file-type-icon'
 
 interface AddDocumentSegmentationStepProps {
   errors: Record<string, string>
@@ -53,7 +54,7 @@ function SettingCard({
   title: string
 }) {
   return (
-    <div className="border-border overflow-hidden rounded-xl border shadow-xs">
+    <div className="border-border bg-background overflow-hidden rounded-xl border">
       <div className="bg-muted/35 flex items-center gap-3 px-4 py-3">
         <span className="bg-background text-primary flex size-8 shrink-0 items-center justify-center rounded-lg shadow-xs">
           {icon}
@@ -66,6 +67,28 @@ function SettingCard({
         </span>
       </div>
       {children ? <div className="px-4 py-4">{children}</div> : null}
+    </div>
+  )
+}
+
+function PreviewSkeleton() {
+  return (
+    <div role="status" aria-label="正在生成预览块" className="space-y-8">
+      {Array.from({ length: 5 }, (_, index) => (
+        <div key={index} className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-32" />
+            <span aria-hidden className="text-muted-foreground text-xs">
+              ·
+            </span>
+            <Skeleton className="h-4 w-38" />
+          </div>
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+        </div>
+      ))}
+      <span className="sr-only">正在生成预览块…</span>
     </div>
   )
 }
@@ -146,9 +169,7 @@ export function AddDocumentSegmentationStep({
                     </Select>
                   </Form.Field>
 
-                  <Separator className="my-4" />
-
-                  <div className="grid gap-4 md:grid-cols-2">
+                  <div className="mt-4 grid gap-4 md:grid-cols-2">
                     <Form.Field required label="分段最大长度" error={errors.maxSegmentLength}>
                       <div className="relative">
                         <Input
@@ -158,7 +179,7 @@ export function AddDocumentSegmentationStep({
                           value={maxSegmentLength}
                           aria-label="分段最大长度"
                           aria-invalid={Boolean(errors.maxSegmentLength)}
-                          className="pr-20"
+                          className="[appearance:textfield] pr-20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           onChange={(event) => {
                             const value = event.currentTarget.valueAsNumber
                             if (Number.isFinite(value)) onMaxSegmentLengthChange(value)
@@ -178,7 +199,7 @@ export function AddDocumentSegmentationStep({
                           value={overlapLength}
                           aria-label="分段重叠长度"
                           aria-invalid={Boolean(errors.overlapLength)}
-                          className="pr-20"
+                          className="[appearance:textfield] pr-20 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                           onChange={(event) => {
                             const value = event.currentTarget.valueAsNumber
                             if (Number.isFinite(value)) onOverlapLengthChange(value)
@@ -191,9 +212,7 @@ export function AddDocumentSegmentationStep({
                     </Form.Field>
                   </div>
 
-                  <Separator className="my-4" />
-
-                  <fieldset className="space-y-3">
+                  <fieldset className="mt-4 space-y-3">
                     <legend className="mb-3 text-sm font-medium">文本预处理规则</legend>
                     <label className="text-foreground flex cursor-pointer items-center gap-2.5 text-sm">
                       <Checkbox
@@ -212,11 +231,12 @@ export function AddDocumentSegmentationStep({
                       size="sm"
                       disabled={previewing}
                       onClick={() => {
+                        setPreview(undefined)
+                        setPreviewVisible(true)
                         setPreviewing(true)
                         void onPreview()
                           .then((result) => {
                             setPreview(result)
-                            setPreviewVisible(true)
                           })
                           .catch(() => undefined)
                           .finally(() => setPreviewing(false))
@@ -235,68 +255,82 @@ export function AddDocumentSegmentationStep({
             </div>
           </div>
 
-          <aside className="bg-muted/12 min-h-0 overflow-y-auto overscroll-contain px-5 py-7 sm:px-8">
-            <div className="mx-auto flex h-full max-w-3xl flex-col">
-              <span className="text-primary text-xs font-semibold">预览</span>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Select value={selectedFileIndex} onValueChange={setSelectedFileIndex}>
-                  <SelectTrigger
-                    size="sm"
-                    aria-label="选择预览文件"
-                    className="bg-background max-w-full min-w-56"
-                  >
-                    <span className="flex min-w-0 items-center gap-2">
-                      <FileText aria-hidden className="text-primary size-4 shrink-0" />
-                      <SelectValue />
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent
-                    position="popper"
-                    align="start"
-                    sideOffset={4}
-                    className="w-(--radix-select-trigger-width)"
-                  >
-                    {files.map((file, index) => (
-                      <SelectItem
-                        key={`${file.name}:${file.size}:${file.lastModified}`}
-                        value={String(index)}
-                      >
-                        {file.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Badge variant="outline">{selectedPreview?.total ?? 0} 个预览块</Badge>
+          <aside className="bg-muted/12 min-h-0 overflow-hidden px-4 py-4 sm:px-5">
+            <div className="border-border/50 bg-background mx-auto flex h-full max-w-3xl flex-col overflow-hidden rounded-xl border-[0.5px] shadow-xs">
+              <div className="border-border/50 shrink-0 border-b-[0.5px] px-4 py-3.5 sm:px-5">
+                <span className="text-primary text-xs font-semibold">预览</span>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <Select value={selectedFileIndex} onValueChange={setSelectedFileIndex}>
+                    <SelectTrigger
+                      size="sm"
+                      aria-label="选择预览文件"
+                      className="bg-background max-w-full min-w-56"
+                    >
+                      <span className="flex min-w-0 items-center gap-2">
+                        <DocumentFileTypeIcon
+                          fileName={files[Number(selectedFileIndex)]?.name}
+                          className="size-5 shrink-0 object-contain"
+                        />
+                        <SelectValue />
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      align="start"
+                      sideOffset={4}
+                      className="w-(--radix-select-trigger-width)"
+                    >
+                      {files.map((file, index) => (
+                        <SelectItem
+                          key={`${file.name}:${file.size}:${file.lastModified}`}
+                          value={String(index)}
+                        >
+                          {file.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="outline">{selectedPreview?.total ?? 0} 个预览块</Badge>
+                </div>
               </div>
 
-              {previewVisible && selectedPreview ? (
-                <div className="mt-6 space-y-3">
-                  {selectedPreview.items.map((item) => (
-                    <article
-                      key={item.sequence}
-                      className="border-border bg-background rounded-xl border p-4 shadow-xs"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-sm font-medium">预览块 {item.sequence}</span>
-                        <Badge variant="secondary">{item.characterCount} 字符</Badge>
-                      </div>
-                      <p className="text-muted-foreground mt-3 text-sm leading-6 whitespace-pre-wrap">
-                        {item.content}
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5">
+                {previewing ? (
+                  <PreviewSkeleton />
+                ) : previewVisible && selectedPreview ? (
+                  <div className="space-y-3">
+                    {selectedPreview.items.map((item) => (
+                      <article
+                        key={item.sequence}
+                        className="border-border/60 bg-background hover:border-input-focus rounded-lg border-[0.5px] p-4 shadow-xs transition-[border-color,box-shadow] duration-200 ease-in-out hover:shadow-lg motion-reduce:transition-none"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm font-medium">预览块 {item.sequence}</span>
+                          <Badge
+                            variant="outline"
+                            className="border-border/50 bg-input/70 text-muted-foreground h-6 rounded-md px-2 font-normal shadow-none"
+                          >
+                            {item.characterCount} 字符
+                          </Badge>
+                        </div>
+                        <p className="text-muted-foreground mt-3 text-sm leading-6 whitespace-pre-wrap">
+                          {item.content}
+                        </p>
+                      </article>
+                    ))}
+                    {selectedPreview.truncated ? (
+                      <p className="text-muted-foreground text-center text-xs">
+                        预览最多展示前 20 个分段
                       </p>
-                    </article>
-                  ))}
-                  {selectedPreview.truncated ? (
-                    <p className="text-muted-foreground text-center text-xs">
-                      预览最多展示前 20 个分段
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="text-muted-foreground flex min-h-72 flex-1 flex-col items-center justify-center text-center">
-                  <Search aria-hidden className="size-10 opacity-30" strokeWidth={1.5} />
-                  <p className="mt-4 text-sm">点击左侧“预览块”按钮加载预览</p>
-                </div>
-              )}
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground flex h-full min-h-72 flex-col items-center justify-center text-center">
+                    <Search aria-hidden className="size-10 opacity-30" strokeWidth={1.5} />
+                    <p className="mt-4 text-sm">点击左侧“预览块”按钮加载预览</p>
+                  </div>
+                )}
+              </div>
             </div>
           </aside>
         </div>

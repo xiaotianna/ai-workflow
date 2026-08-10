@@ -48,12 +48,14 @@ export function toKnowledgeBaseDocument(document: KnowledgeDocumentDto): Knowled
     fileType:
       document.fileType === 'markdown'
         ? 'markdown'
-        : document.fileType === 'text'
-          ? 'text'
-          : 'other',
+        : document.fileType === 'pdf'
+          ? 'pdf'
+          : document.fileType === 'text'
+            ? 'text'
+            : 'other',
     segmentationMode: segmentationModeMap[document.segmentationMode],
     characterCount: document.characterCount,
-    recallCount: 0,
+    recallCount: document.recallCount,
     chunkCount: document.chunkCount,
     uploadedAt: document.createdAt,
     uploadedAtLabel: uploadedAtFormatter.format(new Date(document.createdAt)),

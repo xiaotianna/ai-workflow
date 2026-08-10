@@ -32,11 +32,12 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 应用 Service API 已通过 `StudioModule` 接入：应用级 `app-` API Key 只保存 SHA-256 哈希和末尾
   展示字符，正式调用直接绑定发布版本并复用 Runtime/MQ/SSE 链路；API 文档可通过独立分享令牌
   开放只读正文，公开读取不经过用户 JWT。
-- 知识库已落地管理、设置、Markdown/TXT 原文、同步分段、Chunk 查看和手动重新索引基线；设置可
-  引用当前用户模型页中启用的 Embedding 模型组和模型 UUID，被引用模型的删除及模型 ID/供应商
-  破坏性修改会被阻止。分段配置变更只标记旧文档待更新，不自动覆盖 Chunk。生产目标采用 PostgreSQL 事实表、RabbitMQ + Outbox 入库任务、OpenSearch
-  `BM25 + Dense + RRF` 混合召回和全局 Rerank，并通过独立 `kb-` API Key 提供 `/v1/knowledge/*`
-  Service API；索引代际、异步入库、Embedding、检索链路和这些外部接口尚未实现。
+- 知识库已落地管理、设置、Source/Version/Head/Attempt/Projection 事实模型、RabbitMQ + Outbox
+  异步入库、Embedding、OpenSearch `BM25 + Dense + RRF` 混合召回、召回测试和工作流 RAG 主链路；
+  文档顶层状态只反映当前可服务索引的 `PROCESSING / READY / FAILED`，Web 上传完成页通过文档查询
+  接口轮询到终态。设置可引用当前用户模型页中启用的 Embedding 模型组和模型 UUID，被引用模型的
+  删除及模型 ID/供应商破坏性修改会被阻止。分段配置变更只标记旧文档待更新，不自动覆盖 Chunk。
+  全局 Rerank、生产环境联调和独立 `kb-` Key 的 `/v1/knowledge/*` Service API 仍待完成。
 - 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
   TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包
   保存到可配置的本地产物目录。Marketplace 列表已接入真实数据、访问范围、搜索、筛选、排序和

@@ -268,6 +268,8 @@ export class KnowledgeBaseService {
       ownerId,
       knowledgeBaseId,
       search: query.search || undefined,
+      fileType: query.fileType,
+      sort: query.sort,
       page: query.page,
       pageSize: query.pageSize,
     })
@@ -560,6 +562,7 @@ export class KnowledgeBaseService {
       enabled: document.enabled,
       characterCount: document.characterCount,
       chunkCount: document.chunkCount,
+      recallCount: document._count.retrievalHits,
       needsReindex: document.indexedSegmentationRevision < currentRevision,
       ...(document.errorMessage ? { errorMessage: document.errorMessage } : {}),
       createdAt: document.createdAt,

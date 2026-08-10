@@ -76,6 +76,11 @@ enum KnowledgeRetrievalProfile {
   HYBRID_FAST
 }
 
+enum KnowledgeRetrievalSource {
+  WORKFLOW
+  SERVICE_API
+}
+
 enum KnowledgeDocumentStatus {
   PROCESSING
   READY

@@ -1,6 +1,7 @@
 import {
   createKnowledgeDocuments,
   deleteKnowledgeDocument,
+  getKnowledgeDocument,
   getKnowledgeBaseSettings,
   listKnowledgeDocuments,
   previewKnowledgeDocuments,
@@ -9,7 +10,7 @@ import {
   type KnowledgeBaseSettingsDto,
 } from '@/api/knowledge-bases'
 import { showToast } from '@ai-workflow/ui/lib/toast'
-import type { RowSelectionState, SortingState } from '@tanstack/react-table'
+import type { RowSelectionState } from '@tanstack/react-table'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useEffect, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
@@ -23,10 +24,13 @@ import {
   documentPageSizeOptions,
   DocumentTable,
   DocumentToolbar,
+  RenameDocumentDialog,
   toKnowledgeBaseDocument,
   type AddDocumentInput,
   type DocumentAction,
   type KnowledgeBaseDocument,
+  type KnowledgeDocumentFileTypeFilter,
+  type KnowledgeDocumentSort,
 } from '@/features/knowledge-base'
 
 import type { KnowledgeBaseDetailOutletContext } from '.'
@@ -50,15 +54,17 @@ export default function KnowledgeBaseDocumentsPage() {
   const [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([])
   const [settings, setSettings] = useState<KnowledgeBaseSettingsDto>()
   const [search, setSearch] = useState('')
+  const [fileType, setFileType] = useState<KnowledgeDocumentFileTypeFilter>('all')
+  const [sort, setSort] = useState<KnowledgeDocumentSort>('uploaded_desc')
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
   const [total, setTotal] = useState(0)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [addPageOpen, setAddPageOpen] = useState(false)
   const [deletingDocument, setDeletingDocument] = useState<KnowledgeBaseDocument>()
+  const [renamingDocument, setRenamingDocument] = useState<KnowledgeBaseDocument>()
   const [loading, setLoading] = useState(false)
   const [reloadVersion, setReloadVersion] = useState(0)
-  const sorting: SortingState = []
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
@@ -76,7 +82,13 @@ export default function KnowledgeBaseDocumentsPage() {
       setLoading(true)
       void listKnowledgeDocuments(
         knowledgeBaseId,
-        { search: search.trim() || undefined, page: pageIndex + 1, pageSize },
+        {
+          search: search.trim() || undefined,
+          fileType: fileType === 'all' ? undefined : fileType,
+          sort,
+          page: pageIndex + 1,
+          pageSize,
+        },
         controller.signal,
       )
         .then((result) => {
@@ -94,10 +106,19 @@ export default function KnowledgeBaseDocumentsPage() {
       globalThis.clearTimeout(timer)
       controller.abort()
     }
-  }, [isResourceAvailable, knowledgeBaseId, pageIndex, pageSize, reloadVersion, search])
+  }, [
+    fileType,
+    isResourceAvailable,
+    knowledgeBaseId,
+    pageIndex,
+    pageSize,
+    reloadVersion,
+    search,
+    sort,
+  ])
 
   async function handleAddDocument(input: AddDocumentInput) {
-    await createKnowledgeDocuments(knowledgeBaseId, {
+    const createdDocuments = await createKnowledgeDocuments(knowledgeBaseId, {
       files: input.files,
       segmentationMode: segmentationModeToApi[input.segmentationMode],
       maxSegmentLength: input.maxSegmentLength,
@@ -106,7 +127,8 @@ export default function KnowledgeBaseDocumentsPage() {
     })
     setPageIndex(0)
     setReloadVersion((value) => value + 1)
-    showToast('success', '文档已完成解析和分段')
+    showToast('success', '文档已上传，正在处理')
+    return createdDocuments
   }
 
   async function handleDocumentEnabledChange(documentId: string, enabled: boolean) {
@@ -131,6 +153,11 @@ export default function KnowledgeBaseDocumentsPage() {
   }
 
   async function handleDocumentAction(action: DocumentAction, document: KnowledgeBaseDocument) {
+    if (action === 'rename') {
+      setRenamingDocument(document)
+      return
+    }
+
     if (action === 'reindex') {
       await reindexKnowledgeDocument(knowledgeBaseId, document.id)
       setReloadVersion((value) => value + 1)
@@ -170,6 +197,20 @@ export default function KnowledgeBaseDocumentsPage() {
           }}
         />
       ) : null}
+      {renamingDocument ? (
+        <RenameDocumentDialog
+          document={renamingDocument}
+          open
+          onOpenChange={(open) => {
+            if (!open) setRenamingDocument(undefined)
+          }}
+          onRename={async (name) => {
+            await updateKnowledgeDocument(knowledgeBaseId, renamingDocument.id, { name })
+            setReloadVersion((value) => value + 1)
+            showToast('success', '文档已重命名')
+          }}
+        />
+      ) : null}
       <MotionConfig reducedMotion="user" transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}>
         <AnimatePresence initial={false} mode="popLayout">
           {addPageOpen ? (
@@ -181,6 +222,7 @@ export default function KnowledgeBaseDocumentsPage() {
               className="fixed inset-0 z-50"
             >
               <AddDocumentPage
+                embeddingEnabled={Boolean(settings?.embeddingConfiguredModelId)}
                 knowledgeBaseName={knowledgeBase?.title}
                 initialSettings={
                   settings
@@ -202,7 +244,13 @@ export default function KnowledgeBaseDocumentsPage() {
                     normalizeWhitespace: input.replaceWhitespace,
                   })
                 }
-                onClose={() => setAddPageOpen(false)}
+                onRefreshDocument={(documentId, signal) =>
+                  getKnowledgeDocument(knowledgeBaseId, documentId, signal)
+                }
+                onClose={() => {
+                  setAddPageOpen(false)
+                  setReloadVersion((value) => value + 1)
+                }}
               />
             </motion.div>
           ) : (
@@ -217,10 +265,20 @@ export default function KnowledgeBaseDocumentsPage() {
               <PageHeaderActions>
                 <DocumentToolbar
                   search={search}
+                  fileType={fileType}
+                  sort={sort}
                   disabled={loading}
                   onAddDocument={() => setAddPageOpen(true)}
+                  onFileTypeChange={(value) => {
+                    setFileType(value)
+                    setPageIndex(0)
+                  }}
                   onSearchChange={(value) => {
                     setSearch(value)
+                    setPageIndex(0)
+                  }}
+                  onSortChange={(value) => {
+                    setSort(value)
                     setPageIndex(0)
                   }}
                 />
@@ -232,7 +290,6 @@ export default function KnowledgeBaseDocumentsPage() {
                   pageIndex={pageIndex}
                   pageSize={pageSize}
                   rowSelection={rowSelection}
-                  sorting={sorting}
                   onDocumentAction={(action, document) =>
                     void handleDocumentAction(action, document)
                   }
@@ -245,7 +302,6 @@ export default function KnowledgeBaseDocumentsPage() {
                     setPageIndex(0)
                   }}
                   onRowSelectionChange={setRowSelection}
-                  onSortingChange={() => undefined}
                 />
               </PageContent>
             </motion.div>

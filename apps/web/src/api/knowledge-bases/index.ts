@@ -29,6 +29,8 @@ export interface CreateKnowledgeBaseParams {
 
 export type KnowledgeSegmentationMode = 'GENERAL' | 'QA' | 'PARENT_CHILD'
 export type KnowledgeRetrievalProfile = 'HYBRID_ACCURATE' | 'HYBRID_FAST'
+export type KnowledgeDocumentFileType = 'pdf' | 'markdown' | 'text'
+export type KnowledgeDocumentSort = 'uploaded_desc' | 'recall_desc' | 'character_desc' | 'name_asc'
 
 export interface KnowledgeBaseSettingsDto {
   embeddingModelGroupId?: string
@@ -78,6 +80,7 @@ export interface KnowledgeDocumentDto {
   enabled: boolean
   characterCount: number
   chunkCount: number
+  recallCount: number
   needsReindex: boolean
   errorMessage?: string
   createdAt: string
@@ -198,7 +201,13 @@ export function updateKnowledgeBaseSettings(
 
 export function listKnowledgeDocuments(
   knowledgeBaseId: string,
-  params: { search?: string; page: number; pageSize: number },
+  params: {
+    search?: string
+    fileType?: KnowledgeDocumentFileType
+    sort?: KnowledgeDocumentSort
+    page: number
+    pageSize: number
+  },
   signal?: AbortSignal,
 ): Promise<KnowledgeDocumentListDto> {
   return apiClient.get<KnowledgeDocumentListDto>(
@@ -216,6 +225,17 @@ export function createKnowledgeDocuments(
   return apiClient.post<KnowledgeDocumentDto[], FormData>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents`,
     body,
+  )
+}
+
+export function getKnowledgeDocument(
+  knowledgeBaseId: string,
+  documentId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeDocumentDto> {
+  return apiClient.get<KnowledgeDocumentDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}`,
+    { signal },
   )
 }
 

@@ -11,11 +11,11 @@ interface AddDocumentStepHeaderProps {
 
 export function AddDocumentStepHeader({ currentStep, onBack }: AddDocumentStepHeaderProps) {
   return (
-    <header className="border-border relative flex h-12 shrink-0 items-center border-b px-4 sm:px-6">
+    <header className="border-border relative flex h-13 shrink-0 items-center border-b-[0.5px] px-4 sm:px-6">
       <Button
         type="button"
         variant="ghost"
-        size="xs"
+        size="sm"
         className="z-10 -ml-2 gap-1.5 px-2 text-[13px]"
         onClick={onBack}
       >
