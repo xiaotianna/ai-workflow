@@ -6,6 +6,7 @@ import {
   type KnowledgeChunkDto,
   type KnowledgeDocumentDto,
 } from '@/api/knowledge-bases'
+import { FloatingSidePanel } from '@/components/floating-side-panel'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Checkbox } from '@ai-workflow/ui/components/checkbox'
 import { Input } from '@ai-workflow/ui/components/input'
@@ -907,30 +908,28 @@ export default function KnowledgeDocumentDetailPage() {
           </div>
         </aside>
 
-        <MotionConfig reducedMotion="user">
-          <AnimatePresence>
-            {editingChunk ? (
-              <motion.div
-                key="knowledge-chunk-editor"
-                className="absolute inset-y-2 right-2 z-20 w-[min(34rem,calc(100%-1rem))]"
-                initial={{ x: 'calc(100% + 1rem)', opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 'calc(100% + 1rem)', opacity: 0 }}
-                transition={{ duration: 0.22, ease: 'easeOut' }}
-              >
-                <KnowledgeChunkEditPanel
-                  key={editingChunk.id}
-                  chunk={editingChunk}
-                  saving={savingChunk}
-                  onClose={() => {
-                    if (!savingChunk) setEditingChunk(undefined)
-                  }}
-                  onSave={handleChunkContentSave}
-                />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </MotionConfig>
+        <FloatingSidePanel
+          ariaLabel={
+            editingChunk ? `编辑分段-${String(editingChunk.sequence).padStart(2, '0')}` : '编辑分段'
+          }
+          closeDisabled={savingChunk}
+          open={Boolean(editingChunk)}
+          onClose={() => {
+            if (!savingChunk) setEditingChunk(undefined)
+          }}
+        >
+          {editingChunk ? (
+            <KnowledgeChunkEditPanel
+              key={editingChunk.id}
+              chunk={editingChunk}
+              saving={savingChunk}
+              onClose={() => {
+                if (!savingChunk) setEditingChunk(undefined)
+              }}
+              onSave={handleChunkContentSave}
+            />
+          ) : null}
+        </FloatingSidePanel>
       </div>
     </div>
   )

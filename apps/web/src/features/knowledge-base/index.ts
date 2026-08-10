@@ -10,6 +10,8 @@ export { KnowledgeBaseDetailIdentity } from './components/knowledge-base-detail-
 export { KnowledgeDocumentSwitcher } from './components/knowledge-document-switcher'
 export { KnowledgeChunkContent } from './components/knowledge-chunk-content'
 export { KnowledgeChunkEditPanel } from './components/knowledge-chunk-edit-panel'
+export { KnowledgeRetrievalMethodIcon } from './components/knowledge-retrieval-method-icon'
+export { KnowledgeRetrievalSettingsPanel } from './components/knowledge-retrieval-settings-panel'
 export { RenameDocumentDialog } from './components/rename-document-dialog'
 export { getKnowledgeBaseActions } from './components/knowledge-base-actions'
 export { KnowledgeBaseGrid } from './components/knowledge-base-grid'
@@ -34,8 +36,11 @@ export {
 export type { DocumentSegmentationMode } from './constants'
 export {
   KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES,
+  RECALL_TEST_INITIAL_VALUES,
   knowledgeBaseSettingsSchema,
   knowledgeChunkEditSchema,
+  knowledgeRetrievalSettingsSchema,
+  recallTestSchema,
 } from './schema'
 export type {
   AddDocumentInput,
@@ -44,6 +49,10 @@ export type {
   KnowledgeChunkEditInput,
   KnowledgeBaseSettingsFormInput,
   KnowledgeBaseSettingsInput,
+  KnowledgeRetrievalSettingsFormInput,
+  KnowledgeRetrievalSettingsInput,
+  RecallTestFormInput,
+  RecallTestInput,
 } from './schema'
 export type {
   DocumentAction,

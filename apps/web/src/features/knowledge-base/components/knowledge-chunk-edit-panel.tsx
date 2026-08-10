@@ -35,17 +35,6 @@ export function KnowledgeChunkEditPanel({
     setTouched(false)
   }, [chunk.content, chunk.id, setForm])
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== 'Escape' || saving) return
-      event.preventDefault()
-      onClose()
-    }
-
-    globalThis.addEventListener('keydown', handleKeyDown)
-    return () => globalThis.removeEventListener('keydown', handleKeyDown)
-  }, [onClose, saving])
-
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setTouched(true)
@@ -56,10 +45,7 @@ export function KnowledgeChunkEditPanel({
   }
 
   return (
-    <aside
-      aria-label={`编辑分段-${String(chunk.sequence).padStart(2, '0')}`}
-      className="bg-background border-border/60 flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-[0.5px] shadow-lg"
-    >
+    <div className="flex h-full min-h-0 flex-col overflow-hidden">
       <header className="flex shrink-0 items-start gap-3 px-4 pt-4">
         <div className="min-w-0">
           <h2 className="text-sm leading-5 font-semibold">编辑分段</h2>
@@ -121,6 +107,6 @@ export function KnowledgeChunkEditPanel({
           </Button>
         </footer>
       </Form>
-    </aside>
+    </div>
   )
 }

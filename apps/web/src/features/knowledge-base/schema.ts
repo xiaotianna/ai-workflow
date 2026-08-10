@@ -111,6 +111,34 @@ export const knowledgeChunkEditSchema = z.object({
 export type KnowledgeChunkEditFormInput = z.input<typeof knowledgeChunkEditSchema>
 export type KnowledgeChunkEditInput = z.output<typeof knowledgeChunkEditSchema>
 
+export const recallTestSchema = z.object({
+  query: z
+    .string()
+    .max(200, '源文本不能超过 200 个字符')
+    .refine((value) => value.trim().length > 0, '请输入源文本')
+    .transform((value) => value.trim()),
+})
+
+export type RecallTestFormInput = z.input<typeof recallTestSchema>
+export type RecallTestInput = z.output<typeof recallTestSchema>
+
+export const RECALL_TEST_INITIAL_VALUES = {
+  query: '',
+} satisfies RecallTestFormInput
+
+const retrievalTopKSchema = z.coerce
+  .number<number>()
+  .int('默认返回数量必须是整数')
+  .min(1, '默认返回数量不能小于 1')
+  .max(20, '默认返回数量不能超过 20')
+
+export const knowledgeRetrievalSettingsSchema = z.object({
+  retrievalTopK: retrievalTopKSchema,
+})
+
+export type KnowledgeRetrievalSettingsFormInput = z.input<typeof knowledgeRetrievalSettingsSchema>
+export type KnowledgeRetrievalSettingsInput = z.output<typeof knowledgeRetrievalSettingsSchema>
+
 export const knowledgeBaseSettingsSchema = z
   .object({
     embeddingModelGroupId: z.uuid('嵌入模型组 ID 无效').nullable(),
@@ -127,11 +155,7 @@ export const knowledgeBaseSettingsSchema = z
       .min(0, '分段重叠长度不能小于 0'),
     replaceWhitespace: z.boolean(),
     retrievalProfile: z.enum(['hybrid-accurate', 'hybrid-fast']),
-    retrievalTopK: z.coerce
-      .number<number>()
-      .int('默认返回数量必须是整数')
-      .min(1, '默认返回数量不能小于 1')
-      .max(20, '默认返回数量不能超过 20'),
+    retrievalTopK: retrievalTopKSchema,
   })
   .superRefine((value, context) => {
     if (Boolean(value.embeddingModelGroupId) !== Boolean(value.embeddingConfiguredModelId)) {
