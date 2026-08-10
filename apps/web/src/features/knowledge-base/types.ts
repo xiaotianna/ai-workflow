@@ -17,7 +17,16 @@ export interface KnowledgeBaseListItem {
 
 export type KnowledgeBaseSort = ApiKnowledgeBaseSort
 export type KnowledgeDocumentSort = ApiKnowledgeDocumentSort
-export type KnowledgeDocumentFileTypeFilter = 'all' | 'pdf' | 'markdown' | 'text'
+export type KnowledgeDocumentFileTypeFilter =
+  | 'all'
+  | 'pdf'
+  | 'markdown'
+  | 'text'
+  | 'docx'
+  | 'pptx'
+  | 'xlsx'
+  | 'csv'
+  | 'html'
 
 export type KnowledgeBaseAction = 'edit' | 'delete'
 
@@ -32,7 +41,7 @@ export interface KnowledgeBaseDocument {
   id: string
   knowledgeBaseId: string
   name: string
-  fileType: 'markdown' | 'pdf' | 'text' | 'other'
+  fileType: 'markdown' | 'pdf' | 'text' | 'docx' | 'pptx' | 'xlsx' | 'csv' | 'html' | 'other'
   segmentationMode: DocumentSegmentationMode
   characterCount: number
   recallCount: number

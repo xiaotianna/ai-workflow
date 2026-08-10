@@ -1,4 +1,10 @@
-import { getKnowledgeBaseSettings, updateKnowledgeBaseSettings } from '@/api/knowledge-bases'
+import {
+  getKnowledgeBaseSettings,
+  listKnowledgeBaseIndexes,
+  rebuildKnowledgeBaseIndex,
+  updateKnowledgeBaseSettings,
+  type KnowledgeBaseIndexDto,
+} from '@/api/knowledge-bases'
 import { listModelGroups, type ModelGroupDto } from '@/api/models'
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
@@ -22,8 +28,10 @@ import {
   AlignLeft,
   AlertTriangle,
   Gauge,
+  LoaderCircle,
   MessagesSquare,
   Network,
+  RefreshCw,
   SearchCheck,
   type LucideIcon,
 } from 'lucide-react'
@@ -174,18 +182,22 @@ export default function KnowledgeBaseSettingsPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [rebuilding, setRebuilding] = useState(false)
   const [staleDocumentCount, setStaleDocumentCount] = useState(0)
   const [embeddingModelGroups, setEmbeddingModelGroups] = useState<ModelGroupDto[]>([])
+  const [latestIndex, setLatestIndex] = useState<KnowledgeBaseIndexDto>()
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
     const controller = new AbortController()
     setLoading(true)
+    setLatestIndex(undefined)
     void Promise.all([
       getKnowledgeBaseSettings(knowledgeBaseId, controller.signal),
       listModelGroups('embedding', controller.signal),
+      listKnowledgeBaseIndexes(knowledgeBaseId, controller.signal),
     ])
-      .then(([settings, modelGroups]) => {
+      .then(([settings, modelGroups, indexes]) => {
         setForm({
           embeddingModelGroupId: settings.embeddingModelGroupId ?? null,
           embeddingConfiguredModelId: settings.embeddingConfiguredModelId ?? null,
@@ -198,6 +210,7 @@ export default function KnowledgeBaseSettingsPage() {
         })
         setEmbeddingModelGroups(modelGroups.items)
         setStaleDocumentCount(settings.staleDocumentCount)
+        setLatestIndex(indexes.items[0])
       })
       .catch(() => undefined)
       .finally(() => {
@@ -205,6 +218,26 @@ export default function KnowledgeBaseSettingsPage() {
       })
     return () => controller.abort()
   }, [isResourceAvailable, knowledgeBaseId, setForm])
+
+  useEffect(() => {
+    if (!knowledgeBaseId || latestIndex?.status !== 'BUILDING') return
+
+    const controller = new AbortController()
+    const intervalId = globalThis.setInterval(() => {
+      void listKnowledgeBaseIndexes(knowledgeBaseId, controller.signal)
+        .then((indexes) => {
+          const nextIndex = indexes.items[0]
+          setLatestIndex(nextIndex)
+          if (nextIndex?.status === 'READY') showToast('success', '知识库索引构建完成')
+        })
+        .catch(() => undefined)
+    }, 2000)
+
+    return () => {
+      globalThis.clearInterval(intervalId)
+      controller.abort()
+    }
+  }, [knowledgeBaseId, latestIndex?.status])
 
   const validation = validateFormByZod(knowledgeBaseSettingsSchema, form)
 
@@ -228,8 +261,10 @@ export default function KnowledgeBaseSettingsPage() {
         retrievalProfile: retrievalProfileToApi[result.data.retrievalProfile],
         retrievalTopK: result.data.retrievalTopK,
       })
+      const indexes = await listKnowledgeBaseIndexes(knowledgeBaseId)
       setErrors({})
       setStaleDocumentCount(settings.staleDocumentCount)
+      setLatestIndex(indexes.items[0])
       showToast(
         'success',
         settings.staleDocumentCount > 0
@@ -238,6 +273,19 @@ export default function KnowledgeBaseSettingsPage() {
       )
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleRebuildIndex() {
+    if (!knowledgeBaseId || rebuilding) return
+
+    setRebuilding(true)
+    try {
+      const index = await rebuildKnowledgeBaseIndex(knowledgeBaseId)
+      setLatestIndex(index)
+      showToast('success', '已提交索引重新构建任务')
+    } finally {
+      setRebuilding(false)
     }
   }
 
@@ -267,6 +315,38 @@ export default function KnowledgeBaseSettingsPage() {
           </div>
         ) : (
           <Form onSubmit={handleSubmit} className="space-y-0">
+            {latestIndex?.status === 'FAILED' ? (
+              <div className="border-destructive/30 bg-destructive/5 text-foreground mb-2 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+                <AlertTriangle aria-hidden className="text-destructive mt-0.5 size-4 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="leading-5 font-medium">索引构建失败</p>
+                  <p className="text-muted-foreground mt-0.5 text-xs leading-5 break-words">
+                    {latestIndex.errorMessage ?? '请检查索引服务和嵌入模型配置后重新构建。'}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving || rebuilding}
+                  onClick={() => void handleRebuildIndex()}
+                >
+                  <RefreshCw aria-hidden className={cn(rebuilding && 'animate-spin')} />
+                  {rebuilding ? '提交中…' : '重新构建'}
+                </Button>
+              </div>
+            ) : null}
+
+            {latestIndex?.status === 'BUILDING' ? (
+              <div className="border-info/40 bg-info/8 text-foreground mb-2 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+                <LoaderCircle
+                  aria-hidden
+                  className="text-info mt-0.5 size-4 shrink-0 animate-spin"
+                />
+                <p className="leading-5">索引正在构建，完成后即可进行召回测试。</p>
+              </div>
+            ) : null}
+
             {staleDocumentCount > 0 ? (
               <div className="border-warning/40 bg-warning/8 text-foreground mb-2 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
                 <AlertTriangle aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />

@@ -837,13 +837,15 @@ interface RetrievedChunk {
 - `DELETE /knowledge-bases/:knowledgeBaseId`：永久删除当前知识库；删除前同时检查当前用户的
   工作流草稿与版本 JSON，存在 RAG 引用时返回冲突。当前同步级联删除文档/Chunk 并尽力清理本地原文；对象存储落地后必须升级为 6.7 节的删除生命周期。
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或更新分段与检索设置。分段设置变更只标记旧文档待更新，不自动覆盖 Chunk。
+- `GET /knowledge-bases/:knowledgeBaseId/indexes`：按代际倒序查看索引状态、活动标记与失败原因。
+- `POST /knowledge-bases/:knowledgeBaseId/indexes/rebuild`：只对最新失败索引创建配置相同的新代际并
+  重新写入 Outbox；事务锁防止并发重复构建，失败代际保持不可变。
 
 列表和详情返回稳定传输字段 `id`、`title`、`author`、`description?`、`icon?`、`createdAt`、
 `updatedAt`，不直接暴露 Prisma model，也不返回模拟文档数量或索引状态。
 
 ### 10.2 后续知识库接口
 
-- `POST /knowledge-bases/:knowledgeBaseId/indexes`：首次配置或创建新的索引代际。
 - `GET /knowledge-bases/:knowledgeBaseId/indexes/:indexId`：查看代际构建进度和错误。
 - `DELETE /knowledge-bases/:knowledgeBaseId` 在文档与外部资源接入后保持路由不变，内部升级为
   异步清理流程。
@@ -927,7 +929,7 @@ interface RetrievedChunk {
 
 1. 已落地知识库资源身份、用户归属与列表索引。
 2. 已实现知识库基础管理、Web `KnowledgeBaseField` 真实目录与 Core `ragNodeForm` 声明。
-3. 已落地 S3/MinIO、本地开发 Source Store、PDF/Markdown/TXT 解析、事实模型、RabbitMQ/Outbox、
+3. 已落地 S3/MinIO、本地开发 Source Store、PDF/Markdown/TXT/DOCX/PPTX/XLSX/CSV/HTML 解析、事实模型、RabbitMQ/Outbox、
    幂等 Worker、版本化 Chunk、投影状态和原子 Head/active Index 切换；待执行迁移和环境联调。
 4. 已实现 OpenAI-compatible/Ollama Embedding、批量调用、维度识别和 embedding space 分组。
 5. 已实现 OpenSearch BM25 + Dense、强制租户/代际/文档过滤、应用层 RRF 和真实召回测试。

@@ -29,7 +29,15 @@ export interface CreateKnowledgeBaseParams {
 
 export type KnowledgeSegmentationMode = 'GENERAL' | 'QA' | 'PARENT_CHILD'
 export type KnowledgeRetrievalProfile = 'HYBRID_ACCURATE' | 'HYBRID_FAST'
-export type KnowledgeDocumentFileType = 'pdf' | 'markdown' | 'text'
+export type KnowledgeDocumentFileType =
+  | 'pdf'
+  | 'markdown'
+  | 'text'
+  | 'docx'
+  | 'pptx'
+  | 'xlsx'
+  | 'csv'
+  | 'html'
 export type KnowledgeDocumentSort = 'uploaded_desc' | 'recall_desc' | 'character_desc' | 'name_asc'
 
 export interface KnowledgeBaseSettingsDto {
@@ -44,6 +52,30 @@ export interface KnowledgeBaseSettingsDto {
   retrievalTopK: number
   staleDocumentCount: number
   updatedAt: string
+}
+
+export interface KnowledgeBaseIndexDto {
+  id: string
+  generation: number
+  configuredModelId: string
+  embeddingProvider: string
+  embeddingModelId: string
+  embeddingDimension?: number
+  embeddingSpaceKey?: string
+  distanceMetric: 'COSINE' | 'EUCLIDEAN' | 'INNER_PRODUCT'
+  configHash: string
+  status: 'BUILDING' | 'READY' | 'FAILED' | 'CANCELLED'
+  active: boolean
+  errorCode?: string
+  errorMessage?: string
+  createdAt: string
+  readyAt?: string
+  activatedAt?: string
+  retiredAt?: string
+}
+
+export interface KnowledgeBaseIndexListDto {
+  items: KnowledgeBaseIndexDto[]
 }
 
 export interface UpdateKnowledgeBaseSettingsParams {
@@ -198,6 +230,22 @@ export function updateKnowledgeBaseSettings(
   return apiClient.patch<KnowledgeBaseSettingsDto, UpdateKnowledgeBaseSettingsParams>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/settings`,
     values,
+  )
+}
+
+export function listKnowledgeBaseIndexes(
+  knowledgeBaseId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeBaseIndexListDto> {
+  return apiClient.get<KnowledgeBaseIndexListDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/indexes`,
+    { signal },
+  )
+}
+
+export function rebuildKnowledgeBaseIndex(knowledgeBaseId: string): Promise<KnowledgeBaseIndexDto> {
+  return apiClient.post<KnowledgeBaseIndexDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/indexes/rebuild`,
   )
 }
 

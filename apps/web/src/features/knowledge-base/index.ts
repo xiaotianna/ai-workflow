@@ -3,6 +3,7 @@ export { CreateKnowledgeBaseDialog } from './components/create-knowledge-base-di
 export { DeleteKnowledgeBaseDialog } from './components/delete-knowledge-base-dialog'
 export { DeleteDocumentDialog } from './components/delete-document-dialog'
 export { DocumentTable } from './components/document-table'
+export { DocumentFileTypeIcon } from './components/document-file-type-icon'
 export { DocumentToolbar } from './components/document-toolbar'
 export { EditKnowledgeBaseDialog } from './components/edit-knowledge-base-dialog'
 export { getDocumentActions } from './components/document-actions'

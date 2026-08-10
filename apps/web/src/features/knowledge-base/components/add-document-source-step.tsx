@@ -124,8 +124,8 @@ export function AddDocumentSourceStep({
                 拖拽文件至此，或者 <span className="text-primary font-medium">选择文件</span>
               </span>
               <span className="text-muted-foreground max-w-2xl text-left text-xs leading-5">
-                已支持文本型 PDF、Markdown 与 TXT；支持多选，可继续添加文件；单个文件不超过 15
-                MB。扫描版 PDF 暂不支持 OCR。
+                已支持文本型 PDF、Markdown、TXT、DOCX、PPTX、XLSX、CSV 与 HTML；支持多选，
+                可继续添加文件；单个文件不超过 15 MB。扫描版 PDF 暂不支持 OCR。
               </span>
             </button>
           </Form.Field>

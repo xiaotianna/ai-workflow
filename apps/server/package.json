@@ -54,6 +54,7 @@
     "cors": "^2.8.6",
     "joi": "^18.2.3",
     "nest-winston": "^1.10.2",
+    "officeparser": "^7.5.1",
     "pdf-parse": "2.4.5",
     "pg": "^8.22.0",
     "redis": "^6.1.0",

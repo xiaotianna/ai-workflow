@@ -15,6 +15,9 @@
 - Winston
 - class-validator / class-transformer
 
+本地开发基础设施由根目录 `compose.dev.yaml` 提供，包括 PostgreSQL、Redis、RabbitMQ 和
+单节点 OpenSearch；OpenSearch 的安全插件仅在本地开发编排中关闭。
+
 ## 目录结构
 
 ```text
@@ -79,8 +82,8 @@ apps/server/
 - 当前用户查询、用户名和密码修改、退出登录。
 - Prisma 和 Redis 的 NestJS 生命周期管理。
 - 对话/嵌入模型组的持久化、启停、加密凭证和模型列表连通性测试。
-- 知识库管理、S3/MinIO 原文件、PDF/Markdown/TXT 解析、不可变索引代际和版本化 Chunk。
-- PostgreSQL Outbox + RabbitMQ 知识任务、Embedding Adapter、OpenSearch 投影、BM25/Dense/RRF 召回。
+- 知识库管理、S3/MinIO 原文件、PDF/Markdown/TXT/DOCX/PPTX/XLSX/CSV/HTML 解析、不可变索引代际和版本化 Chunk。
+- PostgreSQL Outbox + RabbitMQ 知识任务、Embedding Adapter、OpenSearch 投影、失败索引新代际重建、BM25/Dense/RRF 召回。
 - JWT 召回测试与受租约保护的 Executor 内部检索接口，共用统一知识检索服务。
 - 完整工作流与单节点测试运行，共用 Runtime、Protocol、运行记录和执行器链路。
 - RuntimeState revision、Command Outbox、Result Inbox、leaseToken 和 deadline 持久化。

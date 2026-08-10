@@ -1,6 +1,16 @@
 import type { KnowledgeSegmentationMode } from '@/generated/prisma/enums'
+import { resolveKnowledgeDocumentFileType } from '@/constant/knowledge-document'
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { OfficeParser, type SupportedFileType } from 'officeparser'
 import { PDFParse } from 'pdf-parse'
+
+const OFFICE_PARSER_FILE_TYPES = new Set<SupportedFileType>(['docx', 'pptx', 'xlsx', 'csv', 'html'])
+
+const OFFICE_PARSER_DECOMPRESSION_LIMITS = {
+  maxUncompressedBytes: 64 * 1024 * 1024,
+  maxZipEntries: 5000,
+  maxTableCells: 200_000,
+} as const
 
 export interface KnowledgeChunkInput {
   content: string
@@ -17,22 +27,72 @@ export interface KnowledgeChunkConfig {
 @Injectable()
 export class KnowledgeChunkerService {
   async parseText(content: Buffer, fileName: string): Promise<string> {
-    const extension = fileName.split('.').pop()?.toLowerCase()
-    if (!extension || !['md', 'markdown', 'txt', 'pdf'].includes(extension)) {
-      throw new BadRequestException('当前仅支持 PDF、Markdown 和 TXT 文件')
+    const fileType = resolveKnowledgeDocumentFileType(fileName)
+    if (!fileType) {
+      throw new BadRequestException(
+        '当前仅支持 PDF、Markdown、TXT、DOCX、PPTX、XLSX、CSV 和 HTML 文件',
+      )
     }
 
     const text =
-      extension === 'pdf'
+      fileType === 'pdf'
         ? await this.parsePdfText(content)
-        : content.toString('utf8').replace(/^\uFEFF/, '')
+        : OFFICE_PARSER_FILE_TYPES.has(fileType as SupportedFileType)
+          ? await this.parseOfficeText(content, fileType as SupportedFileType)
+          : this.decodePlainText(content)
     if (!text.trim()) {
       throw new BadRequestException(
-        extension === 'pdf' ? 'PDF 未提取到文本，暂不支持扫描件 OCR' : '文件内容不能为空',
+        fileType === 'pdf' ? 'PDF 未提取到文本，暂不支持扫描件 OCR' : '文件内容不能为空',
       )
     }
 
     return text
+  }
+
+  private decodePlainText(content: Buffer): string {
+    try {
+      if (content.subarray(0, 2).equals(Buffer.from([255, 254]))) {
+        return new TextDecoder('utf-16le', { fatal: true }).decode(content.subarray(2))
+      }
+      if (content.subarray(0, 2).equals(Buffer.from([254, 255]))) {
+        return new TextDecoder('utf-16be', { fatal: true }).decode(content.subarray(2))
+      }
+
+      return new TextDecoder('utf-8', { fatal: true }).decode(content).replace(/^\uFEFF/, '')
+    } catch {
+      throw new BadRequestException('文本文件编码无效，请转换为 UTF-8 或带 BOM 的 UTF-16')
+    }
+  }
+
+  private async parseOfficeText(content: Buffer, fileType: SupportedFileType): Promise<string> {
+    const parserContent =
+      fileType === 'csv' || fileType === 'html'
+        ? Buffer.from(this.decodePlainText(content), 'utf8')
+        : content
+
+    try {
+      const document = await OfficeParser.parseOffice(parserContent, {
+        fileType,
+        extractAttachments: false,
+        includeRawContent: false,
+        ignoreComments: true,
+        ignoreHeadersAndFooters: true,
+        ignoreSlideMasters: true,
+        ocr: false,
+        decompressionLimits: OFFICE_PARSER_DECOMPRESSION_LIMITS,
+      })
+      const result = await document.to('text', {
+        includeImages: false,
+        textConfig: {
+          preserveLayout: true,
+          renderNotes: true,
+        },
+      })
+      return result.value
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error
+      throw new BadRequestException(`${fileType.toUpperCase()} 文件解析失败`)
+    }
   }
 
   private async parsePdfText(content: Buffer): Promise<string> {

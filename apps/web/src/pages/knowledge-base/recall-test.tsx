@@ -8,6 +8,7 @@ import {
 import { PageTitle } from '@/components/page-title'
 import {
   RECALL_TEST_INITIAL_VALUES,
+  DocumentFileTypeIcon,
   KnowledgeRetrievalMethodIcon,
   KnowledgeRetrievalSettingsPanel,
   recallTestSchema,
@@ -28,7 +29,16 @@ import {
 import { TiptapEditor } from '@ai-workflow/ui/components/tiptap-editor'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { ArrowDown, CirclePlay, LoaderCircle, SlidersHorizontal, Target } from 'lucide-react'
+import {
+  ArrowDown,
+  ChevronDown,
+  ChevronUp,
+  CirclePlay,
+  LoaderCircle,
+  SlidersHorizontal,
+  Target,
+} from 'lucide-react'
+import { motion, MotionConfig } from 'motion/react'
 import { useEffect, useState, type FormEvent, type KeyboardEvent } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 
@@ -79,10 +89,14 @@ export default function KnowledgeBaseRecallTestPage() {
   const validation = validateFormByZod(recallTestSchema, form)
   const activeRecord = records.find((record) => record.id === activeRecordId)
   const retrievalTopK = settings?.retrievalTopK ?? 8
+  const embeddingModelMissing = Boolean(
+    settings && (!settings.embeddingModelGroupId || !settings.embeddingConfiguredModelId),
+  )
+  const canRetrieve = isResourceAvailable && Boolean(settings) && !embeddingModelMissing
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!knowledgeBase || loading) return
+    if (!knowledgeBase || !canRetrieve || loading) return
 
     const result = validateFormByZod(recallTestSchema, form)
     if (!result.success) {
@@ -208,12 +222,23 @@ export default function KnowledgeBaseRecallTestPage() {
                     <span className="text-muted-foreground bg-background/90 pointer-events-none absolute top-2 right-3 rounded-md px-1.5 py-0.5 text-xs tabular-nums">
                       {form.query.length}/{MAX_QUERY_LENGTH}
                     </span>
+                    {embeddingModelMissing && knowledgeBaseId ? (
+                      <p className="text-muted-foreground bg-background/90 absolute bottom-4 left-4 rounded-md px-2 py-1 text-xs">
+                        请先配置嵌入模型，
+                        <Link
+                          className="text-primary hover:underline"
+                          to={`/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/settings`}
+                        >
+                          前往设置
+                        </Link>
+                      </p>
+                    ) : null}
                     <Button
                       type="submit"
                       variant="confirm"
                       size="sm"
                       className="absolute right-4 bottom-4"
-                      disabled={!isResourceAvailable || !validation.success || loading}
+                      disabled={!canRetrieve || !validation.success || loading}
                     >
                       {loading ? (
                         <LoaderCircle aria-hidden className="animate-spin" />
@@ -231,8 +256,6 @@ export default function KnowledgeBaseRecallTestPage() {
           <RecallTestRecords
             records={records}
             activeRecordId={activeRecordId}
-            dataSourceTitle={knowledgeBase?.title ?? '知识库'}
-            dataSourceIcon={knowledgeBase?.icon}
             onSelect={setActiveRecordId}
           />
         </div>
@@ -264,18 +287,21 @@ export default function KnowledgeBaseRecallTestPage() {
 interface RecallTestRecordsProps {
   records: RecallTestRecord[]
   activeRecordId?: string
-  dataSourceTitle: string
-  dataSourceIcon?: string
   onSelect: (recordId: string) => void
 }
 
-function RecallTestRecords({
-  records,
-  activeRecordId,
-  dataSourceTitle,
-  dataSourceIcon,
-  onSelect,
-}: RecallTestRecordsProps) {
+interface RecallTestRecordRow {
+  document?: KnowledgeRetrievalDocumentDto
+  record: RecallTestRecord
+}
+
+function RecallTestRecords({ records, activeRecordId, onSelect }: RecallTestRecordsProps) {
+  const rows = records.flatMap<RecallTestRecordRow>((record) =>
+    record.documents.length > 0
+      ? record.documents.map((document) => ({ document, record }))
+      : [{ record }],
+  )
+
   return (
     <section className="flex min-h-0 flex-1 flex-col" aria-labelledby="recall-test-records-title">
       <h2 id="recall-test-records-title" className="mb-2 text-base font-semibold">
@@ -285,8 +311,8 @@ function RecallTestRecords({
         <Table containerClassName="overflow-visible" className="table-fixed">
           <TableHeader className="bg-background sticky top-0 z-10 [&_tr]:border-b-0">
             <TableRow className="border-0 hover:bg-transparent">
-              <TableHead className="bg-input w-[46%] rounded-l-lg">查询内容</TableHead>
-              <TableHead className="bg-input w-[30%]">数据源</TableHead>
+              <TableHead className="bg-input w-[36%] rounded-l-lg">查询内容</TableHead>
+              <TableHead className="bg-input w-[40%]">来源文件</TableHead>
               <TableHead className="bg-input w-[24%] rounded-r-lg">
                 <span className="inline-flex items-center gap-1">
                   时间
@@ -296,14 +322,18 @@ function RecallTestRecords({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {records.map((record) => (
+            {rows.map(({ document, record }) => (
               <TableRow
-                key={record.id}
-                data-state={activeRecordId === record.id ? 'selected' : undefined}
+                key={document ? `${record.id}:${document.chunkId}` : record.id}
                 role="button"
                 tabIndex={0}
-                aria-label={`查看 ${record.query} 的召回结果`}
-                className="cursor-pointer"
+                aria-current={activeRecordId === record.id ? 'true' : undefined}
+                aria-label={
+                  document
+                    ? `查看 ${record.query} 在 ${document.documentName} 分段 ${document.sequence} 的召回结果`
+                    : `查看 ${record.query} 的召回结果`
+                }
+                className="cursor-pointer hover:bg-transparent focus-visible:bg-transparent focus-visible:outline-none focus-visible:[&_td:first-child]:underline"
                 onClick={() => onSelect(record.id)}
                 onKeyDown={(event: KeyboardEvent<HTMLTableRowElement>) => {
                   if (event.key !== 'Enter' && event.key !== ' ') return
@@ -311,20 +341,34 @@ function RecallTestRecords({
                   onSelect(record.id)
                 }}
               >
-                <TableCell className="truncate">{record.query}</TableCell>
-                <TableCell>
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    {dataSourceIcon ? (
-                      <span aria-hidden className="shrink-0 text-sm">
-                        {dataSourceIcon}
-                      </span>
-                    ) : (
-                      <Target aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
-                    )}
-                    <span className="truncate">{dataSourceTitle}</span>
-                  </span>
+                <TableCell className="align-middle break-words whitespace-pre-wrap">
+                  {record.query}
                 </TableCell>
-                <TableCell className="text-muted-foreground tabular-nums">
+                <TableCell className="align-middle">
+                  {document ? (
+                    <div className="flex min-w-0 items-center gap-2">
+                      <DocumentFileTypeIcon
+                        fileName={document.documentName}
+                        className="size-5 shrink-0 object-contain"
+                      />
+                      <div className="min-w-0">
+                        <p className="break-all whitespace-normal">{document.documentName}</p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          分段 {document.sequence}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-muted-foreground flex min-w-0 items-center gap-2">
+                      <DocumentFileTypeIcon
+                        className="size-5 shrink-0 object-contain"
+                        fileType="unknown"
+                      />
+                      未命中来源文件
+                    </div>
+                  )}
+                </TableCell>
+                <TableCell className="text-muted-foreground align-middle tabular-nums">
                   {formatRecordTime(record.createdAt)}
                 </TableCell>
               </TableRow>
@@ -332,7 +376,7 @@ function RecallTestRecords({
           </TableBody>
         </Table>
 
-        {records.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="text-muted-foreground flex min-h-32 items-center justify-center text-sm">
             暂无测试记录
           </div>
@@ -358,6 +402,9 @@ function RecallResultPanel({
   let emptyMessage = '召回测试结果将展示在这里'
   if (!isResourceAvailable) emptyMessage = '知识库不可用或正在加载'
   else if (record && record.documents.length === 0) emptyMessage = '当前查询没有召回可用分段'
+  const sourceFileCount = record
+    ? new Set(record.documents.map(({ documentName }) => documentName)).size
+    : 0
 
   return (
     <aside className="bg-input flex min-h-[36rem] min-w-0 flex-col overflow-hidden rounded-3xl xl:h-full xl:min-h-0 xl:rounded-r-none">
@@ -374,40 +421,26 @@ function RecallResultPanel({
           <header className="flex shrink-0 items-start justify-between gap-4 px-7 pt-7 pb-4">
             <div className="min-w-0">
               <h2 className="text-base font-semibold">召回结果</h2>
-              <p className="text-muted-foreground mt-1 truncate text-xs">{record.query}</p>
+              <div className="mt-2 flex min-w-0 items-start gap-2 text-xs">
+                <span className="text-muted-foreground shrink-0">当前查询</span>
+                <p className="text-foreground min-w-0 font-medium break-words whitespace-pre-wrap">
+                  {record.query}
+                </p>
+              </div>
             </div>
             <span className="text-muted-foreground shrink-0 text-xs">
-              共 {record.documents.length} 个分段
+              {record.documents.length} 个分段 · {sourceFileCount} 个来源文件
             </span>
           </header>
           <div className="min-h-0 flex-1 overflow-y-auto px-7 pb-7">
             <div className="space-y-3">
               {record.documents.map((document, index) => (
-                <article
+                <RecallResultCard
                   key={document.chunkId}
-                  className="border-border/60 bg-background rounded-xl border-[0.5px] p-4 shadow-xs"
-                >
-                  <div className="mb-2 flex items-start justify-between gap-4 text-xs">
-                    {knowledgeBaseId ? (
-                      <Link
-                        to={`/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(document.documentId)}`}
-                        className="text-foreground hover:text-primary focus-visible:text-primary min-w-0 truncate font-medium transition-colors outline-none"
-                      >
-                        {index + 1}. {document.documentName} · 分段-{document.sequence}
-                      </Link>
-                    ) : (
-                      <span className="text-foreground min-w-0 truncate font-medium">
-                        {index + 1}. {document.documentName} · 分段-{document.sequence}
-                      </span>
-                    )}
-                    <span className="text-muted-foreground bg-input shrink-0 rounded-md px-2 py-1 font-mono">
-                      RRF {document.score.toFixed(4)}
-                    </span>
-                  </div>
-                  <p className="text-foreground/90 text-sm leading-6 whitespace-pre-wrap">
-                    {document.content}
-                  </p>
-                </article>
+                  document={document}
+                  index={index}
+                  knowledgeBaseId={knowledgeBaseId}
+                />
               ))}
             </div>
           </div>
@@ -422,6 +455,91 @@ function RecallResultPanel({
         </div>
       )}
     </aside>
+  )
+}
+
+interface RecallResultCardProps {
+  document: KnowledgeRetrievalDocumentDto
+  index: number
+  knowledgeBaseId?: string
+}
+
+function RecallResultCard({ document, index, knowledgeBaseId }: RecallResultCardProps) {
+  const [expanded, setExpanded] = useState(true)
+  const collapsible = document.content.length > 520 || document.content.split('\n').length > 8
+  const documentPath = knowledgeBaseId
+    ? `/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(document.documentId)}`
+    : undefined
+
+  return (
+    <article className="border-border/60 bg-background overflow-hidden rounded-xl border-[0.5px] shadow-xs">
+      <header className="border-border/50 flex items-start justify-between gap-4 border-b-[0.5px] px-4 py-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="bg-primary/8 text-primary flex size-6 shrink-0 items-center justify-center rounded-md text-xs font-semibold tabular-nums">
+            {index + 1}
+          </span>
+          <div className="min-w-0">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+              <span className="text-muted-foreground shrink-0">来源文件</span>
+              <DocumentFileTypeIcon
+                fileName={document.documentName}
+                className="size-4 shrink-0 object-contain"
+              />
+              {documentPath ? (
+                <Link
+                  to={documentPath}
+                  title={document.documentName}
+                  className="text-foreground hover:text-primary focus-visible:text-primary min-w-0 font-medium break-all transition-colors outline-none hover:underline"
+                >
+                  {document.documentName}
+                </Link>
+              ) : (
+                <span className="text-foreground min-w-0 font-medium break-all">
+                  {document.documentName}
+                </span>
+              )}
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">命中分段 {document.sequence}</p>
+          </div>
+        </div>
+        <div className="shrink-0 text-right">
+          <p className="text-muted-foreground text-[11px] leading-4">融合得分</p>
+          <p className="text-foreground font-mono text-xs leading-5 tabular-nums">
+            {document.score.toFixed(4)}
+          </p>
+        </div>
+      </header>
+
+      <div className="p-4">
+        <div className="border-border/50 bg-input/45 rounded-lg border-[0.5px] px-3.5 py-3">
+          <MotionConfig reducedMotion="user">
+            <motion.div
+              initial={false}
+              animate={{ height: collapsible && !expanded ? 192 : 'auto' }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              className="overflow-hidden"
+            >
+              <p className="text-foreground/90 text-sm leading-6 break-words whitespace-pre-wrap">
+                {document.content}
+              </p>
+            </motion.div>
+          </MotionConfig>
+          {collapsible ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              aria-expanded={expanded}
+              className="text-muted-foreground hover:text-foreground mt-2 h-7 gap-1 px-2 text-xs"
+              onClick={() => setExpanded((current) => !current)}
+            >
+              {expanded ? <ChevronUp aria-hidden /> : <ChevronDown aria-hidden />}
+              {expanded ? '收起内容' : '展开完整分段'}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    </article>
   )
 }
 

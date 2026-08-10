@@ -18,6 +18,7 @@ import {
 } from '@/services/knowledge-base.service'
 import type {
   KnowledgeBaseListVo,
+  KnowledgeBaseIndexVo,
   KnowledgeBaseIndexListVo,
   KnowledgeBaseSettingsVo,
   KnowledgeBaseVo,
@@ -111,6 +112,14 @@ export class KnowledgeBaseController {
     @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
   ): Promise<KnowledgeBaseIndexListVo> {
     return this.knowledgeBaseService.listIndexes(request.auth.userId, knowledgeBaseId)
+  }
+
+  @Post(':knowledgeBaseId/indexes/rebuild')
+  rebuildFailedIndex(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseIndexVo> {
+    return this.knowledgeBaseService.rebuildFailedIndex(request.auth.userId, knowledgeBaseId)
   }
 
   @Post(':knowledgeBaseId/retrieve')

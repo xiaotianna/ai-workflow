@@ -26,7 +26,9 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 ## 当前结论
 
 - 根 `README.md` 暂定后端技术栈为 NestJS、PostgreSQL、Prisma、Redis 和 LangGraph。
-- `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml` 已提供 PostgreSQL 与 Redis 开发基础设施。
+- `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml`
+  已提供 PostgreSQL、Redis、RabbitMQ 与单节点 OpenSearch 开发基础设施，OpenSearch 安全插件只在
+  本地开发编排中关闭。
 - Prisma 7 的 schema、migration、Client generator 和 PostgreSQL driver adapter 依赖已配置；NestJS 已通过全局 `PrismaModule`/`PrismaService` 接入数据库，认证与 Studio 模块已使用 Repository 封装数据访问。Redis 已接入认证会话，LangGraph 尚未接入应用。
 - 模型管理已通过 `ModelsModule` 接入：按用户持久化对话/嵌入模型组，API Key 使用 AES-256-GCM 加密，并由服务端供应商适配器执行模型列表连通性与单模型流式对话测试。`ExecutorModelModule` 另提供受 NodeRun 租约保护的内部解析接口，只按不可变版本中的稳定模型 ID 向 Go LLM Executor 提供本次运行所需配置。
 - 应用 Service API 已通过 `StudioModule` 接入：应用级 `app-` API Key 只保存 SHA-256 哈希和末尾
@@ -34,9 +36,12 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
   开放只读正文，公开读取不经过用户 JWT。
 - 知识库已落地管理、设置、Source/Version/Head/Attempt/Projection 事实模型、RabbitMQ + Outbox
   异步入库、Embedding、OpenSearch `BM25 + Dense + RRF` 混合召回、召回测试和工作流 RAG 主链路；
+  入库解析支持 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV 和 HTML；上传文件名在进入
+  对象存储与数据库前统一修复 Multipart Latin-1/UTF-8 乱码并规范化为 Unicode NFC；
   文档顶层状态只反映当前可服务索引的 `PROCESSING / READY / FAILED`，Web 上传完成页通过文档查询
   接口轮询到终态。设置可引用当前用户模型页中启用的 Embedding 模型组和模型 UUID，被引用模型的
   删除及模型 ID/供应商破坏性修改会被阻止。分段配置变更只标记旧文档待更新，不自动覆盖 Chunk。
+  失败索引可通过显式重建接口创建新代际并重新投递 Outbox，禁止原地复活失败代际或并发重复构建。
   全局 Rerank、生产环境联调和独立 `kb-` Key 的 `/v1/knowledge/*` Service API 仍待完成。
 - 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
   TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包

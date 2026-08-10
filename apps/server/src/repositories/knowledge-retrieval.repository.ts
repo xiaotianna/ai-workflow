@@ -30,6 +30,13 @@ export type KnowledgeRetrievalIndex = Prisma.KnowledgeBaseIndexGetPayload<{
   select: typeof retrievalIndexSelect
 }>
 
+export interface KnowledgeRetrievalState {
+  id: string
+  activeIndexId: string | null
+  embeddingModelConfigured: boolean
+  latestIndexStatus?: 'BUILDING' | 'READY' | 'FAILED' | 'CANCELLED'
+}
+
 @Injectable()
 export class KnowledgeRetrievalRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -54,6 +61,44 @@ export class KnowledgeRetrievalRepository {
       const index = byId.get(knowledgeBaseId)?.activeIndex
       return index ? [index] : []
     })
+  }
+
+  async findRetrievalStates(
+    ownerId: string,
+    knowledgeBaseIds: string[],
+  ): Promise<KnowledgeRetrievalState[]> {
+    const knowledgeBases = await this.prisma.knowledgeBase.findMany({
+      where: {
+        id: { in: knowledgeBaseIds },
+        ownerId,
+        lifecycleStatus: 'ACTIVE',
+      },
+      select: {
+        id: true,
+        activeIndexId: true,
+        settings: {
+          select: {
+            embeddingModelGroupId: true,
+            embeddingConfiguredModelId: true,
+          },
+        },
+        indexes: {
+          orderBy: { generation: 'desc' },
+          take: 1,
+          select: { status: true },
+        },
+      },
+    })
+
+    return knowledgeBases.map((knowledgeBase) => ({
+      id: knowledgeBase.id,
+      activeIndexId: knowledgeBase.activeIndexId,
+      embeddingModelConfigured: Boolean(
+        knowledgeBase.settings?.embeddingModelGroupId &&
+        knowledgeBase.settings.embeddingConfiguredModelId,
+      ),
+      ...(knowledgeBase.indexes[0] ? { latestIndexStatus: knowledgeBase.indexes[0].status } : {}),
+    }))
   }
 
   async findRetrievableVersionIds(

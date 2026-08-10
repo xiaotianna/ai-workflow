@@ -182,6 +182,10 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
   当前同步删除 PostgreSQL 文档/Chunk，并通过存储适配器清理本地原文；生产对象存储接入后升级为异步清理生命周期。
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库嵌入模型、分段与检索设置。嵌入模型使用可同时为空的 `embeddingModelGroupId` / `embeddingConfiguredModelId` 稳定引用；修改引用时服务端校验 owner、`EMBEDDING` 类型以及组和模型启用状态。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
+- `GET /knowledge-bases/:knowledgeBaseId/indexes`：按代际倒序返回索引状态、活动标记和失败原因。
+- `POST /knowledge-bases/:knowledgeBaseId/indexes/rebuild`：只重建最新的 `FAILED` 索引；事务内锁定知识库，
+  校验当前嵌入模型仍启用，复制失败代际的不可变配置创建新代际并写入 Outbox。已有 `BUILDING`
+  代际时返回 `409`，禁止重复投递或原地修改失败代际。
 - `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 PDF、
   Markdown、TXT；上传最多 10 个文件，单文件最大 15 MiB。上传接口保存 Source、Document、Version
   与 Outbox 后返回文档数组；存在活动或构建中索引时初始状态为 `PROCESSING`，Worker 完成当前可服务

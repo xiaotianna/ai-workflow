@@ -1,4 +1,5 @@
 import { Prisma } from '@/generated/prisma/client'
+import { KNOWLEDGE_DOCUMENT_PARSER_VERSION } from '@/constant/knowledge-document'
 import { PrismaService } from '@/infra/prisma/prisma.service'
 import type { KnowledgeChunkInput } from '@/services/knowledge-chunker.service'
 import { Injectable } from '@nestjs/common'
@@ -128,7 +129,7 @@ export class KnowledgeIngestionRepository {
               knowledgeBaseIndexId: index.id,
               version: (latest?.version ?? 0) + 1,
               idempotencyKey,
-              parserVersion: 'text-v1',
+              parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
               cleanerVersion: 'conservative-v1',
               cleaningConfig: cleaningConfig as Prisma.InputJsonValue,
               segmentationMode: chunkConfig.segmentationMode,

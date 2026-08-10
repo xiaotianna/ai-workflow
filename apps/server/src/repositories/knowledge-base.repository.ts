@@ -1,3 +1,7 @@
+import {
+  KNOWLEDGE_DOCUMENT_PARSER_VERSION,
+  type KnowledgeDocumentFileType,
+} from '@/constant/knowledge-document'
 import type {
   KnowledgeBaseSort,
   KnowledgeRetrievalProfileDto,
@@ -129,6 +133,17 @@ export type UpdateChunkContentResult =
   | { status: 'updated'; chunk: KnowledgeChunkListRecord }
   | { status: 'not-found' }
   | { status: 'busy' }
+
+export type RebuildKnowledgeBaseIndexResult =
+  | {
+      status: 'created'
+      index: KnowledgeBaseIndexRecord
+      activeIndexId: string | null
+    }
+  | { status: 'not-found' }
+  | { status: 'not-failed' }
+  | { status: 'building' }
+  | { status: 'model-unavailable' }
 
 interface ListKnowledgeBasesOptions {
   ownerId: string
@@ -382,11 +397,112 @@ export class KnowledgeBaseRepository {
     }
   }
 
+  async rebuildLatestFailedIndex(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<RebuildKnowledgeBaseIndexResult> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_bases" WHERE "id" = ${knowledgeBaseId}::uuid FOR UPDATE`,
+      )
+      const knowledgeBase = await transaction.knowledgeBase.findFirst({
+        where: { id: knowledgeBaseId, ownerId, lifecycleStatus: 'ACTIVE' },
+        select: {
+          activeIndexId: true,
+          settings: {
+            select: {
+              embeddingModelGroupId: true,
+              embeddingConfiguredModelId: true,
+            },
+          },
+          indexes: {
+            orderBy: { generation: 'desc' },
+            take: 1,
+            select: {
+              generation: true,
+              configuredModelId: true,
+              embeddingProvider: true,
+              embeddingModelId: true,
+              distanceMetric: true,
+              defaultChunkConfig: true,
+              defaultCleaningConfig: true,
+              configHash: true,
+              status: true,
+              configuredModel: {
+                select: {
+                  enabled: true,
+                  group: {
+                    select: {
+                      id: true,
+                      ownerId: true,
+                      modelType: true,
+                      enabled: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      })
+      if (!knowledgeBase) return { status: 'not-found' }
+
+      const latestIndex = knowledgeBase.indexes[0]
+      if (!latestIndex) return { status: 'not-failed' }
+      if (latestIndex.status === 'BUILDING') return { status: 'building' }
+      if (latestIndex.status !== 'FAILED') return { status: 'not-failed' }
+
+      const configuredModel = latestIndex.configuredModel
+      if (
+        !knowledgeBase.settings?.embeddingModelGroupId ||
+        knowledgeBase.settings.embeddingConfiguredModelId !== latestIndex.configuredModelId ||
+        knowledgeBase.settings.embeddingModelGroupId !== configuredModel.group.id ||
+        configuredModel.group.ownerId !== ownerId ||
+        configuredModel.group.modelType !== 'EMBEDDING' ||
+        !configuredModel.group.enabled ||
+        !configuredModel.enabled
+      ) {
+        return { status: 'model-unavailable' }
+      }
+
+      const index = await transaction.knowledgeBaseIndex.create({
+        data: {
+          knowledgeBaseId,
+          generation: latestIndex.generation + 1,
+          configuredModelId: latestIndex.configuredModelId,
+          embeddingProvider: latestIndex.embeddingProvider,
+          embeddingModelId: latestIndex.embeddingModelId,
+          distanceMetric: latestIndex.distanceMetric,
+          defaultChunkConfig: latestIndex.defaultChunkConfig as Prisma.InputJsonValue,
+          defaultCleaningConfig: latestIndex.defaultCleaningConfig as Prisma.InputJsonValue,
+          configHash: latestIndex.configHash,
+        },
+        select: knowledgeBaseIndexSelect,
+      })
+      await transaction.knowledgeOutboxEvent.create({
+        data: {
+          knowledgeBaseId,
+          eventType: 'KNOWLEDGE_INDEX_BUILD_REQUESTED',
+          aggregateType: 'KNOWLEDGE_BASE_INDEX',
+          aggregateId: index.id,
+          idempotencyKey: `knowledge-index-build:${index.id}`,
+          payload: { knowledgeBaseIndexId: index.id },
+        },
+      })
+
+      return {
+        status: 'created',
+        index,
+        activeIndexId: knowledgeBase.activeIndexId,
+      }
+    })
+  }
+
   async listDocuments(options: {
     ownerId: string
     knowledgeBaseId: string
     search?: string
-    fileType?: 'pdf' | 'markdown' | 'text'
+    fileType?: KnowledgeDocumentFileType
     sort: 'uploaded_desc' | 'recall_desc' | 'character_desc' | 'name_asc'
     page: number
     pageSize: number
@@ -537,7 +653,7 @@ export class KnowledgeBaseRepository {
                   `${index.id}:${documentId}:${sourceId}:${options.sourceChecksum}:${index.configHash}:${versionConfigHash}`,
                 )
                 .digest('hex'),
-              parserVersion: 'text-v1',
+              parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
               cleanerVersion: 'conservative-v1',
               cleaningConfig: {
                 normalizeWhitespace: options.normalizeWhitespace,
@@ -697,7 +813,7 @@ export class KnowledgeBaseRepository {
               `${activeIndexId}:${documentId}:${source.id}:${source.checksum}:${configHash}:${versionNumber}`,
             )
             .digest('hex'),
-          parserVersion: 'text-v1',
+          parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
           cleanerVersion: 'conservative-v1',
           cleaningConfig: { normalizeWhitespace: settings.normalizeWhitespace },
           segmentationMode: settings.segmentationMode,

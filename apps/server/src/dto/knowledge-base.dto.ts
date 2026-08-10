@@ -1,3 +1,7 @@
+import {
+  KNOWLEDGE_DOCUMENT_FILE_TYPES,
+  type KnowledgeDocumentFileType,
+} from '@/constant/knowledge-document'
 import { Transform } from 'class-transformer'
 import {
   IsBoolean,
@@ -116,9 +120,9 @@ export class ListKnowledgeDocumentsDto {
   @IsOptional()
   search?: string
 
-  @IsIn(['pdf', 'markdown', 'text'], { message: '不支持当前文件类型' })
+  @IsIn(KNOWLEDGE_DOCUMENT_FILE_TYPES, { message: '不支持当前文件类型' })
   @IsOptional()
-  fileType?: 'pdf' | 'markdown' | 'text'
+  fileType?: KnowledgeDocumentFileType
 
   @IsIn(['uploaded_desc', 'recall_desc', 'character_desc', 'name_asc'], {
     message: '不支持当前排序方式',

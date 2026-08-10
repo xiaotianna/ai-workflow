@@ -5,6 +5,11 @@ export const documentFileTypeFilterStrategies = {
   pdf: { optionLabel: 'PDF' },
   markdown: { optionLabel: 'Markdown' },
   text: { optionLabel: 'TXT' },
+  docx: { optionLabel: 'Word' },
+  pptx: { optionLabel: 'PowerPoint' },
+  xlsx: { optionLabel: 'Excel' },
+  csv: { optionLabel: 'CSV' },
+  html: { optionLabel: 'HTML' },
 } satisfies Record<KnowledgeDocumentFileTypeFilter, { optionLabel: string }>
 
 export const documentFileTypeFilterValues = [
@@ -12,6 +17,11 @@ export const documentFileTypeFilterValues = [
   'pdf',
   'markdown',
   'text',
+  'docx',
+  'pptx',
+  'xlsx',
+  'csv',
+  'html',
 ] as const satisfies readonly KnowledgeDocumentFileTypeFilter[]
 
 export const documentSortStrategies = {

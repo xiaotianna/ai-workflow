@@ -20,15 +20,15 @@
 
 ### 0.1 已有能力
 
-| 能力       | 当前实现                                                               | 生产结论                                           |
-| ---------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
-| 知识库管理 | 列表、创建、编辑、删除、设置和详情导航使用真实接口                     | 可作为管理面基线                                   |
-| 文档来源   | 支持 Markdown、TXT、文本型 PDF；Source Store 支持本地、S3 与 MinIO     | 生产使用 S3；带保护期的孤儿对象 GC 已实现          |
-| 分段       | 通用、Q&A、父子三种模式，支持预览、版本化 Chunk 和分页查看当前 Head    | 事实模型已实现，待部署迁移和真实环境联调           |
-| 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引 | 已符合“不静默改写”和成功后原子切换原则             |
-| 检索设置   | 已实现 OpenSearch BM25、Dense、强制过滤和应用层 RRF                    | 主链路已实现，Rerank、父块扩展和黄金集门槛尚缺     |
-| 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通    | 已实现批量向量化和维度校验，待供应商限流与故障联调 |
-| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务   | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺 |
+| 能力       | 当前实现                                                                                        | 生产结论                                           |
+| ---------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| 知识库管理 | 列表、创建、编辑、删除、设置和详情导航使用真实接口                                              | 可作为管理面基线                                   |
+| 文档来源   | 支持 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV、HTML；Source Store 支持本地、S3 与 MinIO | 生产使用 S3；带保护期的孤儿对象 GC 已实现          |
+| 分段       | 通用、Q&A、父子三种模式，支持预览、版本化 Chunk 和分页查看当前 Head                             | 事实模型已实现，待部署迁移和真实环境联调           |
+| 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引                          | 已符合“不静默改写”和成功后原子切换原则             |
+| 检索设置   | 已实现 OpenSearch BM25、Dense、强制过滤和应用层 RRF                                             | 主链路已实现，Rerank、父块扩展和黄金集门槛尚缺     |
+| 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通                             | 已实现批量向量化和维度校验，待供应商限流与故障联调 |
+| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务                            | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺 |
 
 ### 0.2 嵌入模型配置决策
 
@@ -67,19 +67,20 @@
 
 ### 0.5 当前迭代验收记录
 
-| 日期       | 范围                      | 结果                                                                                                                                                                    |
-| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一 |
-| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                       |
-| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                    |
-| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                              |
-| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum                                                   |
-| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                     |
-| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                     |
-| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                        |
-| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                  |
-| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                   |
-| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                   |
+| 日期       | 范围                      | 结果                                                                                                                                                                                                  |
+| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一                               |
+| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                                                     |
+| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                                                  |
+| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                                                            |
+| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）、DOCX、PPTX、XLSX、CSV、HTML；Office 压缩文档限制解压总量、条目数和表格单元格数；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum |
+| 2026-08-10 | 上传文件名编码            | 知识库上传在预览、对象存储和数据库写入前统一恢复被 Multipart 按 Latin-1 解码的 UTF-8 文件名，并执行路径剥离和 Unicode NFC 规范化                                                                      |
+| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                                                   |
+| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                                                   |
+| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                                                      |
+| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                                                |
+| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                                                 |
+| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                 |
 
 下一批工作按以下顺序继续：
 
@@ -156,7 +157,8 @@
 - 单次外部检索最多选择 10 个知识库，最终返回最多 20 条证据。
 - 文档入库是异步操作；检索和纯证据返回是同步操作；生成式回答可阻塞或 SSE 流式返回。
 - PostgreSQL 是唯一业务事实源，OpenSearch 是可以从 PostgreSQL 重建的检索投影。
-- 第一批文件格式仍应从 Markdown、TXT 和文本型 PDF 开始，稳定后再扩展 Office 与 OCR。
+- 当前文件格式覆盖 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV 和 HTML；旧版二进制
+  Office 格式与扫描件 OCR 在解析隔离和资源治理完成后再扩展。
 
 这些限制最终由配置和真实压测确认，不应散落为代码魔数。
 
@@ -1164,7 +1166,8 @@ total latency / degraded / error code
 - 已完成知识库级嵌入模型选择：复用模型管理的 Embedding 目录，保存稳定 UUID 引用并保护被引用模型。
 - 已落地 Index、Document、Source、Version、Chunk、Head、Attempt、Projection、Outbox。
 - 已实现 S3/MinIO、本地开发存储、RabbitMQ 知识队列和幂等 Worker；孤儿对象 GC 待补齐。
-- 已支持 Markdown / TXT / 文本型 PDF，统一的结构化解析、保守清洗、三种分段模式与临时预览。
+- 已支持 Markdown / TXT / 文本型 PDF / DOCX / PPTX / XLSX / CSV / HTML，统一的结构化解析、
+  保守清洗、三种分段模式与临时预览。
 - 已建立 OpenSearch schema、projection writer 和 count/checksum 完整性校验；待生产环境联调。
 
 验收：重复消息不重复写；失败不切 Head；READY 投影完整率 100%。

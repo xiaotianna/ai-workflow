@@ -43,8 +43,19 @@ export const knowledgeSegmentationModeLabels = {
   PARENT_CHILD: '父子分段',
 } as const satisfies Record<KnowledgeSegmentationMode, string>
 
-export const documentAcceptedFileTypes = '.pdf,.md,.markdown,.txt'
+export const documentAcceptedFileTypes = '.pdf,.md,.markdown,.txt,.docx,.pptx,.xlsx,.csv,.html,.htm'
 
-export const documentAcceptedFileExtensions = ['pdf', 'md', 'markdown', 'txt'] as const
+export const documentAcceptedFileExtensions = [
+  'pdf',
+  'md',
+  'markdown',
+  'txt',
+  'docx',
+  'pptx',
+  'xlsx',
+  'csv',
+  'html',
+  'htm',
+] as const
 
 export const documentMaxFileSizeBytes = 15 * 1024 * 1024

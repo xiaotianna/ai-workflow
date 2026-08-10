@@ -9,6 +9,11 @@ import {
   UpdateKnowledgeDocumentDto,
   UpdateKnowledgeChunkDto,
 } from '@/dto/knowledge-base.dto'
+import {
+  KNOWLEDGE_DOCUMENT_PARSER_VERSION,
+  getKnowledgeDocumentSourceFileName,
+  resolveKnowledgeDocumentFileType,
+} from '@/constant/knowledge-document'
 import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
 import {
   KnowledgeBaseRepository,
@@ -17,6 +22,7 @@ import {
   type KnowledgeBaseSettingsRecord,
   type KnowledgeChunkListRecord,
   type KnowledgeDocumentRecord,
+  type RebuildKnowledgeBaseIndexResult,
   type UpdateChunkContentResult,
 } from '@/repositories/knowledge-base.repository'
 import { ModelGroupRepository } from '@/repositories/model-group.repository'
@@ -35,6 +41,7 @@ import type {
   KnowledgeDocumentPreviewVo,
   KnowledgeDocumentVo,
 } from '@/vo/knowledge-base.vo'
+import { normalizeUploadedFileName } from '@/utils/uploaded-file-name'
 import { createHash } from 'node:crypto'
 import {
   BadRequestException,
@@ -272,7 +279,7 @@ export class KnowledgeBaseService {
         distanceMetric: 'COSINE',
         defaultChunkConfig,
         defaultCleaningConfig,
-        parserVersion: 'text-v1',
+        parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
         cleanerVersion: 'conservative-v1',
         mappingVersion: 'opensearch-v1',
       }
@@ -303,6 +310,27 @@ export class KnowledgeBaseService {
     return {
       items: result.items.map((index) => this.toIndexVo(index, result.activeIndexId)),
     }
+  }
+
+  async rebuildFailedIndex(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseIndexVo> {
+    const result: RebuildKnowledgeBaseIndexResult =
+      await this.knowledgeBaseRepository.rebuildLatestFailedIndex(ownerId, knowledgeBaseId)
+
+    if (result.status === 'not-found') throw new NotFoundException('知识库不存在')
+    if (result.status === 'building') {
+      throw new ConflictException('知识库索引正在构建，请勿重复提交')
+    }
+    if (result.status === 'model-unavailable') {
+      throw new ConflictException('当前嵌入模型不可用，请先检查知识库设置')
+    }
+    if (result.status === 'not-failed') {
+      throw new ConflictException('当前没有可重新构建的失败索引')
+    }
+
+    return this.toIndexVo(result.index, result.activeIndexId)
   }
 
   async listDocuments(
@@ -349,13 +377,14 @@ export class KnowledgeBaseService {
     }
     return Promise.all(
       files.map(async (file) => {
-        const text = await this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+        const fileName = normalizeUploadedFileName(file.originalname)
+        const text = await this.knowledgeChunkerService.parseText(file.buffer, fileName)
         const chunks = this.knowledgeChunkerService.chunk(text, config)
-        if (!chunks.length) throw new BadRequestException(`${file.originalname} 没有可用的分段内容`)
+        if (!chunks.length) throw new BadRequestException(`${fileName} 没有可用的分段内容`)
 
         const sourceStorageKey = await this.knowledgeSourceStore.store(
           knowledgeBaseId,
-          file.originalname,
+          fileName,
           file.buffer,
           file.mimetype || undefined,
         )
@@ -364,8 +393,8 @@ export class KnowledgeBaseService {
           const document = await this.knowledgeBaseRepository.createDocument({
             ownerId,
             knowledgeBaseId,
-            name: file.originalname,
-            fileType: this.resolveFileType(file.originalname),
+            name: fileName,
+            fileType: resolveKnowledgeDocumentFileType(fileName)!,
             sourceStorageKey,
             sourceMimeType: file.mimetype || 'text/plain',
             sourceSize: BigInt(file.size),
@@ -409,10 +438,11 @@ export class KnowledgeBaseService {
     return {
       files: await Promise.all(
         files.map(async (file) => {
-          const text = await this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+          const fileName = normalizeUploadedFileName(file.originalname)
+          const text = await this.knowledgeChunkerService.parseText(file.buffer, fileName)
           const chunks = this.knowledgeChunkerService.chunk(text, config)
           return {
-            name: file.originalname,
+            name: fileName,
             total: chunks.length,
             truncated: chunks.length > 20,
             items: chunks.slice(0, 20).map((chunk, index) => ({
@@ -494,12 +524,8 @@ export class KnowledgeBaseService {
     if (!document || !settingsResult) throw new NotFoundException('文档不存在')
 
     const source = await this.knowledgeSourceStore.read(document.sourceStorageKey)
-    const sourceName =
-      document.fileType === 'markdown'
-        ? 'source.md'
-        : document.fileType === 'pdf'
-          ? 'source.pdf'
-          : 'source.txt'
+    const sourceName = getKnowledgeDocumentSourceFileName(document.fileType)
+    if (!sourceName) throw new BadRequestException('原文件类型不受支持')
     const text = await this.knowledgeChunkerService.parseText(source, sourceName)
     const config: KnowledgeChunkConfig = {
       segmentationMode: settingsResult.settings.segmentationMode,
@@ -654,12 +680,6 @@ export class KnowledgeBaseService {
       metadata: chunk.metadata as Record<string, unknown>,
       createdAt: chunk.createdAt,
     }
-  }
-
-  private resolveFileType(fileName: string): string {
-    const extension = fileName.split('.').pop()?.toLowerCase()
-    if (extension === 'pdf') return 'pdf'
-    return extension === 'md' || extension === 'markdown' ? 'markdown' : 'text'
   }
 }
 

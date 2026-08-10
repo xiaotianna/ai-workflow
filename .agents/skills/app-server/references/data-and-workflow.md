@@ -2,10 +2,12 @@
 
 ## 本地开发基础设施
 
-- 根目录 `compose.dev.yaml` 统一提供 PostgreSQL 17 与 Redis 7.4，NestJS 默认在宿主机运行，不加入 Compose。
+- 根目录 `compose.dev.yaml` 统一提供 PostgreSQL 17、Redis 7.4、RabbitMQ 4 与单节点 OpenSearch，
+  NestJS 默认在宿主机运行，不加入 Compose。OpenSearch 安全插件只在本地开发编排中关闭。
 - 根目录通过 `docker:dev:up`、`docker:dev:down`、`docker:dev:logs` 和 `docker:dev:status` 脚本管理开发基础设施。
-- PostgreSQL 与 Redis 数据使用 Docker named volume；日常停止不得隐式删除 volume。
-- 若未来把 NestJS 加入 Compose，数据库和 Redis 主机名改用 Compose service 名称，不继续使用 `localhost`。
+- PostgreSQL、Redis、RabbitMQ 与 OpenSearch 数据使用 Docker named volume；日常停止不得隐式删除 volume。
+- 若未来把 NestJS 加入 Compose，数据库、Redis、RabbitMQ 和 OpenSearch 主机名改用 Compose service 名称，
+  不继续使用 `localhost`。
 
 ## PostgreSQL 与 Prisma
 
@@ -115,6 +117,8 @@
 - `KnowledgeBase.activeIndexId` 是当前检索索引的唯一事实来源。嵌入模型、维度、距离算法或知识库级
   切分配置变化时创建新的 `KnowledgeBaseIndex` 代际，全部非删除文档构建成功后在事务中原子切换，
   不按文档逐个切换知识库正在服务的模型。
+- 索引构建进入 `FAILED` 后保持终态；显式重建必须锁定知识库并从最新失败代际复制不可变配置，
+  创建新 `BUILDING` 代际和唯一 Outbox 事件。不得原地复活失败代际；已有构建中代际时拒绝重复提交。
 - 原始文件、文档索引结果和 Worker 尝试分别使用 `KnowledgeDocumentSource`、
   `KnowledgeDocumentVersion` 和 `KnowledgeIngestionAttempt` 建模；文档在每个 Index 下的当前成功
   版本由 `KnowledgeDocumentIndexHead` 维护。

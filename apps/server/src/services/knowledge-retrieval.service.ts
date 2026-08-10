@@ -61,12 +61,29 @@ export class KnowledgeRetrievalService {
     options: { workflowCommandId?: string } = {},
   ): Promise<KnowledgeRetrievalVo> {
     const startedAt = Date.now()
+    const uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)]
     const indexes = await this.knowledgeRetrievalRepository.findActiveIndexes(
       ownerId,
-      knowledgeBaseIds,
+      uniqueKnowledgeBaseIds,
     )
-    if (indexes.length !== knowledgeBaseIds.length) {
-      throw new ConflictException('部分知识库不存在或尚未完成索引')
+    if (indexes.length !== uniqueKnowledgeBaseIds.length) {
+      const states = await this.knowledgeRetrievalRepository.findRetrievalStates(
+        ownerId,
+        uniqueKnowledgeBaseIds,
+      )
+      if (states.length !== uniqueKnowledgeBaseIds.length) {
+        throw new NotFoundException('部分知识库不存在')
+      }
+      if (states.some(({ embeddingModelConfigured }) => !embeddingModelConfigured)) {
+        throw new ConflictException('请先在知识库设置中选择嵌入模型')
+      }
+      if (states.some(({ latestIndexStatus }) => latestIndexStatus === 'FAILED')) {
+        throw new ConflictException('知识库索引构建失败，请检查索引服务和知识库设置')
+      }
+      if (states.some(({ latestIndexStatus }) => latestIndexStatus === 'BUILDING')) {
+        throw new ConflictException('知识库索引正在构建，请稍后重试')
+      }
+      throw new ConflictException('知识库尚未完成索引')
     }
     const groups = groupIndexes(indexes)
     const candidateCount = Math.min(MAX_CANDIDATES_PER_CHANNEL, Math.max(topK * 5, 20))

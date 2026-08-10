@@ -18,6 +18,19 @@ const segmentationModeMap = {
   PARENT_CHILD: 'parent-child',
 } as const satisfies Record<KnowledgeDocumentDto['segmentationMode'], DocumentSegmentationMode>
 
+type SupportedKnowledgeDocumentFileType = Exclude<KnowledgeBaseDocument['fileType'], 'other'>
+
+const supportedKnowledgeDocumentFileTypes = new Set<SupportedKnowledgeDocumentFileType>([
+  'markdown',
+  'pdf',
+  'text',
+  'docx',
+  'pptx',
+  'xlsx',
+  'csv',
+  'html',
+])
+
 export function toKnowledgeBaseListItem(knowledgeBase: KnowledgeBaseDto): KnowledgeBaseListItem {
   return {
     id: knowledgeBase.id,
@@ -45,14 +58,7 @@ export function toKnowledgeBaseDocument(document: KnowledgeDocumentDto): Knowled
     id: document.id,
     knowledgeBaseId: document.knowledgeBaseId,
     name: document.name,
-    fileType:
-      document.fileType === 'markdown'
-        ? 'markdown'
-        : document.fileType === 'pdf'
-          ? 'pdf'
-          : document.fileType === 'text'
-            ? 'text'
-            : 'other',
+    fileType: resolveKnowledgeDocumentFileType(document.fileType),
     segmentationMode: segmentationModeMap[document.segmentationMode],
     characterCount: document.characterCount,
     recallCount: document.recallCount,
@@ -73,6 +79,14 @@ export function toKnowledgeBaseDocument(document: KnowledgeDocumentDto): Knowled
     enabled: document.enabled,
     needsReindex: document.needsReindex,
   }
+}
+
+function resolveKnowledgeDocumentFileType(
+  fileType: string,
+): SupportedKnowledgeDocumentFileType | 'other' {
+  return supportedKnowledgeDocumentFileTypes.has(fileType as SupportedKnowledgeDocumentFileType)
+    ? (fileType as SupportedKnowledgeDocumentFileType)
+    : 'other'
 }
 
 export function formatDocumentCharacterCount(count: number) {
