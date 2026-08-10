@@ -155,9 +155,19 @@ export interface KnowledgeRetrievalDocumentDto {
   content: string
   metadata: Record<string, unknown>
   score: number
+  bm25Rank?: number
+  denseRank?: number
+  bm25Score?: number
+  denseScore?: number
+  rrfRank?: number
+  rrfScore?: number
+  rerankScore?: number
 }
 
 export interface KnowledgeRetrievalDto {
+  profile: KnowledgeRetrievalProfile
+  profileVersion: string
+  scoreType: 'rerank' | 'rrf'
   documents: KnowledgeRetrievalDocumentDto[]
 }
 

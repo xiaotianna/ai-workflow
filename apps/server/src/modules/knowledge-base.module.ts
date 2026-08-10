@@ -16,6 +16,8 @@ import { KnowledgeBaseService } from '@/services/knowledge-base.service'
 import { KnowledgeEmbeddingService } from '@/services/knowledge-embedding.service'
 import { KnowledgeIngestionService } from '@/services/knowledge-ingestion.service'
 import { KnowledgeRetrievalService } from '@/services/knowledge-retrieval.service'
+import { KnowledgeRetrievalProfileService } from '@/services/knowledge-retrieval-profile.service'
+import { KnowledgeRerankerService } from '@/services/knowledge-reranker.service'
 import { KnowledgeSourceGcScanner } from '@/services/knowledge-source-gc-scanner.service'
 import { Module } from '@nestjs/common'
 
@@ -34,6 +36,8 @@ import { ModelsModule } from './models.module'
     KnowledgeIngestionService,
     KnowledgeEmbeddingService,
     KnowledgeRetrievalService,
+    KnowledgeRetrievalProfileService,
+    KnowledgeRerankerService,
     KnowledgeSourceGcScanner,
     KnowledgeIngestionRepository,
     KnowledgeRetrievalRepository,

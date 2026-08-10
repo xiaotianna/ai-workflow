@@ -142,9 +142,14 @@
   工作流日志以 Command ID 作为幂等键，消息重投不重复计数；不在知识库或文档行维护高频递增计数。
 - OpenSearch 是生产检索投影，同时保存用于 BM25 的文本字段、Dense 向量、`generationId`、文档状态
   和 ACL 元数据；PostgreSQL 仍是唯一业务事实来源，OpenSearch 投影必须可以按 Index 代际全量重建。
-- 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。多个知识库必须先按
-  `embeddingSpaceKey` 分组，在各自兼容索引内执行 `BM25 + Dense + RRF`，再由同一个 Cross-Encoder
-  对所有候选全局 Rerank；禁止直接比较不同嵌入空间的向量分数。
+- 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。当前
+  `HYBRID_ACCURATE` 使用每路 100 个候选、RRF 后取全局 50 个候选执行标题、标题路径、精确短语、
+  词项覆盖率与经距离度量还原的 Dense 相关度组合的确定性二阶段重排；RRF 只负责候选融合和同分
+  排序，不计入最终相关度。短关键词没有连续字面证据时禁止仅凭词项覆盖或 Dense 排名获得重排分；Accurate
+  使用最低重排分阈值并允许返回少于 TopK 的结果。`HYBRID_FAST` 使用每路 30 个候选并直接返回 RRF。
+  多个知识库混用画像时采用更严格的 Accurate 路径。多个知识库仍必须先按 `embeddingSpaceKey`
+  分组，禁止直接比较不同嵌入空间的向量原始分数；后续接入独立 Cross-Encoder Provider 时替换
+  确定性重排实现，不改变统一 Retriever 边界。
 - pgvector 仅作为本地或小规模回退基线：如果启用，其列、维度 CHECK、部分向量索引和 Prisma 无法
   表达的复合约束使用自定义 migration，查询封装在 `VectorStore`/Repository 边界内，不得与
   OpenSearch 同时成为生产事实源。

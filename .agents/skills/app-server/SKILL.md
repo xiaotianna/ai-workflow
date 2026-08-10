@@ -42,7 +42,10 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
   接口轮询到终态。设置可引用当前用户模型页中启用的 Embedding 模型组和模型 UUID，被引用模型的
   删除及模型 ID/供应商破坏性修改会被阻止。分段配置变更只标记旧文档待更新，不自动覆盖 Chunk。
   失败索引可通过显式重建接口创建新代际并重新投递 Outbox，禁止原地复活失败代际或并发重复构建。
-  全局 Rerank、生产环境联调和独立 `kb-` Key 的 `/v1/knowledge/*` Service API 仍待完成。
+  检索画像已实际控制候选规模和二阶段策略：`HYBRID_ACCURATE` 使用 100 路候选、全局 50 候选的
+  标题/标题路径/精确短语/词项覆盖/RRF 确定性重排，`HYBRID_FAST` 使用 30 路候选并直接返回 RRF；
+  召回测试额外返回两路排名诊断。独立 Cross-Encoder Provider、生产环境联调和 `kb-` Key 的
+  `/v1/knowledge/*` Service API 仍待完成。
 - 插件发布已通过 `PluginModule` 接入：登录用户可以上传 CLI `pack` 生成的 `.tgz`，服务端校验
   TAR、Manifest 和完整性摘要后，以不可变版本写入已有 Plugin/PluginVersion 模型，并把压缩包
   保存到可配置的本地产物目录。Marketplace 列表已接入真实数据、访问范围、搜索、筛选、排序和

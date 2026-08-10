@@ -20,15 +20,15 @@
 
 ### 0.1 已有能力
 
-| 能力       | 当前实现                                                                                        | 生产结论                                           |
-| ---------- | ----------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 知识库管理 | 列表、创建、编辑、删除、设置和详情导航使用真实接口                                              | 可作为管理面基线                                   |
-| 文档来源   | 支持 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV、HTML；Source Store 支持本地、S3 与 MinIO | 生产使用 S3；带保护期的孤儿对象 GC 已实现          |
-| 分段       | 通用、Q&A、父子三种模式，支持预览、版本化 Chunk 和分页查看当前 Head                             | 事实模型已实现，待部署迁移和真实环境联调           |
-| 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引                          | 已符合“不静默改写”和成功后原子切换原则             |
-| 检索设置   | 已实现 OpenSearch BM25、Dense、强制过滤和应用层 RRF                                             | 主链路已实现，Rerank、父块扩展和黄金集门槛尚缺     |
-| 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通                             | 已实现批量向量化和维度校验，待供应商限流与故障联调 |
-| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务                            | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺 |
+| 能力       | 当前实现                                                                                        | 生产结论                                              |
+| ---------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| 知识库管理 | 列表、创建、编辑、删除、设置和详情导航使用真实接口                                              | 可作为管理面基线                                      |
+| 文档来源   | 支持 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV、HTML；Source Store 支持本地、S3 与 MinIO | 生产使用 S3；带保护期的孤儿对象 GC 已实现             |
+| 分段       | 通用、Q&A、父子三种模式，支持预览、版本化 Chunk 和分页查看当前 Head                             | 事实模型已实现，待部署迁移和真实环境联调              |
+| 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引                          | 已符合“不静默改写”和成功后原子切换原则                |
+| 检索设置   | 已实现标题/路径加权 BM25、Dense、强制过滤、RRF 与确定性二阶段重排                               | 主链路已实现，Cross-Encoder、父块扩展和黄金集门槛尚缺 |
+| 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通                             | 已实现批量向量化和维度校验，待供应商限流与故障联调    |
+| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务                            | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺    |
 
 ### 0.2 嵌入模型配置决策
 
@@ -53,7 +53,7 @@
 | 1C   | S3/MinIO、RabbitMQ、幂等 Worker、PDF 文本解析与孤儿 Source GC       | 已实现，待环境联调 | 重复消息不产生重复版本/Chunk；失败可重试和进死信；原文件不依赖本机磁盘                 |
 | 1D   | OpenSearch schema、投影写入和完整性校验                             | 已实现，待环境联调 | READY 文档的 count/checksum 与检索投影 100% 一致                                       |
 | 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                  |
-| 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v1` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                          |
+| 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v2` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                          |
 | 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                          |
 | 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 待实现             | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                   |
 
@@ -67,27 +67,29 @@
 
 ### 0.5 当前迭代验收记录
 
-| 日期       | 范围                      | 结果                                                                                                                                                                                                  |
-| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一                               |
-| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                                                     |
-| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                                                  |
-| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                                                            |
-| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）、DOCX、PPTX、XLSX、CSV、HTML；Office 压缩文档限制解压总量、条目数和表格单元格数；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum |
-| 2026-08-10 | 上传文件名编码            | 知识库上传在预览、对象存储和数据库写入前统一恢复被 Multipart 按 Latin-1 解码的 UTF-8 文件名，并执行路径剥离和 Unicode NFC 规范化                                                                      |
-| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                                                   |
-| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                                                   |
-| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                                                      |
-| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                                                |
-| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                                                 |
-| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                 |
+| 日期       | 范围                      | 结果                                                                                                                                                                                                                                                                                                            |
+| ---------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一                                                                                                                                         |
+| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                                                                                                                                                               |
+| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                                                                                                                                                            |
+| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                                                                                                                                                                      |
+| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）、DOCX、PPTX、XLSX、CSV、HTML；Office 压缩文档限制解压总量、条目数和表格单元格数；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum                                                                                                           |
+| 2026-08-10 | 上传文件名编码            | 知识库上传在预览、对象存储和数据库写入前统一恢复被 Multipart 按 Latin-1 解码的 UTF-8 文件名，并执行路径剥离和 Unicode NFC 规范化                                                                                                                                                                                |
+| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                                                                                                                                                             |
+| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                                                                                                                                                             |
+| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                                                                                                                                                                |
+| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                                                                                                                                                          |
+| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                                                                                                                                                           |
+| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                                                                                                                           |
+| 2026-08-11 | 3 查询画像与二阶段重排    | `HYBRID_ACCURATE` 使用每路 100 候选并对全局 50 候选按标题、标题路径、精确短语、词项覆盖与 Dense 相关度确定性重排；RRF 只用于融合/同分排序，短关键词无连续字面证据时不给词项或语义保底分，并以阈值过滤噪声；`HYBRID_FAST` 使用每路 30 候选并直接返回 RRF；召回测试展示真实画像、分数类型、两路排名及原始分数诊断 |
+| 2026-08-11 | 3 搜索文本投影            | Chunk 保存 Markdown 标题路径元数据，OpenSearch 平滑追加 `title`、`title_path`、`search_content` 字段；检索文本执行 Unicode 规范化和英文驼峰拆词，旧投影仍可通过正文标题解析参与二阶段重排                                                                                                                       |
 
 下一批工作按以下顺序继续：
 
 1. 部署 Prisma 迁移，并使用真实 PostgreSQL、RabbitMQ、S3/MinIO、Embedding Provider 和 OpenSearch
    完成故障、重试、幂等、部分失败及原子切换联调。
 2. 实现 OpenSearch 残留投影回收、退役代际回收和删除传播。
-3. 实现 Rerank、父块扩展、去重、证据预算与版本化检索画像。
+3. 接入独立 Cross-Encoder Provider，并实现父块扩展、证据预算与版本化黄金集门槛。
 4. 建立黄金集、离线评测、检索日志和发布门槛。
 5. 实现外部 `/v1/knowledge/retrieve`、`kb-` API Key、grant、限流和审计，再完成 Answer API、HA、
    备份恢复、容量压测与告警。
@@ -556,7 +558,7 @@ Rerank 时，RRF score 不应伪装成 0～1 的“相关概率”。
 
 ## 8. 默认检索画像
 
-建议创建 `hybrid-accurate-v1` 作为第一版实验起点：
+当前确定性重排实现使用 `hybrid-accurate-v2` 作为实验画像：
 
 | 参数                           | 起始值                 | 说明                            |
 | ------------------------------ | ---------------------- | ------------------------------- |
@@ -567,6 +569,7 @@ Rerank 时，RRF score 不应伪装成 0～1 的“相关概率”。
 | RRF rank constant              | 60                     | 常见起点，必须通过评测确认      |
 | 每 embedding group 最大候选    | 100                    | 防止多组候选无限膨胀            |
 | 全局 Rerank candidate K        | 50                     | 在准确率、token 与延迟间折中    |
+| 最低 Rerank score              | 0.08                   | 初始噪声门槛，待黄金集重新校准  |
 | Final TopK                     | 8                      | API 可下调，正式最大值 20       |
 | 单文档最大结果数               | 3                      | 控制重复来源                    |
 | Evidence budget                | 4000～8000 tokens      | 按生成模型与场景配置            |
@@ -1176,19 +1179,20 @@ total latency / degraded / error code
 
 - 已实现 Embedding Adapter 和 embedding space 分组。
 - 已实现 OpenSearch BM25、k-NN、强制 owner / knowledge base / generation / document filter。
-- 召回测试页已使用真实 Retriever 展示融合结果与来源；两路候选诊断视图待补齐。
+- 召回测试页已使用真实 Retriever 展示最终结果、实际画像、分数类型和 BM25 / Dense 候选排名。
 - 建立第一批 200 条黄金集和三个基线。
 
 验收：BM25 only、Dense only 可分别测量；权限泄漏为 0。
 
 ### 阶段 3：RRF、Rerank 和准确性门槛
 
-- 已实现 BM25、Dense 和跨 embedding space 的应用层 RRF；是否切换 OpenSearch score ranker 由压测决定。
-- 跨组候选合并和 cross-encoder Rerank。
+- 已实现标题/标题路径加权 BM25、Dense、跨 embedding space 的应用层 RRF，以及 Accurate 画像的
+  确定性二阶段重排；是否切换 OpenSearch score ranker 由压测决定。
+- 接入独立 cross-encoder Provider，替换当前确定性重排并按画像落实失败策略。
 - parent-child、去重、证据预算和引用。
 - profile 版本、离线评测报告和发布门槛。
 
-验收：`hybrid-accurate-v1` 通过第 9.3 节门槛，逐类无关键回退。
+验收：`hybrid-accurate-v2` 通过第 9.3 节门槛，逐类无关键回退。
 
 ### 阶段 4：工作流 RAG 与外部 Retrieve API
 

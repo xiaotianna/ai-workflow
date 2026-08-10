@@ -1,5 +1,6 @@
 import type { KnowledgeSegmentationMode } from '@/generated/prisma/enums'
 import { resolveKnowledgeDocumentFileType } from '@/constant/knowledge-document'
+import { addHeadingMetadata } from '@/utils/knowledge-search-text'
 import { BadRequestException, Injectable } from '@nestjs/common'
 import { OfficeParser, type SupportedFileType } from 'officeparser'
 import { PDFParse } from 'pdf-parse'
@@ -127,7 +128,9 @@ export class KnowledgeChunkerService {
       return this.chunkParentChild(normalized, config)
     }
 
-    return this.chunkGeneral(normalized, config).map((content) => ({ content, metadata: {} }))
+    return addHeadingMetadata(
+      this.chunkGeneral(normalized, config).map((content) => ({ content, metadata: {} })),
+    )
   }
 
   private clean(source: string, normalizeWhitespace: boolean): string {
@@ -221,18 +224,20 @@ export class KnowledgeChunkerService {
       .map((item) => item.trim())
       .filter(Boolean)
     const childLength = Math.max(100, Math.floor(config.maxSegmentLength / 2))
-    return parents.flatMap((parent, parentIndex) =>
-      this.chunkGeneral(parent, {
-        ...config,
-        maxSegmentLength: childLength,
-        overlapLength: Math.min(config.overlapLength, childLength - 1),
-      }).map((content) => ({
-        content,
-        metadata: {
-          parentContent: parent,
-          parentSequence: parentIndex + 1,
-        },
-      })),
+    return addHeadingMetadata(
+      parents.flatMap((parent, parentIndex) =>
+        this.chunkGeneral(parent, {
+          ...config,
+          maxSegmentLength: childLength,
+          overlapLength: Math.min(config.overlapLength, childLength - 1),
+        }).map((content) => ({
+          content,
+          metadata: {
+            parentContent: parent,
+            parentSequence: parentIndex + 1,
+          },
+        })),
+      ),
     )
   }
 

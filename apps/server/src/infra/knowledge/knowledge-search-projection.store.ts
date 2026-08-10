@@ -4,6 +4,10 @@ import {
   OPENSEARCH_URL,
   OPENSEARCH_USERNAME,
 } from '@/constant/env'
+import {
+  normalizeKnowledgeSearchText,
+  readKnowledgeSearchMetadata,
+} from '@/utils/knowledge-search-text'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Client } from '@opensearch-project/opensearch'
@@ -47,6 +51,7 @@ export interface KnowledgeSearchHit {
 @Injectable()
 export class KnowledgeSearchProjectionStore {
   private readonly client: Client
+  private readonly searchSchemaReadyIndexes = new Set<string>()
 
   constructor(configService: ConfigService) {
     const username = configService.get<string>(OPENSEARCH_USERNAME) || undefined
@@ -66,21 +71,7 @@ export class KnowledgeSearchProjectionStore {
 
     const body = input.chunks.flatMap((chunk) => [
       { index: { _index: index, _id: chunk.id } },
-      {
-        owner_id: input.ownerId,
-        knowledge_base_id: input.knowledgeBaseId,
-        knowledge_base_index_id: input.knowledgeBaseIndexId,
-        document_id: input.documentId,
-        document_version_id: input.documentVersionId,
-        document_name: input.documentName,
-        document_enabled: input.documentEnabled,
-        sequence: chunk.sequence,
-        content: chunk.content,
-        content_hash: chunk.contentHash,
-        projection_checksum: input.projectionChecksum,
-        metadata: chunk.metadata,
-        content_vector: chunk.embedding,
-      },
+      createProjectionDocument(input, chunk),
     ])
     const result = await this.client.bulk({ body, refresh: 'wait_for' })
     if (result.body.errors) {
@@ -131,6 +122,7 @@ export class KnowledgeSearchProjectionStore {
     candidateCount: number
   }): Promise<{ bm25: KnowledgeSearchHit[]; dense: KnowledgeSearchHit[] }> {
     const index = this.getPhysicalIndexName(options.embeddingSpaceKey)
+    await this.ensureSearchFields(index)
     const filter = [
       { term: { owner_id: options.ownerId } },
       { terms: { knowledge_base_id: options.knowledgeBaseIds } },
@@ -154,7 +146,27 @@ export class KnowledgeSearchProjectionStore {
           _source: source,
           query: {
             bool: {
-              must: [{ match: { content: { query: options.query } } }],
+              must: [
+                {
+                  multi_match: {
+                    query: normalizeKnowledgeSearchText(options.query),
+                    fields: [
+                      'title^5',
+                      'title_path^3',
+                      'document_name^2',
+                      'search_content^1.5',
+                      'content',
+                    ],
+                    type: 'best_fields',
+                  },
+                },
+              ],
+              should: [
+                { match_phrase: { title: { query: options.query, boost: 8 } } },
+                { match_phrase: { title_path: { query: options.query, boost: 6 } } },
+                { match_phrase: { search_content: { query: options.query, boost: 4 } } },
+                { match_phrase: { content: { query: options.query, boost: 2 } } },
+              ],
               filter,
             },
           },
@@ -189,7 +201,10 @@ export class KnowledgeSearchProjectionStore {
     distanceMetric: WriteProjectionInput['distanceMetric'],
   ): Promise<void> {
     const exists = await this.client.indices.exists({ index })
-    if (exists.body) return
+    if (exists.body) {
+      await this.ensureSearchFields(index)
+      return
+    }
 
     try {
       await this.client.indices.create({
@@ -209,9 +224,12 @@ export class KnowledgeSearchProjectionStore {
               document_id: { type: 'keyword' },
               document_version_id: { type: 'keyword' },
               document_name: { type: 'text', analyzer: 'cjk' },
+              title: { type: 'text', analyzer: 'cjk' },
+              title_path: { type: 'text', analyzer: 'cjk' },
               document_enabled: { type: 'boolean' },
               sequence: { type: 'integer' },
               content: { type: 'text', analyzer: 'cjk' },
+              search_content: { type: 'text', analyzer: 'cjk' },
               content_hash: { type: 'keyword' },
               projection_checksum: { type: 'keyword' },
               metadata: { type: 'flat_object' },
@@ -228,10 +246,27 @@ export class KnowledgeSearchProjectionStore {
           },
         },
       })
+      this.searchSchemaReadyIndexes.add(index)
     } catch (error) {
       const raced = await this.client.indices.exists({ index })
       if (!raced.body) throw error
+      await this.ensureSearchFields(index)
     }
+  }
+
+  private async ensureSearchFields(index: string): Promise<void> {
+    if (this.searchSchemaReadyIndexes.has(index)) return
+    await this.client.indices.putMapping({
+      index,
+      body: {
+        properties: {
+          title: { type: 'text', analyzer: 'cjk' },
+          title_path: { type: 'text', analyzer: 'cjk' },
+          search_content: { type: 'text', analyzer: 'cjk' },
+        },
+      },
+    })
+    this.searchSchemaReadyIndexes.add(index)
   }
 
   private getPhysicalIndexName(embeddingSpaceKey: string): string {
@@ -239,6 +274,28 @@ export class KnowledgeSearchProjectionStore {
       throw new Error('Embedding Space Key 无效')
     }
     return `knowledge-chunks-${embeddingSpaceKey}-v1`
+  }
+}
+
+function createProjectionDocument(input: WriteProjectionInput, chunk: ProjectionChunk) {
+  const searchMetadata = readKnowledgeSearchMetadata(chunk.metadata, chunk.content)
+  return {
+    owner_id: input.ownerId,
+    knowledge_base_id: input.knowledgeBaseId,
+    knowledge_base_index_id: input.knowledgeBaseIndexId,
+    document_id: input.documentId,
+    document_version_id: input.documentVersionId,
+    document_name: input.documentName,
+    document_enabled: input.documentEnabled,
+    sequence: chunk.sequence,
+    title: searchMetadata.title ?? input.documentName,
+    title_path: searchMetadata.titlePath ?? searchMetadata.title ?? input.documentName,
+    content: chunk.content,
+    search_content: normalizeKnowledgeSearchText(chunk.content),
+    content_hash: chunk.contentHash,
+    projection_checksum: input.projectionChecksum,
+    metadata: chunk.metadata,
+    content_vector: chunk.embedding,
   }
 }
 

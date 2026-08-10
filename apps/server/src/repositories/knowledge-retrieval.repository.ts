@@ -24,6 +24,11 @@ const retrievalIndexSelect = {
       },
     },
   },
+  knowledgeBase: {
+    select: {
+      settings: { select: { retrievalProfile: true } },
+    },
+  },
 } satisfies Prisma.KnowledgeBaseIndexSelect
 
 export type KnowledgeRetrievalIndex = Prisma.KnowledgeBaseIndexGetPayload<{

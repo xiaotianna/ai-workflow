@@ -133,6 +133,7 @@ export class KnowledgeBaseController {
       [knowledgeBaseId],
       dto.query,
       dto.topK,
+      { debug: true },
     )
   }
 

@@ -1,10 +1,15 @@
-import { KnowledgeSearchProjectionStore } from '@/infra/knowledge/knowledge-search-projection.store'
+import {
+  KnowledgeSearchProjectionStore,
+  type KnowledgeSearchHit,
+} from '@/infra/knowledge/knowledge-search-projection.store'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import {
   KnowledgeRetrievalRepository,
   type KnowledgeRetrievalIndex,
 } from '@/repositories/knowledge-retrieval.repository'
 import { KnowledgeEmbeddingService } from '@/services/knowledge-embedding.service'
+import { KnowledgeRerankerService } from '@/services/knowledge-reranker.service'
+import { KnowledgeRetrievalProfileService } from '@/services/knowledge-retrieval-profile.service'
 import type { RetrieveExecutorKnowledgeDto } from '@/dto/executor-knowledge.dto'
 import type {
   KnowledgeRetrievalDocumentVo,
@@ -20,7 +25,16 @@ import {
 import { createHash } from 'node:crypto'
 
 const RRF_RANK_CONSTANT = 60
-const MAX_CANDIDATES_PER_CHANNEL = 100
+
+interface FusionCandidate {
+  hit: KnowledgeSearchHit
+  score: number
+  distanceMetric: KnowledgeRetrievalIndex['distanceMetric']
+  bm25Rank?: number
+  denseRank?: number
+  bm25Score?: number
+  denseScore?: number
+}
 
 @Injectable()
 export class KnowledgeRetrievalService {
@@ -29,6 +43,8 @@ export class KnowledgeRetrievalService {
     private readonly knowledgeRetrievalRepository: KnowledgeRetrievalRepository,
     private readonly knowledgeEmbeddingService: KnowledgeEmbeddingService,
     private readonly projectionStore: KnowledgeSearchProjectionStore,
+    private readonly profileService: KnowledgeRetrievalProfileService,
+    private readonly rerankerService: KnowledgeRerankerService,
   ) {}
 
   async retrieveForExecutor(dto: RetrieveExecutorKnowledgeDto): Promise<KnowledgeRetrievalVo> {
@@ -58,7 +74,7 @@ export class KnowledgeRetrievalService {
     knowledgeBaseIds: string[],
     query: string,
     topK: number,
-    options: { workflowCommandId?: string } = {},
+    options: { workflowCommandId?: string; debug?: boolean } = {},
   ): Promise<KnowledgeRetrievalVo> {
     const startedAt = Date.now()
     const uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)]
@@ -86,19 +102,22 @@ export class KnowledgeRetrievalService {
       throw new ConflictException('知识库尚未完成索引')
     }
     const groups = groupIndexes(indexes)
-    const candidateCount = Math.min(MAX_CANDIDATES_PER_CHANNEL, Math.max(topK * 5, 20))
+    const profile = this.profileService.resolve(
+      indexes.map((index) => index.knowledgeBase.settings?.retrievalProfile ?? 'HYBRID_ACCURATE'),
+    )
     const channels = await Promise.all(
       groups.map(async (group) => {
         const queryVector = await this.knowledgeEmbeddingService.embedQuery(group[0], query)
-        return this.projectionStore.search({
+        const result = await this.projectionStore.search({
           embeddingSpaceKey: group[0].embeddingSpaceKey as string,
           ownerId,
           knowledgeBaseIds: group.map(({ knowledgeBaseId }) => knowledgeBaseId),
           knowledgeBaseIndexIds: group.map(({ id }) => id),
           query,
           queryVector,
-          candidateCount,
+          candidateCount: profile.candidateCount,
         })
+        return { ...result, distanceMetric: group[0].distanceMetric }
       }),
     )
 
@@ -119,7 +138,7 @@ export class KnowledgeRetrievalService {
       ),
     )
 
-    const scores = new Map<string, { hit: KnowledgeRetrievalDocumentVo; score: number }>()
+    const scores = new Map<string, FusionCandidate>()
     for (const channel of channels) {
       addRrfScores(
         scores,
@@ -127,6 +146,8 @@ export class KnowledgeRetrievalService {
           ({ chunkId, documentVersionId }) =>
             enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
         ),
+        'bm25Rank',
+        channel.distanceMetric,
       )
       addRrfScores(
         scores,
@@ -134,15 +155,61 @@ export class KnowledgeRetrievalService {
           ({ chunkId, documentVersionId }) =>
             enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
         ),
+        'denseRank',
+        channel.distanceMetric,
       )
     }
-    const documents = [...scores.values()]
+    const fusedCandidates = [...scores.values()]
       .sort(
         (left, right) =>
           right.score - left.score || left.hit.chunkId.localeCompare(right.hit.chunkId),
       )
-      .slice(0, topK)
-      .map(({ hit, score }) => ({ ...hit, score }))
+      .map(({ hit, score, distanceMetric, bm25Rank, denseRank, bm25Score, denseScore }, index) => ({
+        ...hit,
+        score,
+        distanceMetric,
+        rrfScore: score,
+        rrfRank: index + 1,
+        ...(bm25Rank ? { bm25Rank } : {}),
+        ...(denseRank ? { denseRank } : {}),
+        ...(bm25Score !== undefined ? { bm25Score } : {}),
+        ...(denseScore !== undefined ? { denseScore } : {}),
+      }))
+    const rankedCandidates = profile.rerank
+      ? this.rerankerService
+          .rerank(
+            query,
+            fusedCandidates.slice(0, profile.rerankCandidateCount),
+            profile.minimumRerankScore,
+          )
+          .map((candidate) => ({ ...candidate, score: candidate.rerankScore }))
+      : fusedCandidates
+    const selectedCandidates = selectDiverseCandidates(
+      rankedCandidates,
+      topK,
+      profile.maxResultsPerDocument,
+    )
+    const documents = selectedCandidates.map((candidate) => ({
+      chunkId: candidate.chunkId,
+      documentId: candidate.documentId,
+      documentVersionId: candidate.documentVersionId,
+      documentName: candidate.documentName,
+      sequence: candidate.sequence,
+      content: candidate.content,
+      metadata: candidate.metadata,
+      score: candidate.score,
+      ...(options.debug
+        ? {
+            ...(candidate.bm25Rank ? { bm25Rank: candidate.bm25Rank } : {}),
+            ...(candidate.denseRank ? { denseRank: candidate.denseRank } : {}),
+            ...(candidate.bm25Score !== undefined ? { bm25Score: candidate.bm25Score } : {}),
+            ...(candidate.denseScore !== undefined ? { denseScore: candidate.denseScore } : {}),
+            rrfRank: candidate.rrfRank,
+            rrfScore: candidate.rrfScore,
+            ...('rerankScore' in candidate ? { rerankScore: candidate.rerankScore as number } : {}),
+          }
+        : {}),
+    })) satisfies KnowledgeRetrievalDocumentVo[]
 
     if (options.workflowCommandId) {
       await this.knowledgeRetrievalRepository.recordWorkflowRetrieval({
@@ -154,7 +221,12 @@ export class KnowledgeRetrievalService {
       })
     }
 
-    return { documents }
+    return {
+      profile: profile.id,
+      profileVersion: profile.version,
+      scoreType: profile.rerank ? 'rerank' : 'rrf',
+      documents,
+    }
   }
 }
 
@@ -211,20 +283,51 @@ function groupIndexes(indexes: KnowledgeRetrievalIndex[]): KnowledgeRetrievalInd
 }
 
 function addRrfScores(
-  scores: Map<string, { hit: KnowledgeRetrievalDocumentVo; score: number }>,
-  hits: Array<{
-    chunkId: string
-    documentId: string
-    documentVersionId: string
-    documentName: string
-    sequence: number
-    content: string
-    metadata: Record<string, unknown>
-  }>,
+  scores: Map<string, FusionCandidate>,
+  hits: KnowledgeSearchHit[],
+  rankKey: 'bm25Rank' | 'denseRank',
+  distanceMetric: KnowledgeRetrievalIndex['distanceMetric'],
 ): void {
   hits.forEach((hit, index) => {
     const current = scores.get(hit.chunkId)
     const score = (current?.score ?? 0) + 1 / (RRF_RANK_CONSTANT + index + 1)
-    scores.set(hit.chunkId, { hit: { ...hit, score }, score })
+    scores.set(hit.chunkId, {
+      hit,
+      score,
+      distanceMetric,
+      ...(current?.bm25Rank ? { bm25Rank: current.bm25Rank } : {}),
+      ...(current?.denseRank ? { denseRank: current.denseRank } : {}),
+      ...(current?.bm25Score !== undefined ? { bm25Score: current.bm25Score } : {}),
+      ...(current?.denseScore !== undefined ? { denseScore: current.denseScore } : {}),
+      [rankKey]: index + 1,
+      [rankKey === 'bm25Rank' ? 'bm25Score' : 'denseScore']: hit.score,
+    })
   })
+}
+
+function selectDiverseCandidates<T extends { chunkId: string; documentId: string }>(
+  candidates: T[],
+  topK: number,
+  maxResultsPerDocument: number,
+): T[] {
+  const selected: T[] = []
+  const deferred: T[] = []
+  const documentCounts = new Map<string, number>()
+
+  for (const candidate of candidates) {
+    const documentCount = documentCounts.get(candidate.documentId) ?? 0
+    if (documentCount >= maxResultsPerDocument) {
+      deferred.push(candidate)
+      continue
+    }
+    selected.push(candidate)
+    documentCounts.set(candidate.documentId, documentCount + 1)
+    if (selected.length === topK) return selected
+  }
+
+  for (const candidate of deferred) {
+    selected.push(candidate)
+    if (selected.length === topK) break
+  }
+  return selected
 }

@@ -622,8 +622,10 @@ stateDiagram-v2
 2. 读取 active Index、embedding space 和已发布 Retrieval Profile。
 3. 按 embedding space 分组生成查询向量。
 4. 在 OpenSearch 中对 active generation 应用 owner、ACL、文档状态、时间和 metadata 强制过滤。
-5. 每组执行 BM25 + Dense + RRF，合并候选后统一 Rerank。
-6. 去重、父块扩展、证据预算并应用最终 Top K；只有经过校准的 Rerank score 才应用统一阈值。
+5. 每组执行标题/路径加权 BM25 + Dense + RRF；Fast 画像直接使用 RRF，Accurate 画像对合并候选
+   执行标题、标题路径、精确短语、词项覆盖与 Dense 相关度的确定性二阶段重排，RRF 只用于融合和
+   同分排序；短关键词没有连续字面证据时不接受仅由词项覆盖或 Dense 名次产生的分数。
+6. 过滤低于画像阈值的候选，再去重、父块扩展、应用证据预算和最终 Top K；结果允许少于 Top K。
 7. 在同一业务调用中写入 RetrievalLog 和 Hit；日志写入失败是否阻断检索需要在实现前确定，
    但不能静默产生错误统计。
 
@@ -920,7 +922,7 @@ interface RetrievedChunk {
 当前阶段明确不包含：
 
 - OCR 和 Office 文件。
-- Cross-encoder Rerank、父块扩展和完整证据预算策略。
+- 独立 Cross-encoder Provider、父块扩展和完整证据预算策略。
 - 网页抓取、第三方数据源同步和定时更新。
 - 复杂元数据管理和多知识库联合召回。
 - 专用向量数据库。
@@ -935,7 +937,7 @@ interface RetrievedChunk {
 5. 已实现 OpenSearch BM25 + Dense、强制租户/代际/文档过滤、应用层 RRF 和真实召回测试。
 6. 已实现 Go RAG Executor 与统一 Retriever；继续补齐发布校验和强类型引用投影。
 7. 已补齐带保护期的 Source 孤儿对象 GC；继续完成退役代际回收、禁用/删除投影传播和失败清理。
-8. 实现 Rerank、父块扩展、去重、证据预算、RetrievalLog/Hit 和版本化黄金集回归门槛。
+8. 用独立 Cross-encoder Provider 替换确定性二阶段重排，并实现父块扩展、证据预算和版本化黄金集回归门槛。
 9. 实现 `kb-` 外部 API Key、grant、`/v1/knowledge/retrieve`、限流、审计和稳定错误契约。
 10. 完成 HA、备份恢复、容量与故障演练、SLO 监控；闭环稳定后再增加 Office/OCR 和托管 Answer API。
 

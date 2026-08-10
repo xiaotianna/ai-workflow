@@ -182,6 +182,11 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
   当前同步删除 PostgreSQL 文档/Chunk，并通过存储适配器清理本地原文；生产对象存储接入后升级为异步清理生命周期。
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库嵌入模型、分段与检索设置。嵌入模型使用可同时为空的 `embeddingModelGroupId` / `embeddingConfiguredModelId` 稳定引用；修改引用时服务端校验 owner、`EMBEDDING` 类型以及组和模型启用状态。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
+- `POST /knowledge-bases/:knowledgeBaseId/retrieve`：召回测试按知识库保存的 `retrievalProfile` 执行
+  统一 Retriever；请求只提交 `query` 与最终 `topK`，不得由浏览器覆盖内部候选数或重排参数。
+  响应返回实际 `profile`、`profileVersion`、`scoreType` 和结果；管理端调试结果额外包含 BM25、
+  Dense、RRF 排名/原始分数及可选重排分数，工作流内部调用不返回这些调试字段。Accurate 画像
+  会过滤低于版本化阈值的候选，因此结果数允许少于请求的 TopK。
 - `GET /knowledge-bases/:knowledgeBaseId/indexes`：按代际倒序返回索引状态、活动标记和失败原因。
 - `POST /knowledge-bases/:knowledgeBaseId/indexes/rebuild`：只重建最新的 `FAILED` 索引；事务内锁定知识库，
   校验当前嵌入模型仍启用，复制失败代际的不可变配置创建新代际并写入 Outbox。已有 `BUILDING`

@@ -51,6 +51,9 @@ interface RecallTestRecord {
   id: string
   query: string
   createdAt: Date
+  profile: KnowledgeBaseSettingsDto['retrievalProfile']
+  profileVersion: string
+  scoreType: 'rerank' | 'rrf'
   documents: KnowledgeRetrievalDocumentDto[]
 }
 
@@ -116,6 +119,9 @@ export default function KnowledgeBaseRecallTestPage() {
         id: `${createdAt.getTime()}-${result.data.query}`,
         query: result.data.query,
         createdAt,
+        profile: retrieval.profile,
+        profileVersion: retrieval.profileVersion,
+        scoreType: retrieval.scoreType,
         documents: retrieval.documents,
       }
       setRecords((current) => [record, ...current])
@@ -428,7 +434,9 @@ function RecallResultPanel({
                 </p>
               </div>
             </div>
-            <span className="text-muted-foreground shrink-0 text-xs">
+            <span className="text-muted-foreground shrink-0 text-xs" title={record.profileVersion}>
+              {record.profile === 'HYBRID_ACCURATE' ? '高准确 · 二阶段重排' : '低延迟 · RRF'}
+              {' · '}
               {record.documents.length} 个分段 · {sourceFileCount} 个来源文件
             </span>
           </header>
@@ -439,6 +447,7 @@ function RecallResultPanel({
                   key={document.chunkId}
                   document={document}
                   index={index}
+                  scoreType={record.scoreType}
                   knowledgeBaseId={knowledgeBaseId}
                 />
               ))}
@@ -461,10 +470,11 @@ function RecallResultPanel({
 interface RecallResultCardProps {
   document: KnowledgeRetrievalDocumentDto
   index: number
+  scoreType: RecallTestRecord['scoreType']
   knowledgeBaseId?: string
 }
 
-function RecallResultCard({ document, index, knowledgeBaseId }: RecallResultCardProps) {
+function RecallResultCard({ document, index, scoreType, knowledgeBaseId }: RecallResultCardProps) {
   const [expanded, setExpanded] = useState(true)
   const collapsible = document.content.length > 520 || document.content.split('\n').length > 8
   const documentPath = knowledgeBaseId
@@ -503,10 +513,21 @@ function RecallResultCard({ document, index, knowledgeBaseId }: RecallResultCard
           </div>
         </div>
         <div className="shrink-0 text-right">
-          <p className="text-muted-foreground text-[11px] leading-4">融合得分</p>
+          <p className="text-muted-foreground text-[11px] leading-4">
+            {scoreType === 'rerank' ? '重排得分' : 'RRF 融合得分'}
+          </p>
           <p className="text-foreground font-mono text-xs leading-5 tabular-nums">
             {document.score.toFixed(4)}
           </p>
+          {document.rrfRank ? (
+            <p
+              className="text-muted-foreground text-[10px] leading-4 tabular-nums"
+              title={`BM25 ${formatChannelDebug(document.bm25Rank, document.bm25Score)} · Dense ${formatChannelDebug(document.denseRank, document.denseScore)} · RRF #${document.rrfRank}`}
+            >
+              BM25 {document.bm25Rank ? `#${document.bm25Rank}` : '—'} · Dense{' '}
+              {document.denseRank ? `#${document.denseRank}` : '—'}
+            </p>
+          ) : null}
         </div>
       </header>
 
@@ -541,6 +562,11 @@ function RecallResultCard({ document, index, knowledgeBaseId }: RecallResultCard
       </div>
     </article>
   )
+}
+
+function formatChannelDebug(rank?: number, score?: number): string {
+  if (!rank) return '未命中'
+  return `#${rank}${score === undefined ? '' : `（原始分 ${score.toFixed(4)}）`}`
 }
 
 function formatRecordTime(date: Date): string {
