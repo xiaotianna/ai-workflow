@@ -35,9 +35,9 @@ export function getDocumentSegmentationModeOption(mode: DocumentSegmentationMode
   )
 }
 
-export const documentAcceptedFileTypes = '.md,.markdown,.txt'
+export const documentAcceptedFileTypes = '.pdf,.md,.markdown,.txt'
 
-export const documentAcceptedFileExtensions = ['md', 'markdown', 'txt'] as const
+export const documentAcceptedFileExtensions = ['pdf', 'md', 'markdown', 'txt'] as const
 
 export const documentMaxFileSizeBytes = 15 * 1024 * 1024
 

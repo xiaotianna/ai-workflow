@@ -8,7 +8,12 @@ import {
 import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
 import { ModelGroupRepository, type ModelGroupRecord } from '@/repositories/model-group.repository'
 import type { ModelEnabledVo, ModelGroupListVo, ModelGroupVo } from '@/vo/model.vo'
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { randomUUID } from 'node:crypto'
 
 interface ModelWriteValue {
@@ -68,6 +73,7 @@ export class ModelGroupService {
     this.assertCredentialSupported(provider.supportsApiKey, dto.apiKey)
     this.assertValidModels(dto.models)
     this.assertOwnedModelIds(existingGroup, dto.models)
+    await this.assertEmbeddingReferencesRemainStable(ownerId, existingGroup, dto)
 
     if (existingGroup.providerType !== dto.providerType && dto.apiKey === undefined) {
       throw new BadRequestException('修改模型供应商时必须明确设置或清除 Key')
@@ -122,6 +128,14 @@ export class ModelGroupService {
   }
 
   async remove(ownerId: string, groupId: string): Promise<void> {
+    const referencedModelIds = await this.repository.listKnowledgeBaseEmbeddingModelReferences(
+      ownerId,
+      groupId,
+    )
+    if (referencedModelIds.length > 0) {
+      throw new ConflictException('模型组正在被知识库使用，无法删除')
+    }
+
     if (!(await this.repository.delete(ownerId, groupId))) {
       throw new NotFoundException('模型组不存在')
     }
@@ -169,6 +183,33 @@ export class ModelGroupService {
 
     if (models.some(({ id }) => id && !existingModelIds.has(id))) {
       throw new BadRequestException('模型配置不属于当前模型组')
+    }
+  }
+
+  private async assertEmbeddingReferencesRemainStable(
+    ownerId: string,
+    group: ModelGroupRecord,
+    dto: UpdateModelGroupDto,
+  ): Promise<void> {
+    const referencedModelIds = new Set(
+      await this.repository.listKnowledgeBaseEmbeddingModelReferences(ownerId, group.id),
+    )
+    if (referencedModelIds.size === 0) return
+
+    if (group.providerType !== dto.providerType) {
+      throw new ConflictException('模型组正在被知识库使用，无法修改供应商类型')
+    }
+
+    const nextModels = new Map(dto.models.flatMap((model) => (model.id ? [[model.id, model]] : [])))
+    for (const currentModel of group.models) {
+      if (!referencedModelIds.has(currentModel.id)) continue
+      const nextModel = nextModels.get(currentModel.id)
+      if (
+        !nextModel ||
+        normalizeModelId(nextModel.modelId) !== normalizeModelId(currentModel.modelId)
+      ) {
+        throw new ConflictException('嵌入模型正在被知识库使用，无法删除或修改模型 ID')
+      }
     }
   }
 

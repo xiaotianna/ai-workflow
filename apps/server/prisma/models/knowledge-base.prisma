@@ -1,62 +1,80 @@
 model KnowledgeBase {
-  id          String   @id @default(uuid()) @db.Uuid
-  ownerId     String   @db.Uuid
-  name        String   @db.VarChar(40)
-  description String?  @db.VarChar(200)
-  icon        String?  @db.VarChar(32)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String                   @id @default(uuid()) @db.Uuid
+  ownerId         String                   @db.Uuid
+  activeIndexId   String?                  @unique @db.Uuid
+  name            String                   @db.VarChar(40)
+  description     String?                  @db.VarChar(200)
+  icon            String?                  @db.VarChar(32)
+  lifecycleStatus KnowledgeLifecycleStatus @default(ACTIVE)
+  deletedAt       DateTime?
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
 
-  settings  KnowledgeBaseSettings?
-  documents KnowledgeDocument[]
+  settings     KnowledgeBaseSettings?
+  documents    KnowledgeDocument[]
+  indexes      KnowledgeBaseIndex[]   @relation("KnowledgeBaseIndexes")
+  activeIndex  KnowledgeBaseIndex?    @relation("KnowledgeBaseActiveIndex", fields: [activeIndexId], references: [id], onDelete: SetNull)
+  outboxEvents KnowledgeOutboxEvent[]
 
-  @@index([ownerId, updatedAt])
+  @@index([ownerId, lifecycleStatus, updatedAt])
   @@map("knowledge_bases")
 }
 
 model KnowledgeBaseSettings {
-  knowledgeBaseId      String                    @id @db.Uuid
-  segmentationMode     KnowledgeSegmentationMode @default(GENERAL)
-  maxSegmentLength     Int                       @default(1024)
-  overlapLength        Int                       @default(50)
-  normalizeWhitespace  Boolean                   @default(true)
-  segmentationRevision Int                       @default(1)
-  retrievalProfile     KnowledgeRetrievalProfile @default(HYBRID_ACCURATE)
-  retrievalTopK        Int                       @default(8)
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+  knowledgeBaseId            String                    @id @db.Uuid
+  embeddingModelGroupId      String?                   @db.Uuid
+  embeddingConfiguredModelId String?                   @db.Uuid
+  segmentationMode           KnowledgeSegmentationMode @default(GENERAL)
+  maxSegmentLength           Int                       @default(1024)
+  overlapLength              Int                       @default(50)
+  normalizeWhitespace        Boolean                   @default(true)
+  segmentationRevision       Int                       @default(1)
+  retrievalProfile           KnowledgeRetrievalProfile @default(HYBRID_ACCURATE)
+  retrievalTopK              Int                       @default(8)
+  createdAt                  DateTime                  @default(now())
+  updatedAt                  DateTime                  @updatedAt
 
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  knowledgeBase            KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  embeddingModelGroup      ModelGroup?      @relation("KnowledgeBaseEmbeddingModelGroup", fields: [embeddingModelGroupId], references: [id], onDelete: Restrict)
+  embeddingConfiguredModel ConfiguredModel? @relation("KnowledgeBaseEmbeddingConfiguredModel", fields: [embeddingConfiguredModelId], references: [id], onDelete: Restrict)
 
+  @@index([embeddingModelGroupId])
+  @@index([embeddingConfiguredModelId])
   @@map("knowledge_base_settings")
 }
 
 model KnowledgeDocument {
-  id                          String                    @id @default(uuid()) @db.Uuid
-  knowledgeBaseId             String                    @db.Uuid
-  name                        String                    @db.VarChar(255)
-  fileType                    String                    @db.VarChar(32)
-  sourceStorageKey            String                    @unique @db.VarChar(512)
-  sourceMimeType              String                    @db.VarChar(128)
+  id                          String                      @id @default(uuid()) @db.Uuid
+  knowledgeBaseId             String                      @db.Uuid
+  name                        String                      @db.VarChar(255)
+  fileType                    String                      @db.VarChar(32)
+  sourceStorageKey            String                      @unique @db.VarChar(512)
+  sourceMimeType              String                      @db.VarChar(128)
   sourceSize                  BigInt
-  sourceChecksum              String                    @db.VarChar(64)
+  sourceChecksum              String                      @db.VarChar(64)
   segmentationMode            KnowledgeSegmentationMode
   maxSegmentLength            Int
   overlapLength               Int
   normalizeWhitespace         Boolean
   indexedSegmentationRevision Int
-  status                      KnowledgeDocumentStatus   @default(PROCESSING)
-  enabled                     Boolean                   @default(true)
-  characterCount              Int                       @default(0)
-  chunkCount                  Int                       @default(0)
-  errorMessage                String?                   @db.Text
-  createdAt                   DateTime                  @default(now())
-  updatedAt                   DateTime                  @updatedAt
+  status                      KnowledgeDocumentStatus     @default(PROCESSING)
+  enabled                     Boolean                     @default(true)
+  characterCount              Int                         @default(0)
+  chunkCount                  Int                         @default(0)
+  errorMessage                String?                     @db.Text
+  createdAt                   DateTime                    @default(now())
+  updatedAt                   DateTime                    @updatedAt
+  sourceType                  KnowledgeDocumentSourceType @default(FILE)
+  lifecycleStatus             KnowledgeLifecycleStatus    @default(ACTIVE)
+  deletedAt                   DateTime?
 
-  knowledgeBase KnowledgeBase    @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  knowledgeBase KnowledgeBase                @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
   chunks        KnowledgeChunk[]
+  sources       KnowledgeDocumentSource[]
+  versions      KnowledgeDocumentVersion[]
+  indexHeads    KnowledgeDocumentIndexHead[]
 
   @@index([knowledgeBaseId, createdAt])
   @@index([knowledgeBaseId, enabled])
@@ -64,17 +82,207 @@ model KnowledgeDocument {
 }
 
 model KnowledgeChunk {
-  id         String   @id @default(uuid()) @db.Uuid
-  documentId String   @db.Uuid
-  sequence   Int
-  content    String   @db.Text
-  tokenCount Int
-  metadata   Json     @default("{}")
-  createdAt  DateTime @default(now())
+  id                   String   @id @default(uuid()) @db.Uuid
+  documentId           String   @db.Uuid
+  documentVersionId    String?  @db.Uuid
+  knowledgeBaseIndexId String?  @db.Uuid
+  sequence             Int
+  content              String   @db.Text
+  contentHash          String?  @db.VarChar(64)
+  tokenCount           Int
+  metadata             Json     @default("{}")
+  createdAt            DateTime @default(now())
 
-  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document           KnowledgeDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersion    KnowledgeDocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  knowledgeBaseIndex KnowledgeBaseIndex?       @relation(fields: [knowledgeBaseIndexId], references: [id], onDelete: Cascade)
 
-  @@unique([documentId, sequence])
+  @@unique([documentVersionId, sequence])
+  @@index([documentVersionId, sequence])
+  @@index([knowledgeBaseIndexId, documentId])
   @@index([documentId, sequence])
   @@map("knowledge_chunks")
+}
+
+model KnowledgeBaseIndex {
+  id                    String                  @id @default(uuid()) @db.Uuid
+  knowledgeBaseId       String                  @db.Uuid
+  generation            Int
+  configuredModelId     String                  @db.Uuid
+  embeddingProvider     String                  @db.VarChar(32)
+  embeddingModelId      String                  @db.VarChar(100)
+  embeddingDimension    Int?
+  embeddingSpaceKey     String?                 @db.VarChar(64)
+  distanceMetric        KnowledgeDistanceMetric @default(COSINE)
+  defaultChunkConfig    Json
+  defaultCleaningConfig Json
+  configHash            String                  @db.VarChar(64)
+  status                KnowledgeIndexStatus    @default(BUILDING)
+  errorCode             String?                 @db.VarChar(64)
+  errorMessage          String?                 @db.Text
+  createdAt             DateTime                @default(now())
+  readyAt               DateTime?
+  activatedAt           DateTime?
+  retiredAt             DateTime?
+
+  knowledgeBase          KnowledgeBase                @relation("KnowledgeBaseIndexes", fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  activeForKnowledgeBase KnowledgeBase?               @relation("KnowledgeBaseActiveIndex")
+  configuredModel        ConfiguredModel              @relation(fields: [configuredModelId], references: [id], onDelete: Restrict)
+  versions               KnowledgeDocumentVersion[]
+  heads                  KnowledgeDocumentIndexHead[]
+  chunks                 KnowledgeChunk[]
+  projections            KnowledgeSearchProjection[]
+
+  @@unique([knowledgeBaseId, generation])
+  @@index([knowledgeBaseId, status, createdAt])
+  @@index([configuredModelId])
+  @@map("knowledge_base_indexes")
+}
+
+model KnowledgeDocumentSource {
+  id               String   @id @default(uuid()) @db.Uuid
+  documentId       String   @db.Uuid
+  objectKey        String   @unique @db.VarChar(512)
+  originalFileName String   @db.VarChar(255)
+  checksum         String   @db.VarChar(128)
+  mimeType         String   @db.VarChar(128)
+  fileSize         BigInt
+  createdAt        DateTime @default(now())
+
+  document KnowledgeDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versions KnowledgeDocumentVersion[]
+
+  @@index([documentId, createdAt])
+  @@map("knowledge_document_sources")
+}
+
+model KnowledgeDocumentVersion {
+  id                   String                         @id @default(uuid()) @db.Uuid
+  knowledgeBaseId      String                         @db.Uuid
+  documentId           String                         @db.Uuid
+  sourceId             String                         @db.Uuid
+  knowledgeBaseIndexId String                         @db.Uuid
+  version              Int
+  idempotencyKey       String                         @unique @db.VarChar(128)
+  parserVersion        String                         @db.VarChar(64)
+  cleanerVersion       String                         @db.VarChar(64)
+  cleaningConfig       Json
+  segmentationMode     KnowledgeSegmentationMode
+  chunkConfig          Json
+  configHash           String                         @db.VarChar(64)
+  status               KnowledgeDocumentVersionStatus @default(QUEUED)
+  progress             Int                            @default(0)
+  attemptCount         Int                            @default(0)
+  characterCount       Int?
+  tokenCount           Int?
+  chunkCount           Int?
+  errorCode            String?                        @db.VarChar(64)
+  errorMessage         String?                        @db.Text
+  queuedAt             DateTime                       @default(now())
+  startedAt            DateTime?
+  readyAt              DateTime?
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+
+  document           KnowledgeDocument           @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  source             KnowledgeDocumentSource     @relation(fields: [sourceId], references: [id], onDelete: Restrict)
+  knowledgeBaseIndex KnowledgeBaseIndex          @relation(fields: [knowledgeBaseIndexId], references: [id], onDelete: Cascade)
+  chunks             KnowledgeChunk[]
+  attempts           KnowledgeIngestionAttempt[]
+  currentHead        KnowledgeDocumentIndexHead?
+  projection         KnowledgeSearchProjection?
+
+  @@unique([documentId, knowledgeBaseIndexId, version])
+  @@index([knowledgeBaseIndexId, status, createdAt])
+  @@index([documentId, createdAt])
+  @@map("knowledge_document_versions")
+}
+
+model KnowledgeDocumentIndexHead {
+  knowledgeBaseId      String   @db.Uuid
+  documentId           String   @db.Uuid
+  knowledgeBaseIndexId String   @db.Uuid
+  currentVersionId     String   @unique @db.Uuid
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  document           KnowledgeDocument        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  knowledgeBaseIndex KnowledgeBaseIndex       @relation(fields: [knowledgeBaseIndexId], references: [id], onDelete: Cascade)
+  currentVersion     KnowledgeDocumentVersion @relation(fields: [currentVersionId], references: [id], onDelete: Restrict)
+
+  @@id([documentId, knowledgeBaseIndexId])
+  @@index([knowledgeBaseId, knowledgeBaseIndexId])
+  @@map("knowledge_document_index_heads")
+}
+
+model KnowledgeIngestionAttempt {
+  id                String                 @id @default(uuid()) @db.Uuid
+  documentVersionId String                 @db.Uuid
+  attempt           Int
+  traceId           String                 @unique @db.VarChar(128)
+  status            KnowledgeAttemptStatus @default(RUNNING)
+  stage             String                 @db.VarChar(32)
+  workerId          String?                @db.VarChar(128)
+  retryable         Boolean?
+  errorCode         String?                @db.VarChar(64)
+  errorMessage      String?                @db.Text
+  errorDetails      Json?
+  startedAt         DateTime               @default(now())
+  heartbeatAt       DateTime?
+  finishedAt        DateTime?
+  durationMs        Int?
+  createdAt         DateTime               @default(now())
+
+  documentVersion KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([documentVersionId, attempt])
+  @@index([status, heartbeatAt])
+  @@map("knowledge_ingestion_attempts")
+}
+
+model KnowledgeSearchProjection {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  knowledgeBaseIndexId String                    @db.Uuid
+  documentVersionId    String                    @unique @db.Uuid
+  status               KnowledgeProjectionStatus @default(PENDING)
+  expectedChunkCount   Int                       @default(0)
+  projectedChunkCount  Int                       @default(0)
+  expectedChecksum     String?                   @db.VarChar(64)
+  projectedChecksum    String?                   @db.VarChar(64)
+  errorCode            String?                   @db.VarChar(64)
+  errorMessage         String?                   @db.Text
+  createdAt            DateTime                  @default(now())
+  updatedAt            DateTime                  @updatedAt
+  readyAt              DateTime?
+
+  knowledgeBaseIndex KnowledgeBaseIndex       @relation(fields: [knowledgeBaseIndexId], references: [id], onDelete: Cascade)
+  documentVersion    KnowledgeDocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+
+  @@index([knowledgeBaseIndexId, status])
+  @@map("knowledge_search_projections")
+}
+
+model KnowledgeOutboxEvent {
+  id              String                @id @default(uuid()) @db.Uuid
+  knowledgeBaseId String                @db.Uuid
+  eventType       String                @db.VarChar(64)
+  aggregateType   String                @db.VarChar(64)
+  aggregateId     String                @db.Uuid
+  idempotencyKey  String                @unique @db.VarChar(128)
+  payload         Json
+  status          KnowledgeOutboxStatus @default(PENDING)
+  attemptCount    Int                   @default(0)
+  availableAt     DateTime              @default(now())
+  lockedBy        String?               @db.VarChar(128)
+  lockedAt        DateTime?
+  publishedAt     DateTime?
+  errorMessage    String?               @db.Text
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([knowledgeBaseId, createdAt])
+  @@map("knowledge_outbox_events")
 }

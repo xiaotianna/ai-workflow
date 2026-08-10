@@ -102,6 +102,7 @@
   外部 API 目标以 `docs/knowledge-base-production-api-design.md` 为准，冲突时以后者为准。当前已建立
   `KnowledgeBase`、`KnowledgeBaseSettings`、`KnowledgeDocument` 和 `KnowledgeChunk` 的同步管理基线；生产 Index/Source/Version/Head、任务、投影和检索日志仍按目标模型后续接入。
 - `KnowledgeBaseSettings.segmentationRevision` 是当前分段设置修订号，文档保存入库时的 `indexedSegmentationRevision` 和实际分段参数快照。修改知识库分段设置不允许自动覆盖已有 Chunk；只有用户显式重新索引才在事务内替换单文档 Chunk 并更新修订快照。
+- `KnowledgeBaseSettings.embeddingModelGroupId` 与 `embeddingConfiguredModelId` 同时为空或同时存在，引用模型管理中的稳定 UUID，知识库不得复制模型凭证。当前字段表达目标索引配置；在 `KnowledgeBaseIndex` 代际完成前，不得把它解释为已有 Chunk 已完成向量化。
 - 当前原文经 `KnowledgeSourceStore` 存在 `KNOWLEDGE_SOURCE_DIRECTORY`（默认 `var/knowledge-sources`）下，数据库只保存受控相对 storage key。该边界用于本地 Markdown/纯文本闭环，生产环境必须替换为对象存储适配器与异步入库任务。
 - 当前删除使用硬删除，并通过 PostgreSQL JSONB `array_contains` 同时检查当前用户的工作流草稿
   和版本中的 RAG 引用；匹配当前 `knowledgeBases: [{ id }]` 引用快照，以及历史

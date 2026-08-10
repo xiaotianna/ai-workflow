@@ -22,6 +22,7 @@ const defaultRabbitMQURL = "amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai
 const defaultModelResolverURL = "http://127.0.0.1:3000/internal/executor/models/resolve"
 const defaultCommandLeaseURL = "http://127.0.0.1:3000/internal/executor/commands/lease"
 const defaultPluginArtifactResolverURL = "http://127.0.0.1:3000/internal/executor/plugin-artifacts/resolve"
+const defaultKnowledgeRetrieverURL = "http://127.0.0.1:3000/internal/executor/knowledge/retrieve"
 
 func main() {
 	logger := log.New(os.Stdout, "executor-go ", log.LstdFlags|log.LUTC)
@@ -44,6 +45,10 @@ func main() {
 	if pluginArtifactResolverURL == "" {
 		pluginArtifactResolverURL = defaultPluginArtifactResolverURL
 	}
+	knowledgeRetrieverURL := os.Getenv("KNOWLEDGE_RUNTIME_RETRIEVER_URL")
+	if knowledgeRetrieverURL == "" {
+		knowledgeRetrieverURL = defaultKnowledgeRetrieverURL
+	}
 	requireInternalAuth, err := environmentBool("EXECUTOR_REQUIRE_INTERNAL_AUTH")
 	if err != nil {
 		logger.Fatalf("executor internal auth configuration invalid: %v", err)
@@ -56,6 +61,7 @@ func main() {
 		profile,
 		logger,
 		modelResolverURL,
+		knowledgeRetrieverURL,
 		pluginArtifactResolverURL,
 		internalAuthToken,
 	); err != nil {

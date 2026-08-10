@@ -1,6 +1,8 @@
 # 生产级知识库、混合检索与外部 API 方案
 
-> 状态：生产目标设计，尚未实现。
+> 状态：生产目标设计与实施台账。知识库事实模型、可靠异步入库、对象存储、Embedding、
+> OpenSearch 投影、混合召回、Web 召回测试和工作流 RAG 主链路已实现；迁移部署、环境联调、
+> 检索质量评测、外部 API 安全与生产运维仍待完成。
 >
 > 适用范围：`apps/server` 知识库模块、文档入库 Worker、工作流 RAG 节点，以及供其他项目调用的
 > `/v1/knowledge/*` Service API。
@@ -10,6 +12,83 @@
 > 检索引擎、队列和外部 API 方面代表新的生产目标；与旧文档冲突时以本文为准。
 >
 > 调研时间：2026-08-10。OpenSearch、模型和供应商能力会变化，实施时锁定实际版本并重新验证。
+
+## 0. 当前实现、缺口与实施台账
+
+本节是实现进度的唯一入口。后续开发按阶段顺序推进；完成一项时必须同时更新状态和验收证据，
+不能因为页面存在或接口返回 Mock 数据就标记为完成。
+
+### 0.1 已有能力
+
+| 能力       | 当前实现                                                               | 生产结论                                           |
+| ---------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| 知识库管理 | 列表、创建、编辑、删除、设置和详情导航使用真实接口                     | 可作为管理面基线                                   |
+| 文档来源   | 支持 Markdown、TXT、文本型 PDF；Source Store 支持本地、S3 与 MinIO     | 生产使用 S3；带保护期的孤儿对象 GC 已实现          |
+| 分段       | 通用、Q&A、父子三种模式，支持预览、版本化 Chunk 和分页查看当前 Head    | 事实模型已实现，待部署迁移和真实环境联调           |
+| 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引 | 已符合“不静默改写”和成功后原子切换原则             |
+| 检索设置   | 已实现 OpenSearch BM25、Dense、强制过滤和应用层 RRF                    | 主链路已实现，Rerank、父块扩展和黄金集门槛尚缺     |
+| 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通    | 已实现批量向量化和维度校验，待供应商限流与故障联调 |
+| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务   | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺 |
+
+### 0.2 嵌入模型配置决策
+
+嵌入模型固定放在**知识库设置**，不作为每次上传的可编辑项：
+
+- 一个知识库的活动索引代际只能属于一个 `embeddingSpaceKey`，不能让不同文件自行选择模型后混入
+  不同维度或不同语义空间。
+- 设置保存 `ModelGroup.id` 和 `ConfiguredModel.id` 两个稳定引用；凭证仍由模型模块加密管理，知识库
+  不复制 Key、Base URL 或密文。
+- 添加文件步骤最多展示当前模型的只读摘要和“前往设置”入口，不重复提供选择器。
+- 模型或索引时配置变化后创建新 `KnowledgeBaseIndex` 代际并异步重建；旧活动代际继续服务，只有新
+  代际完整 READY 后才原子切换。已有 Chunk 和活动索引不得在保存设置时被原地覆盖。
+- 被知识库设置引用的模型组不能删除；被引用的模型不能删除或修改模型 ID。停用只影响新任务调度，
+  历史代际仍通过快照保持可追溯。
+
+### 0.3 尚缺能力与完成顺序
+
+| 阶段 | 缺口                                                                | 状态               | 完成定义                                                                               |
+| ---- | ------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------- |
+| 1A   | 知识库级嵌入模型选择和稳定引用                                      | 已完成             | 设置页只列出模型页中可用的 Embedding 模型；后端校验 owner/type/enabled；引用删除受保护 |
+| 1B   | Index、Source、Version、Head、Attempt、Projection、Outbox 事实模型  | 已实现，待部署迁移 | 所有处理结果可按文档版本和索引代际追溯，失败不覆盖活动 Head                            |
+| 1C   | S3/MinIO、RabbitMQ、幂等 Worker、PDF 文本解析与孤儿 Source GC       | 已实现，待环境联调 | 重复消息不产生重复版本/Chunk；失败可重试和进死信；原文件不依赖本机磁盘                 |
+| 1D   | OpenSearch schema、投影写入和完整性校验                             | 已实现，待环境联调 | READY 文档的 count/checksum 与检索投影 100% 一致                                       |
+| 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                  |
+| 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v1` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                          |
+| 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                          |
+| 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 待实现             | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                   |
+
+### 0.4 实施纪律
+
+- 阶段 1 未通过前，不把同步写 PostgreSQL Chunk 的当前路径描述成生产入库。
+- 阶段 2 未通过前，界面不得宣称“向量检索”“混合检索已生效”。
+- 阶段 3 的准确率必须来自版本化黄金集和回归报告，不能用主观试问代替。
+- 阶段 4 的三个入口必须共用 `KnowledgeRetriever`，禁止各自实现一套检索算法。
+- 阶段 5 的安全和运维检查清单全部通过后，才可以标记为“企业生产级”。
+
+### 0.5 当前迭代验收记录
+
+| 日期       | 范围                      | 结果                                                                                                                                                                    |
+| ---------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一 |
+| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                       |
+| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                    |
+| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                              |
+| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum                                                   |
+| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                     |
+| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                     |
+| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                        |
+| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                        |
+| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                   |
+
+下一批工作按以下顺序继续：
+
+1. 部署 Prisma 迁移，并使用真实 PostgreSQL、RabbitMQ、S3/MinIO、Embedding Provider 和 OpenSearch
+   完成故障、重试、幂等、部分失败及原子切换联调。
+2. 实现 OpenSearch 残留投影回收、退役代际回收和删除传播。
+3. 实现 Rerank、父块扩展、去重、证据预算与版本化检索画像。
+4. 建立黄金集、离线评测、检索日志和发布门槛。
+5. 实现外部 `/v1/knowledge/retrieve`、`kb-` API Key、grant、限流和审计，再完成 Answer API、HA、
+   备份恢复、容量压测与告警。
 
 ## 1. 结论先行
 
@@ -333,15 +412,19 @@ sequenceDiagram
 
 ### 6.3 为什么使用 RabbitMQ
 
-项目已经为工作流命令接入 RabbitMQ，生产知识入库继续复用同一基础设施但使用独立交换机、队列、
-routing key 和消费并发：
+项目已经为工作流命令接入 RabbitMQ，生产知识入库复用同一连接生命周期，但使用独立交换机、队列、
+routing key、重试队列、死信队列和消费并发。当前可靠任务信封统一进入知识命令路由，并通过
+`type + aggregateId` 分发：
 
 ```text
-knowledge.ingest
-knowledge.reindex
-knowledge.cleanup
-knowledge.projection.repair
+ai-workflow.knowledge.command.v1
+  -> KNOWLEDGE_INDEX_BUILD_REQUESTED
+  -> KNOWLEDGE_DOCUMENT_VERSION_PROCESS_REQUESTED
 ```
+
+消息体不复制模型、切分配置、对象存储地址或正文，只携带 schema 版本、commandId、type 和稳定的
+aggregateId。Worker 必须回查 PostgreSQL 中的不可变 Index/Version 快照；后续 ingest、cleanup 和
+projection repair 可以拆分 routing key 或独立队列，但不得改变“数据库事实优先”的处理语义。
 
 知识任务不能复用工作流节点 Queue，也不能让大 PDF 解析阻塞实时工作流 Command。Redis 保留给
 限流、短缓存和协调，不再承担知识入库的可靠任务队列。
@@ -1077,25 +1160,26 @@ total latency / degraded / error code
 
 ### 阶段 1：事实模型和入库闭环
 
-- 落地 Index、Document、Source、Version、Chunk、Head、Attempt、Outbox。
-- 对象存储、RabbitMQ 知识队列和幂等 Worker。
-- Markdown / TXT / 文本型 PDF，统一的结构化解析、保守清洗、三种分段模式与临时预览。
-- 建立 OpenSearch schema、projection writer 和完整性校验。
+- 已完成知识库级嵌入模型选择：复用模型管理的 Embedding 目录，保存稳定 UUID 引用并保护被引用模型。
+- 已落地 Index、Document、Source、Version、Chunk、Head、Attempt、Projection、Outbox。
+- 已实现 S3/MinIO、本地开发存储、RabbitMQ 知识队列和幂等 Worker；孤儿对象 GC 待补齐。
+- 已支持 Markdown / TXT / 文本型 PDF，统一的结构化解析、保守清洗、三种分段模式与临时预览。
+- 已建立 OpenSearch schema、projection writer 和 count/checksum 完整性校验；待生产环境联调。
 
 验收：重复消息不重复写；失败不切 Head；READY 投影完整率 100%。
 
 ### 阶段 2：Dense、BM25 与召回测试
 
-- Embedding Adapter 和 embedding space 分组。
-- OpenSearch BM25、k-NN、强制 ACL / generation filter。
-- 召回测试页显示两路候选与来源。
+- 已实现 Embedding Adapter 和 embedding space 分组。
+- 已实现 OpenSearch BM25、k-NN、强制 owner / knowledge base / generation / document filter。
+- 召回测试页已使用真实 Retriever 展示融合结果与来源；两路候选诊断视图待补齐。
 - 建立第一批 200 条黄金集和三个基线。
 
 验收：BM25 only、Dense only 可分别测量；权限泄漏为 0。
 
 ### 阶段 3：RRF、Rerank 和准确性门槛
 
-- OpenSearch score ranker pipeline。
+- 已实现 BM25、Dense 和跨 embedding space 的应用层 RRF；是否切换 OpenSearch score ranker 由压测决定。
 - 跨组候选合并和 cross-encoder Rerank。
 - parent-child、去重、证据预算和引用。
 - profile 版本、离线评测报告和发布门槛。
@@ -1104,7 +1188,7 @@ total latency / degraded / error code
 
 ### 阶段 4：工作流 RAG 与外部 Retrieve API
 
-- 工作流、召回测试和外部 API 共用 `KnowledgeRetriever`。
+- 工作流和召回测试已共用服务端 `KnowledgeRetrievalService`；外部 API 接入后必须继续复用该边界。
 - `kb-` API Key、scope、grant、限流、审计、错误契约。
 - `/v1/knowledge/retrieve` 和异步文档 API。
 

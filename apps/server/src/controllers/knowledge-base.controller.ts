@@ -6,6 +6,7 @@ import {
   ListKnowledgeChunksDto,
   ListKnowledgeBasesDto,
   ListKnowledgeDocumentsDto,
+  RetrieveKnowledgeBaseDto,
   UpdateKnowledgeBaseSettingsDto,
   UpdateKnowledgeBaseDto,
   UpdateKnowledgeDocumentDto,
@@ -16,6 +17,7 @@ import {
 } from '@/services/knowledge-base.service'
 import type {
   KnowledgeBaseListVo,
+  KnowledgeBaseIndexListVo,
   KnowledgeBaseSettingsVo,
   KnowledgeBaseVo,
   KnowledgeChunkListVo,
@@ -23,6 +25,8 @@ import type {
   KnowledgeDocumentPreviewVo,
   KnowledgeDocumentVo,
 } from '@/vo/knowledge-base.vo'
+import type { KnowledgeRetrievalVo } from '@/vo/knowledge-retrieval.vo'
+import { KnowledgeRetrievalService } from '@/services/knowledge-retrieval.service'
 import {
   BadRequestException,
   Body,
@@ -46,7 +50,10 @@ const MAX_KNOWLEDGE_DOCUMENT_FILES = 10
 @JwtAuth()
 @Controller('knowledge-bases')
 export class KnowledgeBaseController {
-  constructor(private readonly knowledgeBaseService: KnowledgeBaseService) {}
+  constructor(
+    private readonly knowledgeBaseService: KnowledgeBaseService,
+    private readonly knowledgeRetrievalService: KnowledgeRetrievalService,
+  ) {}
 
   @Get()
   list(
@@ -94,6 +101,28 @@ export class KnowledgeBaseController {
     @Body() dto: UpdateKnowledgeBaseSettingsDto,
   ): Promise<KnowledgeBaseSettingsVo> {
     return this.knowledgeBaseService.updateSettings(request.auth.userId, knowledgeBaseId, dto)
+  }
+
+  @Get(':knowledgeBaseId/indexes')
+  listIndexes(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseIndexListVo> {
+    return this.knowledgeBaseService.listIndexes(request.auth.userId, knowledgeBaseId)
+  }
+
+  @Post(':knowledgeBaseId/retrieve')
+  retrieve(
+    @Req() request: AuthenticatedRequest,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Body() dto: RetrieveKnowledgeBaseDto,
+  ): Promise<KnowledgeRetrievalVo> {
+    return this.knowledgeRetrievalService.retrieve(
+      request.auth.userId,
+      [knowledgeBaseId],
+      dto.query,
+      dto.topK,
+    )
   }
 
   @Get(':knowledgeBaseId/documents')

@@ -1,4 +1,5 @@
 import type { Channel } from 'amqplib'
+import { assertKnowledgeMqTopology } from '../knowledge-mq/knowledge-mq.topology'
 import {
   WORKFLOW_COMMAND_EXCHANGE,
   WORKFLOW_COMMAND_ROUTES,
@@ -13,6 +14,8 @@ import {
 } from './workflow-mq.constants'
 
 export async function assertWorkflowMqTopology(channel: Channel): Promise<void> {
+  await assertKnowledgeMqTopology(channel)
+
   await Promise.all([
     channel.assertExchange(WORKFLOW_COMMAND_EXCHANGE, 'direct', { durable: true }),
     channel.assertExchange(WORKFLOW_RESULT_EXCHANGE, 'direct', { durable: true }),

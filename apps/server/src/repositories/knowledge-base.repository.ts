@@ -6,6 +6,7 @@ import type {
 import { Prisma } from '@/generated/prisma/client'
 import { PrismaService } from '@/infra/prisma/prisma.service'
 import { Injectable } from '@nestjs/common'
+import { createHash, randomUUID } from 'node:crypto'
 
 export const knowledgeBaseSelect = {
   id: true,
@@ -27,6 +28,8 @@ export type KnowledgeBaseRecord = Prisma.KnowledgeBaseGetPayload<{
 
 export const knowledgeBaseSettingsSelect = {
   knowledgeBaseId: true,
+  embeddingModelGroupId: true,
+  embeddingConfiguredModelId: true,
   segmentationMode: true,
   maxSegmentLength: true,
   overlapLength: true,
@@ -39,6 +42,29 @@ export const knowledgeBaseSettingsSelect = {
 
 export type KnowledgeBaseSettingsRecord = Prisma.KnowledgeBaseSettingsGetPayload<{
   select: typeof knowledgeBaseSettingsSelect
+}>
+
+export const knowledgeBaseIndexSelect = {
+  id: true,
+  generation: true,
+  configuredModelId: true,
+  embeddingProvider: true,
+  embeddingModelId: true,
+  embeddingDimension: true,
+  embeddingSpaceKey: true,
+  distanceMetric: true,
+  configHash: true,
+  status: true,
+  errorCode: true,
+  errorMessage: true,
+  createdAt: true,
+  readyAt: true,
+  activatedAt: true,
+  retiredAt: true,
+} satisfies Prisma.KnowledgeBaseIndexSelect
+
+export type KnowledgeBaseIndexRecord = Prisma.KnowledgeBaseIndexGetPayload<{
+  select: typeof knowledgeBaseIndexSelect
 }>
 
 export const knowledgeDocumentSelect = {
@@ -64,6 +90,7 @@ export const knowledgeDocumentSelect = {
   updatedAt: true,
   knowledgeBase: {
     select: {
+      activeIndexId: true,
       settings: {
         select: {
           segmentationRevision: true,
@@ -110,12 +137,22 @@ interface UpdateKnowledgeBaseOptions {
 }
 
 interface UpdateKnowledgeBaseSettingsOptions {
+  embeddingModelGroupId: string | null
+  embeddingConfiguredModelId: string | null
   segmentationMode: KnowledgeSegmentationModeDto
   maxSegmentLength: number
   overlapLength: number
   normalizeWhitespace: boolean
   retrievalProfile: KnowledgeRetrievalProfileDto
   retrievalTopK: number
+  indexSnapshot?: {
+    configuredModelId: string
+    embeddingProvider: string
+    embeddingModelId: string
+    defaultChunkConfig: Prisma.InputJsonValue
+    defaultCleaningConfig: Prisma.InputJsonValue
+    configHash: string
+  }
 }
 
 interface CreateKnowledgeDocumentOptions {
@@ -192,7 +229,10 @@ export class KnowledgeBaseRepository {
   async getSettings(
     ownerId: string,
     knowledgeBaseId: string,
-  ): Promise<{ settings: KnowledgeBaseSettingsRecord; staleDocumentCount: number } | null> {
+  ): Promise<{
+    settings: KnowledgeBaseSettingsRecord
+    staleDocumentCount: number
+  } | null> {
     const settings = await this.prisma.knowledgeBaseSettings.findFirst({
       where: {
         knowledgeBaseId,
@@ -216,13 +256,20 @@ export class KnowledgeBaseRepository {
     ownerId: string,
     knowledgeBaseId: string,
     options: UpdateKnowledgeBaseSettingsOptions,
-  ): Promise<{ settings: KnowledgeBaseSettingsRecord; staleDocumentCount: number } | null> {
+  ): Promise<{
+    settings: KnowledgeBaseSettingsRecord
+    staleDocumentCount: number
+  } | null> {
     return this.prisma.$transaction(async (transaction) => {
       const current = await transaction.knowledgeBaseSettings.findFirst({
         where: { knowledgeBaseId, knowledgeBase: { ownerId } },
         select: knowledgeBaseSettingsSelect,
       })
       if (!current) return null
+
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_bases" WHERE "id" = ${knowledgeBaseId}::uuid FOR UPDATE`,
+      )
 
       const segmentationChanged =
         current.segmentationMode !== options.segmentationMode ||
@@ -233,6 +280,8 @@ export class KnowledgeBaseRepository {
       const settings = await transaction.knowledgeBaseSettings.update({
         where: { knowledgeBaseId },
         data: {
+          embeddingModelGroupId: options.embeddingModelGroupId,
+          embeddingConfiguredModelId: options.embeddingConfiguredModelId,
           segmentationMode: options.segmentationMode,
           maxSegmentLength: options.maxSegmentLength,
           overlapLength: options.overlapLength,
@@ -244,6 +293,46 @@ export class KnowledgeBaseRepository {
         select: knowledgeBaseSettingsSelect,
       })
 
+      if (options.indexSnapshot) {
+        await transaction.knowledgeBaseIndex.updateMany({
+          where: { knowledgeBaseId, status: 'BUILDING' },
+          data: { status: 'CANCELLED', retiredAt: new Date() },
+        })
+
+        const latestIndex = await transaction.knowledgeBaseIndex.findFirst({
+          where: { knowledgeBaseId },
+          orderBy: { generation: 'desc' },
+          select: { generation: true },
+        })
+        const indexId = randomUUID()
+        const generation = (latestIndex?.generation ?? 0) + 1
+        await transaction.knowledgeBaseIndex.create({
+          data: {
+            id: indexId,
+            knowledgeBaseId,
+            generation,
+            configuredModelId: options.indexSnapshot.configuredModelId,
+            embeddingProvider: options.indexSnapshot.embeddingProvider,
+            embeddingModelId: options.indexSnapshot.embeddingModelId,
+            defaultChunkConfig: options.indexSnapshot.defaultChunkConfig,
+            defaultCleaningConfig: options.indexSnapshot.defaultCleaningConfig,
+            configHash: options.indexSnapshot.configHash,
+          },
+        })
+        await transaction.knowledgeOutboxEvent.create({
+          data: {
+            knowledgeBaseId,
+            eventType: 'KNOWLEDGE_INDEX_BUILD_REQUESTED',
+            aggregateType: 'KNOWLEDGE_BASE_INDEX',
+            aggregateId: indexId,
+            idempotencyKey: `knowledge-index-build:${indexId}`,
+            payload: {
+              knowledgeBaseIndexId: indexId,
+            },
+          },
+        })
+      }
+
       const staleDocumentCount = await transaction.knowledgeDocument.count({
         where: {
           knowledgeBaseId,
@@ -253,6 +342,31 @@ export class KnowledgeBaseRepository {
 
       return { settings, staleDocumentCount }
     })
+  }
+
+  async listIndexes(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<{
+    activeIndexId: string | null
+    items: KnowledgeBaseIndexRecord[]
+  } | null> {
+    const knowledgeBase = await this.prisma.knowledgeBase.findFirst({
+      where: { id: knowledgeBaseId, ownerId },
+      select: {
+        activeIndexId: true,
+        indexes: {
+          orderBy: { generation: 'desc' },
+          select: knowledgeBaseIndexSelect,
+        },
+      },
+    })
+    if (!knowledgeBase) return null
+
+    return {
+      activeIndexId: knowledgeBase.activeIndexId,
+      items: knowledgeBase.indexes,
+    }
   }
 
   async listDocuments(options: {
@@ -305,6 +419,9 @@ export class KnowledgeBaseRepository {
 
   async createDocument(options: CreateKnowledgeDocumentOptions): Promise<KnowledgeDocumentRecord> {
     return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_bases" WHERE "id" = ${options.knowledgeBaseId}::uuid FOR UPDATE`,
+      )
       const settings = await transaction.knowledgeBaseSettings.findFirstOrThrow({
         where: {
           knowledgeBaseId: options.knowledgeBaseId,
@@ -313,8 +430,26 @@ export class KnowledgeBaseRepository {
         select: { segmentationRevision: true },
       })
 
-      return transaction.knowledgeDocument.create({
+      const knowledgeBase = await transaction.knowledgeBase.findUniqueOrThrow({
+        where: { id: options.knowledgeBaseId },
+        select: { activeIndexId: true },
+      })
+      const targetIndexes = await transaction.knowledgeBaseIndex.findMany({
+        where: {
+          knowledgeBaseId: options.knowledgeBaseId,
+          OR: [
+            { status: 'BUILDING' },
+            ...(knowledgeBase.activeIndexId ? [{ id: knowledgeBase.activeIndexId }] : []),
+          ],
+        },
+        select: { id: true, configHash: true },
+      })
+      const documentId = randomUUID()
+      const sourceId = randomUUID()
+
+      const document = await transaction.knowledgeDocument.create({
         data: {
+          id: documentId,
           knowledgeBaseId: options.knowledgeBaseId,
           name: options.name,
           fileType: options.fileType,
@@ -330,6 +465,16 @@ export class KnowledgeBaseRepository {
           status: 'READY',
           characterCount: options.characterCount,
           chunkCount: options.chunks.length,
+          sources: {
+            create: {
+              id: sourceId,
+              objectKey: options.sourceStorageKey,
+              originalFileName: options.name,
+              checksum: options.sourceChecksum,
+              mimeType: options.sourceMimeType,
+              fileSize: options.sourceSize,
+            },
+          },
           chunks: {
             create: options.chunks.map((chunk, index) => ({
               sequence: index + 1,
@@ -341,6 +486,61 @@ export class KnowledgeBaseRepository {
         },
         select: knowledgeDocumentSelect,
       })
+
+      const versionConfigHash = createHash('sha256')
+        .update(
+          JSON.stringify({
+            segmentationMode: options.segmentationMode,
+            maxSegmentLength: options.maxSegmentLength,
+            overlapLength: options.overlapLength,
+            normalizeWhitespace: options.normalizeWhitespace,
+          }),
+        )
+        .digest('hex')
+      await Promise.all(
+        targetIndexes.map(async (index) => {
+          const versionId = randomUUID()
+          await transaction.knowledgeDocumentVersion.create({
+            data: {
+              id: versionId,
+              knowledgeBaseId: options.knowledgeBaseId,
+              documentId,
+              sourceId,
+              knowledgeBaseIndexId: index.id,
+              version: 1,
+              idempotencyKey: createHash('sha256')
+                .update(
+                  `${index.id}:${documentId}:${sourceId}:${options.sourceChecksum}:${index.configHash}:${versionConfigHash}`,
+                )
+                .digest('hex'),
+              parserVersion: 'text-v1',
+              cleanerVersion: 'conservative-v1',
+              cleaningConfig: {
+                normalizeWhitespace: options.normalizeWhitespace,
+              },
+              segmentationMode: options.segmentationMode,
+              chunkConfig: {
+                segmentationMode: options.segmentationMode,
+                maxSegmentLength: options.maxSegmentLength,
+                overlapLength: options.overlapLength,
+              },
+              configHash: versionConfigHash,
+              projection: { create: { knowledgeBaseIndexId: index.id } },
+            },
+          })
+          await transaction.knowledgeOutboxEvent.create({
+            data: {
+              knowledgeBaseId: options.knowledgeBaseId,
+              eventType: 'KNOWLEDGE_DOCUMENT_VERSION_PROCESS_REQUESTED',
+              aggregateType: 'KNOWLEDGE_DOCUMENT_VERSION',
+              aggregateId: versionId,
+              idempotencyKey: `knowledge-document-version-process:${versionId}`,
+              payload: { documentVersionId: versionId },
+            },
+          })
+        }),
+      )
+      return document
     })
   }
 
@@ -370,7 +570,9 @@ export class KnowledgeBaseRepository {
       const settings = document?.knowledgeBase.settings
       if (!document || !settings) return null
 
-      await transaction.knowledgeChunk.deleteMany({ where: { documentId: document.id } })
+      await transaction.knowledgeChunk.deleteMany({
+        where: { documentId: document.id, documentVersionId: null },
+      })
       await transaction.knowledgeChunk.createMany({
         data: options.chunks.map((chunk, index) => ({
           documentId: document.id,
@@ -399,6 +601,110 @@ export class KnowledgeBaseRepository {
     })
   }
 
+  async queueDocumentReindex(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+  ): Promise<{ document: KnowledgeDocumentRecord; queued: boolean } | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      await transaction.$queryRaw(
+        Prisma.sql`SELECT "id" FROM "knowledge_documents" WHERE "id" = ${documentId}::uuid FOR UPDATE`,
+      )
+      const document = await transaction.knowledgeDocument.findFirst({
+        where: { id: documentId, knowledgeBaseId, knowledgeBase: { ownerId } },
+        select: {
+          ...knowledgeDocumentSelect,
+          sources: {
+            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+            take: 1,
+            select: { id: true, checksum: true },
+          },
+          knowledgeBase: {
+            select: {
+              activeIndexId: true,
+              settings: { select: knowledgeBaseSettingsSelect },
+            },
+          },
+        },
+      })
+      if (!document) return null
+      const activeIndexId = document.knowledgeBase.activeIndexId
+      const settings = document.knowledgeBase.settings
+      const source = document.sources[0]
+      if (!activeIndexId || !settings || !source) {
+        return { document, queued: false }
+      }
+
+      const pending = await transaction.knowledgeDocumentVersion.findFirst({
+        where: {
+          documentId,
+          sourceId: source.id,
+          knowledgeBaseIndexId: activeIndexId,
+          status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
+        },
+        select: { id: true },
+      })
+      if (pending) return { document, queued: true }
+
+      const latest = await transaction.knowledgeDocumentVersion.findFirst({
+        where: { documentId, knowledgeBaseIndexId: activeIndexId },
+        orderBy: { version: 'desc' },
+        select: { version: true },
+      })
+      const config = {
+        segmentationMode: settings.segmentationMode,
+        maxSegmentLength: settings.maxSegmentLength,
+        overlapLength: settings.overlapLength,
+        normalizeWhitespace: settings.normalizeWhitespace,
+      }
+      const configHash = createHash('sha256').update(JSON.stringify(config)).digest('hex')
+      const versionId = randomUUID()
+      const versionNumber = (latest?.version ?? 0) + 1
+      await transaction.knowledgeDocumentVersion.create({
+        data: {
+          id: versionId,
+          knowledgeBaseId,
+          documentId,
+          sourceId: source.id,
+          knowledgeBaseIndexId: activeIndexId,
+          version: versionNumber,
+          idempotencyKey: createHash('sha256')
+            .update(
+              `${activeIndexId}:${documentId}:${source.id}:${source.checksum}:${configHash}:${versionNumber}`,
+            )
+            .digest('hex'),
+          parserVersion: 'text-v1',
+          cleanerVersion: 'conservative-v1',
+          cleaningConfig: { normalizeWhitespace: settings.normalizeWhitespace },
+          segmentationMode: settings.segmentationMode,
+          chunkConfig: {
+            segmentationMode: settings.segmentationMode,
+            maxSegmentLength: settings.maxSegmentLength,
+            overlapLength: settings.overlapLength,
+          },
+          configHash,
+          projection: { create: { knowledgeBaseIndexId: activeIndexId } },
+        },
+      })
+      await transaction.knowledgeOutboxEvent.create({
+        data: {
+          knowledgeBaseId,
+          eventType: 'KNOWLEDGE_DOCUMENT_VERSION_PROCESS_REQUESTED',
+          aggregateType: 'KNOWLEDGE_DOCUMENT_VERSION',
+          aggregateId: versionId,
+          idempotencyKey: `knowledge-document-version-process:${versionId}`,
+          payload: { documentVersionId: versionId },
+        },
+      })
+      const updated = await transaction.knowledgeDocument.update({
+        where: { id: documentId },
+        data: { status: 'PROCESSING', errorMessage: null },
+        select: knowledgeDocumentSelect,
+      })
+      return { document: updated, queued: true }
+    })
+  }
+
   async listChunks(options: {
     ownerId: string
     knowledgeBaseId: string
@@ -418,10 +724,29 @@ export class KnowledgeBaseRepository {
     )
     if (!document) return null
 
+    const activeHead = document.knowledgeBase.activeIndexId
+      ? await this.prisma.knowledgeDocumentIndexHead.findUnique({
+          where: {
+            documentId_knowledgeBaseIndexId: {
+              documentId: options.documentId,
+              knowledgeBaseIndexId: document.knowledgeBase.activeIndexId,
+            },
+          },
+          select: { currentVersionId: true },
+        })
+      : null
+
     const where = {
       documentId: options.documentId,
+      ...(document.knowledgeBase.activeIndexId
+        ? {
+            documentVersionId: activeHead?.currentVersionId ?? null,
+          }
+        : { documentVersionId: null }),
       ...(options.search
-        ? { content: { contains: options.search, mode: 'insensitive' as const } }
+        ? {
+            content: { contains: options.search, mode: 'insensitive' as const },
+          }
         : {}),
     }
     const [items, total] = await Promise.all([
@@ -473,6 +798,25 @@ export class KnowledgeBaseRepository {
       where: { knowledgeBaseId, knowledgeBase: { ownerId } },
       select: { sourceStorageKey: true },
     })
+  }
+
+  async findReferencedSourceStorageKeys(storageKeys: string[]): Promise<Set<string>> {
+    if (!storageKeys.length) return new Set()
+
+    const [sources, legacyDocuments] = await Promise.all([
+      this.prisma.knowledgeDocumentSource.findMany({
+        where: { objectKey: { in: storageKeys } },
+        select: { objectKey: true },
+      }),
+      this.prisma.knowledgeDocument.findMany({
+        where: { sourceStorageKey: { in: storageKeys } },
+        select: { sourceStorageKey: true },
+      }),
+    ])
+    return new Set([
+      ...sources.map(({ objectKey }) => objectKey),
+      ...legacyDocuments.map(({ sourceStorageKey }) => sourceStorageKey),
+    ])
   }
 
   update(

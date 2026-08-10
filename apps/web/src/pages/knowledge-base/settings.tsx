@@ -1,4 +1,5 @@
 import { getKnowledgeBaseSettings, updateKnowledgeBaseSettings } from '@/api/knowledge-bases'
+import { listModelGroups, type ModelGroupDto } from '@/api/models'
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Button } from '@ai-workflow/ui/components/button'
@@ -8,14 +9,17 @@ import { Input } from '@ai-workflow/ui/components/input'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { showToast } from '@ai-workflow/ui/lib/toast'
-import { AlertTriangle, Search, SplitSquareVertical } from 'lucide-react'
+import { AlertTriangle, Boxes, Search, SplitSquareVertical } from 'lucide-react'
 import { useEffect, useState, type FormEvent } from 'react'
-import { useOutletContext, useParams } from 'react-router-dom'
+import { Link, useOutletContext, useParams } from 'react-router-dom'
 
 import { PageContent } from '@/components/page-content'
 import { PageTitle } from '@/components/page-title'
@@ -51,24 +55,31 @@ const retrievalProfileFromApi = {
   HYBRID_FAST: 'hybrid-fast',
 } as const
 
+const NO_EMBEDDING_MODEL_VALUE = 'none'
+
 export default function KnowledgeBaseSettingsPage() {
   const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
   const { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const { form, setForm, updateFormField } = useFormData<KnowledgeBaseSettingsFormInput>(
-    KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES,
-  )
+  const { form, setForm, updateForm, updateFormField } =
+    useFormData<KnowledgeBaseSettingsFormInput>(KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [staleDocumentCount, setStaleDocumentCount] = useState(0)
+  const [embeddingModelGroups, setEmbeddingModelGroups] = useState<ModelGroupDto[]>([])
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
     const controller = new AbortController()
     setLoading(true)
-    void getKnowledgeBaseSettings(knowledgeBaseId, controller.signal)
-      .then((settings) => {
+    void Promise.all([
+      getKnowledgeBaseSettings(knowledgeBaseId, controller.signal),
+      listModelGroups('embedding', controller.signal),
+    ])
+      .then(([settings, modelGroups]) => {
         setForm({
+          embeddingModelGroupId: settings.embeddingModelGroupId ?? null,
+          embeddingConfiguredModelId: settings.embeddingConfiguredModelId ?? null,
           segmentationMode: segmentationModeFromApi[settings.segmentationMode],
           maxSegmentLength: settings.maxSegmentLength,
           overlapLength: settings.overlapLength,
@@ -76,6 +87,7 @@ export default function KnowledgeBaseSettingsPage() {
           retrievalProfile: retrievalProfileFromApi[settings.retrievalProfile],
           retrievalTopK: settings.retrievalTopK,
         })
+        setEmbeddingModelGroups(modelGroups.items)
         setStaleDocumentCount(settings.staleDocumentCount)
       })
       .catch(() => undefined)
@@ -98,6 +110,8 @@ export default function KnowledgeBaseSettingsPage() {
     setSaving(true)
     try {
       const settings = await updateKnowledgeBaseSettings(knowledgeBaseId, {
+        embeddingModelGroupId: result.data.embeddingModelGroupId,
+        embeddingConfiguredModelId: result.data.embeddingConfiguredModelId,
         segmentationMode: segmentationModeToApi[result.data.segmentationMode],
         maxSegmentLength: result.data.maxSegmentLength,
         overlapLength: result.data.overlapLength,
@@ -117,6 +131,18 @@ export default function KnowledgeBaseSettingsPage() {
       setSaving(false)
     }
   }
+
+  const availableEmbeddingModelGroups = embeddingModelGroups.flatMap((group) => {
+    if (!group.enabled) return []
+    const models = group.models.filter((model) => model.enabled)
+    return models.length > 0 ? [{ ...group, models }] : []
+  })
+  const selectedEmbeddingModel = embeddingModelGroups
+    .flatMap((group) => group.models.map((model) => ({ group, model })))
+    .find(({ model }) => model.id === form.embeddingConfiguredModelId)
+  const selectedEmbeddingModelAvailable = availableEmbeddingModelGroups.some((group) =>
+    group.models.some((model) => model.id === form.embeddingConfiguredModelId),
+  )
 
   return (
     <div className="min-h-full px-6 pt-4 pb-8">
@@ -138,6 +164,104 @@ export default function KnowledgeBaseSettingsPage() {
                 </p>
               </div>
             ) : null}
+
+            <section className="border-border overflow-hidden rounded-xl border shadow-xs">
+              <header className="bg-muted/35 flex items-start gap-3 px-5 py-4">
+                <span className="bg-background text-primary flex size-9 shrink-0 items-center justify-center rounded-lg shadow-xs">
+                  <Boxes aria-hidden className="size-4" />
+                </span>
+                <div>
+                  <h2 className="text-sm font-semibold">索引模型</h2>
+                  <p className="text-muted-foreground mt-0.5 text-xs leading-5">
+                    嵌入模型定义整个知识库的向量空间，按知识库统一配置。
+                  </p>
+                </div>
+              </header>
+              <div className="px-5 py-5">
+                <Form.Field
+                  label="嵌入模型"
+                  error={errors.embeddingConfiguredModelId}
+                  description={
+                    <>
+                      修改模型不会覆盖现有 Chunk；向量索引阶段完成后将通过新索引代际重建并切换。
+                      可前往{' '}
+                      <Link
+                        to="/models?tab=embedding"
+                        className="text-primary focus-visible:bg-primary/10 cursor-pointer hover:underline focus-visible:outline-none"
+                      >
+                        模型管理
+                      </Link>
+                      添加或启用嵌入模型。
+                    </>
+                  }
+                >
+                  <Select
+                    value={form.embeddingConfiguredModelId ?? NO_EMBEDDING_MODEL_VALUE}
+                    onValueChange={(value) => {
+                      if (value === NO_EMBEDDING_MODEL_VALUE) {
+                        updateForm({
+                          embeddingModelGroupId: null,
+                          embeddingConfiguredModelId: null,
+                        })
+                        return
+                      }
+
+                      const group = availableEmbeddingModelGroups.find((item) =>
+                        item.models.some((model) => model.id === value),
+                      )
+                      updateForm({
+                        embeddingModelGroupId: group?.id ?? null,
+                        embeddingConfiguredModelId: group ? value : null,
+                      })
+                    }}
+                  >
+                    <SelectTrigger aria-label="嵌入模型" className="w-full md:max-w-xl">
+                      <SelectValue placeholder="请选择嵌入模型" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      align="start"
+                      sideOffset={4}
+                      className="w-(--radix-select-trigger-width)"
+                    >
+                      <SelectItem value={NO_EMBEDDING_MODEL_VALUE}>暂不配置</SelectItem>
+                      {selectedEmbeddingModel && !selectedEmbeddingModelAvailable ? (
+                        <>
+                          <SelectSeparator />
+                          <SelectItem value={selectedEmbeddingModel.model.id} disabled>
+                            {selectedEmbeddingModel.model.displayName ??
+                              selectedEmbeddingModel.model.modelId}{' '}
+                            · 已停用或不可用
+                          </SelectItem>
+                        </>
+                      ) : null}
+                      {availableEmbeddingModelGroups.map((group) => (
+                        <SelectGroup key={group.id}>
+                          <SelectSeparator />
+                          <SelectLabel>{group.name}</SelectLabel>
+                          {group.models.map((model) => (
+                            <SelectItem
+                              key={model.id}
+                              value={model.id}
+                              textValue={`${model.displayName ?? model.modelId} ${model.modelId} ${group.name}`}
+                            >
+                              <span className="min-w-0 flex-1 truncate">
+                                {model.displayName ?? model.modelId}
+                              </span>
+                              {model.displayName ? (
+                                <span className="text-muted-foreground max-w-48 truncate text-xs">
+                                  {model.modelId}
+                                </span>
+                              ) : null}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Form.Field>
+              </div>
+            </section>
 
             <section className="border-border overflow-hidden rounded-xl border shadow-xs">
               <header className="bg-muted/35 flex items-start gap-3 px-5 py-4">

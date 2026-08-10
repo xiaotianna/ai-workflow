@@ -17,5 +17,6 @@ import { JwtModule } from './jwt.module'
     ModelCredentialService,
     ModelProviderRegistry,
   ],
+  exports: [ModelGroupRepository, ModelCredentialService, ModelProviderRegistry],
 })
 export class ModelsModule {}

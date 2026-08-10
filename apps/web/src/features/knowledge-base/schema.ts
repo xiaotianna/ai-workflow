@@ -97,6 +97,8 @@ export const ADD_DOCUMENT_INITIAL_VALUES = {
 
 export const knowledgeBaseSettingsSchema = z
   .object({
+    embeddingModelGroupId: z.uuid('嵌入模型组 ID 无效').nullable(),
+    embeddingConfiguredModelId: z.uuid('嵌入模型 ID 无效').nullable(),
     segmentationMode: z.enum(documentSegmentationModeValues),
     maxSegmentLength: z.coerce
       .number<number>()
@@ -116,6 +118,14 @@ export const knowledgeBaseSettingsSchema = z
       .max(20, '默认返回数量不能超过 20'),
   })
   .superRefine((value, context) => {
+    if (Boolean(value.embeddingModelGroupId) !== Boolean(value.embeddingConfiguredModelId)) {
+      context.addIssue({
+        code: 'custom',
+        message: '请选择完整的嵌入模型配置',
+        path: ['embeddingConfiguredModelId'],
+      })
+    }
+
     if (value.overlapLength >= value.maxSegmentLength) {
       context.addIssue({
         code: 'custom',
@@ -129,6 +139,8 @@ export type KnowledgeBaseSettingsFormInput = z.input<typeof knowledgeBaseSetting
 export type KnowledgeBaseSettingsInput = z.output<typeof knowledgeBaseSettingsSchema>
 
 export const KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES = {
+  embeddingModelGroupId: null,
+  embeddingConfiguredModelId: null,
   segmentationMode: 'general',
   maxSegmentLength: 1024,
   overlapLength: 50,

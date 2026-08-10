@@ -90,8 +90,16 @@ apps/server/
 
 Server 直接从 `@ai-workflow/core`、`@ai-workflow/runtime` 和 `@ai-workflow/protocol` 根入口使用公开
 契约，不创建本地类型镜像或 package 加载适配层；各 package 的条件导出负责 NodeNext 类型解析和
-CommonJS 运行时入口。`infra/workflow-mq` 统一声明 RabbitMQ 拓扑并承载 Outbox Publisher、Result
-Consumer 和连接生命周期。`WorkflowRunTimeoutScanner` 作为 `StudioModule` provider 管理
+CommonJS 运行时入口。`infra/workflow-mq` 的 `WorkflowMqModule` 统一提供共享 RabbitMQ 连接和
+Confirm Channel 生命周期；工作流与知识库模块只注册各自的 Publisher / Consumer。工作流拓扑与
+`infra/knowledge-mq` 知识任务拓扑使用独立持久化 exchange、queue、retry queue 和 DLQ，不得复用
+业务队列。知识任务消息只携带稳定聚合 ID，Worker 回查 PostgreSQL 的 Index、Version、Attempt 和
+Outbox 事实；Publisher Confirm、手动 Ack、延迟重试和死信必须保持闭环。
+`infra/knowledge` 封装 S3/MinIO Source Store、Embedding 调用与 OpenSearch projection/search；业务
+Service 只传稳定事实 ID 和领域参数，不拼接 OpenSearch DSL，也不把向量或供应商原始响应暴露为
+Controller DTO。PostgreSQL 是唯一事实源，OpenSearch 只保存可按 Index/Version 重建的投影。Source
+GC 只扫描平台严格格式的托管 key，经过保护期并确认新旧事实表均无引用后才允许幂等删除。
+`WorkflowRunTimeoutScanner` 作为 `StudioModule` provider 管理
 `deadlineAt` 扫描生命周期，并复用 `WorkflowRunService` 的统一终态入口。业务服务不得自行访问
 `process.env` 或把 AMQP 细节散落到 Controller。
 `workflow-catalog` 负责按工作流解析不可变 Core、Runtime projector 与执行能力目录；业务 Service

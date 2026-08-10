@@ -1,5 +1,6 @@
 import type { KnowledgeSegmentationMode } from '@/generated/prisma/enums'
 import { BadRequestException, Injectable } from '@nestjs/common'
+import { PDFParse } from 'pdf-parse'
 
 export interface KnowledgeChunkInput {
   content: string
@@ -15,18 +16,44 @@ export interface KnowledgeChunkConfig {
 
 @Injectable()
 export class KnowledgeChunkerService {
-  parseText(content: Buffer, fileName: string): string {
+  async parseText(content: Buffer, fileName: string): Promise<string> {
     const extension = fileName.split('.').pop()?.toLowerCase()
-    if (!extension || !['md', 'markdown', 'txt'].includes(extension)) {
-      throw new BadRequestException('当前仅支持 Markdown 和 TXT 文本文件')
+    if (!extension || !['md', 'markdown', 'txt', 'pdf'].includes(extension)) {
+      throw new BadRequestException('当前仅支持 PDF、Markdown 和 TXT 文件')
     }
 
-    const text = content.toString('utf8').replace(/^\uFEFF/, '')
+    const text =
+      extension === 'pdf'
+        ? await this.parsePdfText(content)
+        : content.toString('utf8').replace(/^\uFEFF/, '')
     if (!text.trim()) {
-      throw new BadRequestException('文件内容不能为空')
+      throw new BadRequestException(
+        extension === 'pdf' ? 'PDF 未提取到文本，暂不支持扫描件 OCR' : '文件内容不能为空',
+      )
     }
 
     return text
+  }
+
+  private async parsePdfText(content: Buffer): Promise<string> {
+    if (content.subarray(0, 5).toString('ascii') !== '%PDF-') {
+      throw new BadRequestException('PDF 文件格式无效')
+    }
+
+    const parser = new PDFParse({ data: content })
+    try {
+      const info = await parser.getInfo()
+      if (info.total > 500) {
+        throw new BadRequestException('PDF 页数不能超过 500 页')
+      }
+      const result = await parser.getText({ pageJoiner: '\n\n' })
+      return result.text
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error
+      throw new BadRequestException('PDF 文本解析失败')
+    } finally {
+      await parser.destroy()
+    }
   }
 
   chunk(source: string, config: KnowledgeChunkConfig): KnowledgeChunkInput[] {

@@ -7,7 +7,7 @@ import { WorkflowDraftController } from '@/controllers/workflow-draft.controller
 import { WorkflowRunController } from '@/controllers/workflow-run.controller'
 import { WorkflowVersionController } from '@/controllers/workflow-version.controller'
 import { AppApiKeyGuard } from '@/guards/app-api-key.guard'
-import { WorkflowMqService } from '@/infra/workflow-mq/workflow-mq.service'
+import { WorkflowMqModule } from '@/infra/workflow-mq/workflow-mq.module'
 import { WorkflowExecutionRoutingService } from '@/infra/workflow-mq/workflow-execution-routing.service'
 import { WorkflowOutboxPublisher } from '@/infra/workflow-mq/workflow-outbox.publisher'
 import { WorkflowResultConsumer } from '@/infra/workflow-mq/workflow-result.consumer'
@@ -33,7 +33,7 @@ import { JwtModule } from './jwt.module'
 import { PluginModule } from './plugin.module'
 
 @Module({
-  imports: [JwtModule, PluginModule],
+  imports: [JwtModule, PluginModule, WorkflowMqModule],
   controllers: [
     AppApiController,
     AppApiManagementController,
@@ -62,7 +62,6 @@ import { PluginModule } from './plugin.module'
     WorkflowRunRepository,
     WorkflowVersionService,
     WorkflowVersionRepository,
-    WorkflowMqService,
     WorkflowExecutionRoutingService,
     WorkflowOutboxPublisher,
     WorkflowResultConsumer,

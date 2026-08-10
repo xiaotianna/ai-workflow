@@ -1,11 +1,11 @@
 # 知识库设计方案
 
-> 状态：目标设计规划中；文档分段管理基线已实现。
+> 状态：目标设计持续实施中；管理、版本化入库、搜索投影和工作流 RAG 主链路已实现。
 >
 > 本文定义知识库从空白资源创建、文档入库、索引代际切换、分段向量化、召回、工作流引用到
-> 异步删除清理的完整目标模型。当前已实现空白知识库、文本原文保存、同步分段、分段查看、
-> 分段/检索设置和用户手动重新索引的管理基线；Embedding、OpenSearch、异步入库与生产检索仍按后续阶段接入，但数据库模型必须保持下述
-> 一致性边界。
+> 异步删除清理的完整目标模型。当前已实现空白知识库、S3/MinIO 原文、版本化异步入库、分段查看、
+> 设置与手动重新索引、Embedding、OpenSearch 投影、混合召回和工作流 RAG 主链路；外部 API 安全、
+> 检索质量评测、资源清理和生产运维仍按后续阶段完成，数据库模型必须保持下述一致性边界。
 >
 > 第一次接触知识库或 RAG 时，请先阅读 [知识库与 RAG：从零基础到生产落地](./knowledge-base-rag-learning-guide.md)，
 > 了解技术栈、混合检索、准确性评测、生产难点和推荐学习顺序。
@@ -42,17 +42,20 @@
   接口按 `ownerId` 隔离数据。删除前检查当前用户工作流草稿和版本中的 RAG 引用。
 - Web 知识库列表、创建弹窗和详情页已接入真实接口；列表支持搜索防抖、排序、加载态、失败重试
   和空态，不再生成客户端临时知识库。
-- 文档页已接入真实分页、文本上传、临时分段预览、启停、删除和手动重新索引；文档详情页展示当前 Chunk 内容与分段参数，不伪造召回次数。召回测试仍等待 Embedding 与 OpenSearch。
+- 文档页已接入真实分页、Markdown/TXT/文本型 PDF 上传、临时分段预览、启停、删除和手动重新索引；文档详情页按活动 Head 展示版本化 Chunk，不伪造召回次数。
 - RAG 节点已有查询输入端口和 JSON 检索结果输出端口，配置通过 `knowledgeBases`
   按顺序保存一个或多个知识库的稳定 ID 与名称/图标快照，并通过正整数 `topK` 控制最大召回
   数量；编辑器只在 RAG 配置面板打开后加载真实知识库目录生成多选 Dialog，并保留已保存但
   当前不可用的引用供用户重新选择。画布直接读取持久化快照，不加载完整目录。
-- 服务端已经提供用户级的对话模型与嵌入模型配置，但供应商适配器尚未提供真实 Embedding
-  调用。
-- PostgreSQL、Redis 和 RabbitMQ 已接入开发基础设施；当前文本原文使用本地可替换存储适配器，OpenSearch、对象存储和知识入库 Worker 尚未接入。
-- `@ai-workflow/runtime` 尚未实现工作流执行器。
+- 服务端使用模型页面中的嵌入模型稳定 UUID 和加密凭证，已支持 OpenAI-compatible 与 Ollama
+  Embedding 调用、批量向量化和维度校验。
+- PostgreSQL 是事实源；RabbitMQ/Outbox 幂等 Worker、S3/MinIO Source Store 和 OpenSearch 可重建
+  投影已接入，待部署迁移及真实服务联调。
+- Go RAG Executor 已通过受保护的内部接口调用服务端统一 Retriever，并校验 Command 身份和租约。
 
-“创建知识库 → 上传文本 → 预览/保存分段 → 查看 Chunk → 配置变更后手动重新索引”的管理闭环已经完成。当前 Chunk 仅是 PostgreSQL 中的业务数据，还不是可生产召回的向量投影。
+“创建知识库 → 上传文件 → 异步解析/切分/向量化/投影 → 查看当前 Chunk → 配置变更后构建新代际或
+手动重新索引 → 召回测试/工作流 RAG”的主闭环已经完成。当前实现尚不能直接宣称企业生产级，必须
+先完成迁移部署、真实环境一致性联调、黄金集评测、外部 API 安全和生产运维验收。
 未接入嵌入模型的 tokenizer 前不伪造 Token 统计；当前管理页只展示可确定的字符数。
 
 ## 3. 总体架构
@@ -907,15 +910,15 @@ interface RetrievedChunk {
 
 1. 已完成：空白知识库持久化、基础管理和 RAG 节点选择。
 2. 已完成：Markdown/纯文本原文保存、同步分段预览与入库、分段查看、启停/删除和用户手动重新索引。
-3. 嵌入模型探测、首个 Index、异步文档入库和召回测试。
-4. 知识库级新代际构建和原子切换。
-5. 工作流运行、发布校验、引用删除保护和检索日志。
-6. 异步清理、退役代际回收和完整可观测性。
+3. 已完成实现，待部署联调：嵌入模型调用、首个 Index、异步文档入库和真实召回测试。
+4. 已完成实现，待部署联调：知识库级新代际构建、完整性校验和原子切换。
+5. 部分完成：工作流 RAG 运行与引用删除保护已接入；发布校验和检索日志待完成。
+6. 待完成：异步清理、退役代际回收、质量评测、外部 API 安全和完整可观测性。
 
-基础模型第一阶段暂不实现：
+当前阶段明确不包含：
 
 - OCR 和 Office 文件。
-- 混合检索、全文检索和重排模型会按生产方案的后续阶段实现，不塞入最小空白知识库阶段。
+- Cross-encoder Rerank、父块扩展和完整证据预算策略。
 - 网页抓取、第三方数据源同步和定时更新。
 - 复杂元数据管理和多知识库联合召回。
 - 专用向量数据库。
@@ -924,15 +927,15 @@ interface RetrievedChunk {
 
 1. 已落地知识库资源身份、用户归属与列表索引。
 2. 已实现知识库基础管理、Web `KnowledgeBaseField` 真实目录与 Core `ragNodeForm` 声明。
-3. 已落地本地文本原文适配器、分段配置修订、文档/Chunk 管理与手动重新索引基线。生产入库前仍需落地 Index、Source、Version、Head、Attempt、Outbox 和清理模型，同时补齐 OpenSearch projection 状态、外键、CHECK 和索引。
-4. 扩展嵌入模型适配器，完成真实 Embedding 探测、批量调用和维度识别。
-5. 接入对象存储、Outbox Dispatcher、RabbitMQ 知识任务队列和 IngestionAttempt。
-6. 实现 Source、Version、Chunk、Head 与单文档原子切换。
-7. 实现 KnowledgeBaseIndex 全量构建和 active Index 原子切换。
-8. 实现 OpenSearch BM25 + Dense + RRF、统一 Rerank、召回测试、RetrievalLog 和 Hit。
-9. 保存工作流时生成强类型引用投影，完成运行/发布校验和删除保护。
-10. 实现 `kb-` 外部 API Key、`/v1/knowledge/retrieve`、CleanupJob、退役代际回收和失败重试；
-    闭环稳定后再增加文件格式和托管 Answer API。
+3. 已落地 S3/MinIO、本地开发 Source Store、PDF/Markdown/TXT 解析、事实模型、RabbitMQ/Outbox、
+   幂等 Worker、版本化 Chunk、投影状态和原子 Head/active Index 切换；待执行迁移和环境联调。
+4. 已实现 OpenAI-compatible/Ollama Embedding、批量调用、维度识别和 embedding space 分组。
+5. 已实现 OpenSearch BM25 + Dense、强制租户/代际/文档过滤、应用层 RRF 和真实召回测试。
+6. 已实现 Go RAG Executor 与统一 Retriever；继续补齐发布校验和强类型引用投影。
+7. 已补齐带保护期的 Source 孤儿对象 GC；继续完成退役代际回收、禁用/删除投影传播和失败清理。
+8. 实现 Rerank、父块扩展、去重、证据预算、RetrievalLog/Hit 和版本化黄金集回归门槛。
+9. 实现 `kb-` 外部 API Key、grant、`/v1/knowledge/retrieve`、限流、审计和稳定错误契约。
+10. 完成 HA、备份恢复、容量与故障演练、SLO 监控；闭环稳定后再增加 Office/OCR 和托管 Answer API。
 
 ## 15. 待最终确认的产品规则
 

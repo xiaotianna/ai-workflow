@@ -36,7 +36,7 @@
 - 分类 Profile 分别消费 `ai-workflow.node.execute.compute.v1`、`.model.v1`、`.http.v1` 和
   `.sandbox.v1`；Result 仍统一发布到 `ai-workflow.result.v1`
 - 分类 Worker 收到不属于当前 Profile 的节点返回 `EXECUTOR_PROFILE_MISMATCH`，不提供 fallback
-- `EXECUTOR_INTERNAL_AUTH_TOKEN` 同时用于 Command Lease 与模型解析请求的 Bearer Token；为空时兼容
+- `EXECUTOR_INTERNAL_AUTH_TOKEN` 同时用于 Command Lease、模型解析和知识检索请求的 Bearer Token；为空时兼容
   现有本地部署
 - 生产两端设置 `EXECUTOR_REQUIRE_INTERNAL_AUTH=true`，缺少 Token 时 Server 或 Executor 必须拒绝启动
 
@@ -62,5 +62,15 @@
   或 deadline 任一失效时取消 Command context
 - 失效的排队消息直接 Ack 且不发布 Result；租约服务暂时不可用时不得盲目执行新命令，原消息重新入队
 - 部署网络必须允许 Executor 访问该内部接口，但不能把接口暴露到公网
+
+## RAG 检索
+
+- RAG Executor 不在 Go 进程内实现搜索算法，也不读取模型凭证；它把当前 Command 身份、Lease Token
+  和已解析的 `query` 发送给 Server 的统一 Retriever。
+- `KNOWLEDGE_RUNTIME_RETRIEVER_URL` 默认指向
+  `http://127.0.0.1:3000/internal/executor/knowledge/retrieve`。
+- Server 必须按 NodeRun 租约回查不可变工作流版本、owner、知识库引用和 TopK，不能信任 Executor
+  自报知识库 ID；返回结果统一写入 RAG 的 `documents` 输出。
+- 内部检索接口与租约、模型解析接口使用相同受控网络和 Bearer Token，不得暴露公网或记录查询正文。
 
 修改具体执行流程前，继续读取 [`apps/executor-go/internal/executors/code/README.md`](../../../../apps/executor-go/internal/executors/code/README.md)

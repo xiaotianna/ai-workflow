@@ -9,6 +9,8 @@
 - PostgreSQL 17 + Prisma 7
 - Redis 7.4
 - RabbitMQ 4 + amqplib
+- S3 / MinIO + AWS SDK v3
+- OpenSearch + `@opensearch-project/opensearch`
 - JWT + Argon2
 - Winston
 - class-validator / class-transformer
@@ -77,6 +79,9 @@ apps/server/
 - 当前用户查询、用户名和密码修改、退出登录。
 - Prisma 和 Redis 的 NestJS 生命周期管理。
 - 对话/嵌入模型组的持久化、启停、加密凭证和模型列表连通性测试。
+- 知识库管理、S3/MinIO 原文件、PDF/Markdown/TXT 解析、不可变索引代际和版本化 Chunk。
+- PostgreSQL Outbox + RabbitMQ 知识任务、Embedding Adapter、OpenSearch 投影、BM25/Dense/RRF 召回。
+- JWT 召回测试与受租约保护的 Executor 内部检索接口，共用统一知识检索服务。
 - 完整工作流与单节点测试运行，共用 Runtime、Protocol、运行记录和执行器链路。
 - RuntimeState revision、Command Outbox、Result Inbox、leaseToken 和 deadline 持久化。
 - RabbitMQ 持久队列、Publisher Confirm、Outbox claim/重试、Result 重试与死信队列。
@@ -137,20 +142,36 @@ apps/server/
 
 服务端通过 ConfigModule 校验以下环境变量：
 
-| 变量                              | 用途                                                  |
-| --------------------------------- | ----------------------------------------------------- |
-| `NODE_ENV`                        | `development`、`test` 或 `production`                 |
-| `PORT`                            | HTTP 监听端口，默认 `3000`                            |
-| `DATABASE_URL`                    | PostgreSQL 连接地址                                   |
-| `REDIS_URL`                       | Redis 连接地址                                        |
-| `JWT_SECRET`                      | JWT 签名密钥                                          |
-| `JWT_EXPIRES_IN`                  | JWT 有效期，默认 `7d`                                 |
-| `MODEL_CREDENTIAL_ENCRYPTION_KEY` | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
-| `RABBITMQ_URL`                    | AMQP 地址，默认连接 `compose.dev.yaml` 的开发 vhost   |
-| `WORKFLOW_EXECUTOR_ROUTING_MODE`  | `legacy` 或 `classified`；默认 `legacy` 保持旧队列    |
-| `EXECUTOR_ENABLED_CLASSES`        | 允许派发的执行类别，逗号分隔                          |
-| `EXECUTOR_INTERNAL_AUTH_TOKEN`    | Executor 内部接口 Bearer Token；为空时兼容旧部署      |
-| `EXECUTOR_REQUIRE_INTERNAL_AUTH`  | 为 `true` 时缺少内部认证令牌会拒绝启动                |
+| 变量                                 | 用途                                                  |
+| ------------------------------------ | ----------------------------------------------------- |
+| `NODE_ENV`                           | `development`、`test` 或 `production`                 |
+| `PORT`                               | HTTP 监听端口，默认 `3000`                            |
+| `DATABASE_URL`                       | PostgreSQL 连接地址                                   |
+| `REDIS_URL`                          | Redis 连接地址                                        |
+| `JWT_SECRET`                         | JWT 签名密钥                                          |
+| `JWT_EXPIRES_IN`                     | JWT 有效期，默认 `7d`                                 |
+| `MODEL_CREDENTIAL_ENCRYPTION_KEY`    | 模型 Key 加密使用的 32 字节 Base64 密钥；生产环境必填 |
+| `RABBITMQ_URL`                       | AMQP 地址，默认连接 `compose.dev.yaml` 的开发 vhost   |
+| `WORKFLOW_EXECUTOR_ROUTING_MODE`     | `legacy` 或 `classified`；默认 `legacy` 保持旧队列    |
+| `EXECUTOR_ENABLED_CLASSES`           | 允许派发的执行类别，逗号分隔                          |
+| `EXECUTOR_INTERNAL_AUTH_TOKEN`       | Executor 内部接口 Bearer Token；为空时兼容旧部署      |
+| `EXECUTOR_REQUIRE_INTERNAL_AUTH`     | 为 `true` 时缺少内部认证令牌会拒绝启动                |
+| `KNOWLEDGE_SOURCE_STORAGE_DRIVER`    | 知识库原文件驱动：开发默认 `local`，生产默认 `s3`     |
+| `KNOWLEDGE_SOURCE_DIRECTORY`         | `local` 驱动的原文件目录                              |
+| `KNOWLEDGE_S3_ENDPOINT`              | S3 兼容 endpoint；AWS S3 可留空                       |
+| `KNOWLEDGE_S3_REGION`                | S3 region，默认 `us-east-1`                           |
+| `KNOWLEDGE_S3_BUCKET`                | S3 Bucket；使用 `s3` 驱动时必填                       |
+| `KNOWLEDGE_S3_ACCESS_KEY_ID`         | 可选静态 Access Key；留空时使用 AWS 默认凭证链        |
+| `KNOWLEDGE_S3_SECRET_ACCESS_KEY`     | 静态 Secret Key，必须与 Access Key 成对配置           |
+| `KNOWLEDGE_S3_FORCE_PATH_STYLE`      | MinIO 等服务通常设为 `true`                           |
+| `KNOWLEDGE_SOURCE_GC_ENABLED`        | 是否扫描孤儿原文件；生产默认开启                      |
+| `KNOWLEDGE_SOURCE_GC_INTERVAL_MS`    | 孤儿原文件扫描间隔，默认 15 分钟                      |
+| `KNOWLEDGE_SOURCE_GC_GRACE_MS`       | 删除前保护期，默认 24 小时                            |
+| `KNOWLEDGE_SOURCE_GC_BATCH_SIZE`     | 单批扫描对象数，默认 500，最大 1000                   |
+| `OPENSEARCH_URL`                     | OpenSearch HTTP(S) 地址                               |
+| `OPENSEARCH_USERNAME`                | 可选 Basic Auth 用户名，必须与密码成对配置            |
+| `OPENSEARCH_PASSWORD`                | 可选 Basic Auth 密码，必须与用户名成对配置            |
+| `OPENSEARCH_TLS_REJECT_UNAUTHORIZED` | 是否校验 OpenSearch TLS 证书，生产应保持 `true`       |
 
 开发和测试环境未配置模型凭证密钥时，会通过 HKDF 从 `JWT_SECRET` 派生用途隔离密钥；生产环境
 必须配置专用密钥。模型运行和连通性测试不应用目标地址白名单或内网地址过滤；目标网络限制由
@@ -215,7 +236,8 @@ at-least-once 设计。损坏的 Outbox 命令与达到最大处理次数的 Res
 为 30 秒，LLM 与 Sub Workflow 使用 24 小时长任务期限；等待期间 SSE 心跳会维持前端运行态，主动
 取消或最后一个 SSE 客户端断开仍会通过租约终止请求。Go 已按节点类型注册 `llm`、`rag`、`code`、
 `http`、`condition` 的具体 Executor；RabbitMQ transport、Registry、Runtime、SSE、持久化与幂等
-链路均为正式边界。RAG、业务副作用幂等存储和通用 Secret Gateway 仍属于后续阶段。
+链路均为正式边界。RAG Executor 已通过内部租约接口调用服务端统一 Retriever；外部知识库 API Key、
+Rerank、检索日志、业务副作用幂等存储和通用 Secret Gateway 仍属于后续阶段。
 
 ## 常用命令
 

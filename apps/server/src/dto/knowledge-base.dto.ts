@@ -6,6 +6,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -75,6 +76,14 @@ export const KNOWLEDGE_RETRIEVAL_PROFILES = ['HYBRID_ACCURATE', 'HYBRID_FAST'] a
 export type KnowledgeRetrievalProfileDto = (typeof KNOWLEDGE_RETRIEVAL_PROFILES)[number]
 
 export class UpdateKnowledgeBaseSettingsDto {
+  @IsUUID('4', { message: '嵌入模型组 ID 无效' })
+  @IsOptional()
+  embeddingModelGroupId?: string | null
+
+  @IsUUID('4', { message: '嵌入模型 ID 无效' })
+  @IsOptional()
+  embeddingConfiguredModelId?: string | null
+
   @IsIn(KNOWLEDGE_SEGMENTATION_MODES, { message: '不支持当前分段模式' })
   segmentationMode!: KnowledgeSegmentationModeDto
 
@@ -131,6 +140,20 @@ export class ListKnowledgeChunksDto {
   @Transform(({ value }) => Number(value))
   @IsIn([10, 25, 50], { message: '不支持当前每页数量' })
   pageSize = 10
+}
+
+export class RetrieveKnowledgeBaseDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(10_000, { message: '检索内容不能超过 10000 个字符' })
+  @IsNotEmpty({ message: '检索内容不能为空' })
+  @IsString({ message: '检索内容必须是字符串' })
+  query!: string
+
+  @Max(20, { message: '返回数量不能超过 20' })
+  @Min(1, { message: '返回数量不能小于 1' })
+  @IsInt({ message: '返回数量必须是整数' })
+  @IsOptional()
+  topK = 8
 }
 
 export class CreateKnowledgeDocumentsDto {

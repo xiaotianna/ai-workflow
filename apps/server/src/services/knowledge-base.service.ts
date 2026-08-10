@@ -12,16 +12,20 @@ import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
 import {
   KnowledgeBaseRepository,
   type KnowledgeBaseRecord,
+  type KnowledgeBaseIndexRecord,
   type KnowledgeBaseSettingsRecord,
   type KnowledgeChunkRecord,
   type KnowledgeDocumentRecord,
 } from '@/repositories/knowledge-base.repository'
+import { ModelGroupRepository } from '@/repositories/model-group.repository'
 import {
   KnowledgeChunkerService,
   type KnowledgeChunkConfig,
 } from '@/services/knowledge-chunker.service'
 import type { KnowledgeBaseListVo, KnowledgeBaseVo } from '@/vo/knowledge-base.vo'
 import type {
+  KnowledgeBaseIndexListVo,
+  KnowledgeBaseIndexVo,
   KnowledgeBaseSettingsVo,
   KnowledgeChunkListVo,
   KnowledgeChunkVo,
@@ -43,6 +47,7 @@ export class KnowledgeBaseService {
     private readonly knowledgeBaseRepository: KnowledgeBaseRepository,
     private readonly knowledgeSourceStore: KnowledgeSourceStore,
     private readonly knowledgeChunkerService: KnowledgeChunkerService,
+    private readonly modelGroupRepository: ModelGroupRepository,
   ) {}
 
   async list(ownerId: string, query: ListKnowledgeBasesDto): Promise<KnowledgeBaseListVo> {
@@ -149,9 +154,109 @@ export class KnowledgeBaseService {
       throw new BadRequestException('重叠长度必须小于分段最大长度')
     }
 
-    const result = await this.knowledgeBaseRepository.updateSettings(ownerId, knowledgeBaseId, dto)
+    const current = await this.knowledgeBaseRepository.getSettings(ownerId, knowledgeBaseId)
+    if (!current) throw new NotFoundException('知识库不存在')
+
+    const embeddingModelGroupId =
+      dto.embeddingModelGroupId === undefined
+        ? current.settings.embeddingModelGroupId
+        : dto.embeddingModelGroupId
+    const embeddingConfiguredModelId =
+      dto.embeddingConfiguredModelId === undefined
+        ? current.settings.embeddingConfiguredModelId
+        : dto.embeddingConfiguredModelId
+    if (Boolean(embeddingModelGroupId) !== Boolean(embeddingConfiguredModelId)) {
+      throw new BadRequestException('嵌入模型组和模型必须同时选择或同时清空')
+    }
+
+    const embeddingModelChanged =
+      current.settings.embeddingModelGroupId !== embeddingModelGroupId ||
+      current.settings.embeddingConfiguredModelId !== embeddingConfiguredModelId
+
+    const segmentationChanged =
+      current.settings.segmentationMode !== dto.segmentationMode ||
+      current.settings.maxSegmentLength !== dto.maxSegmentLength ||
+      current.settings.overlapLength !== dto.overlapLength ||
+      current.settings.normalizeWhitespace !== dto.normalizeWhitespace
+
+    let indexSnapshot:
+      | {
+          configuredModelId: string
+          embeddingProvider: string
+          embeddingModelId: string
+          defaultChunkConfig: {
+            segmentationMode: string
+            maxSegmentLength: number
+            overlapLength: number
+          }
+          defaultCleaningConfig: {
+            normalizeWhitespace: boolean
+          }
+          configHash: string
+        }
+      | undefined
+
+    if (
+      (embeddingModelChanged || segmentationChanged) &&
+      embeddingModelGroupId &&
+      embeddingConfiguredModelId
+    ) {
+      const group = await this.modelGroupRepository.findById(ownerId, embeddingModelGroupId)
+      const model = group?.models.find(({ id }) => id === embeddingConfiguredModelId)
+
+      if (!group || group.modelType !== 'EMBEDDING' || !model) {
+        throw new BadRequestException('请选择当前账号下有效的嵌入模型')
+      }
+      if (!group.enabled || !model.enabled) {
+        throw new BadRequestException('所选嵌入模型已停用，请先启用或选择其他模型')
+      }
+
+      const defaultChunkConfig = {
+        segmentationMode: dto.segmentationMode,
+        maxSegmentLength: dto.maxSegmentLength,
+        overlapLength: dto.overlapLength,
+      }
+      const defaultCleaningConfig = {
+        normalizeWhitespace: dto.normalizeWhitespace,
+      }
+      const indexConfig = {
+        configuredModelId: model.id,
+        embeddingProvider: group.providerType,
+        embeddingModelId: model.modelId,
+        distanceMetric: 'COSINE',
+        defaultChunkConfig,
+        defaultCleaningConfig,
+        parserVersion: 'text-v1',
+        cleanerVersion: 'conservative-v1',
+        mappingVersion: 'opensearch-v1',
+      }
+      indexSnapshot = {
+        configuredModelId: model.id,
+        embeddingProvider: group.providerType,
+        embeddingModelId: model.modelId,
+        defaultChunkConfig,
+        defaultCleaningConfig,
+        configHash: createHash('sha256').update(JSON.stringify(indexConfig)).digest('hex'),
+      }
+    }
+
+    const result = await this.knowledgeBaseRepository.updateSettings(ownerId, knowledgeBaseId, {
+      ...dto,
+      embeddingModelGroupId,
+      embeddingConfiguredModelId,
+      indexSnapshot,
+    })
     if (!result) throw new NotFoundException('知识库不存在')
     return this.toSettingsVo(result.settings, result.staleDocumentCount)
+  }
+
+  async listIndexes(ownerId: string, knowledgeBaseId: string): Promise<KnowledgeBaseIndexListVo> {
+    const result = await this.knowledgeBaseRepository.listIndexes(ownerId, knowledgeBaseId)
+    if (!result) throw new NotFoundException('知识库不存在')
+
+    return {
+      items: result.items.map((index) => this.toIndexVo(index, result.activeIndexId)),
+    }
   }
 
   async listDocuments(
@@ -196,7 +301,7 @@ export class KnowledgeBaseService {
     }
     return Promise.all(
       files.map(async (file) => {
-        const text = this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+        const text = await this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
         const chunks = this.knowledgeChunkerService.chunk(text, config)
         if (!chunks.length) throw new BadRequestException(`${file.originalname} 没有可用的分段内容`)
 
@@ -204,6 +309,7 @@ export class KnowledgeBaseService {
           knowledgeBaseId,
           file.originalname,
           file.buffer,
+          file.mimetype || undefined,
         )
 
         try {
@@ -253,21 +359,23 @@ export class KnowledgeBaseService {
     }
 
     return {
-      files: files.map((file) => {
-        const text = this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
-        const chunks = this.knowledgeChunkerService.chunk(text, config)
-        return {
-          name: file.originalname,
-          total: chunks.length,
-          truncated: chunks.length > 20,
-          items: chunks.slice(0, 20).map((chunk, index) => ({
-            sequence: index + 1,
-            content: chunk.content,
-            characterCount: chunk.content.length,
-            metadata: chunk.metadata,
-          })),
-        }
-      }),
+      files: await Promise.all(
+        files.map(async (file) => {
+          const text = await this.knowledgeChunkerService.parseText(file.buffer, file.originalname)
+          const chunks = this.knowledgeChunkerService.chunk(text, config)
+          return {
+            name: file.originalname,
+            total: chunks.length,
+            truncated: chunks.length > 20,
+            items: chunks.slice(0, 20).map((chunk, index) => ({
+              sequence: index + 1,
+              content: chunk.content,
+              characterCount: chunk.content.length,
+              metadata: chunk.metadata,
+            })),
+          }
+        }),
+      ),
     }
   }
 
@@ -323,6 +431,14 @@ export class KnowledgeBaseService {
     knowledgeBaseId: string,
     documentId: string,
   ): Promise<KnowledgeDocumentVo> {
+    const queued = await this.knowledgeBaseRepository.queueDocumentReindex(
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+    )
+    if (!queued) throw new NotFoundException('文档不存在')
+    if (queued.queued) return this.toDocumentVo(queued.document)
+
     const [document, settingsResult] = await Promise.all([
       this.knowledgeBaseRepository.findDocument(ownerId, knowledgeBaseId, documentId),
       this.knowledgeBaseRepository.getSettings(ownerId, knowledgeBaseId),
@@ -330,8 +446,13 @@ export class KnowledgeBaseService {
     if (!document || !settingsResult) throw new NotFoundException('文档不存在')
 
     const source = await this.knowledgeSourceStore.read(document.sourceStorageKey)
-    const sourceName = document.fileType === 'markdown' ? 'source.md' : 'source.txt'
-    const text = this.knowledgeChunkerService.parseText(source, sourceName)
+    const sourceName =
+      document.fileType === 'markdown'
+        ? 'source.md'
+        : document.fileType === 'pdf'
+          ? 'source.pdf'
+          : 'source.txt'
+    const text = await this.knowledgeChunkerService.parseText(source, sourceName)
     const config: KnowledgeChunkConfig = {
       segmentationMode: settingsResult.settings.segmentationMode,
       maxSegmentLength: settingsResult.settings.maxSegmentLength,
@@ -403,7 +524,23 @@ export class KnowledgeBaseService {
     settings: KnowledgeBaseSettingsRecord,
     staleDocumentCount: number,
   ): KnowledgeBaseSettingsVo {
-    return { ...settings, staleDocumentCount }
+    return {
+      segmentationMode: settings.segmentationMode,
+      maxSegmentLength: settings.maxSegmentLength,
+      overlapLength: settings.overlapLength,
+      normalizeWhitespace: settings.normalizeWhitespace,
+      segmentationRevision: settings.segmentationRevision,
+      retrievalProfile: settings.retrievalProfile,
+      retrievalTopK: settings.retrievalTopK,
+      staleDocumentCount,
+      updatedAt: settings.updatedAt,
+      ...(settings.embeddingModelGroupId
+        ? { embeddingModelGroupId: settings.embeddingModelGroupId }
+        : {}),
+      ...(settings.embeddingConfiguredModelId
+        ? { embeddingConfiguredModelId: settings.embeddingConfiguredModelId }
+        : {}),
+    }
   }
 
   private toDocumentVo(document: KnowledgeDocumentRecord): KnowledgeDocumentVo {
@@ -430,6 +567,31 @@ export class KnowledgeBaseService {
     }
   }
 
+  private toIndexVo(
+    index: KnowledgeBaseIndexRecord,
+    activeIndexId: string | null,
+  ): KnowledgeBaseIndexVo {
+    return {
+      id: index.id,
+      generation: index.generation,
+      configuredModelId: index.configuredModelId,
+      embeddingProvider: index.embeddingProvider,
+      embeddingModelId: index.embeddingModelId,
+      distanceMetric: index.distanceMetric,
+      configHash: index.configHash,
+      status: index.status,
+      active: activeIndexId === index.id,
+      createdAt: index.createdAt,
+      ...(index.embeddingDimension ? { embeddingDimension: index.embeddingDimension } : {}),
+      ...(index.embeddingSpaceKey ? { embeddingSpaceKey: index.embeddingSpaceKey } : {}),
+      ...(index.errorCode ? { errorCode: index.errorCode } : {}),
+      ...(index.errorMessage ? { errorMessage: index.errorMessage } : {}),
+      ...(index.readyAt ? { readyAt: index.readyAt } : {}),
+      ...(index.activatedAt ? { activatedAt: index.activatedAt } : {}),
+      ...(index.retiredAt ? { retiredAt: index.retiredAt } : {}),
+    }
+  }
+
   private toChunkVo(chunk: KnowledgeChunkRecord): KnowledgeChunkVo {
     return {
       id: chunk.id,
@@ -444,6 +606,7 @@ export class KnowledgeBaseService {
 
   private resolveFileType(fileName: string): string {
     const extension = fileName.split('.').pop()?.toLowerCase()
+    if (extension === 'pdf') return 'pdf'
     return extension === 'md' || extension === 'markdown' ? 'markdown' : 'text'
   }
 }

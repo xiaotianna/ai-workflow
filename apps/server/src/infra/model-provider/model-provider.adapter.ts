@@ -9,6 +9,12 @@ export interface ModelChatStreamProbe {
   extractMessage(value: unknown): string | undefined
 }
 
+export interface ModelEmbeddingRequest {
+  url: URL
+  body: Record<string, unknown>
+  extractEmbeddings(value: unknown): number[][]
+}
+
 export interface ModelProviderAdapter {
   readonly type: ModelProviderTypeValue
   readonly defaultBaseUrl: string
@@ -19,7 +25,23 @@ export interface ModelProviderAdapter {
     prompt: string,
     baseUrl?: string | null,
   ): ModelChatStreamProbe
+  createEmbeddingRequest(
+    modelId: string,
+    inputs: readonly string[],
+    baseUrl?: string | null,
+  ): ModelEmbeddingRequest
   isValidResponse(value: unknown): boolean
+}
+
+export function parseEmbeddingVector(value: unknown): number[] {
+  if (
+    !Array.isArray(value) ||
+    !value.length ||
+    value.some((item) => typeof item !== 'number' || !Number.isFinite(item))
+  ) {
+    throw new Error('Embedding 响应中的向量无效')
+  }
+  return value
 }
 
 export function createProbeUrl(baseUrl: string, pathname: string): URL {

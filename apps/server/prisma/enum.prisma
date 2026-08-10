@@ -81,3 +81,59 @@ enum KnowledgeDocumentStatus {
   READY
   FAILED
 }
+
+enum KnowledgeLifecycleStatus {
+  ACTIVE
+  DELETING
+  DELETE_FAILED
+}
+
+enum KnowledgeIndexStatus {
+  BUILDING
+  READY
+  FAILED
+  CANCELLED
+}
+
+enum KnowledgeDistanceMetric {
+  COSINE
+  EUCLIDEAN
+  INNER_PRODUCT
+}
+
+enum KnowledgeDocumentSourceType {
+  FILE
+}
+
+enum KnowledgeDocumentVersionStatus {
+  QUEUED
+  PARSING
+  CHUNKING
+  EMBEDDING
+  READY
+  FAILED
+  CANCELLED
+}
+
+enum KnowledgeAttemptStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+}
+
+enum KnowledgeProjectionStatus {
+  PENDING
+  WRITING
+  READY
+  FAILED
+  DELETING
+}
+
+enum KnowledgeOutboxStatus {
+  PENDING
+  PUBLISHING
+  PUBLISHED
+  FAILED
+}

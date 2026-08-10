@@ -181,7 +181,7 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - `DELETE /knowledge-bases/:knowledgeBaseId`：永久删除当前知识库；删除前检查当前用户工作流
   草稿和版本 JSON 中的 RAG 引用，存在引用时返回 `409` 和“知识库正在被工作流使用，无法删除”。
   当前同步删除 PostgreSQL 文档/Chunk，并通过存储适配器清理本地原文；生产对象存储接入后升级为异步清理生命周期。
-- `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库分段与检索设置。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
+- `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库嵌入模型、分段与检索设置。嵌入模型使用可同时为空的 `embeddingModelGroupId` / `embeddingConfiguredModelId` 稳定引用；修改引用时服务端校验 owner、`EMBEDDING` 类型以及组和模型启用状态。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
 - `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 Markdown/纯文本并同步保存分段；上传最多 10 个文件，单文件最大 15 MiB。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/preview`：使用与正式入库相同的 Parser/Cleaner/Chunker 生成临时预览，不写入数据库或原文存储。
 - `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档。
@@ -257,10 +257,11 @@ Key 必须同时校验 `knowledge:retrieve`、`knowledge:answer`、`knowledge:do
   不得重复。
 - `PUT /models/groups/:groupId`：原子保存组配置与完整模型列表；模型项携带 ID 时更新原记录，
   未携带时创建，响应中缺失的旧模型会删除。Key 不传表示保留，字符串表示替换，`null` 表示
-  清除；修改供应商时必须明确设置或清除 Key。
+  清除；修改供应商时必须明确设置或清除 Key。知识库已引用的嵌入模型不能删除或修改模型 ID，
+  其模型组不能修改供应商类型。
 - `PATCH /models/groups/:groupId/enabled`：只修改模型组启用状态，不覆盖组内模型状态。
 - `PATCH /models/groups/:groupId/models/:modelId/enabled`：按配置模型 UUID 修改单模型启用状态。
-- `DELETE /models/groups/:groupId`：硬删除模型组并级联删除组内模型。
+- `DELETE /models/groups/:groupId`：硬删除模型组并级联删除组内模型；正在被知识库设置引用时返回 `409`。
 - `POST /models/test-connection`：按供应商模型列表接口探测连接。输入可携带本次 Key，或通过
   `credentialGroupId` 使用当前用户已保存的 Key；两者不可同时提供。上游 `401/403` 等预期
   探测结果仍使用本接口的 `200` 返回，不得把上游认证状态透传为会触发前端退出的 HTTP 状态。

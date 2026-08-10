@@ -31,6 +31,8 @@ export type KnowledgeSegmentationMode = 'GENERAL' | 'QA' | 'PARENT_CHILD'
 export type KnowledgeRetrievalProfile = 'HYBRID_ACCURATE' | 'HYBRID_FAST'
 
 export interface KnowledgeBaseSettingsDto {
+  embeddingModelGroupId?: string
+  embeddingConfiguredModelId?: string
   segmentationMode: KnowledgeSegmentationMode
   maxSegmentLength: number
   overlapLength: number
@@ -43,6 +45,8 @@ export interface KnowledgeBaseSettingsDto {
 }
 
 export interface UpdateKnowledgeBaseSettingsParams {
+  embeddingModelGroupId: string | null
+  embeddingConfiguredModelId: string | null
   segmentationMode: KnowledgeSegmentationMode
   maxSegmentLength: number
   overlapLength: number
@@ -103,6 +107,21 @@ export interface KnowledgeChunkListDto {
   total: number
   page: number
   pageSize: number
+}
+
+export interface KnowledgeRetrievalDocumentDto {
+  chunkId: string
+  documentId: string
+  documentVersionId: string
+  documentName: string
+  sequence: number
+  content: string
+  metadata: Record<string, unknown>
+  score: number
+}
+
+export interface KnowledgeRetrievalDto {
+  documents: KnowledgeRetrievalDocumentDto[]
 }
 
 export interface KnowledgeDocumentPreviewDto {
@@ -248,6 +267,16 @@ export function listKnowledgeChunks(
   return apiClient.get<KnowledgeChunkListDto>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/chunks`,
     { params, signal },
+  )
+}
+
+export function retrieveKnowledgeBase(
+  knowledgeBaseId: string,
+  values: { query: string; topK: number },
+): Promise<KnowledgeRetrievalDto> {
+  return apiClient.post<KnowledgeRetrievalDto, typeof values>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/retrieve`,
+    values,
   )
 }
 

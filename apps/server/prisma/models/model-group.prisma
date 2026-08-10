@@ -13,8 +13,9 @@ model ModelGroup {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  owner  User              @relation(fields: [ownerId], references: [id], onDelete: Restrict)
-  models ConfiguredModel[]
+  owner                          User                    @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  models                         ConfiguredModel[]
+  knowledgeBaseEmbeddingSettings KnowledgeBaseSettings[] @relation("KnowledgeBaseEmbeddingModelGroup")
 
   @@index([ownerId, modelType, createdAt])
   @@map("model_groups")
@@ -31,7 +32,9 @@ model ConfiguredModel {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  group ModelGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group                          ModelGroup              @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  knowledgeBaseEmbeddingSettings KnowledgeBaseSettings[] @relation("KnowledgeBaseEmbeddingConfiguredModel")
+  knowledgeBaseIndexes           KnowledgeBaseIndex[]
 
   @@unique([groupId, normalizedModelId])
   @@index([groupId, sortOrder])

@@ -18,6 +18,7 @@ func RegisterProfile(
 	profile executorprofile.Profile,
 	logger *log.Logger,
 	modelResolverURL string,
+	knowledgeRetrieverURL string,
 	pluginArtifactResolverURL string,
 	internalAuthToken string,
 ) error {
@@ -27,7 +28,10 @@ func RegisterProfile(
 			llmexecutor.NodeType,
 			llmexecutor.New(logger, modelResolverURL, internalAuthToken),
 		)
-		registry.Register(ragexecutor.NodeType, ragexecutor.New(logger))
+		registry.Register(
+			ragexecutor.NodeType,
+			ragexecutor.New(logger, knowledgeRetrieverURL, internalAuthToken),
+		)
 		if err := registerCode(registry, logger); err != nil {
 			return err
 		}
@@ -43,7 +47,10 @@ func RegisterProfile(
 			llmexecutor.NodeType,
 			llmexecutor.New(logger, modelResolverURL, internalAuthToken),
 		)
-		registry.Register(ragexecutor.NodeType, ragexecutor.New(logger))
+		registry.Register(
+			ragexecutor.NodeType,
+			ragexecutor.New(logger, knowledgeRetrieverURL, internalAuthToken),
+		)
 	case executorprofile.HTTP:
 		registerHTTP(registry, logger)
 	case executorprofile.Sandbox:

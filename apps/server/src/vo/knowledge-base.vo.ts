@@ -13,6 +13,8 @@ export interface KnowledgeBaseListVo {
 }
 
 export interface KnowledgeBaseSettingsVo {
+  embeddingModelGroupId?: string
+  embeddingConfiguredModelId?: string
   segmentationMode: 'GENERAL' | 'QA' | 'PARENT_CHILD'
   maxSegmentLength: number
   overlapLength: number
@@ -22,6 +24,30 @@ export interface KnowledgeBaseSettingsVo {
   retrievalTopK: number
   staleDocumentCount: number
   updatedAt: Date
+}
+
+export interface KnowledgeBaseIndexVo {
+  id: string
+  generation: number
+  configuredModelId: string
+  embeddingProvider: string
+  embeddingModelId: string
+  embeddingDimension?: number
+  embeddingSpaceKey?: string
+  distanceMetric: 'COSINE' | 'EUCLIDEAN' | 'INNER_PRODUCT'
+  configHash: string
+  status: 'BUILDING' | 'READY' | 'FAILED' | 'CANCELLED'
+  active: boolean
+  errorCode?: string
+  errorMessage?: string
+  createdAt: Date
+  readyAt?: Date
+  activatedAt?: Date
+  retiredAt?: Date
+}
+
+export interface KnowledgeBaseIndexListVo {
+  items: KnowledgeBaseIndexVo[]
 }
 
 export interface KnowledgeDocumentVo {

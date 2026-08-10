@@ -3,7 +3,9 @@ import {
   createProbeUrl,
   isRecord,
   type ModelChatStreamProbe,
+  type ModelEmbeddingRequest,
   type ModelProviderAdapter,
+  parseEmbeddingVector,
 } from './model-provider.adapter'
 
 export class OpenAiCompatibleModelProviderAdapter implements ModelProviderAdapter {
@@ -32,6 +34,31 @@ export class OpenAiCompatibleModelProviderAdapter implements ModelProviderAdapte
         stream: true,
       },
       extractMessage: extractOpenAiCompatibleMessage,
+    }
+  }
+
+  createEmbeddingRequest(
+    modelId: string,
+    inputs: readonly string[],
+    baseUrl?: string | null,
+  ): ModelEmbeddingRequest {
+    return {
+      url: createProbeUrl(baseUrl || this.defaultBaseUrl, 'embeddings'),
+      body: { model: modelId, input: inputs },
+      extractEmbeddings(value: unknown): number[][] {
+        if (!isRecord(value) || !Array.isArray(value.data)) {
+          throw new Error('Embedding 响应结构无效')
+        }
+        return value.data
+          .map((item) => {
+            if (!isRecord(item) || !Number.isSafeInteger(item.index)) {
+              throw new Error('Embedding 响应缺少有效 index')
+            }
+            return { index: item.index as number, vector: parseEmbeddingVector(item.embedding) }
+          })
+          .sort((left, right) => left.index - right.index)
+          .map(({ vector }) => vector)
+      },
     }
   }
 

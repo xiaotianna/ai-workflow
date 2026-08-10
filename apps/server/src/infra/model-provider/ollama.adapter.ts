@@ -2,7 +2,9 @@ import {
   createProbeUrl,
   isRecord,
   type ModelChatStreamProbe,
+  type ModelEmbeddingRequest,
   type ModelProviderAdapter,
+  parseEmbeddingVector,
 } from './model-provider.adapter'
 
 export class OllamaModelProviderAdapter implements ModelProviderAdapter {
@@ -29,6 +31,23 @@ export class OllamaModelProviderAdapter implements ModelProviderAdapter {
         think: false,
       },
       extractMessage: extractOllamaMessage,
+    }
+  }
+
+  createEmbeddingRequest(
+    modelId: string,
+    inputs: readonly string[],
+    baseUrl?: string | null,
+  ): ModelEmbeddingRequest {
+    return {
+      url: createProbeUrl(baseUrl || this.defaultBaseUrl, 'api/embed'),
+      body: { model: modelId, input: inputs },
+      extractEmbeddings(value: unknown): number[][] {
+        if (!isRecord(value) || !Array.isArray(value.embeddings)) {
+          throw new Error('Embedding 响应结构无效')
+        }
+        return value.embeddings.map(parseEmbeddingVector)
+      },
     }
   }
 
