@@ -17,8 +17,17 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { showToast } from '@ai-workflow/ui/lib/toast'
-import { AlertTriangle, Boxes, Search, SplitSquareVertical } from 'lucide-react'
-import { useEffect, useState, type FormEvent } from 'react'
+import { cn } from '@ai-workflow/ui/lib/utils'
+import {
+  AlignLeft,
+  AlertTriangle,
+  Gauge,
+  MessagesSquare,
+  Network,
+  SearchCheck,
+  type LucideIcon,
+} from 'lucide-react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { Link, useOutletContext, useParams } from 'react-router-dom'
 
 import { PageContent } from '@/components/page-content'
@@ -30,6 +39,7 @@ import {
   type DocumentSegmentationMode,
   type KnowledgeBaseSettingsFormInput,
 } from '@/features/knowledge-base'
+import { getModelProviderStrategy } from '@/features/models'
 
 import type { KnowledgeBaseDetailOutletContext } from '.'
 
@@ -56,6 +66,105 @@ const retrievalProfileFromApi = {
 } as const
 
 const NO_EMBEDDING_MODEL_VALUE = 'none'
+
+const segmentationModeIcons = {
+  general: AlignLeft,
+  qa: MessagesSquare,
+  'parent-child': Network,
+} satisfies Record<DocumentSegmentationMode, LucideIcon>
+
+const retrievalProfileOptions = [
+  {
+    value: 'hybrid-accurate',
+    label: '混合检索 · 高准确',
+    description: '融合关键词匹配与向量语义召回，优先保证检索准确度。',
+    icon: SearchCheck,
+  },
+  {
+    value: 'hybrid-fast',
+    label: '混合检索 · 低延迟',
+    description: '融合关键词匹配与向量语义召回，优先缩短检索响应时间。',
+    icon: Gauge,
+  },
+] as const satisfies readonly {
+  value: KnowledgeBaseSettingsFormInput['retrievalProfile']
+  label: string
+  description: string
+  icon: LucideIcon
+}[]
+
+interface SettingsRowProps {
+  children: ReactNode
+  description?: ReactNode
+  title: string
+}
+
+function SettingsRow({ children, description, title }: SettingsRowProps) {
+  return (
+    <div className="grid gap-4 py-7 md:grid-cols-[180px_minmax(0,1fr)] md:gap-8">
+      <div className="min-w-0">
+        <h2 className="text-sm leading-8 font-semibold">{title}</h2>
+        {description ? (
+          <div className="text-muted-foreground text-xs leading-5">{description}</div>
+        ) : null}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </div>
+  )
+}
+
+interface SelectionCardProps {
+  checked: boolean
+  description: string
+  icon: LucideIcon
+  label: string
+  name: string
+  value: string
+  onChange: () => void
+}
+
+function SelectionCard({
+  checked,
+  description,
+  icon: Icon,
+  label,
+  name,
+  value,
+  onChange,
+}: SelectionCardProps) {
+  return (
+    <label
+      className={cn(
+        'flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3.5 transition-[background-color,border-color,box-shadow]',
+        'has-[:focus-visible]:border-primary has-[:focus-visible]:bg-background',
+        checked
+          ? 'border-primary bg-primary/[0.035] shadow-xs'
+          : 'border-border/70 bg-background hover:border-input-focus',
+      )}
+    >
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        checked={checked}
+        className="sr-only"
+        onChange={onChange}
+      />
+      <span
+        className={cn(
+          'mt-0.5 flex size-6 shrink-0 items-center justify-center',
+          checked ? 'text-primary' : 'text-muted-foreground',
+        )}
+      >
+        <Icon aria-hidden className="size-[18px]" />
+      </span>
+      <span className="min-w-0">
+        <span className="text-foreground block text-sm leading-5 font-medium">{label}</span>
+        <span className="text-muted-foreground mt-0.5 block text-xs leading-5">{description}</span>
+      </span>
+    </label>
+  )
+}
 
 export default function KnowledgeBaseSettingsPage() {
   const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
@@ -143,20 +252,23 @@ export default function KnowledgeBaseSettingsPage() {
   const selectedEmbeddingModelAvailable = availableEmbeddingModelGroups.some((group) =>
     group.models.some((model) => model.id === form.embeddingConfiguredModelId),
   )
+  const SelectedEmbeddingProviderIcon = selectedEmbeddingModel
+    ? getModelProviderStrategy(selectedEmbeddingModel.group.providerType).icon
+    : null
 
   return (
     <div className="min-h-full px-6 pt-4 pb-8">
       <PageTitle title="设置" subtitle="配置新文档的分段方式与知识库的查询策略" />
 
-      <PageContent className="mt-5 max-w-4xl">
+      <PageContent className="mt-5 w-full max-w-3xl pl-10">
         {!isResourceAvailable || loading ? (
           <div className="text-muted-foreground flex min-h-48 items-center justify-center text-sm">
             知识库设置加载中
           </div>
         ) : (
-          <Form onSubmit={handleSubmit} className="space-y-5">
+          <Form onSubmit={handleSubmit} className="space-y-0">
             {staleDocumentCount > 0 ? (
-              <div className="border-warning/40 bg-warning/8 text-foreground flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
+              <div className="border-warning/40 bg-warning/8 text-foreground mb-2 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm">
                 <AlertTriangle aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
                 <p className="leading-5">
                   有 {staleDocumentCount} 个文档仍在使用旧分段。保存设置不会修改现有
@@ -165,80 +277,98 @@ export default function KnowledgeBaseSettingsPage() {
               </div>
             ) : null}
 
-            <section className="border-border overflow-hidden rounded-xl border shadow-xs">
-              <header className="bg-muted/35 flex items-start gap-3 px-5 py-4">
-                <span className="bg-background text-primary flex size-9 shrink-0 items-center justify-center rounded-lg shadow-xs">
-                  <Boxes aria-hidden className="size-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold">索引模型</h2>
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-5">
-                    嵌入模型定义整个知识库的向量空间，按知识库统一配置。
-                  </p>
-                </div>
-              </header>
-              <div className="px-5 py-5">
-                <Form.Field
-                  label="嵌入模型"
-                  error={errors.embeddingConfiguredModelId}
-                  description={
-                    <>
-                      修改模型不会覆盖现有 Chunk；向量索引阶段完成后将通过新索引代际重建并切换。
-                      可前往{' '}
-                      <Link
-                        to="/models?tab=embedding"
-                        className="text-primary focus-visible:bg-primary/10 cursor-pointer hover:underline focus-visible:outline-none"
-                      >
-                        模型管理
-                      </Link>
-                      添加或启用嵌入模型。
-                    </>
-                  }
-                >
-                  <Select
-                    value={form.embeddingConfiguredModelId ?? NO_EMBEDDING_MODEL_VALUE}
-                    onValueChange={(value) => {
-                      if (value === NO_EMBEDDING_MODEL_VALUE) {
-                        updateForm({
-                          embeddingModelGroupId: null,
-                          embeddingConfiguredModelId: null,
-                        })
-                        return
-                      }
-
-                      const group = availableEmbeddingModelGroups.find((item) =>
-                        item.models.some((model) => model.id === value),
-                      )
-                      updateForm({
-                        embeddingModelGroupId: group?.id ?? null,
-                        embeddingConfiguredModelId: group ? value : null,
-                      })
-                    }}
+            <SettingsRow
+              title="索引模型"
+              description={
+                <>
+                  嵌入模型定义整个知识库的向量空间。可前往{' '}
+                  <Link
+                    to="/models?tab=embedding"
+                    className="text-primary focus-visible:bg-primary/10 cursor-pointer hover:underline focus-visible:outline-none"
                   >
-                    <SelectTrigger aria-label="嵌入模型" className="w-full md:max-w-xl">
-                      <SelectValue placeholder="请选择嵌入模型" />
-                    </SelectTrigger>
-                    <SelectContent
-                      position="popper"
-                      align="start"
-                      sideOffset={4}
-                      className="w-(--radix-select-trigger-width)"
-                    >
-                      <SelectItem value={NO_EMBEDDING_MODEL_VALUE}>暂不配置</SelectItem>
-                      {selectedEmbeddingModel && !selectedEmbeddingModelAvailable ? (
-                        <>
-                          <SelectSeparator />
-                          <SelectItem value={selectedEmbeddingModel.model.id} disabled>
+                    模型管理
+                  </Link>{' '}
+                  添加或启用模型。
+                </>
+              }
+            >
+              <Form.Field
+                label="嵌入模型"
+                error={errors.embeddingConfiguredModelId}
+                description="修改模型不会覆盖现有 Chunk；向量索引阶段完成后将通过新索引代际重建并切换。"
+              >
+                <Select
+                  value={form.embeddingConfiguredModelId ?? NO_EMBEDDING_MODEL_VALUE}
+                  onValueChange={(value) => {
+                    if (value === NO_EMBEDDING_MODEL_VALUE) {
+                      updateForm({
+                        embeddingModelGroupId: null,
+                        embeddingConfiguredModelId: null,
+                      })
+                      return
+                    }
+
+                    const group = availableEmbeddingModelGroups.find((item) =>
+                      item.models.some((model) => model.id === value),
+                    )
+                    updateForm({
+                      embeddingModelGroupId: group?.id ?? null,
+                      embeddingConfiguredModelId: group ? value : null,
+                    })
+                  }}
+                >
+                  <SelectTrigger aria-label="嵌入模型" className="w-full">
+                    {selectedEmbeddingModel && SelectedEmbeddingProviderIcon ? (
+                      <SelectValue>
+                        <span className="flex min-w-0 items-center gap-1.5">
+                          <SelectedEmbeddingProviderIcon aria-hidden className="size-4 shrink-0" />
+                          <span className="min-w-0 truncate">
                             {selectedEmbeddingModel.model.displayName ??
-                              selectedEmbeddingModel.model.modelId}{' '}
-                            · 已停用或不可用
-                          </SelectItem>
-                        </>
-                      ) : null}
-                      {availableEmbeddingModelGroups.map((group) => (
+                              selectedEmbeddingModel.model.modelId}
+                          </span>
+                        </span>
+                      </SelectValue>
+                    ) : (
+                      <SelectValue placeholder="请选择嵌入模型" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent
+                    position="popper"
+                    align="start"
+                    sideOffset={4}
+                    className="w-(--radix-select-trigger-width)"
+                  >
+                    <SelectItem value={NO_EMBEDDING_MODEL_VALUE}>暂不配置</SelectItem>
+                    {selectedEmbeddingModel && !selectedEmbeddingModelAvailable ? (
+                      <>
+                        <SelectSeparator />
+                        <SelectItem
+                          value={selectedEmbeddingModel.model.id}
+                          textValue={`${selectedEmbeddingModel.model.displayName ?? selectedEmbeddingModel.model.modelId} 已停用或不可用`}
+                          disabled
+                        >
+                          {SelectedEmbeddingProviderIcon ? (
+                            <SelectedEmbeddingProviderIcon
+                              aria-hidden
+                              className="size-4 shrink-0"
+                            />
+                          ) : null}
+                          {selectedEmbeddingModel.model.displayName ??
+                            selectedEmbeddingModel.model.modelId}{' '}
+                          · 已停用或不可用
+                        </SelectItem>
+                      </>
+                    ) : null}
+                    {availableEmbeddingModelGroups.map((group) => {
+                      const ProviderIcon = getModelProviderStrategy(group.providerType).icon
+
+                      return (
                         <SelectGroup key={group.id}>
                           <SelectSeparator />
-                          <SelectLabel>{group.name}</SelectLabel>
+                          <SelectLabel className="flex items-center gap-1.5">
+                            <ProviderIcon aria-hidden className="size-3.5 shrink-0" />
+                            <span className="truncate">{group.name}</span>
+                          </SelectLabel>
                           {group.models.map((model) => (
                             <SelectItem
                               key={model.id}
@@ -256,46 +386,47 @@ export default function KnowledgeBaseSettingsPage() {
                             </SelectItem>
                           ))}
                         </SelectGroup>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Form.Field>
-              </div>
-            </section>
+                      )
+                    })}
+                  </SelectContent>
+                </Select>
+              </Form.Field>
+            </SettingsRow>
 
-            <section className="border-border overflow-hidden rounded-xl border shadow-xs">
-              <header className="bg-muted/35 flex items-start gap-3 px-5 py-4">
-                <span className="bg-background text-primary flex size-9 shrink-0 items-center justify-center rounded-lg shadow-xs">
-                  <SplitSquareVertical aria-hidden className="size-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold">文本分段</h2>
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-5">
-                    作为新文档的默认值。修改后不会自动重切已有文档。
-                  </p>
-                </div>
-              </header>
-              <div className="grid gap-5 px-5 py-5 md:grid-cols-2">
-                <Form.Field required label="默认分段模式" error={errors.segmentationMode}>
-                  <Select
-                    value={form.segmentationMode}
-                    onValueChange={(value) =>
-                      updateFormField('segmentationMode', value as DocumentSegmentationMode)
-                    }
-                  >
-                    <SelectTrigger aria-label="默认分段模式" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {documentSegmentationModeOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            <div className="border-border/70 border-t">
+              <SettingsRow
+                title="分段模式"
+                description="作为新文档的默认值，修改后不会自动重切已有文档。"
+              >
+                <Form.Field
+                  required
+                  label="默认分段模式"
+                  error={errors.segmentationMode}
+                  className="[&_[data-slot=form-control]]:mt-0 [&_[data-slot=form-label]]:sr-only"
+                >
+                  <div className="space-y-2" role="radiogroup" aria-label="默认分段模式">
+                    {documentSegmentationModeOptions.map((option) => (
+                      <SelectionCard
+                        key={option.value}
+                        name="segmentationMode"
+                        value={option.value}
+                        checked={form.segmentationMode === option.value}
+                        icon={segmentationModeIcons[option.value]}
+                        label={option.label}
+                        description={option.description}
+                        onChange={() => updateFormField('segmentationMode', option.value)}
+                      />
+                    ))}
+                  </div>
                 </Form.Field>
+              </SettingsRow>
+            </div>
 
+            <div className="border-border/70 border-t">
+              <SettingsRow
+                title="分段参数"
+                description="控制每个分段的最大字符数，以及相邻分段之间保留的重叠内容。"
+              >
                 <div className="grid grid-cols-2 gap-3">
                   <Form.Field required label="最大长度" error={errors.maxSegmentLength}>
                     <Input
@@ -322,58 +453,66 @@ export default function KnowledgeBaseSettingsPage() {
                     />
                   </Form.Field>
                 </div>
+              </SettingsRow>
+            </div>
 
-                <label className="text-foreground flex cursor-pointer items-start gap-2.5 text-sm md:col-span-2">
-                  <Checkbox
-                    checked={form.replaceWhitespace}
-                    aria-label="规范化多余空白"
-                    onCheckedChange={(checked) =>
-                      updateFormField('replaceWhitespace', checked === true)
-                    }
-                  />
-                  <span>
-                    规范化多余空白
-                    <span className="text-muted-foreground mt-0.5 block text-xs leading-5">
-                      保留段落、列表、表格、代码、URL、邮箱、编号与标点结构。
+            <div className="border-border/70 border-t">
+              <SettingsRow
+                title="文本清理"
+                description="在新文档入库前统一处理多余空白，同时保留原有文本结构。"
+              >
+                <Form.Field
+                  required
+                  label="文本清理规则"
+                  className="[&_[data-slot=form-control]]:mt-0 [&_[data-slot=form-label]]:sr-only"
+                >
+                  <label className="text-foreground flex cursor-pointer items-start gap-2.5 text-sm md:col-span-2">
+                    <Checkbox
+                      checked={form.replaceWhitespace}
+                      aria-label="规范化多余空白"
+                      onCheckedChange={(checked) =>
+                        updateFormField('replaceWhitespace', checked === true)
+                      }
+                    />
+                    <span>
+                      规范化多余空白
+                      <span className="text-muted-foreground mt-0.5 block text-xs leading-5">
+                        保留段落、列表、表格、代码、URL、邮箱、编号与标点结构。
+                      </span>
                     </span>
-                  </span>
-                </label>
-              </div>
-            </section>
-
-            <section className="border-border overflow-hidden rounded-xl border shadow-xs">
-              <header className="bg-muted/35 flex items-start gap-3 px-5 py-4">
-                <span className="bg-background text-primary flex size-9 shrink-0 items-center justify-center rounded-lg shadow-xs">
-                  <Search aria-hidden className="size-4" />
-                </span>
-                <div>
-                  <h2 className="text-sm font-semibold">检索</h2>
-                  <p className="text-muted-foreground mt-0.5 text-xs leading-5">
-                    查询时配置立即生效，不需要重建已有分段。
-                  </p>
-                </div>
-              </header>
-              <div className="grid gap-5 px-5 py-5 md:grid-cols-2">
-                <Form.Field required label="检索画像" error={errors.retrievalProfile}>
-                  <Select
-                    value={form.retrievalProfile}
-                    onValueChange={(value) =>
-                      updateFormField(
-                        'retrievalProfile',
-                        value as KnowledgeBaseSettingsFormInput['retrievalProfile'],
-                      )
-                    }
-                  >
-                    <SelectTrigger aria-label="检索画像" className="w-full">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hybrid-accurate">混合检索 · 高准确</SelectItem>
-                      <SelectItem value="hybrid-fast">混合检索 · 低延迟</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  </label>
                 </Form.Field>
+              </SettingsRow>
+            </div>
 
+            <div className="border-border/70 border-t">
+              <SettingsRow title="检索画像" description="查询时配置立即生效，不需要重建已有分段。">
+                <Form.Field
+                  required
+                  label="检索画像"
+                  error={errors.retrievalProfile}
+                  className="[&_[data-slot=form-control]]:mt-0 [&_[data-slot=form-label]]:sr-only"
+                >
+                  <div className="space-y-2" role="radiogroup" aria-label="检索画像">
+                    {retrievalProfileOptions.map((option) => (
+                      <SelectionCard
+                        key={option.value}
+                        name="retrievalProfile"
+                        value={option.value}
+                        checked={form.retrievalProfile === option.value}
+                        icon={option.icon}
+                        label={option.label}
+                        description={option.description}
+                        onChange={() => updateFormField('retrievalProfile', option.value)}
+                      />
+                    ))}
+                  </div>
+                </Form.Field>
+              </SettingsRow>
+            </div>
+
+            <div className="border-border/70 border-t">
+              <SettingsRow title="返回设置" description="设置每次查询默认返回的分段数量。">
                 <Form.Field required label="默认返回数量" error={errors.retrievalTopK}>
                   <Input
                     type="number"
@@ -386,10 +525,10 @@ export default function KnowledgeBaseSettingsPage() {
                     }
                   />
                 </Form.Field>
-              </div>
-            </section>
+              </SettingsRow>
+            </div>
 
-            <div className="flex justify-end">
+            <div className="border-border/70 flex justify-end border-t pt-5">
               <Button
                 type="submit"
                 variant="confirm"
