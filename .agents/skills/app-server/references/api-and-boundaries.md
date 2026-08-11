@@ -175,6 +175,8 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   当前阶段不分页，不得在前端模拟截断；需要分页时在保持 `items` 的基础上增加 opaque cursor。
 - `GET /knowledge-bases/:knowledgeBaseId`：获取知识库详情；路径参数不是 UUID v4 时返回 `400`，
   资源不存在或不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“知识库不存在”。
+- `GET /knowledge-bases/:knowledgeBaseId/statistics`：返回知识库文档总数和关联应用数；关联应用按
+  工作流去重，草稿或任一历史版本存在 RAG 引用都只计为一个应用。
 - `POST /knowledge-bases`：创建空白知识库；`title` 和 `icon` 必填，`description` 可选，不要求
   嵌入模型、文档或索引配置。
 - `PATCH /knowledge-bases/:knowledgeBaseId`：修改名称、图标或描述，至少提供一个字段；空描述

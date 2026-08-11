@@ -13,6 +13,11 @@ export interface KnowledgeBaseListVo {
   items: KnowledgeBaseVo[]
 }
 
+export interface KnowledgeBaseStatisticsVo {
+  documentCount: number
+  relatedAppCount: number
+}
+
 export interface KnowledgeBaseSettingsVo {
   embeddingModelGroupId?: string
   embeddingConfiguredModelId?: string

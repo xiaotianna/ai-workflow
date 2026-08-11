@@ -345,6 +345,8 @@
 - 详情页导航从对应父路由子项的 `handle.meta` 派生，通过 `router/navigation` 的 `getNavigationItemsFromRoute` 生成，不得在侧栏复制另一份导航配置。
 - 详情页侧栏导航项连续排列，不在导航项之间添加分割线。
 - 详情页侧栏顶部使用 `w-fit self-start` 的返回按钮，显示 `< / {列表页名称}`；Hover 和 Focus 背景只覆盖内容区域，不铺满侧栏。
+- `DetailLayout.sidebarFooter` 用于详情侧栏底部、账户菜单上方的业务信息区；知识库在这里展示真实
+  文档数、去重后的关联应用数和 API 文档入口，不把该区域复制进通用账户菜单。
 - 返回按钮下方为资源标识区：由 `ResourceIdentity` 提供与 Studio `ResourceCard` 标题行一致的样式（40px 圆角图标底、标题 `text-sm/5 font-semibold`、类型标签小号大写），整行为可 Hover 的 `rounded-xl` 容器；操作菜单通过 `actions` 插槽由各 feature 注入，应用默认桃色图标底，知识库默认蓝色图标底。
 - 详情页使用浅色页面底衬分隔侧栏与内容区；侧栏沿用首页布局侧栏样式，内容区使用真实边框、低对比阴影与圆角容器。
 - 详情资源请求加载中或失败时，所有依赖该资源的按钮和编辑入口必须使用真实禁用态；状态来源、

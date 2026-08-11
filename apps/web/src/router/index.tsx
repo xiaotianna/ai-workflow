@@ -46,6 +46,7 @@ const DocsPage = lazy(() => import('../pages/docs'))
 const DocsOverviewPage = lazy(() => import('../pages/docs/overview'))
 const DocsGettingStartedPage = lazy(() => import('../pages/docs/getting-started'))
 const DocsWorkflowBasicsPage = lazy(() => import('../pages/docs/workflow-basics'))
+const DocsRagApiPage = lazy(() => import('../pages/docs/rag-api'))
 const DocsDeploymentPage = lazy(() => import('../pages/docs/deployment'))
 const DocsProjectOverviewPage = lazy(() => import('../pages/docs/project-overview'))
 const DocsProjectHighlightsPage = lazy(() => import('../pages/docs/project-highlights'))
@@ -424,6 +425,23 @@ export const routes = [
                 title: '工作流基础',
                 requiresAuth: false,
                 icon: Workflow,
+                navigationGroup: '核心概念',
+              },
+            },
+          },
+          {
+            id: 'docs-ai-workflow-rag-api',
+            path: 'rag-api',
+            element: (
+              <LazyLoad>
+                <DocsRagApiPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '知识库 RAG API',
+                requiresAuth: false,
+                icon: SquareTerminal,
                 navigationGroup: '核心概念',
               },
             },

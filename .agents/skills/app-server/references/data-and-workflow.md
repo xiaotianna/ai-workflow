@@ -113,6 +113,8 @@
   和版本中的 RAG 引用；匹配当前 `knowledgeBases: [{ id }]` 引用快照，以及历史
   `knowledgeBaseIds` 数组和 `knowledgeBaseId` 单值，存在任一引用时拒绝删除。引用投影表落地后
   必须改用强外键投影做事务内删除保护，文档和外部资源落地后再升级为异步清理流程。
+- 知识库关联应用统计复用同一组 JSONB RAG 引用兼容过滤条件，并按 Workflow 去重；同一应用的
+  草稿和多个历史版本重复引用只计一次。文档统计直接使用知识库下的文档事实行总数。
 - 空白 `KnowledgeBase` 是合法资源，允许 `activeIndexId` 为空并被 RAG 节点选择；上传、召回、
   测试运行和发布前再校验 active Index 与 READY 文档。
 - `KnowledgeBase.activeIndexId` 是当前检索索引的唯一事实来源。嵌入模型、维度、距离算法或知识库级

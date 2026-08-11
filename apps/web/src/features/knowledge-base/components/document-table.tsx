@@ -155,12 +155,12 @@ function DocumentStatusBadge({
       <span
         aria-hidden
         className={cn(
-          'size-1.5 rounded-full',
-          status === 'available' && 'bg-success',
-          status === 'stale' && 'bg-warning',
-          status === 'indexing' && 'bg-info',
-          status === 'error' && 'bg-destructive',
-          status === 'disabled' && 'bg-muted-foreground',
+          'size-2 rounded-[3px] border shadow-xs',
+          status === 'available' && 'border-success/40 bg-success/40',
+          status === 'stale' && 'border-warning/40 bg-warning/40',
+          status === 'indexing' && 'border-info/40 bg-info/40',
+          status === 'error' && 'border-destructive/40 bg-destructive/40',
+          status === 'disabled' && 'border-muted-foreground/40 bg-muted-foreground/30',
         )}
       />
       {statusLabel}

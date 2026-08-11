@@ -17,6 +17,7 @@ interface LayoutSidebarProps {
   header: ReactNode
   items: readonly LayoutSidebarNavigationItem[]
   navigationLabel: string
+  footer?: ReactNode
 }
 
 function SidebarNavItem({ to, label, icon: Icon }: LayoutSidebarNavigationItem) {
@@ -36,7 +37,7 @@ function SidebarNavItem({ to, label, icon: Icon }: LayoutSidebarNavigationItem) 
   )
 }
 
-export function LayoutSidebar({ header, items, navigationLabel }: LayoutSidebarProps) {
+export function LayoutSidebar({ header, items, navigationLabel, footer }: LayoutSidebarProps) {
   return (
     <aside className="border-border/70 flex min-h-0 w-60 shrink-0 flex-col">
       {header}
@@ -46,6 +47,8 @@ export function LayoutSidebar({ header, items, navigationLabel }: LayoutSidebarP
           <SidebarNavItem key={item.to} {...item} />
         ))}
       </nav>
+
+      {footer}
 
       <div className="relative flex min-w-0 items-center gap-2 p-3">
         <AccountMenu className="min-w-0 flex-1" />

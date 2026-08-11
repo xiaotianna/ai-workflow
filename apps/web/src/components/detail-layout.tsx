@@ -12,6 +12,8 @@ export interface DetailLayoutProps {
   resourceIdentity: ReactNode
   navigationItems: readonly LayoutSidebarNavigationItem[]
   navigationLabel: string
+  /** 详情侧栏底部、账户菜单上方的业务信息区 */
+  sidebarFooter?: ReactNode
   /** 传递给详情子路由的资源状态等上下文 */
   outletContext?: unknown
   /** 渲染在布局外壳之前的内容，例如弹窗 */
@@ -24,6 +26,7 @@ export function DetailLayout({
   resourceIdentity,
   navigationItems,
   navigationLabel,
+  sidebarFooter,
   outletContext,
   before,
 }: DetailLayoutProps) {
@@ -53,6 +56,7 @@ export function DetailLayout({
             }
             items={navigationItems}
             navigationLabel={navigationLabel}
+            footer={sidebarFooter}
           />
         </div>
 

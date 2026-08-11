@@ -34,6 +34,7 @@ import type { KnowledgeBaseListVo, KnowledgeBaseVo } from '@/vo/knowledge-base.v
 import type {
   KnowledgeBaseIndexListVo,
   KnowledgeBaseIndexVo,
+  KnowledgeBaseStatisticsVo,
   KnowledgeBaseSettingsVo,
   KnowledgeChunkListVo,
   KnowledgeChunkVo,
@@ -123,6 +124,15 @@ export class KnowledgeBaseService {
     }
 
     return this.toVo(knowledgeBase)
+  }
+
+  async getStatistics(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseStatisticsVo> {
+    const statistics = await this.knowledgeBaseRepository.getStatistics(ownerId, knowledgeBaseId)
+    if (!statistics) throw new NotFoundException('知识库不存在')
+    return statistics
   }
 
   async create(ownerId: string, dto: CreateKnowledgeBaseDto): Promise<KnowledgeBaseVo> {

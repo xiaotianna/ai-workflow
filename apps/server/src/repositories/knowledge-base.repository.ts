@@ -244,6 +244,34 @@ export class KnowledgeBaseRepository {
     })
   }
 
+  async getStatistics(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<{ documentCount: number; relatedAppCount: number } | null> {
+    const knowledgeBase = await this.prisma.knowledgeBase.findFirst({
+      where: { id: knowledgeBaseId, ownerId },
+      select: { id: true },
+    })
+    if (!knowledgeBase) return null
+
+    const definitionFilters = this.createKnowledgeBaseReferenceFilters(knowledgeBaseId)
+    const definitionWhere = definitionFilters.map((definition) => ({ definition }))
+    const [documentCount, relatedAppCount] = await Promise.all([
+      this.prisma.knowledgeDocument.count({ where: { knowledgeBaseId } }),
+      this.prisma.workflow.count({
+        where: {
+          app: { ownerId, deletedAt: null },
+          OR: [
+            { draft: { is: { OR: definitionWhere } } },
+            { versions: { some: { OR: definitionWhere } } },
+          ],
+        },
+      }),
+    ])
+
+    return { documentCount, relatedAppCount }
+  }
+
   create(options: CreateKnowledgeBaseOptions): Promise<KnowledgeBaseRecord> {
     return this.prisma.knowledgeBase.create({
       data: {

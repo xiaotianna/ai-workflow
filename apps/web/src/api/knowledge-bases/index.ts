@@ -18,6 +18,11 @@ export interface KnowledgeBaseListResult {
   items: KnowledgeBaseDto[]
 }
 
+export interface KnowledgeBaseStatisticsDto {
+  documentCount: number
+  relatedAppCount: number
+}
+
 export interface ListKnowledgeBasesParams {
   search?: string
   sort?: KnowledgeBaseSort
@@ -202,6 +207,16 @@ export function getKnowledgeBase(
 ): Promise<KnowledgeBaseDto> {
   return apiClient.get<KnowledgeBaseDto>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}`,
+    { signal },
+  )
+}
+
+export function getKnowledgeBaseStatistics(
+  knowledgeBaseId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeBaseStatisticsDto> {
+  return apiClient.get<KnowledgeBaseStatisticsDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/statistics`,
     { signal },
   )
 }

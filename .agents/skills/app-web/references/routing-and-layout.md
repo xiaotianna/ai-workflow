@@ -24,7 +24,8 @@
   三个文档空间。`/docs` 默认重定向到 `/docs/ai-workflow`，旧的快速开始与工作流基础路径保留兼容
   重定向。桌面侧栏和移动端 Header 共用 `DocsProjectSwitcher` 切换文档空间；当前空间的菜单从对应
   项目子路由 `handle.meta` 的标题、图标与分组派生。MDX 内容来自 `apps/web/content/docs`，组件映射
-  统一通过 `src/components/mdx.tsx` 提供。
+  统一通过 `src/components/mdx.tsx` 提供；知识库侧栏的 API 入口打开
+  `/docs/ai-workflow/rag-api`。
 - 页面使用 React `lazy`，由 `LazyLoad` 统一提供 Suspense fallback。
 - 路由 `handle.meta` 保存标题、鉴权标记和导航图标；侧栏从路由配置派生导航。
 - `/auth` 仅允许未登录访问；已登录访问时重定向到 `/`。登录成功也统一重定向到 `/`，

@@ -8,6 +8,7 @@ import {
   DeleteKnowledgeBaseDialog,
   EditKnowledgeBaseDialog,
   KnowledgeBaseDetailIdentity,
+  KnowledgeBaseSidebarSummary,
   toKnowledgeBaseListItem,
   type CreateKnowledgeBaseInput,
   type KnowledgeBaseActionHandler,
@@ -140,6 +141,7 @@ export default function KnowledgeBaseDetailPage() {
           `/knowledge-base/${encodedKnowledgeBaseId}`,
         )}
         navigationLabel="知识库导航"
+        sidebarFooter={<KnowledgeBaseSidebarSummary knowledgeBaseId={knowledgeBase?.id} />}
         outletContext={
           {
             knowledgeBase,

@@ -20,6 +20,7 @@ import type {
   KnowledgeBaseListVo,
   KnowledgeBaseIndexVo,
   KnowledgeBaseIndexListVo,
+  KnowledgeBaseStatisticsVo,
   KnowledgeBaseSettingsVo,
   KnowledgeBaseVo,
   KnowledgeChunkListVo,
@@ -79,6 +80,21 @@ export class KnowledgeBaseController {
     knowledgeBaseId: string,
   ): Promise<KnowledgeBaseVo> {
     return this.knowledgeBaseService.getById(request.auth.userId, knowledgeBaseId)
+  }
+
+  @Get(':knowledgeBaseId/statistics')
+  getStatistics(
+    @Req() request: AuthenticatedRequest,
+    @Param(
+      'knowledgeBaseId',
+      new ParseUUIDPipe({
+        version: '4',
+        exceptionFactory: () => new BadRequestException('知识库不存在'),
+      }),
+    )
+    knowledgeBaseId: string,
+  ): Promise<KnowledgeBaseStatisticsVo> {
+    return this.knowledgeBaseService.getStatistics(request.auth.userId, knowledgeBaseId)
   }
 
   @Post()
