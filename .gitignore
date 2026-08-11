@@ -37,3 +37,4 @@ apps/web/.source/
 .turbo/
 examples/*
 !examples/remote-render
+artifacts

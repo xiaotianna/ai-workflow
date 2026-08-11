@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim AS workspace-dependencies
+FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS workspace-build-dependencies
 
 ENV HUSKY=0
 WORKDIR /workspace
@@ -13,20 +13,22 @@ COPY apps/executor-go ./apps/executor-go
 RUN corepack enable \
   && pnpm install --no-frozen-lockfile
 
-FROM workspace-dependencies AS web-build
+FROM workspace-build-dependencies AS web-build
 
 ARG VITE_API_BASE_URL=/api
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 RUN pnpm --filter @ai-workflow/web build
 
-FROM workspace-dependencies AS server-build
+FROM workspace-build-dependencies AS server-build
 
 RUN DATABASE_URL=postgresql://localhost:5432/ai_workflow_build \
   pnpm --filter @ai-workflow/server build
 
-FROM golang:1.25-bookworm AS executor-build
+FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS executor-build
 
 ARG GOPROXY=https://goproxy.cn,direct
+ARG TARGETARCH
+ARG TARGETOS
 ENV GOPROXY=${GOPROXY}
 WORKDIR /workspace
 
@@ -41,7 +43,23 @@ COPY packages/workflow-protocol ./packages/workflow-protocol
 COPY apps/executor-go ./apps/executor-go
 
 WORKDIR /workspace/apps/executor-go
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/executor ./cmd/executor
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+  go build -trimpath -ldflags='-s -w' -o /out/executor ./cmd/executor
+
+FROM node:22-bookworm-slim AS workspace-runtime-dependencies
+
+ENV HUSKY=0
+WORKDIR /workspace
+
+COPY package.json pnpm-workspace.yaml .npmrc ./
+COPY configs ./configs
+COPY packages ./packages
+COPY apps/web ./apps/web
+COPY apps/server ./apps/server
+COPY apps/executor-go ./apps/executor-go
+
+RUN corepack enable \
+  && pnpm install --no-frozen-lockfile
 
 FROM node:22-bookworm-slim
 
@@ -62,9 +80,9 @@ RUN apt-get update \
     /workspace/web \
   && chown -R node:node /workspace
 
-COPY --from=workspace-dependencies --chown=node:node /workspace/node_modules ./node_modules
+COPY --from=workspace-runtime-dependencies --chown=node:node /workspace/node_modules ./node_modules
 COPY --from=server-build --chown=node:node /workspace/packages ./packages
-COPY --from=server-build --chown=node:node /workspace/apps/server/node_modules ./apps/server/node_modules
+COPY --from=workspace-runtime-dependencies --chown=node:node /workspace/apps/server/node_modules ./apps/server/node_modules
 COPY --from=server-build --chown=node:node /workspace/apps/server/dist ./apps/server/dist
 COPY --from=server-build --chown=node:node /workspace/apps/server/prisma ./apps/server/prisma
 COPY --from=server-build --chown=node:node /workspace/apps/server/prisma.config.ts ./apps/server/prisma.config.ts

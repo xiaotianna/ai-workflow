@@ -57,6 +57,10 @@ RabbitMQ 密码和内部认证令牌由 Compose 的 `secrets-init` 首次随机�
 Go 构建阶段先复制两个 Module 的 `go.mod`/`go.sum` 并执行独立的 `go mod download` 缓存层；默认
 `GOPROXY=https://goproxy.cn,direct`，Compose 允许通过同名构建参数覆盖，避免国内服务器访问
 `proxy.golang.org` 超时。
+跨架构构建时，Web、Server 和 Go 编译阶段固定使用 BuildKit 的 `BUILDPLATFORM`，避免在 Apple
+Silicon 等 ARM 主机上通过 QEMU 执行整套 Node 构建；Go 使用 `TARGETOS`/`TARGETARCH` 原生交叉编译。
+最终运行层和单独安装的运行依赖仍使用 `TARGETPLATFORM`，保证导出的 `linux/amd64` 镜像不会混入
+ARM 原生依赖。
 
 部署或修改 Executor 镜像时确认：
 
