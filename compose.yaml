@@ -1,0 +1,279 @@
+name: ai-workflow
+
+x-server-environment: &server-environment
+  NODE_ENV: production
+  PORT: '3000'
+  AI_WORKFLOW_SECRETS_DIR: /run/ai-workflow-secrets
+  POSTGRES_DB: ${POSTGRES_DB:-ai_workflow}
+  POSTGRES_USER: ${POSTGRES_USER:-ai_workflow}
+  REDIS_URL: redis://redis:6379
+  JWT_EXPIRES_IN: 7d
+  RABBITMQ_USER: ${RABBITMQ_USER:-ai_workflow}
+  RABBITMQ_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
+  WORKFLOW_EXECUTOR_ROUTING_MODE: legacy
+  EXECUTOR_REQUIRE_INTERNAL_AUTH: 'true'
+  PLUGIN_ARTIFACT_DIRECTORY: /workspace/apps/server/var/plugin-artifacts
+  KNOWLEDGE_SOURCE_STORAGE_DRIVER: local
+  KNOWLEDGE_SOURCE_DIRECTORY: /workspace/apps/server/var/knowledge-sources
+  OPENSEARCH_URL: https://opensearch:9200
+  OPENSEARCH_USERNAME: admin
+  # 官方单节点镜像使用自签名演示证书；服务只在隔离的 backend 网络内访问。
+  OPENSEARCH_TLS_REJECT_UNAUTHORIZED: 'false'
+
+services:
+  secrets-init:
+    image: alpine:3.22
+    restart: 'no'
+    network_mode: none
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-}
+      EXECUTOR_INTERNAL_AUTH_TOKEN: ${EXECUTOR_INTERNAL_AUTH_TOKEN:-}
+      MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-}
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/init-secrets.sh']
+    volumes:
+      - ./deploy/init-secrets.sh:/opt/ai-workflow/init-secrets.sh:ro
+      - server_secrets:/secrets/server
+      - executor_secrets:/secrets/executor
+      - postgres_secrets:/secrets/postgres
+      - rabbitmq_secrets:/secrets/rabbitmq
+      - opensearch_secrets:/secrets/opensearch
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    ports:
+      - '${APP_PORT:-80}:80'
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      server:
+        condition: service_healthy
+    networks:
+      - gateway
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx:rw,nosuid,nodev,size=32m
+      - /var/run:rw,nosuid,nodev,size=1m
+      - /tmp:rw,nosuid,nodev,size=16m
+    security_opt:
+      - no-new-privileges:true
+
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment: *server-environment
+    expose:
+      - '3000'
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    volumes:
+      - server_logs:/workspace/apps/server/logs
+      - plugin_artifacts:/workspace/apps/server/var/plugin-artifacts
+      - knowledge_sources:/workspace/apps/server/var/knowledge-sources
+      - server_secrets:/run/ai-workflow-secrets:ro
+    networks:
+      - gateway
+      - backend
+      - executor
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3000').then(() => process.exit(0)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+
+  executor:
+    build:
+      context: .
+      dockerfile: apps/executor-go/Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      AI_WORKFLOW_SECRETS_DIR: /run/ai-workflow-secrets
+      EXECUTOR_PROFILE: legacy
+      RABBITMQ_USER: ${RABBITMQ_USER:-ai_workflow}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
+      COMMAND_RUNTIME_LEASE_URL: http://server:3000/internal/executor/commands/lease
+      MODEL_RUNTIME_RESOLVER_URL: http://server:3000/internal/executor/models/resolve
+      KNOWLEDGE_RUNTIME_RETRIEVER_URL: http://server:3000/internal/executor/knowledge/retrieve
+      PLUGIN_ARTIFACT_RESOLVER_URL: http://server:3000/internal/executor/plugin-artifacts/resolve
+      EXECUTOR_REQUIRE_INTERNAL_AUTH: 'true'
+      CODE_NODE_BINARY: node
+      CODE_NODE_MODULES_PATH: /workspace/node_modules
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+      server:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - executor
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=256m
+    volumes:
+      - executor_secrets:/run/ai-workflow-secrets:ro
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: 1.0
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ai_workflow}
+      POSTGRES_USER: ${POSTGRES_USER:-ai_workflow}
+      POSTGRES_PASSWORD_FILE: /run/ai-workflow-secrets/postgres_password
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - postgres_secrets:/run/ai-workflow-secrets:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    security_opt:
+      - no-new-privileges:true
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ai_workflow}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/rabbitmq-entrypoint.sh']
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - rabbitmq_secrets:/run/ai-workflow-secrets:ro
+      - ./deploy/rabbitmq-entrypoint.sh:/opt/ai-workflow/rabbitmq-entrypoint.sh:ro
+    networks:
+      - backend
+      - executor
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  opensearch:
+    image: opensearchproject/opensearch:3.7.0
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      bootstrap.memory_lock: 'true'
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/opensearch-entrypoint.sh']
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+      - opensearch_secrets:/run/ai-workflow-secrets:ro
+      - ./deploy/opensearch-entrypoint.sh:/opt/ai-workflow/opensearch-entrypoint.sh:ro
+    networks:
+      - backend
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl --insecure --fail --silent --user "admin:$$(cat /run/ai-workflow-secrets/opensearch_password)" https://127.0.0.1:9200/_cluster/health >/dev/null',
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  gateway:
+  backend:
+    internal: true
+  executor:
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  opensearch_data:
+  server_logs:
+  plugin_artifacts:
+  knowledge_sources:
+  server_secrets:
+  executor_secrets:
+  postgres_secrets:
+  rabbitmq_secrets:
+  opensearch_secrets:

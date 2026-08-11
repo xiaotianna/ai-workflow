@@ -1,0 +1,17 @@
+.git
+.agents
+.codex
+.idea
+.vscode
+.turbo
+node_modules
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/*.log
+apps/server/logs
+apps/server/var
+apps/web/.source
+.DS_Store

@@ -12,7 +12,7 @@
   - postgresql
   - prisma
   - redis
-  - langgraph
+  - rabbitmq
 - 工程化：
   - monorepo
   - docker
@@ -68,6 +68,59 @@ pnpm dev:web
 # 只启动 Server
 pnpm dev:server
 ```
+
+启动 Go Executor：
+
+```bash
+cd apps/executor-go/cmd/executor/main.go
+go run .
+```
+
+## Docker Compose 一键部署
+
+默认的 `compose.yaml` 会同时启动以下服务：
+
+- Nginx + Web 静态资源，对外只开放 `APP_PORT`；
+- NestJS Server，启动前自动执行已提交的 Prisma migration；
+- Go Executor，镜像内包含 Code 节点需要的 Node.js 22；
+- PostgreSQL、Redis、RabbitMQ 和 OpenSearch，数据写入 Docker named volume。
+
+仓库不要求手动填写密码。首次部署直接执行：
+
+```bash
+docker compose up -d
+```
+
+`secrets-init` 初始化容器会生成随机的 PostgreSQL、RabbitMQ、OpenSearch、JWT、Executor 内部认证和
+模型凭证加密密钥，并保存在只挂载给对应服务的 Docker named volume 中。以后再次执行 Compose 会复用
+已有密钥，不会自动轮换。该初始化容器完成后显示为 `Exited (0)` 属于正常状态。
+
+如果需要指定端口、用户名或自行管理密钥，可以再复制可选配置模板；所有密钥留空时仍会自动生成：
+
+```bash
+cp .env.example .env
+```
+
+首次启动会在本机从源码构建镜像。代码更新后重建并滚动启动：
+
+```bash
+docker compose up -d --build
+```
+
+查看状态和日志：
+
+```bash
+docker compose ps
+docker compose logs -f web server executor
+```
+
+默认访问 `http://服务器地址`。服务器前面已有 Nginx、Caddy 或负载均衡时，可把 `APP_PORT` 改为
+`127.0.0.1:8080`，再由外层网关提供 HTTPS。数据库、缓存、消息队列、OpenSearch 和 Server 均不映射
+宿主机端口；Executor 也通过独立 Docker 网络与数据服务隔离。
+
+停止服务使用 `docker compose down`，不会删除 named volume 中的数据。只有明确需要清空全部业务数据时
+才使用 `docker compose down -v`；该命令也会删除自动生成的密钥卷，下次启动会生成一套新密钥。备份或
+迁移时必须同时保留业务数据卷和密钥卷，不要单独删除 `*_secrets` volume。
 
 ## 后端文档
 
