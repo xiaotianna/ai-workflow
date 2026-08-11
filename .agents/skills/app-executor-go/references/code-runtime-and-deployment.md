@@ -42,15 +42,16 @@
 
 ## 部署检查
 
-仓库根目录的 `compose.yaml` 是单机自托管部署入口：`apps/executor-go/Dockerfile` 使用 Go 1.25
-构建静态 Executor，并以 Node.js 22 Debian 镜像作为运行层。镜像固定配置
+仓库根目录的 `compose.yaml` 是单机自托管部署入口：根目录统一应用 `Dockerfile` 使用 Go 1.25
+构建静态 Executor，并以包含 Node.js 22 和 Nginx 的 Debian 镜像作为运行层。Web、Server、Executor
+复用该应用镜像，但仍以三个独立容器运行。镜像固定配置
 `CODE_NODE_BINARY=node` 和 `CODE_NODE_MODULES_PATH=/workspace/node_modules`，并按根 `.npmrc` 安装
 workspace 的生产依赖，使容器内第三方包解析规则与仓库一致；Compose 使用非 root 用户、只读根文件
 系统、独立可写 `/tmp`、能力删除、PID/CPU/内存限制和独立 Executor 网络运行它。默认启动 `legacy`
 Profile，与 Server 的 `WORKFLOW_EXECUTOR_ROUTING_MODE=legacy` 对齐。
 RabbitMQ 密码和内部认证令牌由 Compose 的 `secrets-init` 首次随机生成，Executor 只挂载自身需要的
 密钥卷；入口脚本读取后再启动 Worker，不要求用户手动创建 `.env`。
-根 `pnpm-lock.yaml` 当前不纳入版本控制，三个应用 Dockerfile 不得强制复制该文件；容器内安装依赖
+根 `pnpm-lock.yaml` 当前不纳入版本控制，统一应用 Dockerfile 不得强制复制该文件；容器内安装依赖
 显式使用 `--no-frozen-lockfile`，避免服务器从仓库检出后在 Docker `COPY` 阶段失败。
 Go 构建阶段先复制两个 Module 的 `go.mod`/`go.sum` 并执行独立的 `go mod download` 缓存层；默认
 `GOPROXY=https://goproxy.cn,direct`，Compose 允许通过同名构建参数覆盖，避免国内服务器访问

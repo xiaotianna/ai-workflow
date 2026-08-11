@@ -80,10 +80,13 @@ go run .
 
 默认的 `compose.yaml` 会同时启动以下服务：
 
-- Nginx + Web 静态资源，对外只开放 `APP_PORT`；
-- NestJS Server，启动前自动执行已提交的 Prisma migration；
-- Go Executor，镜像内包含 Code 节点需要的 Node.js 22；
+- 一个统一应用镜像，由三个容器分别运行 Nginx + Web、NestJS Server 和 Go Executor；
+- Web 容器对外只开放 `APP_PORT`，Server 启动前自动执行已提交的 Prisma migration；
+- Executor 与 Server 共用应用镜像，镜像内包含 Code 节点需要的 Node.js 22；
 - PostgreSQL、Redis、RabbitMQ 和 OpenSearch，数据写入 Docker named volume。
+
+应用进程共用一个构建产物，但仍分别运行在独立容器中，避免进程互相影响。数据库、缓存、消息队列和
+搜索服务继续使用独立官方镜像与数据卷，便于持久化、升级和故障恢复。
 
 仓库不要求手动填写密码。首次部署直接执行：
 
@@ -101,7 +104,7 @@ docker compose up -d
 cp .env.example .env
 ```
 
-首次启动会在本机从源码构建镜像。代码更新后重建并滚动启动：
+首次启动会在本机从源码构建一次统一应用镜像。代码更新后重建并滚动启动：
 
 ```bash
 docker compose up -d --build
@@ -117,9 +120,22 @@ docker compose ps
 docker compose logs -f web server executor
 ```
 
-默认访问 `http://服务器地址`。服务器前面已有 Nginx、Caddy 或负载均衡时，可把 `APP_PORT` 改为
-`127.0.0.1:8080`，再由外层网关提供 HTTPS。数据库、缓存、消息队列、OpenSearch 和 Server 均不映射
-宿主机端口；Executor 也通过独立 Docker 网络与数据服务隔离。
+默认只监听宿主机的 `127.0.0.1:8080`，避免占用已有 OpenResty/Nginx 的 80 端口。外层 OpenResty
+需要把站点请求转发到这个地址，例如：
+
+```nginx
+location / {
+  proxy_pass http://127.0.0.1:8080;
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+修改配置后重载 OpenResty，502 会在上游地址可访问后消失。如果不使用外层网关、需要直接公开应用，
+把 `.env` 中的 `APP_PORT` 改为 `8080`，再访问 `http://服务器地址:8080`。数据库、缓存、消息队列、
+OpenSearch 和 Server 均不映射宿主机端口；Executor 也通过独立 Docker 网络与数据服务隔离。
 
 停止服务使用 `docker compose down`，不会删除 named volume 中的数据。只有明确需要清空全部业务数据时
 才使用 `docker compose down -v`；该命令也会删除自动生成的密钥卷，下次启动会生成一套新密钥。备份或

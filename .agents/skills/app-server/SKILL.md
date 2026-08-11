@@ -29,11 +29,12 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - `apps/server` 已初始化为 `@ai-workflow/server`（NestJS 11 + oxlint）；根目录 `compose.dev.yaml`
   已提供 PostgreSQL、Redis、RabbitMQ 与单节点 OpenSearch 开发基础设施，OpenSearch 安全插件只在
   本地开发编排中关闭。
-- 根目录 `compose.yaml` 和三个应用 Dockerfile 已提供单机自托管部署：Nginx 统一提供 Web 与 API
-  反向代理，Server 启动前执行 `prisma migrate deploy`，Go Executor 运行层包含 Node.js 22；生产配置
+- 根目录 `compose.yaml` 和统一应用 `Dockerfile` 已提供单机自托管部署：Web、Server、Executor
+  复用同一应用镜像并分别运行在三个容器中，Nginx 统一提供 Web 与 API 反向代理且默认只绑定宿主机
+  `127.0.0.1:8080`，Server 启动前执行 `prisma migrate deploy`，Go Executor 运行层包含 Node.js 22；生产配置
   的敏感值由 `secrets-init` 首次启动时随机生成并按服务隔离保存在 Docker named volume，也可以在首次
   启动前通过根 `.env` 覆盖；业务数据和本地产物同样保存在独立 named volume。根 lockfile 当前不纳入
-  版本控制，因此应用 Dockerfile 不复制 `pnpm-lock.yaml`，依赖安装使用 `--no-frozen-lockfile`。
+  版本控制，因此统一应用 Dockerfile 不复制 `pnpm-lock.yaml`，依赖安装使用 `--no-frozen-lockfile`。
   RabbitMQ 自定义入口从 secrets 注入默认密码，并在 Compose 未传递命令参数时显式回退到
   `rabbitmq-server`，避免官方入口读取空 `$1` 后退出。
 - Prisma 7 的 schema、migration、Client generator 和 PostgreSQL driver adapter 依赖已配置；NestJS 已通过全局 `PrismaModule`/`PrismaService` 接入数据库，认证与 Studio 模块已使用 Repository 封装数据访问。Redis 已接入认证会话，LangGraph 尚未接入应用。
