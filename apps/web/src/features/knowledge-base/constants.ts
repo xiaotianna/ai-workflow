@@ -4,6 +4,8 @@ export const knowledgeBaseIconBackground = 'rgb(219, 234, 254)'
 
 export const documentPageSizeOptions = [10, 25, 50] as const
 
+export const documentStatusPollIntervalMs = 1500
+
 export const documentSegmentationModeValues = ['general', 'qa', 'parent-child'] as const
 
 export type DocumentSegmentationMode = (typeof documentSegmentationModeValues)[number]

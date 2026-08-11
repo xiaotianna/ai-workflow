@@ -583,6 +583,7 @@ export class KnowledgeBaseService {
       id: knowledgeBase.id,
       title: knowledgeBase.name,
       author: knowledgeBase.owner.username,
+      segmentationMode: knowledgeBase.settings?.segmentationMode ?? 'GENERAL',
       ...(knowledgeBase.description ? { description: knowledgeBase.description } : {}),
       ...(knowledgeBase.icon ? { icon: knowledgeBase.icon } : {}),
       createdAt: knowledgeBase.createdAt,

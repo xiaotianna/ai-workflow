@@ -109,7 +109,8 @@ LLM 已接入真实执行逻辑：`config.go` 对齐 Core 的模型引用、上�
 
 模型解析地址通过 `MODEL_RUNTIME_RESOLVER_URL` 配置，默认是 `http://127.0.0.1:3000/internal/executor/models/resolve`。该接口会返回本次调用需要的明文凭证，部署时只能暴露在 Server 与 Executor 的受控内部网络中，并应使用 TLS；不得经过公网网关、缓存或访问日志正文。
 
-RAG 已接入 Server 统一 Retriever：Go 只提交 Command 身份、Lease Token 和 `query`，Server 从不可变
+RAG 已接入 Server 统一 Retriever：Runtime 先把 `config.query` 中的变量 Token 投影为静态字符串，
+Go 严格解析 Command Config 后提交 Command 身份、Lease Token 和 `query`，Server 从不可变
 工作流版本解析 owner、知识库引用与 TopK，并返回真实 `documents`。检索地址通过
 `KNOWLEDGE_RUNTIME_RETRIEVER_URL` 配置，默认是
 `http://127.0.0.1:3000/internal/executor/knowledge/retrieve`；该接口与模型解析接口使用相同内部认证和

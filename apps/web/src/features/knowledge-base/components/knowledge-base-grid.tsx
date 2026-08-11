@@ -6,7 +6,7 @@ import { ResourceCardSkeletonGrid } from '@/components/card/resource-card-skelet
 
 import { getKnowledgeBaseTimeDisplay } from '../knowledge-base-sort-strategies'
 import type { KnowledgeBaseActionHandler, KnowledgeBaseListItem, KnowledgeBaseSort } from '../types'
-import { knowledgeBaseIconBackground } from '../constants'
+import { knowledgeBaseIconBackground, knowledgeSegmentationModeLabels } from '../constants'
 import { getKnowledgeBaseActions } from './knowledge-base-actions'
 
 interface KnowledgeBaseGridProps {
@@ -67,7 +67,7 @@ export function KnowledgeBaseGrid({
           <ResourceCard
             key={knowledgeBase.id}
             title={knowledgeBase.title}
-            kindLabel="空白知识库"
+            kindLabel={knowledgeSegmentationModeLabels[knowledgeBase.segmentationMode]}
             author={knowledgeBase.author}
             timeLabel={timeDisplay.label}
             timeValue={timeDisplay.value}

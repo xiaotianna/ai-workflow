@@ -1,6 +1,7 @@
 import type {
   KnowledgeBaseSort as ApiKnowledgeBaseSort,
   KnowledgeDocumentSort as ApiKnowledgeDocumentSort,
+  KnowledgeSegmentationMode,
 } from '@/api/knowledge-bases'
 
 import type { DocumentSegmentationMode } from './constants'
@@ -9,6 +10,7 @@ export interface KnowledgeBaseListItem {
   id: string
   title: string
   author: string
+  segmentationMode: KnowledgeSegmentationMode
   createdAt: string
   updatedAt: string
   description?: string

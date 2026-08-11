@@ -72,6 +72,7 @@ export class KnowledgeIngestionRepository {
           configHash: true,
           defaultChunkConfig: true,
           defaultCleaningConfig: true,
+          knowledgeBase: { select: { activeIndexId: true } },
         },
       })
       if (!index || index.status !== 'BUILDING') return { outcome: 'stale', versionCount: 0 }
@@ -83,9 +84,12 @@ export class KnowledgeIngestionRepository {
         where: {
           knowledgeBaseId: index.knowledgeBaseId,
           lifecycleStatus: 'ACTIVE',
+          status: { in: ['READY', 'FAILED'] },
+          enabled: true,
         },
         select: {
           id: true,
+          status: true,
           sources: {
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
             take: 1,
@@ -96,6 +100,17 @@ export class KnowledgeIngestionRepository {
 
       const chunkConfig = parseChunkConfig(index.defaultChunkConfig)
       const cleaningConfig = parseCleaningConfig(index.defaultCleaningConfig)
+      const processingDocumentIds = documents.flatMap((document) =>
+        document.sources[0] && (!index.knowledgeBase.activeIndexId || document.status === 'FAILED')
+          ? [document.id]
+          : [],
+      )
+      if (processingDocumentIds.length > 0) {
+        await transaction.knowledgeDocument.updateMany({
+          where: { id: { in: processingDocumentIds } },
+          data: { status: 'PROCESSING', errorMessage: null },
+        })
+      }
       await Promise.all(
         documents.map(async (document) => {
           const source = document.sources[0]
@@ -448,16 +463,6 @@ export class KnowledgeIngestionRepository {
       })
       if (options.retryable || !updated.count) return
 
-      const knowledgeBase = await transaction.knowledgeBase.findUnique({
-        where: { id: version.knowledgeBaseId },
-        select: { activeIndexId: true },
-      })
-      if (
-        knowledgeBase?.activeIndexId &&
-        knowledgeBase.activeIndexId !== version.knowledgeBaseIndexId
-      ) {
-        return
-      }
       await transaction.knowledgeDocument.update({
         where: { id: version.documentId },
         data: {
@@ -465,6 +470,11 @@ export class KnowledgeIngestionRepository {
           errorMessage: options.errorMessage.slice(0, 4000),
         },
       })
+      await this.finalizeIndexBuildIfSettled(
+        transaction,
+        version.knowledgeBaseIndexId,
+        version.knowledgeBaseId,
+      )
     })
   }
 
@@ -706,36 +716,11 @@ export class KnowledgeIngestionRepository {
         },
       })
 
-      const incompleteCount = await transaction.knowledgeDocumentVersion.count({
-        where: {
-          knowledgeBaseIndexId: version.knowledgeBaseIndexId,
-          status: { not: 'READY' },
-        },
-      })
-      if (version.knowledgeBaseIndex.status === 'BUILDING' && incompleteCount === 0) {
-        const previous = await transaction.knowledgeBase.findUnique({
-          where: { id: version.knowledgeBaseId },
-          select: { activeIndexId: true },
-        })
-        if (previous?.activeIndexId && previous.activeIndexId !== version.knowledgeBaseIndexId) {
-          await transaction.knowledgeBaseIndex.update({
-            where: { id: previous.activeIndexId },
-            data: { retiredAt: new Date() },
-          })
-        }
-        await transaction.knowledgeBaseIndex.update({
-          where: { id: version.knowledgeBaseIndexId },
-          data: {
-            status: 'READY',
-            readyAt: new Date(),
-            activatedAt: new Date(),
-          },
-        })
-        await transaction.knowledgeBase.update({
-          where: { id: version.knowledgeBaseId },
-          data: { activeIndexId: version.knowledgeBaseIndexId },
-        })
-      }
+      await this.finalizeIndexBuildIfSettled(
+        transaction,
+        version.knowledgeBaseIndexId,
+        version.knowledgeBaseId,
+      )
       return 'completed'
     })
   }
@@ -768,7 +753,7 @@ export class KnowledgeIngestionRepository {
           errorMessage: options.errorMessage.slice(0, 4000),
         },
       })
-      await transaction.knowledgeDocumentVersion.updateMany({
+      const updatedVersion = await transaction.knowledgeDocumentVersion.updateMany({
         where: { id: options.documentVersionId, status: 'EMBEDDING' },
         data: {
           status: options.retryable ? 'EMBEDDING' : 'FAILED',
@@ -786,34 +771,98 @@ export class KnowledgeIngestionRepository {
           finishedAt: new Date(),
         },
       })
-      if (!options.retryable) {
-        await transaction.knowledgeBaseIndex.updateMany({
-          where: { id: version.knowledgeBaseIndexId, status: 'BUILDING' },
+      if (!options.retryable && updatedVersion.count > 0) {
+        await transaction.knowledgeDocument.update({
+          where: { id: version.documentId },
           data: {
             status: 'FAILED',
-            errorCode: 'PROJECTION_FAILED',
             errorMessage: options.errorMessage.slice(0, 4000),
-            retiredAt: new Date(),
           },
         })
-        const knowledgeBase = await transaction.knowledgeBase.findUnique({
-          where: { id: version.knowledgeBaseId },
-          select: { activeIndexId: true },
-        })
-        if (
-          !knowledgeBase?.activeIndexId ||
-          knowledgeBase.activeIndexId === version.knowledgeBaseIndexId
-        ) {
-          await transaction.knowledgeDocument.update({
-            where: { id: version.documentId },
-            data: {
-              status: 'FAILED',
-              errorMessage: options.errorMessage.slice(0, 4000),
-            },
-          })
-        }
+        await this.finalizeIndexBuildIfSettled(
+          transaction,
+          version.knowledgeBaseIndexId,
+          version.knowledgeBaseId,
+        )
       }
     })
+  }
+
+  private async finalizeIndexBuildIfSettled(
+    transaction: Prisma.TransactionClient,
+    knowledgeBaseIndexId: string,
+    knowledgeBaseId: string,
+  ): Promise<void> {
+    await transaction.$queryRaw(
+      Prisma.sql`SELECT "id" FROM "knowledge_base_indexes" WHERE "id" = ${knowledgeBaseIndexId}::uuid FOR UPDATE`,
+    )
+    const index = await transaction.knowledgeBaseIndex.findUnique({
+      where: { id: knowledgeBaseIndexId },
+      select: { status: true },
+    })
+    if (!index || index.status !== 'BUILDING') return
+
+    const [processingCount, readyCount] = await Promise.all([
+      transaction.knowledgeDocumentVersion.count({
+        where: {
+          knowledgeBaseIndexId,
+          status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
+        },
+      }),
+      transaction.knowledgeDocumentVersion.count({
+        where: { knowledgeBaseIndexId, status: 'READY' },
+      }),
+    ])
+    if (processingCount > 0) return
+
+    if (readyCount === 0) {
+      await transaction.knowledgeBaseIndex.update({
+        where: { id: knowledgeBaseIndexId },
+        data: {
+          status: 'FAILED',
+          errorCode: 'NO_RETRIEVABLE_DOCUMENTS',
+          errorMessage: '索引构建未产生可用文档',
+          retiredAt: new Date(),
+        },
+      })
+      return
+    }
+
+    const previous = await transaction.knowledgeBase.findUnique({
+      where: { id: knowledgeBaseId },
+      select: { activeIndexId: true },
+    })
+    if (previous?.activeIndexId && previous.activeIndexId !== knowledgeBaseIndexId) {
+      await transaction.knowledgeBaseIndex.update({
+        where: { id: previous.activeIndexId },
+        data: { retiredAt: new Date() },
+      })
+    }
+    await transaction.knowledgeBaseIndex.update({
+      where: { id: knowledgeBaseIndexId },
+      data: {
+        status: 'READY',
+        errorCode: null,
+        errorMessage: null,
+        readyAt: new Date(),
+        activatedAt: new Date(),
+        retiredAt: null,
+      },
+    })
+    await transaction.knowledgeBase.update({
+      where: { id: knowledgeBaseId },
+      data: { activeIndexId: knowledgeBaseIndexId },
+    })
+    const readyHeads = await transaction.knowledgeDocumentIndexHead.findMany({
+      where: { knowledgeBaseIndexId },
+      select: { documentId: true },
+    })
+    if (readyHeads.length > 0) {
+      await transaction.knowledgeDocument.updateMany({
+        where: { id: { in: readyHeads.map(({ documentId }) => documentId) } },
+        data: { status: 'READY', errorMessage: null },
+      })
+    }
   }
 
   async failIndexBuild(knowledgeBaseIndexId: string, errorMessage: string): Promise<void> {

@@ -13,14 +13,14 @@ import { useState } from 'react'
 import type { KnowledgeBaseDocument } from '../types'
 
 interface DeleteDocumentDialogProps {
-  document: KnowledgeBaseDocument
+  documents: KnowledgeBaseDocument[]
   open: boolean
   onDelete: () => Promise<void>
   onOpenChange: (open: boolean) => void
 }
 
 export function DeleteDocumentDialog({
-  document,
+  documents,
   open,
   onDelete,
   onOpenChange,
@@ -48,9 +48,13 @@ export function DeleteDocumentDialog({
     >
       <DialogContent showCloseButton={!deleting}>
         <DialogHeader>
-          <DialogTitle>确认删除文档</DialogTitle>
+          <DialogTitle>
+            {documents.length > 1 ? `确认删除 ${documents.length} 个文档` : '确认删除文档'}
+          </DialogTitle>
           <DialogDescription>
-            {`“${document.name}”的原文件和全部分段将被永久删除，且无法恢复。`}
+            {documents.length > 1
+              ? `所选 ${documents.length} 个文档的原文件和全部分段将被永久删除，且无法恢复。`
+              : `“${documents[0]?.name ?? ''}”的原文件和全部分段将被永久删除，且无法恢复。`}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>

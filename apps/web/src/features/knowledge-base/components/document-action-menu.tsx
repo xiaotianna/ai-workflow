@@ -7,9 +7,10 @@ import { ActionMenuContent, type ActionMenuAction } from '@/components/action-me
 interface DocumentActionMenuProps {
   title: string
   actions: readonly ActionMenuAction[]
+  disabled?: boolean
 }
 
-export function DocumentActionMenu({ title, actions }: DocumentActionMenuProps) {
+export function DocumentActionMenu({ title, actions, disabled = false }: DocumentActionMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -19,7 +20,7 @@ export function DocumentActionMenu({ title, actions }: DocumentActionMenuProps) 
           size="icon-sm"
           aria-label={`${title} 的更多操作`}
           className="text-muted-foreground hover:bg-muted focus-visible:bg-muted aria-expanded:bg-button-secondary-bg-active group-hover/row:[&:hover]:bg-button-secondary-bg-active group-hover/row:focus-visible:bg-button-secondary-bg-active group-hover/row:aria-expanded:bg-button-secondary-bg-active"
-          disabled={!actions.length}
+          disabled={disabled || !actions.length}
         >
           <MoreHorizontal aria-hidden className="size-4" />
         </Button>

@@ -1,6 +1,6 @@
 import { ResourceIdentity } from '@/components/resource-identity'
 
-import { knowledgeBaseIconBackground } from '../constants'
+import { knowledgeBaseIconBackground, knowledgeSegmentationModeLabels } from '../constants'
 import type { KnowledgeBaseActionHandler, KnowledgeBaseListItem } from '../types'
 import { getKnowledgeBaseActions } from './knowledge-base-actions'
 import { KnowledgeBaseActionMenu } from './knowledge-base-action-menu'
@@ -15,7 +15,9 @@ export function KnowledgeBaseDetailIdentity({
   onKnowledgeBaseAction,
 }: KnowledgeBaseDetailIdentityProps) {
   const title = knowledgeBase?.title ?? '未命名知识库'
-  const kindLabel = knowledgeBase ? '空白知识库' : '知识库'
+  const kindLabel = knowledgeBase
+    ? knowledgeSegmentationModeLabels[knowledgeBase.segmentationMode]
+    : '知识库'
   const actions = knowledgeBase ? getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction) : []
 
   return (

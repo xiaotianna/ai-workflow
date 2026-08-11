@@ -201,15 +201,27 @@ export class ModelGroupService {
     }
 
     const nextModels = new Map(dto.models.flatMap((model) => (model.id ? [[model.id, model]] : [])))
+    const changedModelIds: string[] = []
+
     for (const currentModel of group.models) {
       if (!referencedModelIds.has(currentModel.id)) continue
       const nextModel = nextModels.get(currentModel.id)
-      if (
-        !nextModel ||
-        normalizeModelId(nextModel.modelId) !== normalizeModelId(currentModel.modelId)
-      ) {
-        throw new ConflictException('嵌入模型正在被知识库使用，无法删除或修改模型 ID')
+
+      if (!nextModel) {
+        throw new ConflictException('嵌入模型正在被知识库使用，无法删除')
       }
+      if (normalizeModelId(nextModel.modelId) !== normalizeModelId(currentModel.modelId)) {
+        changedModelIds.push(currentModel.id)
+      }
+    }
+
+    if (changedModelIds.length === 0) return
+
+    const activeModelIds = new Set(
+      await this.repository.listActiveKnowledgeBaseEmbeddingModelReferences(ownerId, group.id),
+    )
+    if (changedModelIds.some((modelId) => activeModelIds.has(modelId))) {
+      throw new ConflictException('嵌入模型正在执行知识库嵌入，暂时无法修改模型 ID')
     }
   }
 

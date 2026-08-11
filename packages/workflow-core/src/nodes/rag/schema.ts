@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+export const ragQuerySchema = z.string().max(10_000, '检索内容不能超过 10000 个字符').default('')
+
 export const ragKnowledgeBaseIdsSchema = z
   .array(z.string().trim().min(1, '知识库 ID 不能为空'))
   .default([])
@@ -84,6 +86,7 @@ function migrateLegacyKnowledgeBaseReferences(value: unknown): unknown {
 export const ragNodeSchema = z.preprocess(
   migrateLegacyKnowledgeBaseReferences,
   z.object({
+    query: ragQuerySchema,
     // 创建节点时允许为空，后续由用户选择一个或多个知识库
     knowledgeBases: ragKnowledgeBaseReferencesSchema,
     topK: ragTopKSchema,

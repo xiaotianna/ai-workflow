@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 
 import type { KnowledgeDocumentDto } from '@/api/knowledge-bases'
 
-import { getDocumentSegmentationModeOption } from '../constants'
+import { documentStatusPollIntervalMs, getDocumentSegmentationModeOption } from '../constants'
 import type { AddDocumentInput } from '../schema'
 import { AddDocumentStepHeader } from './add-document-step-header'
 import { DocumentFileTypeIcon } from './document-file-type-icon'
@@ -18,8 +18,6 @@ interface AddDocumentProcessingStepProps {
   onClose: () => void
   onRefreshDocument: (documentId: string, signal?: AbortSignal) => Promise<KnowledgeDocumentDto>
 }
-
-const documentStatusPollIntervalMs = 1500
 
 export function AddDocumentProcessingStep({
   documents: initialDocuments,

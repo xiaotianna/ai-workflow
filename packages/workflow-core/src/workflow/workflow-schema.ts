@@ -6,6 +6,7 @@ import { BuiltinNodeType } from '../nodes/builtin-node-types'
 import { synchronizeCodeNodeOutputs } from '../nodes/code/outputs'
 import { HTTP_FIXED_OUTPUTS } from '../nodes/http/outputs'
 import { LLM_FIXED_OUTPUTS } from '../nodes/llm/outputs'
+import { RAG_FIXED_OUTPUTS } from '../nodes/rag/outputs'
 import { normalizeNodeOutputs } from '../node/normalize-node-outputs'
 import { workflowOutputsSchema } from './workflow-output-schema'
 import { workflowPluginLockSchema } from '../node/workflow-node-catalog'
@@ -36,6 +37,13 @@ export const workflowSchema = z
         return {
           ...node,
           outputs: normalizeNodeOutputs(node.outputs, HTTP_FIXED_OUTPUTS),
+        }
+      }
+
+      if (node.type === BuiltinNodeType.RAG) {
+        return {
+          ...node,
+          outputs: normalizeNodeOutputs(node.outputs, RAG_FIXED_OUTPUTS),
         }
       }
 

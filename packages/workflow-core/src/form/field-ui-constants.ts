@@ -14,6 +14,7 @@ export const FIELD_UI_TYPES = {
   KNOWLEDGE_BASE: 'knowledge_base',
   SUB_WORKFLOW: 'sub_workflow',
   CONTEXT_MESSAGES: 'context_messages',
+  VARIABLE_TEMPLATE: 'variable_template',
   ERROR_HANDLING: 'error_handling',
 } as const
 

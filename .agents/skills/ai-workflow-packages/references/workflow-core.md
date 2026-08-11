@@ -97,14 +97,15 @@ Nodes UI 保持 schema 和组件类型关联。
   `SwitchFieldSchema`、`SliderFieldSchema`、`CodeEditorFieldSchema`、
   `KeyValueTableFieldSchema`、`RequestBodyFieldSchema`、`ConditionRulesFieldSchema`、
   `ConditionBranchesFieldSchema`、`LlmModelFieldSchema`、`KnowledgeBaseFieldSchema`、
-  `SubWorkflowFieldSchema`、`ContextMessagesFieldSchema` 和 `ErrorHandlingFieldSchema` 都继承
+  `SubWorkflowFieldSchema`、`ContextMessagesFieldSchema`、`VariableTemplateFieldSchema` 和
+  `ErrorHandlingFieldSchema` 都继承
   `BaseFieldSchema`。`NumberConstraints` 只由 Slider 使用，普通数字输入的范围由 Zod 校验。
 - `FieldSchemaMap<TConfig>` 根据配置键生成字段映射，字段值和最终合法性仍由节点 Zod schema
   负责；`NodeFormSchema<TSchema>` 用于把节点表单字段名约束到 schema 输出。
 - 当前 `loop`、`code`、`rag`、`http`、`condition`、`llm` 和 `sub_workflow` 已声明通用节点配置
   form；Code 使用 `FIELD_UI_TYPES.CODE_EDITOR`，代码编辑器固定为 JavaScript，不在字段 schema
-  中重复保存语言元数据。RAG 使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 在 Core 声明
-  `config.knowledgeBases`，按顺序保存不允许重复的知识库引用；每项包含稳定 `id` 和可选
+  中重复保存语言元数据。RAG 先使用 `FIELD_UI_TYPES.VARIABLE_TEMPLATE` 声明支持变量 Token 的
+  `config.query`，再使用 `FIELD_UI_TYPES.KNOWLEDGE_BASE` 声明 `config.knowledgeBases`，按顺序保存不允许重复的知识库引用；每项包含稳定 `id` 和可选
   `title` / `icon` 展示快照，创建节点时可为空。正整数 `config.topK` 范围为 1 到 20、默认 `5`，
   通过紧随其后的 SLIDER 字段显示“召回设置”。旧 `config.knowledgeBaseId` 与
   `config.knowledgeBaseIds` 由 schema 自动迁移为缺少展示快照的引用对象，历史配置缺少 `topK`
@@ -161,7 +162,8 @@ Nodes UI 保持 schema 和组件类型关联。
   `node.outputs` 才是节点公开的变量集合；即使两者当前使用相同字符串，也不得从端口推导变量，
   或用端口存在性放宽变量引用校验。LLM 只固定公开最终回答字符串 `result`，不公开模型思考过程；
   Executor 可以在供应商最终回答为空时把其思考字段归一为 `result` 兜底。HTTP 固定公开 JSON `response`，
-  内容包含 `status`、`headers`、`data` 和 `durationMs`；两者都允许实例追加其他输出定义。
+  内容包含 `status`、`headers`、`data` 和 `durationMs`；RAG 固定公开 JSON `documents` 文档列表；
+  三者都允许实例追加其他输出定义。
   Code 的源码派生输出不写入 `NodeType.fixedOutputs`；它们由 `deriveCodeNodeOutputs()` 按节点配置
   动态生成，并在配置面板中以相同的不可编辑语义展示。
 - 字段 renderer 注册属于 `@ai-workflow/form`，Core 只保留无 React 依赖的字段契约。
@@ -172,6 +174,8 @@ Nodes UI 保持 schema 和组件类型关联。
   `node.inputs`，`OUTPUT_DEFINITIONS` renderer 编辑 `node.outputs`，
   `START_INPUT_VARIABLES` renderer 使用 Start 专属 UI 编辑 `node.outputs`，具体 renderer 由
   `@ai-workflow/form` 提供。
+- RAG 只声明输出变量区，不渲染通用输入变量区；检索内容属于 `config.query`，固定输出
+  `documents` 由输出区以不可修改、映射或删除的内置变量展示。
 - Start 将产品语义上的“输入变量”声明为 `START_INPUT_VARIABLES`，数据写入 `node.outputs`，
   且不声明 `output`；End 不声明 `input`，只将“输出变量”声明为 `INPUT_BINDINGS`，数据写入
   `node.inputs`。Code 和普通节点不需要重复声明，直接使用默认输入绑定区与输出定义区。

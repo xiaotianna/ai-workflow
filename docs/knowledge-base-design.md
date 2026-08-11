@@ -841,7 +841,8 @@ interface RetrievedChunk {
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或更新分段与检索设置。分段设置变更只标记旧文档待更新，不自动覆盖 Chunk。
 - `GET /knowledge-bases/:knowledgeBaseId/indexes`：按代际倒序查看索引状态、活动标记与失败原因。
 - `POST /knowledge-bases/:knowledgeBaseId/indexes/rebuild`：只对最新失败索引创建配置相同的新代际并
-  重新写入 Outbox；事务锁防止并发重复构建，失败代际保持不可变。
+  重新写入 Outbox；新代际会重新处理启用的失败文档，成功 Head 激活后恢复文档可用状态。事务锁
+  防止并发重复构建，失败代际保持不可变。
 
 列表和详情返回稳定传输字段 `id`、`title`、`author`、`description?`、`icon?`、`createdAt`、
 `updatedAt`，不直接暴露 Prisma model，也不返回模拟文档数量或索引状态。

@@ -1,6 +1,6 @@
 import type { ComponentPropsWithoutRef } from 'react'
 
-export type DocumentFileType = 'word' | 'ppt' | 'pdf' | 'excel' | 'markdown' | 'unknown'
+export type DocumentFileType = 'word' | 'ppt' | 'pdf' | 'excel' | 'markdown' | 'html' | 'unknown'
 
 const documentFileTypeIconMap = new Map<DocumentFileType, string>([
   ['word', '/word.svg'],
@@ -8,6 +8,7 @@ const documentFileTypeIconMap = new Map<DocumentFileType, string>([
   ['pdf', '/pdf.svg'],
   ['excel', '/excel.svg'],
   ['markdown', '/markdown.svg'],
+  ['html', '/html.svg'],
   ['unknown', '/unknow.svg'],
 ])
 
@@ -23,15 +24,15 @@ const documentFileTypeAliasMap = new Map<string, DocumentFileType>([
   ['doc', 'word'],
   ['docx', 'word'],
   ['excel', 'excel'],
-  ['html', 'markdown'],
-  ['htm', 'markdown'],
+  ['html', 'html'],
+  ['htm', 'html'],
   ['markdown', 'markdown'],
   ['md', 'markdown'],
   ['pdf', 'pdf'],
   ['ppt', 'ppt'],
   ['pptx', 'ppt'],
   ['text/markdown', 'markdown'],
-  ['text/html', 'markdown'],
+  ['text/html', 'html'],
   ['word', 'word'],
   ['xls', 'excel'],
   ['xlsx', 'excel'],

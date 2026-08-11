@@ -12,7 +12,10 @@ import { useEffect, useState } from 'react'
 
 import { useWorkflowKnowledgeBaseCatalog } from '@/components/workflow/workflow-knowledge-base-catalog-context'
 
-import { KnowledgeBaseReferenceIcon, KnowledgeBaseRetrievalBadge } from './knowledge-base-reference'
+import {
+  KnowledgeBaseReferenceIcon,
+  KnowledgeBaseSegmentationBadge,
+} from './knowledge-base-reference'
 import { KnowledgeBaseSelectorDialog } from './knowledge-base-selector-dialog'
 
 type KnowledgeBaseFieldProps = FieldRendererProps<
@@ -41,13 +44,12 @@ export function KnowledgeBaseField({
   const selectedKnowledgeBases = knowledgeBaseReferences.map((reference) => {
     const knowledgeBase = knowledgeBases.find((item) => item.id === reference.id)
 
-    return (
-      knowledgeBase ?? {
-        id: reference.id,
-        icon: reference.icon,
-        title: reference.title ?? `旧配置知识库（${reference.id}）`,
-      }
-    )
+    return {
+      id: reference.id,
+      icon: knowledgeBase?.icon ?? reference.icon,
+      title: knowledgeBase?.title ?? reference.title ?? `旧配置知识库（${reference.id}）`,
+      segmentationMode: knowledgeBase?.segmentationMode,
+    }
   })
   const unavailableKnowledgeBaseCount = loaded
     ? selectedKnowledgeBases.filter(
@@ -131,7 +133,9 @@ export function KnowledgeBaseField({
                           {knowledgeBase.title}
                         </span>
                         <span className="ml-2 flex w-24 shrink-0 items-center justify-end transition-opacity group-focus-within/knowledge-base:opacity-0 group-hover/knowledge-base:opacity-0">
-                          <KnowledgeBaseRetrievalBadge />
+                          <KnowledgeBaseSegmentationBadge
+                            segmentationMode={knowledgeBase.segmentationMode}
+                          />
                         </span>
                       </div>
 

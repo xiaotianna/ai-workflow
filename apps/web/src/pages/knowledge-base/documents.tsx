@@ -12,7 +12,7 @@ import {
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import type { RowSelectionState } from '@tanstack/react-table'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useOutletContext, useParams } from 'react-router-dom'
 
 import { PageContent } from '@/components/page-content'
@@ -22,6 +22,7 @@ import {
   AddDocumentPage,
   DeleteDocumentDialog,
   documentPageSizeOptions,
+  documentStatusPollIntervalMs,
   DocumentTable,
   DocumentToolbar,
   RenameDocumentDialog,
@@ -61,10 +62,13 @@ export default function KnowledgeBaseDocumentsPage() {
   const [total, setTotal] = useState(0)
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [addPageOpen, setAddPageOpen] = useState(false)
-  const [deletingDocument, setDeletingDocument] = useState<KnowledgeBaseDocument>()
+  const [deletingDocuments, setDeletingDocuments] = useState<KnowledgeBaseDocument[]>([])
   const [renamingDocument, setRenamingDocument] = useState<KnowledgeBaseDocument>()
+  const [batchUpdatingDocuments, setBatchUpdatingDocuments] = useState(false)
   const [loading, setLoading] = useState(true)
   const [reloadVersion, setReloadVersion] = useState(0)
+  const [documentStatusRefreshFailed, setDocumentStatusRefreshFailed] = useState(false)
+  const reindexingDocumentIds = useRef(new Set<string>())
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
@@ -95,6 +99,7 @@ export default function KnowledgeBaseDocumentsPage() {
           setDocuments(result.items.map(toKnowledgeBaseDocument))
           setTotal(result.total)
           setRowSelection({})
+          setDocumentStatusRefreshFailed(false)
         })
         .catch(() => undefined)
         .finally(() => {
@@ -113,6 +118,68 @@ export default function KnowledgeBaseDocumentsPage() {
     pageIndex,
     pageSize,
     reloadVersion,
+    search,
+    sort,
+  ])
+
+  useEffect(() => {
+    if (
+      !isResourceAvailable ||
+      !knowledgeBaseId ||
+      documentStatusRefreshFailed ||
+      !documents.some(
+        (document) =>
+          document.status === 'indexing' && !reindexingDocumentIds.current.has(document.id),
+      )
+    ) {
+      return
+    }
+
+    const controller = new AbortController()
+    const timer = globalThis.setTimeout(() => {
+      void listKnowledgeDocuments(
+        knowledgeBaseId,
+        {
+          search: search.trim() || undefined,
+          fileType: fileType === 'all' ? undefined : fileType,
+          sort,
+          page: pageIndex + 1,
+          pageSize,
+        },
+        controller.signal,
+      )
+        .then((result) => {
+          if (controller.signal.aborted) return
+          setDocuments((currentDocuments) => {
+            const currentDocumentsById = new Map(
+              currentDocuments.map((document) => [document.id, document]),
+            )
+            return result.items.map((item) => {
+              if (reindexingDocumentIds.current.has(item.id)) {
+                return currentDocumentsById.get(item.id) ?? toKnowledgeBaseDocument(item)
+              }
+              return toKnowledgeBaseDocument(item)
+            })
+          })
+          setTotal(result.total)
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setDocumentStatusRefreshFailed(true)
+        })
+    }, documentStatusPollIntervalMs)
+
+    return () => {
+      globalThis.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [
+    documentStatusRefreshFailed,
+    documents,
+    fileType,
+    isResourceAvailable,
+    knowledgeBaseId,
+    pageIndex,
+    pageSize,
     search,
     sort,
   ])
@@ -145,6 +212,7 @@ export default function KnowledgeBaseDocumentsPage() {
   }
 
   async function handleDocumentEnabledChange(documentId: string, enabled: boolean) {
+    if (batchUpdatingDocuments) return
     const current = documents
     setDocuments((items) =>
       items.map((item) =>
@@ -165,6 +233,85 @@ export default function KnowledgeBaseDocumentsPage() {
     }
   }
 
+  async function handleSelectedDocumentsEnabledChange(enabled: boolean) {
+    if (batchUpdatingDocuments) return
+    const selectedDocuments = documents.filter((document) => rowSelection[document.id])
+    if (selectedDocuments.length === 0) return
+
+    setBatchUpdatingDocuments(true)
+    try {
+      const results = await Promise.allSettled(
+        selectedDocuments.map((document) =>
+          updateKnowledgeDocument(knowledgeBaseId, document.id, { enabled }),
+        ),
+      )
+      const updatedDocuments = results.flatMap((result) =>
+        result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
+      )
+      const updatedDocumentsById = new Map(
+        updatedDocuments.map((document) => [document.id, document]),
+      )
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.map((document) => updatedDocumentsById.get(document.id) ?? document),
+      )
+      setRowSelection((currentSelection) => {
+        const nextSelection = { ...currentSelection }
+        updatedDocuments.forEach((document) => delete nextSelection[document.id])
+        return nextSelection
+      })
+
+      if (updatedDocuments.length > 0) {
+        showToast('success', `已${enabled ? '启用' : '禁用'} ${updatedDocuments.length} 个文档`)
+      }
+    } finally {
+      setBatchUpdatingDocuments(false)
+    }
+  }
+
+  async function handleDeleteDocuments(targetDocuments: KnowledgeBaseDocument[]) {
+    if (batchUpdatingDocuments || targetDocuments.length === 0) return
+
+    setBatchUpdatingDocuments(true)
+    try {
+      const results = await Promise.allSettled(
+        targetDocuments.map((document) => deleteKnowledgeDocument(knowledgeBaseId, document.id)),
+      )
+      const deletedIds = new Set(
+        results.flatMap((result, index) => {
+          const document = targetDocuments[index]
+          return result.status === 'fulfilled' && document ? [document.id] : []
+        }),
+      )
+      const failedDocuments = targetDocuments.filter((document) => !deletedIds.has(document.id))
+
+      if (deletedIds.size > 0) {
+        setDocuments((currentDocuments) =>
+          currentDocuments.filter((document) => !deletedIds.has(document.id)),
+        )
+        setTotal((currentTotal) => Math.max(0, currentTotal - deletedIds.size))
+        setRowSelection((currentSelection) => {
+          const nextSelection = { ...currentSelection }
+          deletedIds.forEach((documentId) => delete nextSelection[documentId])
+          return nextSelection
+        })
+        showToast(
+          'success',
+          deletedIds.size === 1 ? '文档已删除' : `已删除 ${deletedIds.size} 个文档`,
+        )
+      }
+
+      if (failedDocuments.length > 0) {
+        setDeletingDocuments(failedDocuments)
+        throw new Error('部分文档删除失败')
+      }
+
+      setReloadVersion((value) => value + 1)
+    } finally {
+      setBatchUpdatingDocuments(false)
+    }
+  }
+
   async function handleDocumentAction(action: DocumentAction, document: KnowledgeBaseDocument) {
     if (action === 'rename') {
       setRenamingDocument(document)
@@ -172,14 +319,41 @@ export default function KnowledgeBaseDocumentsPage() {
     }
 
     if (action === 'reindex') {
-      await reindexKnowledgeDocument(knowledgeBaseId, document.id)
-      setReloadVersion((value) => value + 1)
-      showToast('success', '文档分段已按当前设置更新')
+      if (reindexingDocumentIds.current.has(document.id)) return
+
+      reindexingDocumentIds.current.add(document.id)
+      setDocumentStatusRefreshFailed(false)
+      setDocuments((currentDocuments) =>
+        currentDocuments.map((currentDocument) =>
+          currentDocument.id === document.id
+            ? { ...currentDocument, status: 'indexing', statusLabel: '处理中' }
+            : currentDocument,
+        ),
+      )
+      try {
+        const updatedDocument = await reindexKnowledgeDocument(knowledgeBaseId, document.id)
+        setDocuments((currentDocuments) =>
+          currentDocuments.map((currentDocument) =>
+            currentDocument.id === document.id
+              ? toKnowledgeBaseDocument(updatedDocument)
+              : currentDocument,
+          ),
+        )
+        showToast('success', '已提交文档重新索引')
+      } catch {
+        setDocuments((currentDocuments) =>
+          currentDocuments.map((currentDocument) =>
+            currentDocument.id === document.id ? document : currentDocument,
+          ),
+        )
+      } finally {
+        reindexingDocumentIds.current.delete(document.id)
+      }
       return
     }
 
     if (action === 'delete') {
-      setDeletingDocument(document)
+      setDeletingDocuments([document])
     }
   }
 
@@ -196,18 +370,14 @@ export default function KnowledgeBaseDocumentsPage() {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden">
-      {deletingDocument ? (
+      {deletingDocuments.length > 0 ? (
         <DeleteDocumentDialog
-          document={deletingDocument}
+          documents={deletingDocuments}
           open
           onOpenChange={(open) => {
-            if (!open) setDeletingDocument(undefined)
+            if (!open) setDeletingDocuments([])
           }}
-          onDelete={async () => {
-            await deleteKnowledgeDocument(knowledgeBaseId, deletingDocument.id)
-            setReloadVersion((value) => value + 1)
-            showToast('success', '文档已删除')
-          }}
+          onDelete={() => handleDeleteDocuments(deletingDocuments)}
         />
       ) : null}
       {renamingDocument ? (
@@ -280,20 +450,29 @@ export default function KnowledgeBaseDocumentsPage() {
                   search={search}
                   fileType={fileType}
                   sort={sort}
-                  disabled={loading}
+                  disabled={loading || batchUpdatingDocuments}
+                  searchDisabled={batchUpdatingDocuments}
+                  statusRefreshFailed={documentStatusRefreshFailed}
                   onAddDocument={() => setAddPageOpen(true)}
                   onFileTypeChange={(value) => {
+                    if (batchUpdatingDocuments) return
                     setFileType(value)
+                    setRowSelection({})
                     setPageIndex(0)
                   }}
                   onSearchChange={(value) => {
+                    if (batchUpdatingDocuments) return
                     setSearch(value)
+                    setRowSelection({})
                     setPageIndex(0)
                   }}
                   onSortChange={(value) => {
+                    if (batchUpdatingDocuments) return
                     setSort(value)
+                    setRowSelection({})
                     setPageIndex(0)
                   }}
+                  onStatusRefreshRetry={() => setDocumentStatusRefreshFailed(false)}
                 />
               </PageHeaderActions>
               <PageContent className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -304,11 +483,21 @@ export default function KnowledgeBaseDocumentsPage() {
                   pageIndex={pageIndex}
                   pageSize={pageSize}
                   rowSelection={rowSelection}
+                  selectionBusy={batchUpdatingDocuments}
                   onDocumentAction={(action, document) =>
                     void handleDocumentAction(action, document)
                   }
                   onDocumentEnabledChange={(documentId, enabled) =>
                     void handleDocumentEnabledChange(documentId, enabled)
+                  }
+                  onSelectedDocumentsDelete={() => {
+                    const selectedDocuments = documents.filter(
+                      (document) => rowSelection[document.id],
+                    )
+                    if (selectedDocuments.length > 0) setDeletingDocuments(selectedDocuments)
+                  }}
+                  onSelectedDocumentsEnabledChange={(enabled) =>
+                    void handleSelectedDocumentsEnabledChange(enabled)
                   }
                   onPageChange={handlePageChange}
                   onPageSizeChange={handlePageSizeChange}

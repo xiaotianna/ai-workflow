@@ -170,8 +170,9 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 以下接口统一使用 Bearer Token，并始终按当前用户 `ownerId` 隔离知识库：
 
 - `GET /knowledge-bases`：获取当前用户的全部知识库；支持最长 40 字符的 `search` 与
-  `updated_desc`、`created_desc`、`created_asc` 排序，返回 `{ items }`。当前阶段不分页，不得
-  在前端模拟截断；需要分页时在保持 `items` 的基础上增加 opaque cursor。
+  `updated_desc`、`created_desc`、`created_asc` 排序，返回 `{ items }`；每个条目包含当前知识库
+  设置的 `segmentationMode`，供列表与工作流引用器直接展示，不得为每个条目额外请求设置接口。
+  当前阶段不分页，不得在前端模拟截断；需要分页时在保持 `items` 的基础上增加 opaque cursor。
 - `GET /knowledge-bases/:knowledgeBaseId`：获取知识库详情；路径参数不是 UUID v4 时返回 `400`，
   资源不存在或不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“知识库不存在”。
 - `POST /knowledge-bases`：创建空白知识库；`title` 和 `icon` 必填，`description` 可选，不要求
@@ -189,8 +190,9 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   会过滤低于版本化阈值的候选，因此结果数允许少于请求的 TopK。
 - `GET /knowledge-bases/:knowledgeBaseId/indexes`：按代际倒序返回索引状态、活动标记和失败原因。
 - `POST /knowledge-bases/:knowledgeBaseId/indexes/rebuild`：只重建最新的 `FAILED` 索引；事务内锁定知识库，
-  校验当前嵌入模型仍启用，复制失败代际的不可变配置创建新代际并写入 Outbox。已有 `BUILDING`
-  代际时返回 `409`，禁止重复投递或原地修改失败代际。
+  校验当前嵌入模型仍启用，复制失败代际的不可变配置创建新代际并写入 Outbox。新代际重新处理启用的
+  `READY` 与 `FAILED` 文档；失败文档先切换为 `PROCESSING`，成功 Head 随新代际激活后恢复为
+  `READY`。已有 `BUILDING` 代际时返回 `409`，禁止重复投递或原地修改失败代际。
 - `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 PDF、
   Markdown、TXT；上传最多 10 个文件，单文件最大 15 MiB。上传接口保存 Source、Document、Version
   与 Outbox 后返回文档数组；存在活动或构建中索引时初始状态为 `PROCESSING`，Worker 完成当前可服务
@@ -279,8 +281,8 @@ Key 必须同时校验 `knowledge:retrieve`、`knowledge:answer`、`knowledge:do
   不得重复。
 - `PUT /models/groups/:groupId`：原子保存组配置与完整模型列表；模型项携带 ID 时更新原记录，
   未携带时创建，响应中缺失的旧模型会删除。Key 不传表示保留，字符串表示替换，`null` 表示
-  清除；修改供应商时必须明确设置或清除 Key。知识库已引用的嵌入模型不能删除或修改模型 ID，
-  其模型组不能修改供应商类型。
+  清除；修改供应商时必须明确设置或清除 Key。知识库已引用的嵌入模型不能删除，其模型组不能修改
+  供应商类型；只有关联索引正在构建或文档正在执行 Embedding 时禁止修改模型 ID，处理完成后允许修改。
 - `PATCH /models/groups/:groupId/enabled`：只修改模型组启用状态，不覆盖组内模型状态。
 - `PATCH /models/groups/:groupId/models/:modelId/enabled`：按配置模型 UUID 修改单模型启用状态。
 - `DELETE /models/groups/:groupId`：硬删除模型组并级联删除组内模型；正在被知识库设置引用时返回 `409`。

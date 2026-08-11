@@ -3,6 +3,14 @@ import type { NodeFormSchema } from '../../form/field-schema-types'
 import { ragNodeSchema } from './schema'
 
 export const ragNodeForm = {
+  query: {
+    ui: FIELD_UI_TYPES.VARIABLE_TEMPLATE,
+    label: '检索内容',
+    description: '输入用于知识库检索的内容，支持插入上游变量',
+    required: true,
+    headerLabel: 'QUERY',
+    placeholder: '输入检索内容，或插入上游变量',
+  },
   knowledgeBases: {
     ui: FIELD_UI_TYPES.KNOWLEDGE_BASE,
     label: '知识库',

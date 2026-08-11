@@ -117,6 +117,7 @@ export class KnowledgeRetrievalRepository {
         currentVersionId: { in: documentVersionIds },
         document: {
           enabled: true,
+          status: 'READY',
           lifecycleStatus: 'ACTIVE',
           knowledgeBase: {
             ownerId,

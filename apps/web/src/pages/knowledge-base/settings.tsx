@@ -308,7 +308,7 @@ export default function KnowledgeBaseSettingsPage() {
     <div className="min-h-full px-6 pt-4 pb-8">
       <PageTitle title="设置" subtitle="配置新文档的分段方式与知识库的查询策略" />
 
-      <PageContent className="mt-5 w-full max-w-3xl pl-10">
+      <PageContent className="mx-auto mt-5 w-full max-w-3xl pl-10">
         {!isResourceAvailable || loading ? (
           <div className="text-muted-foreground flex min-h-48 items-center justify-center text-sm">
             知识库设置加载中

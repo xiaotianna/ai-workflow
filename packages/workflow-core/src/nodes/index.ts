@@ -32,7 +32,7 @@ export function createBuiltinNodeRegistry(): NodeRegistryReader {
   return createBuiltinWorkflowNodeCatalog().nodeRegistry
 }
 
-export const BUILTIN_WORKFLOW_NODE_CATALOG_VERSION = 'workflow-core-builtin-v1'
+export const BUILTIN_WORKFLOW_NODE_CATALOG_VERSION = 'workflow-core-builtin-v2'
 
 export function createBuiltinWorkflowNodeCatalog() {
   return createWorkflowNodeCatalog({

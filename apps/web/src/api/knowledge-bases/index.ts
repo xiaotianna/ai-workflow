@@ -1,11 +1,13 @@
 import { apiClient } from '@/api/client'
 
 export type KnowledgeBaseSort = 'updated_desc' | 'created_desc' | 'created_asc'
+export type KnowledgeSegmentationMode = 'GENERAL' | 'QA' | 'PARENT_CHILD'
 
 export interface KnowledgeBaseDto {
   id: string
   title: string
   author: string
+  segmentationMode: KnowledgeSegmentationMode
   description?: string
   icon?: string
   createdAt: string
@@ -27,7 +29,6 @@ export interface CreateKnowledgeBaseParams {
   description?: string
 }
 
-export type KnowledgeSegmentationMode = 'GENERAL' | 'QA' | 'PARENT_CHILD'
 export type KnowledgeRetrievalProfile = 'HYBRID_ACCURATE' | 'HYBRID_FAST'
 export type KnowledgeDocumentFileType =
   | 'pdf'

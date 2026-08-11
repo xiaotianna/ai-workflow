@@ -36,6 +36,7 @@ export function toKnowledgeBaseListItem(knowledgeBase: KnowledgeBaseDto): Knowle
     id: knowledgeBase.id,
     title: knowledgeBase.title,
     author: knowledgeBase.author,
+    segmentationMode: knowledgeBase.segmentationMode,
     createdAt: knowledgeBase.createdAt,
     updatedAt: knowledgeBase.updatedAt,
     description: knowledgeBase.description,

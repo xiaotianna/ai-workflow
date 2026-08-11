@@ -32,6 +32,7 @@ import { DocumentActionMenu } from './document-action-menu'
 import { getDocumentActions } from './document-actions'
 import { DocumentFileTypeIcon } from './document-file-type-icon'
 import { DocumentPagination } from './document-pagination'
+import { KnowledgeSelectionActions } from './knowledge-selection-actions'
 
 const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 88 + 168 + 88 + 72 + 48
 
@@ -74,8 +75,11 @@ interface DocumentTableProps {
   pageIndex: number
   pageSize: number
   rowSelection: RowSelectionState
+  selectionBusy?: boolean
   onDocumentAction?: DocumentActionHandler
   onDocumentEnabledChange: (documentId: string, enabled: boolean) => void
+  onSelectedDocumentsDelete: () => void
+  onSelectedDocumentsEnabledChange: (enabled: boolean) => void
   onPageChange: (pageIndex: number) => void
   onPageSizeChange: (pageSize: number) => void
   onRowSelectionChange: OnChangeFn<RowSelectionState>
@@ -171,8 +175,11 @@ export function DocumentTable({
   pageIndex,
   pageSize,
   rowSelection,
+  selectionBusy = false,
   onDocumentAction,
   onDocumentEnabledChange,
+  onSelectedDocumentsDelete,
+  onSelectedDocumentsEnabledChange,
   onPageChange,
   onPageSizeChange,
   onRowSelectionChange,
@@ -185,6 +192,7 @@ export function DocumentTable({
           <div className="flex items-center gap-3 whitespace-nowrap">
             <Checkbox
               aria-label="全选当前页文档"
+              disabled={loading || selectionBusy || documents.length === 0}
               checked={
                 table.getIsAllPageRowsSelected()
                   ? true
@@ -206,6 +214,7 @@ export function DocumentTable({
               <Checkbox
                 aria-label={`选择 ${row.original.name}`}
                 checked={row.getIsSelected()}
+                disabled={selectionBusy}
                 onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
               />
               <span>{index}</span>
@@ -315,6 +324,7 @@ export function DocumentTable({
           <Switch
             aria-label={`${row.original.enabled ? '禁用' : '启用'} ${row.original.name}`}
             checked={row.original.enabled}
+            disabled={selectionBusy}
             onCheckedChange={(checked) =>
               onDocumentEnabledChange(row.original.id, Boolean(checked))
             }
@@ -332,6 +342,7 @@ export function DocumentTable({
           <DocumentActionMenu
             title={row.original.name}
             actions={getDocumentActions(row.original, onDocumentAction)}
+            disabled={selectionBusy}
           />
         ),
         enableSorting: false,
@@ -340,7 +351,7 @@ export function DocumentTable({
         maxSize: 48,
       },
     ],
-    [onDocumentAction, onDocumentEnabledChange],
+    [documents.length, loading, onDocumentAction, onDocumentEnabledChange, selectionBusy],
   )
 
   const pagination = useMemo<PaginationState>(
@@ -379,10 +390,13 @@ export function DocumentTable({
       }
     },
     onRowSelectionChange,
+    getRowId: (row) => row.id,
   })
 
+  const selectedDocumentCount = table.getSelectedRowModel().rows.length
+
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">
       <div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
         <Table
           aria-busy={loading}
@@ -475,6 +489,18 @@ export function DocumentTable({
           )}
         </Table>
       </div>
+
+      {!loading ? (
+        <KnowledgeSelectionActions
+          ariaLabel="已选择文档操作"
+          busy={selectionBusy}
+          count={selectedDocumentCount}
+          onEnable={() => onSelectedDocumentsEnabledChange(true)}
+          onDisable={() => onSelectedDocumentsEnabledChange(false)}
+          onDelete={onSelectedDocumentsDelete}
+          onCancel={() => onRowSelectionChange({})}
+        />
+      ) : null}
 
       <DocumentPagination
         pageIndex={table.getState().pagination.pageIndex}

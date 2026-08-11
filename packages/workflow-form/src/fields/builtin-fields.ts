@@ -13,6 +13,7 @@ import { SliderField } from './slider-field'
 import { SwitchField } from './switch-field'
 import { TextField } from './text-field'
 import { TextareaField } from './textarea-field'
+import { VariableTemplateField } from './variable-template-field'
 
 export { FIELD_UI_TYPES }
 
@@ -29,5 +30,6 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+  [FIELD_UI_TYPES.VARIABLE_TEMPLATE]: VariableTemplateField,
   [FIELD_UI_TYPES.ERROR_HANDLING]: ErrorHandlingField,
 }

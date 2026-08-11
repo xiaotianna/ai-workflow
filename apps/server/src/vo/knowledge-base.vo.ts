@@ -2,6 +2,7 @@ export interface KnowledgeBaseVo {
   id: string
   title: string
   author: string
+  segmentationMode: 'GENERAL' | 'QA' | 'PARENT_CHILD'
   description?: string
   icon?: string
   createdAt: Date

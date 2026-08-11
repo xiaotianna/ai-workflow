@@ -39,23 +39,24 @@
 - 设置保存 `ModelGroup.id` 和 `ConfiguredModel.id` 两个稳定引用；凭证仍由模型模块加密管理，知识库
   不复制 Key、Base URL 或密文。
 - 添加文件步骤最多展示当前模型的只读摘要和“前往设置”入口，不重复提供选择器。
-- 模型或索引时配置变化后创建新 `KnowledgeBaseIndex` 代际并异步重建；旧活动代际继续服务，只有新
-  代际完整 READY 后才原子切换。已有 Chunk 和活动索引不得在保存设置时被原地覆盖。
-- 被知识库设置引用的模型组不能删除；被引用的模型不能删除或修改模型 ID。停用只影响新任务调度，
-  历史代际仍通过快照保持可追溯。
+- 模型或索引时配置变化后创建新 `KnowledgeBaseIndex` 代际并异步重建；旧活动代际继续服务，新代际
+  纳入启用且状态为 READY 或 FAILED 的文档；FAILED 文档使用新 Version 重试，成功文档完成投影后
+  才原子切换。已有 Chunk 和活动索引不得在保存设置时被原地覆盖。
+- 被知识库设置引用的模型组和模型不能删除；关联索引正在构建或文档正在执行
+  Embedding 时不能修改模型 ID，处理完成后允许修改。停用只影响新任务调度，历史代际仍通过快照保持可追溯。
 
 ### 0.3 尚缺能力与完成顺序
 
-| 阶段 | 缺口                                                                | 状态               | 完成定义                                                                               |
-| ---- | ------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------- |
-| 1A   | 知识库级嵌入模型选择和稳定引用                                      | 已完成             | 设置页只列出模型页中可用的 Embedding 模型；后端校验 owner/type/enabled；引用删除受保护 |
-| 1B   | Index、Source、Version、Head、Attempt、Projection、Outbox 事实模型  | 已实现，待部署迁移 | 所有处理结果可按文档版本和索引代际追溯，失败不覆盖活动 Head                            |
-| 1C   | S3/MinIO、RabbitMQ、幂等 Worker、PDF 文本解析与孤儿 Source GC       | 已实现，待环境联调 | 重复消息不产生重复版本/Chunk；失败可重试和进死信；原文件不依赖本机磁盘                 |
-| 1D   | OpenSearch schema、投影写入和完整性校验                             | 已实现，待环境联调 | READY 文档的 count/checksum 与检索投影 100% 一致                                       |
-| 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                  |
-| 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v2` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                          |
-| 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                          |
-| 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 待实现             | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                   |
+| 阶段 | 缺口                                                                | 状态               | 完成定义                                                                                                 |
+| ---- | ------------------------------------------------------------------- | ------------------ | -------------------------------------------------------------------------------------------------------- |
+| 1A   | 知识库级嵌入模型选择和稳定引用                                      | 已完成             | 设置页只列出模型页中可用的 Embedding 模型；后端校验 owner/type/enabled；引用删除和嵌入中的 ID 变更受保护 |
+| 1B   | Index、Source、Version、Head、Attempt、Projection、Outbox 事实模型  | 已实现，待部署迁移 | 所有处理结果可按文档版本和索引代际追溯，失败不覆盖活动 Head                                              |
+| 1C   | S3/MinIO、RabbitMQ、幂等 Worker、PDF 文本解析与孤儿 Source GC       | 已实现，待环境联调 | 重复消息不产生重复版本/Chunk；失败可重试和进死信；原文件不依赖本机磁盘                                   |
+| 1D   | OpenSearch schema、投影写入和完整性校验                             | 已实现，待环境联调 | READY 文档的 count/checksum 与检索投影 100% 一致                                                         |
+| 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                                    |
+| 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v2` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                                            |
+| 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                                            |
+| 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 待实现             | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                                     |
 
 ### 0.4 实施纪律
 
@@ -411,7 +412,14 @@ sequenceDiagram
 - Worker 消费前按任务 ID 读取 PostgreSQL，重复消息必须安全跳过或续跑。
 - OpenSearch bulk 部分成功时不能切换 Head。记录失败项并重试相同 projection ID。
 - 投影完成后比较预期 Chunk 数、实际 count 与聚合 checksum，再把 Version 标记为 READY。
-- 新版本失败时继续使用旧 Head；新索引代际失败时继续使用旧 `activeIndexId`。
+- 没有活动索引时，纳入首次构建或失败重建的文档必须在派发异步 Version 前标记为 PROCESSING，不能
+  继续以 READY 对外展示；已有活动索引时旧 Head 继续服务，文档可保持 READY 直到新代际原子切换。
+- 失败重建会把启用的 FAILED 文档作为重试候选并切换为 PROCESSING；只有新 Version 投影成功并形成
+  Head 的文档才随新代际激活恢复为 READY，再次失败的文档继续保持 FAILED。
+- 单文档达到不可重试失败时只将该 Version 和 Document 标记为 FAILED，并从本代际可检索集合排除；
+  其他文档全部进入终态后，只要存在 READY 文档即可激活该索引代际，失败文档不得阻断整库检索。
+- 新版本失败时不得切换 Head，并把文档管理状态标记为 FAILED；即使旧投影仍存在，检索返回前的
+  PostgreSQL 强一致过滤也必须排除该文档。新索引代际失败时继续使用旧 `activeIndexId`。
 - 删除、禁用和 ACL 变更同样走可靠投影任务；高风险权限收紧可以先在 PostgreSQL 把资源标为不可
   检索，再等待 OpenSearch 删除，避免窗口期泄漏。
 
@@ -1166,7 +1174,7 @@ total latency / degraded / error code
 
 ### 阶段 1：事实模型和入库闭环
 
-- 已完成知识库级嵌入模型选择：复用模型管理的 Embedding 目录，保存稳定 UUID 引用并保护被引用模型。
+- 已完成知识库级嵌入模型选择：复用模型管理的 Embedding 目录，保存稳定 UUID 引用，保护引用删除和嵌入进行中的模型 ID 变更。
 - 已落地 Index、Document、Source、Version、Chunk、Head、Attempt、Projection、Outbox。
 - 已实现 S3/MinIO、本地开发存储、RabbitMQ 知识队列和幂等 Worker；孤儿对象 GC 待补齐。
 - 已支持 Markdown / TXT / 文本型 PDF / DOCX / PPTX / XLSX / CSV / HTML，统一的结构化解析、

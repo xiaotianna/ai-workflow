@@ -16,6 +16,7 @@ import {
   projectConditionNodeConfig,
   projectHttpNodeConfig,
   projectLlmNodeConfig,
+  projectRagNodeConfig,
   projectStaticJsonNodeConfig,
 } from '@ai-workflow/runtime'
 import { BadRequestException, Injectable } from '@nestjs/common'
@@ -53,7 +54,7 @@ const BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS: readonly RuntimeNodeConfigProjecto
     nodeType: BuiltinNodeType.CONDITION,
     projector: projectConditionNodeConfig,
   },
-  { nodeType: BuiltinNodeType.RAG, projector: projectStaticJsonNodeConfig },
+  { nodeType: BuiltinNodeType.RAG, projector: projectRagNodeConfig },
   { nodeType: BuiltinNodeType.CODE, projector: projectStaticJsonNodeConfig },
   {
     nodeType: BuiltinNodeType.SUB_WORKFLOW,

@@ -66,16 +66,12 @@ func (nodeExecutor *Executor) Execute(
 		command.Attempt,
 	)
 
-	query, ok := command.Inputs["query"].(string)
-	query = strings.TrimSpace(query)
-	if !ok || query == "" {
-		return executor.FailedResult(command, &executor.ExecutionFailure{
-			Code:    "RAG_QUERY_INVALID",
-			Message: "知识库检索内容不能为空",
-		}), nil
+	config, failure := parseNodeConfig(command.Config)
+	if failure != nil {
+		return executor.FailedResult(command, failure), nil
 	}
 
-	documents, failure := nodeExecutor.retrieve(ctx, command, query)
+	documents, failure := nodeExecutor.retrieve(ctx, command, config.Query)
 	if failure != nil {
 		return executor.FailedResult(command, failure), nil
 	}

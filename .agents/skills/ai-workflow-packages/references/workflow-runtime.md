@@ -15,6 +15,8 @@
 - `projectLlmNodeConfig`：解析 LLM `config.messages[].content` 中由上下文编辑器写入的
   `{{#nodeId.outputKey.path#}}`、`{{#env.variableId.path#}}` 与 `{{#sys.key.path#}}` 引用，派发前将
   string 直接插入、其他 JSON 值序列化为文本；Go Executor 只接收解析后的消息列表。
+- `projectRagNodeConfig`：复用同一变量模板投影规则解析 RAG `config.query`，派发给 Go 前保证
+  Query 已是静态字符串；知识库引用与 TopK 继续随已校验 Config 下发。
 - `projectHttpNodeConfig`：按 HTTP Schema 解析配置，并显式解析 Headers、Params 与各类 Body 中的
   `VariableValue`；Go Executor 只接收静态键值与 Body。
 - `projectConditionNodeConfig`：按 Condition Schema 解析分支，并在派发前解析每条规则的左右值；Go

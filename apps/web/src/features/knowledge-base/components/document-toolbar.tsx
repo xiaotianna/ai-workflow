@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ai-workflow/ui/components/select'
-import { Plus, Search } from 'lucide-react'
+import { Plus, RefreshCw, Search } from 'lucide-react'
 
 import {
   documentFileTypeFilterStrategies,
@@ -22,10 +22,13 @@ interface DocumentToolbarProps {
   fileType: KnowledgeDocumentFileTypeFilter
   sort: KnowledgeDocumentSort
   disabled?: boolean
+  searchDisabled?: boolean
+  statusRefreshFailed?: boolean
   onAddDocument: () => void
   onFileTypeChange: (fileType: KnowledgeDocumentFileTypeFilter) => void
   onSearchChange: (search: string) => void
   onSortChange: (sort: KnowledgeDocumentSort) => void
+  onStatusRefreshRetry?: () => void
 }
 
 export function DocumentToolbar({
@@ -33,10 +36,13 @@ export function DocumentToolbar({
   fileType,
   sort,
   disabled,
+  searchDisabled,
+  statusRefreshFailed,
   onAddDocument,
   onFileTypeChange,
   onSearchChange,
   onSortChange,
+  onStatusRefreshRetry,
 }: DocumentToolbarProps) {
   return (
     <>
@@ -102,12 +108,27 @@ export function DocumentToolbar({
         <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
         <Input
           value={search}
+          disabled={searchDisabled}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="搜索文档"
           aria-label="搜索文档"
           className="bg-input focus-visible:bg-background h-8 rounded-lg border-transparent pr-3 pl-9 text-sm shadow-none"
         />
       </div>
+
+      {statusRefreshFailed ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="text-muted-foreground shrink-0 gap-1.5"
+          disabled={disabled}
+          onClick={onStatusRefreshRetry}
+        >
+          <RefreshCw aria-hidden className="size-3.5" />
+          重新获取状态
+        </Button>
+      ) : null}
 
       <Button
         type="button"

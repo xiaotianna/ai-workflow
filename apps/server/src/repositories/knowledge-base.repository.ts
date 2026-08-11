@@ -19,6 +19,11 @@ export const knowledgeBaseSelect = {
   icon: true,
   createdAt: true,
   updatedAt: true,
+  settings: {
+    select: {
+      segmentationMode: true,
+    },
+  },
   owner: {
     select: {
       username: true,

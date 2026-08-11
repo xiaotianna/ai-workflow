@@ -1,6 +1,7 @@
 import { createNodeDefinition } from '../../node/create-node-definition'
 import { DATA_TYPE_KINDS } from '../../port/data-types'
 import { BuiltinNodeType } from '../builtin-node-types'
+import { RAG_DOCUMENTS_OUTPUT_KEY } from './outputs'
 
 export const ragNodeDefinition = createNodeDefinition({
   type: BuiltinNodeType.RAG,
@@ -14,7 +15,7 @@ export const ragNodeDefinition = createNodeDefinition({
     required: true,
   },
   outputPort: {
-    id: 'documents',
+    id: RAG_DOCUMENTS_OUTPUT_KEY,
     label: '检索结果',
     dataType: DATA_TYPE_KINDS.JSON,
     multiple: true,

@@ -155,7 +155,7 @@ Resolver 在渲染前合并。Form 不提供 Select、树选择等控件专属�
 同步；description 通过数据类型组合控件左侧的说明入口打开 Dialog 编辑；
 内置 `START_INPUT_VARIABLES` 复用相同的 `node.outputs` 数据结构，但显示紧凑列表，并通过
 Dialog 新增或编辑 Start 输入变量的 key、label、dataType、defaultValue 和 required；不提供
-最大长度或隐藏预填字段。三种变量编辑器在集合为空时只显示区域标题和新增按钮，不渲染空状态
+最大长度或隐藏预填字段。支持动态集合的三个变量编辑器在集合为空时只显示区域标题和新增按钮，不渲染空状态
 占位。调用方负责提供当前节点可引用的
 `AvailableVariableOption`、Zod 错误、当前值和写回回调，Form 不遍历工作流、Edge 或
 React Flow。候选项同时提供 `sourceId`、`sourceLabel`、`variableName` 和 `dataType`，
@@ -210,6 +210,7 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   [FIELD_UI_TYPES.CONDITION_RULES]: ConditionRulesField,
   [FIELD_UI_TYPES.CONDITION_BRANCHES]: ConditionBranchesField,
   [FIELD_UI_TYPES.CONTEXT_MESSAGES]: ContextMessagesField,
+  [FIELD_UI_TYPES.VARIABLE_TEMPLATE]: VariableTemplateField,
   [FIELD_UI_TYPES.ERROR_HANDLING]: ErrorHandlingField,
 }
 ```
@@ -311,6 +312,10 @@ export const builtinFields: Readonly<Partial<Record<FieldUIType, AnyFieldRendere
   token 使用 `ENVIRONMENT_VARIABLE_NAMESPACE` 与稳定 `variableId` 生成；Form 不维护另一份命名空间
   常量或变量清单。消息内容错误只在对应消息项下展示，外层 `Form.Field` 只展示数组级或其他结构
   错误，避免同一 Zod 错误重复出现。LLM 模型目录、模型 API 与供应商展示策略不进入该组件。
+- `VariableTemplateEditor` 是 LLM 上下文与单条变量模板字段共用的编辑卡片，统一承载变量 Token
+  序列化、Tiptap 编辑器、变量选择按钮、聚焦描边和错误态。`VariableTemplateField` 对应
+  `FIELD_UI_TYPES.VARIABLE_TEMPLATE`，直接读写字符串配置，不提供消息新增、角色切换或删除；
+  RAG 使用该字段编辑 `config.query`，Header 固定显示 `QUERY`。
 - `NodeOutputDefinitionsEditor` 使用与 End 输出区相同的三列行内交互：左侧编辑变量 Key，
   中间复用 `VariableValueEditor` 填写直接值或选择上游、系统、环境变量，右侧删除。Key 修改时
   同步 `label`；未填写值时不写 `NodeOutputDefinition.value`，继续使用执行器返回的同名字段；

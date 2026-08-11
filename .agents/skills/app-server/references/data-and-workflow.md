@@ -95,7 +95,8 @@
 - LLM 上下文正文来自 Core `config.messages`；完整运行注册 Runtime 的 `projectLlmNodeConfig`，在派发前
   解析正文中的节点、环境与系统变量引用。HTTP 与 Condition 分别注册 `projectHttpNodeConfig` 和
   `projectConditionNodeConfig`，显式解析其 Schema 声明的 VariableValue，禁止把 Core 引用结构交给
-  Go 猜测。节点 `inputs` 是独立且可选的通用输入绑定，Server 与 Go 均不得假设存在名为 `input` 的
+  Go 猜测。RAG 注册 `projectRagNodeConfig`，复用 LLM 变量模板规则把 `config.query` 投影为静态字符串
+  后再派发。节点 `inputs` 是独立且可选的通用输入绑定，Server 与 Go 均不得假设存在名为 `input` 的
   字段，也不得把它自动追加成一条模型消息。
 
 ## 知识库持久化
@@ -115,8 +116,12 @@
 - 空白 `KnowledgeBase` 是合法资源，允许 `activeIndexId` 为空并被 RAG 节点选择；上传、召回、
   测试运行和发布前再校验 active Index 与 READY 文档。
 - `KnowledgeBase.activeIndexId` 是当前检索索引的唯一事实来源。嵌入模型、维度、距离算法或知识库级
-  切分配置变化时创建新的 `KnowledgeBaseIndex` 代际，全部非删除文档构建成功后在事务中原子切换，
-  不按文档逐个切换知识库正在服务的模型。
+  切分配置变化时创建新的 `KnowledgeBaseIndex` 代际；代际构建纳入启用且状态为 `READY` 或 `FAILED`
+  的文档，`FAILED` 文档通过新 Version 重试，不能把旧失败结果直接作为可检索投影。单个文档再次处理
+  失败只排除该文档，不阻断其他成功文档组成新索引并在事务中原子切换；处理中或禁用文档不得进入构建。
+- 首次构建或失败重建时如果不存在活动索引，纳入新代际的文档在创建异步 Version 前必须切换为
+  `PROCESSING`，投影完成后才恢复 `READY`；存在旧活动索引时，原 `READY` 文档继续表示旧代际可服务，
+  被重试的 `FAILED` 文档切换为 `PROCESSING`，成功 Head 随新代际激活后恢复为 `READY`。
 - 索引构建进入 `FAILED` 后保持终态；显式重建必须锁定知识库并从最新失败代际复制不可变配置，
   创建新 `BUILDING` 代际和唯一 Outbox 事件。不得原地复活失败代际；已有构建中代际时拒绝重复提交。
 - 原始文件、文档索引结果和 Worker 尝试分别使用 `KnowledgeDocumentSource`、
@@ -129,6 +134,8 @@
 - `KnowledgeChunk.enabled` 是活动 Head 分段的管理面状态。单条禁用不改写不可变正文或向量投影；
   OpenSearch 先召回候选，服务端返回前再用 PostgreSQL `enabled` 强一致过滤，因此残留投影不会被
   返回；重新启用后可继续使用原投影。
+- 检索返回前的 PostgreSQL 强一致过滤同时要求 `KnowledgeDocument.status = READY`；即使 OpenSearch
+  仍存在失败文档的旧投影，也不得把管理面已失败的文档返回给 RAG 或召回测试。
 - 手动编辑分段正文必须保留当前 Head 可服务：复制当前版本全部 Chunk，只在新版本替换目标
   正文，继承其他 Chunk 的元数据与启用状态，直接进入 Embedding / Projection 链路；投影完整性
   校验成功后才切换 `KnowledgeDocumentIndexHead`。无活动 Index 的兼容 Chunk 可直接修改事实行。
@@ -234,8 +241,9 @@
 idempotencyKey、leaseToken 和 deadline。结果事务必须先校验 commandId/NodeRun/leaseToken，再用
 revision CAS 推进 RuntimeState。Command Outbox 通过 `PENDING → PUBLISHING → PUBLISHED/FAILED`
 和 `FOR UPDATE SKIP LOCKED` claim 派发；stale claim 可恢复。Go 只有在 Result 获得 Publisher Confirm
-后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM、HTTP、Code 与
-Condition Executor 已按 Core Config 执行真实业务逻辑，RAG 仍为最小实现；
+后才 Ack Command，Server 只有在 Inbox/Runtime 事务提交后才 Ack Result。LLM、HTTP、Code、
+Condition 与 RAG Executor 已按 Core Config 执行真实业务逻辑；RAG Go Executor 严格解析投影后的
+Query、知识库引用和 TopK，再通过受租约保护的内部 Retriever 获取文档；
 所有 Result 与后续完整实现使用同一协议链路，Server 不识别执行器实现类型，
 不从版本快照改写或补齐输出。Result Inbox 始终保留 Executor 原始结果；完整运行的 NodeRun 保存
 Runtime Execution 已归一化的输出，因此 `node.outputs` 中声明的直接值和上游变量映射会同时用于下游

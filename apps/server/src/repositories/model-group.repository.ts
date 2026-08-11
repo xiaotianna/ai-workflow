@@ -130,6 +130,29 @@ export class ModelGroupRepository {
     ]
   }
 
+  async listActiveKnowledgeBaseEmbeddingModelReferences(
+    ownerId: string,
+    groupId: string,
+  ): Promise<string[]> {
+    const indexes = await this.prisma.knowledgeBaseIndex.findMany({
+      where: {
+        configuredModel: { groupId, group: { ownerId } },
+        OR: [
+          { status: 'BUILDING' },
+          {
+            status: 'READY',
+            versions: {
+              some: { status: 'EMBEDDING' },
+            },
+          },
+        ],
+      },
+      select: { configuredModelId: true },
+    })
+
+    return indexes.map(({ configuredModelId }) => configuredModelId)
+  }
+
   create(input: CreateModelGroupInput): Promise<ModelGroupRecord> {
     return this.prisma.modelGroup.create({
       data: {

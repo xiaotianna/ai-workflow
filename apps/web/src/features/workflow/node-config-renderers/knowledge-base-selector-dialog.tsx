@@ -19,9 +19,12 @@ import { cn } from '@ai-workflow/ui/lib/utils'
 import type { FormEvent } from 'react'
 import { z } from 'zod'
 
-import type { KnowledgeBaseDto } from '@/api/knowledge-bases'
+import type { KnowledgeBaseDto, KnowledgeSegmentationMode } from '@/api/knowledge-bases'
 
-import { KnowledgeBaseReferenceIcon, KnowledgeBaseRetrievalBadge } from './knowledge-base-reference'
+import {
+  KnowledgeBaseReferenceIcon,
+  KnowledgeBaseSegmentationBadge,
+} from './knowledge-base-reference'
 
 interface KnowledgeBaseSelectorDialogProps {
   knowledgeBases: readonly KnowledgeBaseDto[]
@@ -36,6 +39,7 @@ interface KnowledgeBaseSelectorDialogProps {
 interface KnowledgeBaseOption {
   icon?: string
   id: string
+  segmentationMode: KnowledgeSegmentationMode | undefined
   title: string
 }
 
@@ -65,12 +69,21 @@ export function KnowledgeBaseSelectorDialog({
       : [
           {
             id: reference.id,
+            segmentationMode: undefined,
             title: reference.title ?? `不可用的知识库（${reference.id}）`,
             ...(reference.icon ? { icon: reference.icon } : {}),
           },
         ],
   )
-  const options: KnowledgeBaseOption[] = [...unavailableOptions, ...knowledgeBases]
+  const options: KnowledgeBaseOption[] = [
+    ...unavailableOptions,
+    ...knowledgeBases.map((knowledgeBase) => ({
+      id: knowledgeBase.id,
+      icon: knowledgeBase.icon,
+      segmentationMode: knowledgeBase.segmentationMode,
+      title: knowledgeBase.title,
+    })),
+  ]
 
   function toggleKnowledgeBase(knowledgeBaseId: string) {
     updateFormField('knowledgeBaseIds', (currentKnowledgeBaseIds = []) =>
@@ -135,7 +148,9 @@ export function KnowledgeBaseSelectorDialog({
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
                     {knowledgeBase.title}
                   </span>
-                  <KnowledgeBaseRetrievalBadge />
+                  <KnowledgeBaseSegmentationBadge
+                    segmentationMode={knowledgeBase.segmentationMode}
+                  />
                 </button>
               )
             })}

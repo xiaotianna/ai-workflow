@@ -21,11 +21,14 @@
 - Studio 与应用详情页删除工作流时统一先打开 `DeleteStudioAppDialog`；弹窗明确列出草稿、版本、
   部署、运行内容、API Key 和调用日志均会永久删除，请求期间禁止关闭和重复提交。列表删除
   成功后刷新当前查询，详情页删除成功后返回 Studio。
-- 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示真实接口条目，角标使用 `BookOpen` 与 Studio 的工作流图标区分，角标内图标统一为 `size-2.5`；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内，只提供“编辑信息”和危险态“删除”，两项之间使用分隔线，禁止提供复制。
+- 知识库列表页与 Studio 使用相同的页面结构，通过 `PageTitle`、`PageHeaderActions`、`PageContent` 组合标题、工具栏与内容区；列表内容复用 `ResourceCard` 展示真实接口条目，列表卡片副标题和详情页身份区都根据 `segmentationMode` 展示“通用 / Q&A / 父子分段”，不使用固定的“空白知识库”；角标使用 `BookOpen` 与 Studio 的工作流图标区分，角标内图标统一为 `size-2.5`；卡片点击进入 `/knowledge-base/:id/documents`，操作菜单配置维护在 `features/knowledge-base` 内，只提供“编辑信息”和危险态“删除”，两项之间使用分隔线，禁止提供复制。
 - 知识库创建和编辑复用 `KnowledgeBaseFormDialog`；编辑时回填名称、图标和描述，请求期间禁止
   关闭或重复提交。删除统一使用 `DeleteKnowledgeBaseDialog` 二次确认；请求期间禁止关闭，失败
   时保留弹窗，列表成功后刷新当前查询，详情成功后返回知识库列表。
-- 文档页（`/knowledge-base/:id/documents`）使用真实分页接口，搜索、启停、删除、上传和手动重新索引都必须持久化，不得回退为本地 mock。点击文件名进入 `/knowledge-base/:id/documents/:documentId`，该页展示真实分段、分页搜索、文档信息和当前分段参数；Header 通过 Feature 内的 `KnowledgeDocumentSwitcher` 搜索并切换同一知识库中的文档，候选列表使用 50 条一批的触底续载与虚拟渲染，请求失败后停止自动续载并提供重试入口。
+- 工作流 RAG 知识库引用卡片和选择弹窗的右侧标签展示当前知识库真实的分段模式
+  “通用 / Q&A / 父子分段”；该值每次从知识库目录的 `segmentationMode` 映射，不写死文案，也不冗余
+  持久化到工作流节点配置。旧配置引用在当前目录不可用时显示“分段模式未知”。
+- 文档页（`/knowledge-base/:id/documents`）使用真实分页接口，搜索、启停、删除、上传和手动重新索引都必须持久化，不得回退为本地 mock。手动重新索引先乐观显示“处理中”，请求失败时回滚；当前分页存在处理中条目时每 1.5 秒短轮询一次分页接口，全部进入终态后停止，轮询失败后停止自动请求并在工具栏提供重试入口，不为该状态单独接入 SSE。点击文件名进入 `/knowledge-base/:id/documents/:documentId`，该页展示真实分段、分页搜索、文档信息和当前分段参数；Header 通过 Feature 内的 `KnowledgeDocumentSwitcher` 搜索并切换同一知识库中的文档，候选列表使用 50 条一批的触底续载与虚拟渲染，请求失败后停止自动续载并提供重试入口。
 - 知识库设置页将“索引模型”、入库侧“文本分段”与查询侧“检索”分区编辑。配置内容使用带最大宽度且相对页面标题保留左侧缩进的布局，每项采用固定宽度说明栏与自适应控件栏；只有分段模式、检索画像等枚举选择使用带边框的选项卡，普通 Select、Input 和 Checkbox 不增加外层卡片。嵌入模型复用 `GET /models/groups?modelType=embedding`，只允许选择已启用组中的已启用模型，Select 触发器和模型组标题统一复用供应商图标；保存模型组和模型稳定 UUID，失效旧引用保留并提示不可用，设置页提供 `/models?tab=embedding` 管理入口。保存分段配置只提升配置修订号并将旧文档标记为待更新，不在保存时覆盖已有 Chunk；只有用户明确点击“重新索引”时才使用当前配置替换该文档分段。最新索引失败时在设置顶部展示失败原因和“重新构建”入口，提交后轮询新代际状态；构建期间禁止重复提交。
 - 文档分段列表的编辑入口从右侧以短过渡滑入内容面板，面板只编辑分段正文并保留取消、
   保存和 Escape 关闭路径，不混入上传、摘要、关键词等其他字段。内容表单使用统一 Zod、`useFormData`、
@@ -219,6 +222,9 @@
 - 文档工具栏提供文件类型、排序、搜索和添加文件；文件类型默认“全部”，并与服务端实际支持的
   PDF / Markdown / TXT 保持一致。排序提供上传时间、召回次数、字符数和名称；查询变化后回到第一页，禁止只对当前页做本地筛选或排序。
   列表请求期间搜索框必须保持可输入和当前焦点，不得因 loading 切换为 `disabled`；旧请求通过 AbortController 取消。
+- 文档表格的头部复选框只全选当前页，筛选、分页或每页数量变化后清空选择。当前页存在已选文档时，
+  在分页器上方展示与分段列表共用的 `KnowledgeSelectionActions`，提供批量启用、禁用、删除和取消；
+  批量启停与删除必须持久化，删除前必须二次确认，请求期间禁止重复提交、修改选择或触发行内操作。
 - 文档详情的分段列表使用独立复选框列，头部复选框只全选当前页；状态筛选固定为“全部 / 已禁用 /
   已启用”并由服务端分页查询。分段正文卡片默认无边框，Hover、选中或内部聚焦时使用 `bg-input`
   以外的独立浅色交互背景 `bg-muted/60`；卡片与行间分隔线上下各保留 8px。右侧常驻状态在 Hover
@@ -494,7 +500,9 @@
   用户修正。动态业务数据不得在 Web 重组节点字段配置；对应字段的
   `ui`、标签、默认说明与必填约束由 Core `NodeType.form` 声明，Web 通过
   `features/workflow/node-config-renderers` 中的字段 renderer 消费 Context 或 API 数据。
-  RAG 通过 Core `KNOWLEDGE_BASE` 字段契约进入通用分发，Web `KnowledgeBaseField` 从
+  RAG 的 `config.query` 位于知识库选择之前，通过 Form `VARIABLE_TEMPLATE` 字段复用 LLM
+  上下文的 Tiptap 编辑卡片；Header 固定显示 `QUERY`，只保留变量按钮，不提供标题新增、角色切换
+  或删除。知识库选择通过 Core `KNOWLEDGE_BASE` 字段契约进入通用分发，Web `KnowledgeBaseField` 从
   `WorkflowKnowledgeBaseCatalogProvider` 获取真实知识库目录，以“+”打开多选 Dialog；
   Dialog 点击整行切换选中态，底部显示选中数量，确认后整体写回。已选知识库按配置顺序
   显示紧凑卡片，卡片容器与 Start 输入变量条目统一使用 0.5px 低对比边框、`shadow-xs` 默认

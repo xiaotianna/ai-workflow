@@ -11,6 +11,7 @@ export { KnowledgeBaseDetailIdentity } from './components/knowledge-base-detail-
 export { KnowledgeDocumentSwitcher } from './components/knowledge-document-switcher'
 export { KnowledgeChunkContent } from './components/knowledge-chunk-content'
 export { KnowledgeChunkEditPanel } from './components/knowledge-chunk-edit-panel'
+export { KnowledgeSelectionActions } from './components/knowledge-selection-actions'
 export { KnowledgeRetrievalMethodIcon } from './components/knowledge-retrieval-method-icon'
 export { KnowledgeRetrievalSettingsPanel } from './components/knowledge-retrieval-settings-panel'
 export { RenameDocumentDialog } from './components/rename-document-dialog'
@@ -26,6 +27,7 @@ export { useKnowledgeBases } from './hooks/use-knowledge-bases'
 export {
   documentPageSizeOptions,
   documentSegmentationModeOptions,
+  documentStatusPollIntervalMs,
   knowledgeSegmentationModeLabels,
 } from './constants'
 export {

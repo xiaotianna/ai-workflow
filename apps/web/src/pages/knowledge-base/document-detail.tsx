@@ -25,8 +25,6 @@ import { cn } from '@ai-workflow/ui/lib/utils'
 import {
   ArrowLeft,
   ArrowRight,
-  CircleCheck,
-  CircleX,
   Grip,
   PencilLine,
   Plus,
@@ -34,7 +32,6 @@ import {
   Search,
   Trash2,
 } from 'lucide-react'
-import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
@@ -43,6 +40,7 @@ import {
   KnowledgeChunkContent,
   KnowledgeChunkEditPanel,
   KnowledgeDocumentSwitcher,
+  KnowledgeSelectionActions,
   knowledgeSegmentationModeLabels,
 } from '@/features/knowledge-base'
 
@@ -72,11 +70,6 @@ const chunkStatusFilterLabels: Record<ChunkStatusFilter, string> = {
   disabled: '已禁用',
   enabled: '已启用',
 }
-
-const chunkSelectionActionButtonClassName =
-  'hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))]'
-const chunkSelectionDestructiveButtonClassName =
-  'text-destructive hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] hover:text-destructive focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] focus-visible:text-destructive dark:hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))]'
 
 const chunkSkeletonWidths = ['w-2/3', 'w-4/5', 'w-3/5', 'w-3/4', 'w-1/2', 'w-5/6']
 
@@ -730,85 +723,18 @@ export default function KnowledgeDocumentDetailPage() {
             )}
           </div>
 
-          <MotionConfig reducedMotion="user">
-            <AnimatePresence>
-              {!loading && selectedChunkCount > 0 ? (
-                <motion.div
-                  key="knowledge-chunk-selection-actions"
-                  className="pointer-events-none absolute bottom-16 left-0 z-20 flex w-full justify-center px-4"
-                  initial={{ y: 8, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  exit={{ y: 8, opacity: 0 }}
-                  transition={{ duration: 0.18, ease: 'easeOut' }}
-                >
-                  <div
-                    role="toolbar"
-                    aria-label="已选择分段操作"
-                    aria-busy={batchUpdatingChunks}
-                    className="border-primary/40 pointer-events-auto flex items-center gap-x-1 rounded-[10px] border bg-[color-mix(in_oklab,var(--primary)_6%,var(--background))] p-1 shadow-xl"
-                  >
-                    <div className="inline-flex items-center gap-x-2 py-1 pr-3 pl-2">
-                      <span className="bg-primary text-primary-foreground flex size-5 items-center justify-center rounded-md text-xs font-medium">
-                        {selectedChunkCount}
-                      </span>
-                      <span className="text-primary text-[13px] leading-4 font-semibold">
-                        已选择
-                      </span>
-                    </div>
-
-                    <div aria-hidden className="bg-border mx-0.5 h-3.5 w-px shrink-0" />
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(chunkSelectionActionButtonClassName, 'gap-x-0.5 px-3')}
-                      disabled={batchUpdatingChunks || selectedChunksHavePendingUpdate}
-                      onClick={() => void handleSelectedChunksEnabledChange(true)}
-                    >
-                      <CircleCheck aria-hidden className="size-4" />
-                      <span className="px-0.5">启用</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(chunkSelectionActionButtonClassName, 'gap-x-0.5 px-3')}
-                      disabled={batchUpdatingChunks || selectedChunksHavePendingUpdate}
-                      onClick={() => void handleSelectedChunksEnabledChange(false)}
-                    >
-                      <CircleX aria-hidden className="size-4" />
-                      <span className="px-0.5">禁用</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(chunkSelectionDestructiveButtonClassName, 'gap-x-0.5 px-3')}
-                      disabled={batchUpdatingChunks}
-                      onClick={() => showToast('info', '暂不支持手动删除分段')}
-                    >
-                      <Trash2 aria-hidden className="size-4" />
-                      <span className="px-0.5">删除</span>
-                    </Button>
-
-                    <div aria-hidden className="bg-border mx-0.5 h-3.5 w-px shrink-0" />
-
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className={cn(chunkSelectionActionButtonClassName, 'px-3')}
-                      disabled={batchUpdatingChunks}
-                      onClick={() => setSelectedChunkIds(new Set())}
-                    >
-                      <span className="px-0.5">取消</span>
-                    </Button>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </MotionConfig>
+          {!loading ? (
+            <KnowledgeSelectionActions
+              ariaLabel="已选择分段操作"
+              busy={batchUpdatingChunks}
+              count={selectedChunkCount}
+              disableActions={selectedChunksHavePendingUpdate}
+              onEnable={() => void handleSelectedChunksEnabledChange(true)}
+              onDisable={() => void handleSelectedChunksEnabledChange(false)}
+              onDelete={() => showToast('info', '暂不支持手动删除分段')}
+              onCancel={() => setSelectedChunkIds(new Set())}
+            />
+          ) : null}
 
           <Pagination
             className="shrink-0"
