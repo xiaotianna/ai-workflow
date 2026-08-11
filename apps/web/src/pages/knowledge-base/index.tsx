@@ -141,7 +141,7 @@ export default function KnowledgeBaseDetailPage() {
           `/knowledge-base/${encodedKnowledgeBaseId}`,
         )}
         navigationLabel="知识库导航"
-        sidebarFooter={<KnowledgeBaseSidebarSummary knowledgeBaseId={knowledgeBase?.id} />}
+        sidebarFooter={<KnowledgeBaseSidebarSummary knowledgeBaseId={id} />}
         outletContext={
           {
             knowledgeBase,

@@ -177,6 +177,12 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   资源不存在或不属于当前用户时返回 `404`，两种情况的响应 `message` 均为“知识库不存在”。
 - `GET /knowledge-bases/:knowledgeBaseId/statistics`：返回知识库文档总数和关联应用数；关联应用按
   工作流去重，草稿或任一历史版本存在 RAG 引用都只计为一个应用。
+- `GET/PATCH /knowledge-bases/:knowledgeBaseId/api`：读取或更新当前知识库的外部 API 启用状态。
+  关闭后所有绑定 Key 立即停止通过鉴权，但不自动删除 Key。
+- `GET/POST /knowledge-bases/:knowledgeBaseId/api/keys` 与
+  `DELETE /knowledge-bases/:knowledgeBaseId/api/keys/:apiKeyId`：列出、创建和撤销当前用户拥有的
+  知识库 Key。完整 `kb-live-` Key 只在创建响应中返回一次，列表只返回掩码；读取和创建响应必须
+  使用 `Cache-Control: no-store`。
 - `POST /knowledge-bases`：创建空白知识库；`title` 和 `icon` 必填，`description` 可选，不要求
   嵌入模型、文档或索引配置。
 - `PATCH /knowledge-bases/:knowledgeBaseId`：修改名称、图标或描述，至少提供一个字段；空描述
@@ -216,15 +222,18 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 文档响应显式返回当前分段快照、`needsReindex`、异步入库状态、失败信息和从正式检索命中事实聚合的
 `recallCount`。`READY` 只允许在当前可服务索引投影完成或无需索引任务时返回。
 
-### 知识库外部 Service API 目标（尚未实现）
+### 知识库外部 Service API
 
 生产契约以 `docs/knowledge-base-production-api-design.md` 为准：外部接口统一位于
 `/v1/knowledge`，使用独立 `Authorization: Bearer kb-...` 鉴权，不得复用工作流应用的 `app-` Key。
-Key 必须同时校验 `knowledge:retrieve`、`knowledge:answer`、`knowledge:documents:read`、
-`knowledge:documents:write` 或 `knowledge:debug` 等作用域，以及允许访问的知识库授权快照。
+当前已实现的 Retrieve API 使用 `kb-live-` Key，校验 `knowledge:retrieve` scope 和 Key 绑定的单个
+知识库；登录 JWT 与工作流 `app-` Key 均不可调用。Answer、文档读写、多知识库 grant、限流及完整
+生产错误契约仍是后续目标。
 
 - `POST /v1/knowledge/retrieve`：只执行 ACL 过滤后的混合检索和 Rerank，返回稳定的 Chunk、文档、
-  引用、相关性与可选调试信息；默认不生成答案，适合其他项目自行组合上下文。
+  内容、元数据和相关性，不返回管理端调试分数；请求限制 query 1–4000 字符、TopK 1–20，当前只
+  允许提交 Key 所绑定的一个知识库。响应和 Header 返回 `requestId`，继续复用
+  `KnowledgeRetrievalService`，适合其他项目自行组合上下文。
 - `POST /v1/knowledge/answer`：复用同一检索结果后生成带引用答案，支持阻塞 JSON 和 SSE；证据不足时
   必须明确拒答或降低置信度，不允许生成没有命中来源的引用。
 - 文档上传采用上传会话与异步入库任务，写接口返回任务 ID；查询接口显式返回排队、处理中、成功或

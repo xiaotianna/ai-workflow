@@ -1,4 +1,6 @@
 import { KnowledgeBaseController } from '@/controllers/knowledge-base.controller'
+import { KnowledgeApiController } from '@/controllers/knowledge-api.controller'
+import { KnowledgeApiManagementController } from '@/controllers/knowledge-api-management.controller'
 import { ExecutorKnowledgeController } from '@/controllers/executor-knowledge.controller'
 import { ExecutorInternalAuthGuard } from '@/guards/executor-internal-auth.guard'
 import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
@@ -7,12 +9,15 @@ import { KnowledgeCommandConsumer } from '@/infra/knowledge-mq/knowledge-command
 import { KnowledgeOutboxPublisher } from '@/infra/knowledge-mq/knowledge-outbox.publisher'
 import { WorkflowMqModule } from '@/infra/workflow-mq/workflow-mq.module'
 import { KnowledgeBaseRepository } from '@/repositories/knowledge-base.repository'
+import { KnowledgeApiRepository } from '@/repositories/knowledge-api.repository'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import { KnowledgeIngestionRepository } from '@/repositories/knowledge-ingestion.repository'
 import { KnowledgeOutboxRepository } from '@/repositories/knowledge-outbox.repository'
 import { KnowledgeRetrievalRepository } from '@/repositories/knowledge-retrieval.repository'
 import { KnowledgeChunkerService } from '@/services/knowledge-chunker.service'
 import { KnowledgeBaseService } from '@/services/knowledge-base.service'
+import { KnowledgeApiService } from '@/services/knowledge-api.service'
+import { KnowledgeApiKeyGuard } from '@/guards/knowledge-api-key.guard'
 import { KnowledgeEmbeddingService } from '@/services/knowledge-embedding.service'
 import { KnowledgeIngestionService } from '@/services/knowledge-ingestion.service'
 import { KnowledgeRetrievalService } from '@/services/knowledge-retrieval.service'
@@ -26,10 +31,18 @@ import { ModelsModule } from './models.module'
 
 @Module({
   imports: [JwtModule, ModelsModule, WorkflowMqModule],
-  controllers: [KnowledgeBaseController, ExecutorKnowledgeController],
+  controllers: [
+    KnowledgeBaseController,
+    KnowledgeApiManagementController,
+    KnowledgeApiController,
+    ExecutorKnowledgeController,
+  ],
   providers: [
     KnowledgeBaseService,
     KnowledgeBaseRepository,
+    KnowledgeApiService,
+    KnowledgeApiRepository,
+    KnowledgeApiKeyGuard,
     KnowledgeSourceStore,
     KnowledgeSearchProjectionStore,
     KnowledgeChunkerService,

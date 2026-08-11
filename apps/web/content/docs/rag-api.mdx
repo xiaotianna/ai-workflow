@@ -1,11 +1,91 @@
 ---
 title: 知识库 RAG API
-description: 通过服务 API 访问知识库的接口文档。
+description: 使用独立 API 密钥检索知识库内容。
 ---
 
 # 知识库 RAG API
 
-知识库服务 API 文档正在建设中。
+知识库服务 API 允许后端服务直接检索已完成索引的文档分段。它使用独立的 `kb-live-` API
+密钥，不接受登录令牌或工作流应用的 `app-` 密钥。
 
-后续将在这里补充鉴权方式、检索请求、响应结构、错误码与调用示例。在正式契约发布前，请勿将本页
-作为生产接口依据。
+## 开始使用
+
+1. 在知识库侧边栏打开“访问 API”。
+2. 启用 API 访问。
+3. 打开“管理 API 密钥”并创建密钥。
+4. 立即复制完整密钥；关闭创建结果后只能看到掩码。
+
+每个密钥只允许检索创建它的知识库。关闭 API 访问或删除密钥后，相关调用会立即失效。
+
+## 检索知识库
+
+```http
+POST /v1/knowledge/retrieve
+Authorization: Bearer kb-live-YourApiKey
+Content-Type: application/json
+```
+
+请求示例：
+
+```bash
+curl --request POST 'https://your-domain.example/v1/knowledge/retrieve' \
+  --header 'Authorization: Bearer kb-live-YourApiKey' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "query": "如何发布工作流？",
+    "knowledgeBaseIds": ["YOUR_KNOWLEDGE_BASE_ID"],
+    "topK": 5
+  }'
+```
+
+| 字段               | 类型       | 必填 | 说明                                                |
+| ------------------ | ---------- | ---- | --------------------------------------------------- |
+| `query`            | `string`   | 是   | 检索文本，去除首尾空格后长度为 1–4000               |
+| `knowledgeBaseIds` | `string[]` | 是   | 当前版本只接受密钥绑定的单个知识库 UUID             |
+| `topK`             | `number`   | 否   | 返回条数，范围 1–20；未提供时使用知识库的检索设置值 |
+
+成功响应：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "requestId": "8df15c77-9319-4f68-9f99-92ea834d5d75",
+    "profile": {
+      "id": "HYBRID_ACCURATE",
+      "version": "v1"
+    },
+    "scoreType": "rerank",
+    "tookMs": 84,
+    "results": [
+      {
+        "rank": 1,
+        "chunkId": "...",
+        "documentId": "...",
+        "documentName": "发布指南.md",
+        "content": "...",
+        "metadata": {},
+        "score": 0.87
+      }
+    ]
+  }
+}
+```
+
+`score` 是当前检索策略产生的排序分数，含义由 `scoreType` 指明，不应当作概率使用。
+调用方可以发送不超过 128 个字符的 `X-Request-Id`；未发送时服务会自动生成，并在响应头和
+响应体中返回。
+
+## 常见错误
+
+| HTTP 状态 | 说明                                                   |
+| --------- | ------------------------------------------------------ |
+| `400`     | 请求字段、UUID、query 长度或 topK 不符合要求           |
+| `401`     | 未提供密钥，或密钥无效、已删除、已过期、API 访问已关闭 |
+| `403`     | 密钥缺少检索权限，或请求了密钥未绑定的知识库           |
+| `404`     | 知识库或可检索内容不存在                               |
+| `5xx`     | 检索依赖不可用或服务内部错误                           |
+
+不要在浏览器前端、日志或公开仓库中暴露完整密钥。发生泄露时，请在“管理 API 密钥”中删除旧密钥并
+创建新密钥。

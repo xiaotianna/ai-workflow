@@ -15,6 +15,7 @@ model User {
   modelGroups             ModelGroup[]
   knowledgeBases          KnowledgeBase[]
   knowledgeRetrievalLogs  KnowledgeRetrievalLog[]
+  createdKnowledgeApiKeys KnowledgeBaseApiKey[]     @relation("KnowledgeBaseApiKeyCreatedBy")
   publishedPlugins        Plugin[]
   pluginInstallations     PluginInstallation[]
 

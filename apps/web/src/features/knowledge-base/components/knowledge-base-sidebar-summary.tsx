@@ -1,4 +1,14 @@
-import { getKnowledgeBaseStatistics, type KnowledgeBaseStatisticsDto } from '@/api/knowledge-bases'
+import {
+  createKnowledgeApiKey,
+  getKnowledgeApiOverview,
+  getKnowledgeBaseStatistics,
+  listKnowledgeApiKeys,
+  revokeKnowledgeApiKey,
+  updateKnowledgeApiAccess,
+  type CreatedKnowledgeApiKeyDto,
+  type KnowledgeApiKeyDto,
+  type KnowledgeBaseStatisticsDto,
+} from '@/api/knowledge-bases'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,9 +17,13 @@ import {
   DropdownMenuTrigger,
 } from '@ai-workflow/ui/components/dropdown-menu'
 import { Skeleton } from '@ai-workflow/ui/components/skeleton'
-import { BookOpenText, ExternalLink, Info, Network } from 'lucide-react'
+import { Switch } from '@ai-workflow/ui/components/switch'
+import { showToast } from '@ai-workflow/ui/lib/toast'
+import { BookOpenText, ExternalLink, Info, KeyRound, Network } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+
+import { KnowledgeApiKeyDialog } from './knowledge-api-key-dialog'
 
 interface KnowledgeBaseSidebarSummaryProps {
   knowledgeBaseId?: string
@@ -22,6 +36,10 @@ type StatisticsState =
       status: 'success'
       statistics: KnowledgeBaseStatisticsDto
     }
+
+type ApiAccessState =
+  | { knowledgeBaseId: string | undefined; status: 'loading' | 'error' }
+  | { knowledgeBaseId: string; status: 'success'; enabled: boolean }
 
 function SidebarMetric({
   value,
@@ -58,6 +76,18 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
     knowledgeBaseId,
     status: 'loading',
   })
+  const [apiAccessState, setApiAccessState] = useState<ApiAccessState>({
+    knowledgeBaseId,
+    status: 'loading',
+  })
+  const [updatingAccess, setUpdatingAccess] = useState(false)
+  const [keyDialogOpen, setKeyDialogOpen] = useState(false)
+  const [keysLoading, setKeysLoading] = useState(false)
+  const [keys, setKeys] = useState<KnowledgeApiKeyDto[]>([])
+  const [creatingKey, setCreatingKey] = useState(false)
+  const [createdKey, setCreatedKey] = useState<CreatedKnowledgeApiKeyDto>()
+  const [revokeTarget, setRevokeTarget] = useState<KnowledgeApiKeyDto>()
+  const [revokingKeyId, setRevokingKeyId] = useState<string>()
 
   useEffect(() => {
     if (!knowledgeBaseId) {
@@ -80,12 +110,91 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
     return () => controller.abort()
   }, [knowledgeBaseId])
 
+  useEffect(() => {
+    if (!knowledgeBaseId) {
+      setApiAccessState({ knowledgeBaseId, status: 'loading' })
+      return
+    }
+
+    const controller = new AbortController()
+    setApiAccessState({ knowledgeBaseId, status: 'loading' })
+    void getKnowledgeApiOverview(knowledgeBaseId, controller.signal)
+      .then(({ enabled }) => {
+        setApiAccessState({ knowledgeBaseId, status: 'success', enabled })
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setApiAccessState({ knowledgeBaseId, status: 'error' })
+      })
+
+    return () => controller.abort()
+  }, [knowledgeBaseId])
+
   const isCurrentStatistics = statisticsState.knowledgeBaseId === knowledgeBaseId
   const statistics =
     isCurrentStatistics && statisticsState.status === 'success'
       ? statisticsState.statistics
       : undefined
   const loading = !isCurrentStatistics || statisticsState.status === 'loading'
+  const isCurrentAccess = apiAccessState.knowledgeBaseId === knowledgeBaseId
+  const apiEnabled =
+    isCurrentAccess && apiAccessState.status === 'success' ? apiAccessState.enabled : false
+  const apiAccessLoading = !isCurrentAccess || apiAccessState.status === 'loading'
+
+  async function toggleApiAccess(enabled: boolean) {
+    if (!knowledgeBaseId || updatingAccess) return
+    setUpdatingAccess(true)
+    try {
+      const overview = await updateKnowledgeApiAccess(knowledgeBaseId, enabled)
+      setApiAccessState({ knowledgeBaseId, status: 'success', enabled: overview.enabled })
+      showToast('success', overview.enabled ? '知识库 API 已启用' : '知识库 API 已关闭')
+    } catch {
+      // 请求层已展示错误，保留服务端返回前的状态。
+    } finally {
+      setUpdatingAccess(false)
+    }
+  }
+
+  async function openKeyDialog() {
+    if (!knowledgeBaseId) return
+    setKeyDialogOpen(true)
+    setKeysLoading(true)
+    try {
+      setKeys(await listKnowledgeApiKeys(knowledgeBaseId))
+    } catch {
+      // 请求层已展示错误，弹窗保留以便重试。
+    } finally {
+      setKeysLoading(false)
+    }
+  }
+
+  async function createKey() {
+    if (!knowledgeBaseId || creatingKey) return
+    setCreatingKey(true)
+    try {
+      const key = await createKnowledgeApiKey(knowledgeBaseId)
+      setKeys((current) => [key, ...current])
+      setCreatedKey(key)
+    } catch {
+      // 请求层已展示错误。
+    } finally {
+      setCreatingKey(false)
+    }
+  }
+
+  async function revokeKey() {
+    if (!knowledgeBaseId || !revokeTarget || revokingKeyId) return
+    setRevokingKeyId(revokeTarget.id)
+    try {
+      await revokeKnowledgeApiKey(knowledgeBaseId, revokeTarget.id)
+      setKeys((current) => current.filter((key) => key.id !== revokeTarget.id))
+      setRevokeTarget(undefined)
+      showToast('success', 'API 密钥已删除')
+    } catch {
+      // 请求层已展示错误。
+    } finally {
+      setRevokingKeyId(undefined)
+    }
+  }
 
   return (
     <div className="px-2.5 pb-2">
@@ -108,9 +217,13 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
             <Network aria-hidden className="text-muted-foreground size-3.5 shrink-0" />
             <span className="min-w-0 flex-1 truncate">访问 API</span>
             <span
-              className="border-success/40 bg-success/40 size-2 shrink-0 rounded-[3px] border shadow-xs"
+              className={
+                apiEnabled
+                  ? 'border-success/40 bg-success/40 size-2 shrink-0 rounded-[3px] border shadow-xs'
+                  : 'border-muted-foreground/30 bg-muted-foreground/30 size-2 shrink-0 rounded-[3px] border shadow-xs'
+              }
               role="status"
-              aria-label="API 已启用"
+              aria-label={apiEnabled ? 'API 已启用' : 'API 未启用'}
             />
           </button>
         </DropdownMenuTrigger>
@@ -121,26 +234,43 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
           sideOffset={8}
           className="w-(--radix-dropdown-menu-trigger-width) overflow-hidden p-0"
         >
-          <div className="space-y-1.5 px-3 py-2.5" role="status">
+          <div className="space-y-1.5 px-3 py-2.5">
             <div className="flex items-center justify-between gap-3">
-              <div className="text-success flex items-center gap-1.5 text-[13px] font-semibold">
+              <div
+                className={`flex items-center gap-1.5 text-[13px] font-semibold ${apiEnabled ? 'text-success' : 'text-muted-foreground'}`}
+                role="status"
+              >
                 <span
-                  className="border-success/40 bg-success/40 size-2 rounded-[3px] border shadow-xs"
+                  className={
+                    apiEnabled
+                      ? 'border-success/40 bg-success/40 size-2 rounded-[3px] border shadow-xs'
+                      : 'border-muted-foreground/30 bg-muted-foreground/30 size-2 rounded-[3px] border shadow-xs'
+                  }
                   aria-hidden
                 />
-                <span>已启用</span>
+                <span>{apiAccessLoading ? '读取中' : apiEnabled ? '已启用' : '未启用'}</span>
               </div>
-              <span
-                className="bg-primary flex h-4 w-7 items-center justify-end rounded-full p-px shadow-xs"
-                aria-hidden
-              >
-                <span className="bg-background size-3.5 rounded-full" />
-              </span>
+              <Switch
+                size="sm"
+                checked={apiEnabled}
+                disabled={!knowledgeBaseId || apiAccessLoading || updatingAccess}
+                aria-label={apiEnabled ? '关闭知识库 API' : '启用知识库 API'}
+                onCheckedChange={(checked) => void toggleApiAccess(checked)}
+              />
             </div>
-            <p className="text-muted-foreground text-xs leading-4">此知识库可通过服务 API 访问</p>
+            <p className="text-muted-foreground text-xs leading-4">
+              {apiEnabled ? '此知识库可通过服务 API 访问' : '启用后可使用 API 密钥检索此知识库'}
+            </p>
           </div>
 
           <DropdownMenuSeparator className="m-0" />
+          <DropdownMenuItem
+            className="rounded-none px-3 py-2 text-[13px]"
+            onSelect={() => void openKeyDialog()}
+          >
+            <KeyRound aria-hidden className="size-3.5" />
+            <span className="min-w-0 flex-1 truncate">管理 API 密钥</span>
+          </DropdownMenuItem>
           <DropdownMenuItem asChild className="rounded-none px-3 py-2 text-[13px]">
             <Link to="/docs/ai-workflow/rag-api" target="_blank" rel="noreferrer">
               <BookOpenText aria-hidden className="size-3.5" />
@@ -150,6 +280,21 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <KnowledgeApiKeyDialog
+        open={keyDialogOpen}
+        loading={keysLoading}
+        keys={keys}
+        creating={creatingKey}
+        revokingKeyId={revokingKeyId}
+        revokeTarget={revokeTarget}
+        createdKey={createdKey}
+        onOpenChange={setKeyDialogOpen}
+        onCreate={() => void createKey()}
+        onRequestRevoke={setRevokeTarget}
+        onRevoke={() => void revokeKey()}
+        onCreatedKeyClose={() => setCreatedKey(undefined)}
+      />
     </div>
   )
 }

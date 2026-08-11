@@ -6,6 +6,7 @@ model KnowledgeBase {
   description     String?                  @db.VarChar(200)
   icon            String?                  @db.VarChar(32)
   lifecycleStatus KnowledgeLifecycleStatus @default(ACTIVE)
+  apiEnabled      Boolean                  @default(false)
   deletedAt       DateTime?
   createdAt       DateTime                 @default(now())
   updatedAt       DateTime                 @updatedAt
@@ -17,9 +18,53 @@ model KnowledgeBase {
   indexes      KnowledgeBaseIndex[]   @relation("KnowledgeBaseIndexes")
   activeIndex  KnowledgeBaseIndex?    @relation("KnowledgeBaseActiveIndex", fields: [activeIndexId], references: [id], onDelete: SetNull)
   outboxEvents KnowledgeOutboxEvent[]
+  apiKeys      KnowledgeBaseApiKey[]
+  apiCallLogs  KnowledgeApiCallLog[]
 
   @@index([ownerId, lifecycleStatus, updatedAt])
   @@map("knowledge_bases")
+}
+
+model KnowledgeBaseApiKey {
+  id              String    @id @default(uuid()) @db.Uuid
+  knowledgeBaseId String    @db.Uuid
+  name            String    @db.VarChar(100)
+  prefix          String    @db.VarChar(24)
+  suffix          String?   @db.VarChar(16)
+  keyHash         String    @unique @db.VarChar(64)
+  scopes          String[]  @default(["knowledge:retrieve"])
+  createdById     String?   @db.Uuid
+  lastUsedAt      DateTime?
+  expiresAt       DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  knowledgeBase KnowledgeBase         @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  createdBy     User?                 @relation("KnowledgeBaseApiKeyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  callLogs      KnowledgeApiCallLog[]
+
+  @@index([knowledgeBaseId, revokedAt])
+  @@map("knowledge_base_api_keys")
+}
+
+model KnowledgeApiCallLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  knowledgeBaseId String   @db.Uuid
+  apiKeyId        String?  @db.Uuid
+  requestId       String   @db.VarChar(128)
+  queryHash       String   @db.VarChar(64)
+  statusCode      Int
+  durationMs      Int
+  resultCount     Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  knowledgeBase KnowledgeBase        @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  apiKey        KnowledgeBaseApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([knowledgeBaseId, createdAt])
+  @@index([apiKeyId, createdAt])
+  @@map("knowledge_api_call_logs")
 }
 
 model KnowledgeBaseSettings {

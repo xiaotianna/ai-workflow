@@ -23,6 +23,22 @@ export interface KnowledgeBaseStatisticsDto {
   relatedAppCount: number
 }
 
+export interface KnowledgeApiOverviewDto {
+  enabled: boolean
+}
+
+export interface KnowledgeApiKeyDto {
+  id: string
+  maskedKey: string
+  scopes: string[]
+  createdAt: string
+  lastUsedAt?: string
+}
+
+export interface CreatedKnowledgeApiKeyDto extends KnowledgeApiKeyDto {
+  key: string
+}
+
 export interface ListKnowledgeBasesParams {
   search?: string
   sort?: KnowledgeBaseSort
@@ -218,6 +234,44 @@ export function getKnowledgeBaseStatistics(
   return apiClient.get<KnowledgeBaseStatisticsDto>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/statistics`,
     { signal },
+  )
+}
+
+export function getKnowledgeApiOverview(
+  knowledgeBaseId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeApiOverviewDto> {
+  return apiClient.get<KnowledgeApiOverviewDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/api`,
+    { signal },
+  )
+}
+
+export function updateKnowledgeApiAccess(
+  knowledgeBaseId: string,
+  enabled: boolean,
+): Promise<KnowledgeApiOverviewDto> {
+  return apiClient.patch<KnowledgeApiOverviewDto, { enabled: boolean }>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/api`,
+    { enabled },
+  )
+}
+
+export function listKnowledgeApiKeys(knowledgeBaseId: string): Promise<KnowledgeApiKeyDto[]> {
+  return apiClient.get<KnowledgeApiKeyDto[]>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/api/keys`,
+  )
+}
+
+export function createKnowledgeApiKey(knowledgeBaseId: string): Promise<CreatedKnowledgeApiKeyDto> {
+  return apiClient.post<CreatedKnowledgeApiKeyDto>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/api/keys`,
+  )
+}
+
+export function revokeKnowledgeApiKey(knowledgeBaseId: string, apiKeyId: string): Promise<void> {
+  return apiClient.delete<void>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/api/keys/${encodeURIComponent(apiKeyId)}`,
   )
 }
 

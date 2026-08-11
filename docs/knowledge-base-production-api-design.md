@@ -2,7 +2,7 @@
 
 > 状态：生产目标设计与实施台账。知识库事实模型、可靠异步入库、对象存储、Embedding、
 > OpenSearch 投影、混合召回、Web 召回测试和工作流 RAG 主链路已实现；迁移部署、环境联调、
-> 检索质量评测、外部 API 安全与生产运维仍待完成。
+> 检索质量评测、外部 API 限流与完整安全加固、生产运维仍待完成。
 >
 > 适用范围：`apps/server` 知识库模块、文档入库 Worker、工作流 RAG 节点，以及供其他项目调用的
 > `/v1/knowledge/*` Service API。
@@ -28,7 +28,7 @@
 | 配置变更   | 创建不可变 BUILDING 代际，旧活动代际继续服务；单文档由用户手动重新索引                          | 已符合“不静默改写”和成功后原子切换原则                |
 | 检索设置   | 已实现标题/路径加权 BM25、Dense、强制过滤、RRF 与确定性二阶段重排                               | 主链路已实现，Cross-Encoder、父块扩展和黄金集门槛尚缺 |
 | 嵌入模型   | 从模型管理选择稳定 UUID；OpenAI-compatible 与 Ollama Adapter 已接通                             | 已实现批量向量化和维度校验，待供应商限流与故障联调    |
-| RAG 节点   | Go Executor 调用服务端统一 Retriever；召回测试页使用同一真实检索服务                            | Web 与工作流已闭环；外部 `/v1` API、安全和审计尚缺    |
+| RAG 节点   | Go Executor、召回测试和外部 Retrieve API 调用同一真实检索服务                                   | 三入口主链路已闭环；多库授权、限流和生产加固尚缺      |
 
 ### 0.2 嵌入模型配置决策
 
@@ -56,7 +56,7 @@
 | 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                                    |
 | 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v2` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                                            |
 | 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                                            |
-| 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 待实现             | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                                     |
+| 5    | Answer API、API Key/ACL、审计、限流、HA、备份与可观测性             | 部分完成           | 请求可复现，故障降级符合 profile，容量和恢复演练通过                                                     |
 
 ### 0.4 实施纪律
 
@@ -84,6 +84,7 @@
 | 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                                                                                                                           |
 | 2026-08-11 | 3 查询画像与二阶段重排    | `HYBRID_ACCURATE` 使用每路 100 候选并对全局 50 候选按标题、标题路径、精确短语、词项覆盖与 Dense 相关度确定性重排；RRF 只用于融合/同分排序，短关键词无连续字面证据时不给词项或语义保底分，并以阈值过滤噪声；`HYBRID_FAST` 使用每路 30 候选并直接返回 RRF；召回测试展示真实画像、分数类型、两路排名及原始分数诊断 |
 | 2026-08-11 | 3 搜索文本投影            | Chunk 保存 Markdown 标题路径元数据，OpenSearch 平滑追加 `title`、`title_path`、`search_content` 字段；检索文本执行 Unicode 规范化和英文驼峰拆词，旧投影仍可通过正文标题解析参与二阶段重排                                                                                                                       |
+| 2026-08-11 | 4 外部 Retrieve API       | 已实现独立 `kb-live-` Key 的创建、掩码列表和撤销，Key 只存 SHA-256；知识库总开关、scope 与单库绑定共同鉴权；`POST /v1/knowledge/retrieve` 复用统一 Retriever，限制 query/TopK/知识库 ID，并以 query 哈希写入最小审计日志；限流、多库 grant 和完整生产错误契约待补齐                                             |
 
 下一批工作按以下顺序继续：
 
@@ -92,8 +93,7 @@
 2. 实现 OpenSearch 残留投影回收、退役代际回收和删除传播。
 3. 接入独立 Cross-Encoder Provider，并实现父块扩展、证据预算与版本化黄金集门槛。
 4. 建立黄金集、离线评测、检索日志和发布门槛。
-5. 实现外部 `/v1/knowledge/retrieve`、`kb-` API Key、grant、限流和审计，再完成 Answer API、HA、
-   备份恢复、容量压测与告警。
+5. 补齐外部 API 多知识库 grant、限流和完整审计字段，再完成 Answer API、HA、备份恢复、容量压测与告警。
 
 ## 1. 结论先行
 
@@ -1204,9 +1204,10 @@ total latency / degraded / error code
 
 ### 阶段 4：工作流 RAG 与外部 Retrieve API
 
-- 工作流和召回测试已共用服务端 `KnowledgeRetrievalService`；外部 API 接入后必须继续复用该边界。
-- `kb-` API Key、scope、grant、限流、审计、错误契约。
-- `/v1/knowledge/retrieve` 和异步文档 API。
+- 工作流、召回测试和外部 `/v1/knowledge/retrieve` 已共用服务端 `KnowledgeRetrievalService`。
+- 已实现 `kb-live-` API Key、`knowledge:retrieve` scope、单知识库绑定和最小审计；多知识库 grant、
+  限流和完整错误契约待补齐。
+- 异步文档 API 待实现。
 
 验收：同一身份、profile 和问题在三个入口返回相同证据；跨 Key 越权用例全部失败。
 
@@ -1231,7 +1232,7 @@ total latency / degraded / error code
 ### 安全与 API
 
 - [ ] `kb-` Key 只存哈希，明文只显示一次，可撤销、过期、限流。
-- [ ] scope 与知识库 grant 双重校验。
+- [x] Retrieve API 的 scope 与单知识库绑定双重校验。
 - [ ] owner、active generation 和 ACL filter 不能被请求体覆盖。
 - [ ] API 不暴露内部索引、向量、模型凭证、其他租户候选和任意 DSL。
 - [ ] 文件、query、TopK、知识库数量、filters、并发和 token 都有限制。

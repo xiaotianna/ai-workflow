@@ -162,8 +162,10 @@
 - pgvector 仅作为本地或小规模回退基线：如果启用，其列、维度 CHECK、部分向量索引和 Prisma 无法
   表达的复合约束使用自定义 migration，查询封装在 `VectorStore`/Repository 边界内，不得与
   OpenSearch 同时成为生产事实源。
-- 对外知识库调用使用独立 `kb-` Key、作用域和知识库授权快照，不复用应用 `app-` Key；Key 只保存
-  哈希和展示后缀，检索日志必须记录租户、Key、Profile 版本、候选阶段和最终命中，且不得记录原始密钥。
+- 对外知识库调用使用独立 `kb-live-` Key，不复用应用 `app-` Key。`KnowledgeBase.apiEnabled` 是总开关；
+  `KnowledgeBaseApiKey` 当前直接绑定单个知识库并保存 scope、SHA-256 哈希和展示后缀，明文只在
+  创建时返回一次。`KnowledgeApiCallLog` 记录 Key、知识库、requestId、query 哈希、状态、耗时和
+  结果数，不得记录原始 Key 或 query；后续多知识库访问扩展为显式 grant，不允许相信请求体 owner。
 
 ## 插件发布持久化
 
