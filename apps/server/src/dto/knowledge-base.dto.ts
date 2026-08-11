@@ -8,6 +8,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -171,6 +172,45 @@ export class UpdateKnowledgeChunkDto {
   @IsString({ message: '分段内容必须是字符串' })
   @IsOptional()
   content?: string
+}
+
+export class CreateKnowledgeChunkDto {
+  @Matches(/\S/u, { message: '分段内容不能为空' })
+  @MaxLength(10_000, { message: '分段内容不能超过 10000 个字符' })
+  @IsString({ message: '分段内容必须是字符串' })
+  content!: string
+}
+
+export const KNOWLEDGE_METADATA_FIELD_TYPES = ['string', 'number', 'time'] as const
+export type KnowledgeMetadataFieldTypeDto = (typeof KNOWLEDGE_METADATA_FIELD_TYPES)[number]
+
+export class CreateKnowledgeMetadataFieldDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40, { message: '元数据名称不能超过 40 个字符' })
+  @IsNotEmpty({ message: '元数据名称不能为空' })
+  @IsString({ message: '元数据名称必须是字符串' })
+  name!: string
+
+  @IsIn(KNOWLEDGE_METADATA_FIELD_TYPES, { message: '不支持当前元数据类型' })
+  type!: KnowledgeMetadataFieldTypeDto
+}
+
+export class UpdateKnowledgeMetadataFieldDto {
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @MaxLength(40, { message: '元数据名称不能超过 40 个字符' })
+  @IsNotEmpty({ message: '元数据名称不能为空' })
+  @IsString({ message: '元数据名称必须是字符串' })
+  @IsOptional()
+  name?: string
+
+  @IsIn(KNOWLEDGE_METADATA_FIELD_TYPES, { message: '不支持当前元数据类型' })
+  @IsOptional()
+  type?: KnowledgeMetadataFieldTypeDto
+}
+
+export class UpdateKnowledgeDocumentMetadataDto {
+  @IsObject({ message: '文档元数据必须是对象' })
+  values!: Record<string, unknown>
 }
 
 export class RetrieveKnowledgeBaseDto {

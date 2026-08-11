@@ -211,8 +211,17 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档；
   单文档读取是管理 Web 恢复和轮询异步入库状态的事实接口，当前不为知识库状态单独提供 SSE。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/reindex`：用知识库当前分段设置重新解析保存的原文，在单个数据库事务内替换该文档 Chunk；这是配置变更后更新旧分段的唯一入口。
+- `GET/POST /knowledge-bases/:knowledgeBaseId/metadata-fields` 与
+  `PATCH/DELETE /knowledge-bases/:knowledgeBaseId/metadata-fields/:fieldId`：管理知识库级元数据字段目录；
+  字段类型固定为 `string / number / time`，名称在同一知识库内唯一。改类型或删除字段会清理所有文档
+  中已保存的对应值，删除操作由 Web 二次确认。
+- `PUT /knowledge-bases/:knowledgeBaseId/documents/:documentId/metadata`：原子替换当前文档的元数据标注；
+  服务端按知识库字段目录校验字段归属、类型、数量和长度，不接受浏览器自定义的未知字段。
 - `GET /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：分页搜索当前文档分段，支持
   `status=enabled|disabled` 状态筛选；响应显式返回单条分段的 `enabled` 和正式工作流召回次数。
+- `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks`：手动追加分段；无活动索引时直接
+  追加兼容 Chunk，有活动索引时复制当前 Head 创建新版本并进入 Embedding / Projection 链路，投影
+  完成前不切换可服务 Head。同一文档或索引已有处理任务时返回 `409`。
 - `PATCH /knowledge-bases/:knowledgeBaseId/documents/:documentId/chunks/:chunkId`：启停或编辑当前活动
   Head 中的单条分段，每次只允许提交 `enabled` / `content` 中的一个字段；资源归属与活动版本
   必须同时匹配。正文编辑不原地改写活动版本，有活动 Index 时创建新版本并完成 Embedding

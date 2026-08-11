@@ -1,4 +1,5 @@
 import {
+  createKnowledgeChunk,
   listKnowledgeChunks,
   reindexKnowledgeDocument,
   updateKnowledgeChunk,
@@ -22,23 +23,16 @@ import {
 import { Switch } from '@ai-workflow/ui/components/switch'
 import { showToast } from '@ai-workflow/ui/lib/toast'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import {
-  ArrowLeft,
-  ArrowRight,
-  Grip,
-  PencilLine,
-  Plus,
-  RefreshCw,
-  Search,
-  Trash2,
-} from 'lucide-react'
+import { ArrowLeft, Grip, PencilLine, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
 import {
   documentPageSizeOptions,
   KnowledgeChunkContent,
+  KnowledgeChunkCreatePanel,
   KnowledgeChunkEditPanel,
+  KnowledgeDocumentMetadataPanel,
   KnowledgeDocumentSwitcher,
   KnowledgeSelectionActions,
   knowledgeSegmentationModeLabels,
@@ -157,6 +151,7 @@ function ChunkItem({
   chunk,
   editing,
   editDisabled,
+  pending,
   selected,
   selectionDisabled,
   updatingEnabled,
@@ -167,6 +162,7 @@ function ChunkItem({
   chunk: KnowledgeChunkDto
   editing: boolean
   editDisabled: boolean
+  pending: boolean
   selected: boolean
   selectionDisabled: boolean
   updatingEnabled: boolean
@@ -188,9 +184,11 @@ function ChunkItem({
 
       <div className="min-w-0">
         <article
+          aria-disabled={pending || undefined}
           data-edit-disabled={editDisabled || undefined}
+          data-pending={pending || undefined}
           data-selected={selected || undefined}
-          className="group/card data-[selected=true]:bg-muted/60 hover:bg-muted/60 focus-within:bg-muted/60 relative cursor-pointer rounded-xl px-3 pt-2.5 pb-2 transition-colors data-[edit-disabled=true]:cursor-not-allowed"
+          className="group/card data-[selected=true]:bg-muted/60 hover:bg-muted/60 focus-within:bg-muted/60 relative cursor-pointer rounded-xl px-3 pt-2.5 pb-2 transition-[background-color,opacity] data-[edit-disabled=true]:cursor-not-allowed data-[pending=true]:opacity-50"
           onClick={() => {
             if (!editDisabled) onEdit()
           }}
@@ -221,16 +219,28 @@ function ChunkItem({
             </div>
 
             <div className="text-muted-foreground flex shrink-0 items-center gap-2 text-[13px] group-focus-within/card:invisible group-hover/card:invisible">
-              <span>{chunk.enabled ? '已启用' : '已禁用'}</span>
-              <span
-                aria-hidden
-                className={cn(
-                  'size-2 rounded-[3px] border shadow-xs',
-                  chunk.enabled
-                    ? 'border-success/60 bg-success/70'
-                    : 'border-muted-foreground/40 bg-muted-foreground/30',
-                )}
-              />
+              {pending ? (
+                <>
+                  <span>更新中</span>
+                  <RefreshCw
+                    aria-hidden
+                    className="size-3.5 animate-spin motion-reduce:animate-none"
+                  />
+                </>
+              ) : (
+                <>
+                  <span>{chunk.enabled ? '已启用' : '已禁用'}</span>
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'size-2 rounded-[3px] border shadow-xs',
+                      chunk.enabled
+                        ? 'border-success/60 bg-success/70'
+                        : 'border-muted-foreground/40 bg-muted-foreground/30',
+                    )}
+                  />
+                </>
+              )}
             </div>
 
             <div
@@ -254,6 +264,7 @@ function ChunkItem({
                 size="icon-sm"
                 className="text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:bg-destructive/10 focus-visible:text-destructive size-7 rounded-lg"
                 aria-label={`删除分段-${String(chunk.sequence).padStart(2, '0')}`}
+                disabled={editDisabled}
                 onClick={() => showToast('info', '暂不支持手动删除分段')}
               >
                 <Trash2 aria-hidden className="size-4" />
@@ -308,6 +319,12 @@ export default function KnowledgeDocumentDetailPage() {
   const [batchUpdatingChunks, setBatchUpdatingChunks] = useState(false)
   const [editingChunk, setEditingChunk] = useState<KnowledgeChunkDto>()
   const [savingChunk, setSavingChunk] = useState(false)
+  const [creatingChunk, setCreatingChunk] = useState(false)
+  const [savingCreatedChunk, setSavingCreatedChunk] = useState(false)
+  const [pendingCreatedChunk, setPendingCreatedChunk] = useState<KnowledgeChunkDto>()
+  const [pendingCreatedChunkDocumentUpdatedAt, setPendingCreatedChunkDocumentUpdatedAt] =
+    useState<string>()
+  const [pendingCreatedChunkTargetCount, setPendingCreatedChunkTargetCount] = useState<number>()
   const [pageIndex, setPageIndex] = useState(0)
   const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
   const [total, setTotal] = useState(0)
@@ -319,7 +336,7 @@ export default function KnowledgeDocumentDetailPage() {
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId || !documentId) return
     const controller = new AbortController()
-    setLoading(true)
+    if (pendingCreatedChunkTargetCount === undefined) setLoading(true)
     const timer = globalThis.setTimeout(() => {
       void listKnowledgeChunks(
         knowledgeBaseId,
@@ -334,11 +351,52 @@ export default function KnowledgeDocumentDetailPage() {
       )
         .then((result) => {
           setDocument(result.document)
-          setChunks(result.items)
-          setTotal(result.total)
           setSelectedChunkIds(new Set())
+          const updateCompleted =
+            pendingCreatedChunkTargetCount !== undefined &&
+            result.document.chunkCount >= pendingCreatedChunkTargetCount
+          const updateFailed =
+            pendingCreatedChunkTargetCount !== undefined &&
+            result.document.status === 'FAILED' &&
+            result.document.updatedAt !== pendingCreatedChunkDocumentUpdatedAt
+
+          if (updateCompleted) {
+            setChunks(result.items)
+            setTotal(result.total)
+            setPendingCreatedChunk(undefined)
+            setPendingCreatedChunkDocumentUpdatedAt(undefined)
+            setPendingCreatedChunkTargetCount(undefined)
+          } else if (updateFailed) {
+            setChunks(result.items)
+            setTotal(result.total)
+            setPendingCreatedChunk(undefined)
+            setPendingCreatedChunkDocumentUpdatedAt(undefined)
+            setPendingCreatedChunkTargetCount(undefined)
+            showToast('error', '分段更新失败，请检查文档状态后重试')
+          } else if (pendingCreatedChunk) {
+            const containsPendingChunk = result.items.some(
+              (item) => item.id === pendingCreatedChunk.id,
+            )
+            setChunks(containsPendingChunk ? result.items : [...result.items, pendingCreatedChunk])
+            setTotal(result.total + Number(!containsPendingChunk))
+          } else {
+            setChunks(result.items)
+            setTotal(result.total)
+          }
         })
-        .catch(() => undefined)
+        .catch(() => {
+          if (!controller.signal.aborted && pendingCreatedChunkTargetCount !== undefined) {
+            setChunks((currentChunks) =>
+              currentChunks.filter((chunk) => chunk.id !== pendingCreatedChunk?.id),
+            )
+            setTotal((currentTotal) =>
+              Math.max(currentTotal - Number(Boolean(pendingCreatedChunk)), 0),
+            )
+            setPendingCreatedChunk(undefined)
+            setPendingCreatedChunkDocumentUpdatedAt(undefined)
+            setPendingCreatedChunkTargetCount(undefined)
+          }
+        })
         .finally(() => {
           if (!controller.signal.aborted) setLoading(false)
         })
@@ -354,10 +412,21 @@ export default function KnowledgeDocumentDetailPage() {
     knowledgeBaseId,
     pageIndex,
     pageSize,
+    pendingCreatedChunk,
+    pendingCreatedChunkDocumentUpdatedAt,
+    pendingCreatedChunkTargetCount,
     reloadVersion,
     search,
     statusFilter,
   ])
+
+  useEffect(() => {
+    if (pendingCreatedChunkTargetCount === undefined) return
+    const timer = globalThis.setTimeout(() => {
+      setReloadVersion((value) => value + 1)
+    }, 1500)
+    return () => globalThis.clearTimeout(timer)
+  }, [pendingCreatedChunkTargetCount, reloadVersion])
 
   const selectedChunkCount = useMemo(
     () => chunks.reduce((count, chunk) => count + Number(selectedChunkIds.has(chunk.id)), 0),
@@ -387,6 +456,10 @@ export default function KnowledgeDocumentDetailPage() {
     setStatusFilter('all')
     setSelectedChunkIds(new Set())
     setEditingChunk(undefined)
+    setCreatingChunk(false)
+    setPendingCreatedChunk(undefined)
+    setPendingCreatedChunkDocumentUpdatedAt(undefined)
+    setPendingCreatedChunkTargetCount(undefined)
     setPageIndex(0)
     void navigate(
       `/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(nextDocument.id)}`,
@@ -515,6 +588,27 @@ export default function KnowledgeDocumentDetailPage() {
     }
   }
 
+  async function handleChunkCreate(content: string) {
+    if (!document || savingCreatedChunk) return
+    setSavingCreatedChunk(true)
+    try {
+      const createdChunk = await createKnowledgeChunk(knowledgeBaseId, documentId, { content })
+      setChunks((currentChunks) =>
+        currentChunks.some((chunk) => chunk.id === createdChunk.id)
+          ? currentChunks
+          : [...currentChunks, createdChunk],
+      )
+      setTotal((currentTotal) => currentTotal + 1)
+      setPendingCreatedChunk(createdChunk)
+      setPendingCreatedChunkDocumentUpdatedAt(document.updatedAt)
+      setPendingCreatedChunkTargetCount(document.chunkCount + 1)
+      setCreatingChunk(false)
+      showToast('success', '分段已提交，正在更新索引')
+    } finally {
+      setSavingCreatedChunk(false)
+    }
+  }
+
   async function handleEnabledChange(checked: boolean) {
     if (!document || updatingEnabled) return
     const previousDocument = document
@@ -587,10 +681,19 @@ export default function KnowledgeDocumentDetailPage() {
             variant="secondary"
             size="sm"
             className="text-primary"
-            onClick={() => showToast('info', '暂不支持手动新增分段')}
+            disabled={
+              !document ||
+              document.status === 'PROCESSING' ||
+              savingCreatedChunk ||
+              pendingCreatedChunkTargetCount !== undefined
+            }
+            onClick={() => {
+              setEditingChunk(undefined)
+              setCreatingChunk(true)
+            }}
           >
             <Plus aria-hidden className="size-4" />
-            添加分段
+            {pendingCreatedChunkTargetCount !== undefined ? '分段更新中…' : '添加分段'}
           </Button>
 
           <div className="border-button-secondary-border bg-button-secondary-bg flex h-8 items-center gap-1.5 rounded-lg border-[0.5px] px-3.5 text-[13px] leading-4 shadow-xs backdrop-blur-[5px]">
@@ -636,7 +739,12 @@ export default function KnowledgeDocumentDetailPage() {
                       ? 'indeterminate'
                       : false
               }
-              disabled={loading || chunks.length === 0 || batchUpdatingChunks}
+              disabled={
+                loading ||
+                chunks.length === 0 ||
+                batchUpdatingChunks ||
+                pendingCreatedChunkTargetCount !== undefined
+              }
               onCheckedChange={(checked) => {
                 const nextIds = checked === true ? chunks.map(({ id }) => id) : []
                 setSelectedChunkIds(new Set(nextIds))
@@ -706,11 +814,19 @@ export default function KnowledgeDocumentDetailPage() {
                     key={chunk.id}
                     chunk={chunk}
                     editing={editingChunk?.id === chunk.id}
-                    editDisabled={savingChunk}
+                    editDisabled={savingChunk || pendingCreatedChunkTargetCount !== undefined}
+                    pending={pendingCreatedChunk?.id === chunk.id}
                     selected={selectedChunkIds.has(chunk.id)}
-                    selectionDisabled={batchUpdatingChunks}
-                    updatingEnabled={updatingChunkIds.has(chunk.id)}
-                    onEdit={() => setEditingChunk(chunk)}
+                    selectionDisabled={
+                      batchUpdatingChunks || pendingCreatedChunkTargetCount !== undefined
+                    }
+                    updatingEnabled={
+                      updatingChunkIds.has(chunk.id) || pendingCreatedChunkTargetCount !== undefined
+                    }
+                    onEdit={() => {
+                      setCreatingChunk(false)
+                      setEditingChunk(chunk)
+                    }}
                     onSelectedChange={(selected) => handleChunkSelectedChange(chunk.id, selected)}
                     onEnabledChange={(enabled) => void handleChunkEnabledChange(chunk, enabled)}
                   />
@@ -728,7 +844,9 @@ export default function KnowledgeDocumentDetailPage() {
               ariaLabel="已选择分段操作"
               busy={batchUpdatingChunks}
               count={selectedChunkCount}
-              disableActions={selectedChunksHavePendingUpdate}
+              disableActions={
+                selectedChunksHavePendingUpdate || pendingCreatedChunkTargetCount !== undefined
+              }
               onEnable={() => void handleSelectedChunksEnabledChange(true)}
               onDisable={() => void handleSelectedChunksEnabledChange(false)}
               onDelete={() => showToast('info', '暂不支持手动删除分段')}
@@ -751,21 +869,12 @@ export default function KnowledgeDocumentDetailPage() {
         </section>
 
         <aside className="min-h-0 overflow-auto py-3 pt-3 pr-5">
-          <section className="bg-input rounded-xl p-4">
-            <h2 className="text-foreground text-xs leading-5 font-semibold">元数据</h2>
-            <p className="text-muted-foreground mt-1 text-xs leading-5">
-              元数据是关于文档的数据，用于描述文档的属性。元数据可以帮助您更好地组织和管理文档。
-            </p>
-            <Button
-              type="button"
-              size="sm"
-              className="mt-2"
-              onClick={() => showToast('info', '暂不支持元数据标注')}
-            >
-              开始标注
-              <ArrowRight aria-hidden className="size-4" />
-            </Button>
-          </section>
+          <KnowledgeDocumentMetadataPanel
+            disabled={!document || document.status === 'PROCESSING'}
+            document={document}
+            knowledgeBaseId={knowledgeBaseId}
+            onDocumentChange={setDocument}
+          />
 
           <div className="pl-2">
             <h2 className="mt-7 text-xs leading-5 font-semibold">文档信息</h2>
@@ -836,15 +945,31 @@ export default function KnowledgeDocumentDetailPage() {
 
         <FloatingSidePanel
           ariaLabel={
-            editingChunk ? `编辑分段-${String(editingChunk.sequence).padStart(2, '0')}` : '编辑分段'
+            creatingChunk
+              ? '添加分段'
+              : editingChunk
+                ? `编辑分段-${String(editingChunk.sequence).padStart(2, '0')}`
+                : '编辑分段'
           }
-          closeDisabled={savingChunk}
-          open={Boolean(editingChunk)}
+          closeDisabled={savingChunk || savingCreatedChunk}
+          open={creatingChunk || Boolean(editingChunk)}
           onClose={() => {
-            if (!savingChunk) setEditingChunk(undefined)
+            if (!savingChunk && !savingCreatedChunk) {
+              setEditingChunk(undefined)
+              setCreatingChunk(false)
+            }
           }}
         >
-          {editingChunk ? (
+          {creatingChunk ? (
+            <KnowledgeChunkCreatePanel
+              saving={savingCreatedChunk}
+              sequence={total + 1}
+              onClose={() => {
+                if (!savingCreatedChunk) setCreatingChunk(false)
+              }}
+              onSave={handleChunkCreate}
+            />
+          ) : editingChunk ? (
             <KnowledgeChunkEditPanel
               key={editingChunk.id}
               chunk={editingChunk}

@@ -134,9 +134,20 @@ export interface KnowledgeDocumentDto {
   enabled: boolean
   characterCount: number
   chunkCount: number
+  metadata: Record<string, string | number>
   recallCount: number
   needsReindex: boolean
   errorMessage?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type KnowledgeMetadataFieldType = 'string' | 'number' | 'time'
+
+export interface KnowledgeMetadataFieldDto {
+  id: string
+  name: string
+  type: KnowledgeMetadataFieldType
   createdAt: string
   updatedAt: string
 }
@@ -434,6 +445,68 @@ export function updateKnowledgeChunk(
   return apiClient.patch<KnowledgeChunkDto, typeof values>(
     `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/chunks/${encodeURIComponent(chunkId)}`,
     values,
+  )
+}
+
+export function createKnowledgeChunk(
+  knowledgeBaseId: string,
+  documentId: string,
+  values: { content: string },
+): Promise<KnowledgeChunkDto> {
+  return apiClient.post<KnowledgeChunkDto, typeof values>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/chunks`,
+    values,
+  )
+}
+
+export function listKnowledgeMetadataFields(
+  knowledgeBaseId: string,
+  signal?: AbortSignal,
+): Promise<KnowledgeMetadataFieldDto[]> {
+  return apiClient.get<KnowledgeMetadataFieldDto[]>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/metadata-fields`,
+    { signal },
+  )
+}
+
+export function createKnowledgeMetadataField(
+  knowledgeBaseId: string,
+  values: { name: string; type: KnowledgeMetadataFieldType },
+): Promise<KnowledgeMetadataFieldDto> {
+  return apiClient.post<KnowledgeMetadataFieldDto, typeof values>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/metadata-fields`,
+    values,
+  )
+}
+
+export function updateKnowledgeMetadataField(
+  knowledgeBaseId: string,
+  fieldId: string,
+  values: { name?: string; type?: KnowledgeMetadataFieldType },
+): Promise<KnowledgeMetadataFieldDto> {
+  return apiClient.patch<KnowledgeMetadataFieldDto, typeof values>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/metadata-fields/${encodeURIComponent(fieldId)}`,
+    values,
+  )
+}
+
+export function deleteKnowledgeMetadataField(
+  knowledgeBaseId: string,
+  fieldId: string,
+): Promise<void> {
+  return apiClient.delete<void>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/metadata-fields/${encodeURIComponent(fieldId)}`,
+  )
+}
+
+export function updateKnowledgeDocumentMetadata(
+  knowledgeBaseId: string,
+  documentId: string,
+  values: Record<string, string | number>,
+): Promise<KnowledgeDocumentDto> {
+  return apiClient.put<KnowledgeDocumentDto, { values: typeof values }>(
+    `/knowledge-bases/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(documentId)}/metadata`,
+    { values },
   )
 }
 

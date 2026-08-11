@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import type { KnowledgeMetadataFieldDto } from '@/api/knowledge-bases'
+
 import {
   documentAcceptedFileExtensions,
   documentMaxFileSizeBytes,
@@ -110,6 +112,100 @@ export const knowledgeChunkEditSchema = z.object({
 
 export type KnowledgeChunkEditFormInput = z.input<typeof knowledgeChunkEditSchema>
 export type KnowledgeChunkEditInput = z.output<typeof knowledgeChunkEditSchema>
+
+export const knowledgeMetadataFieldSchema = z.object({
+  name: z.string().trim().min(1, '元数据名称不能为空').max(40, '元数据名称不能超过 40 个字符'),
+  type: z.enum(['string', 'number', 'time']),
+})
+
+export type KnowledgeMetadataFieldFormInput = z.input<typeof knowledgeMetadataFieldSchema>
+export type KnowledgeMetadataFieldInput = z.output<typeof knowledgeMetadataFieldSchema>
+
+export const KNOWLEDGE_METADATA_FIELD_INITIAL_VALUES = {
+  name: '',
+  type: 'string',
+} satisfies KnowledgeMetadataFieldFormInput
+
+const knowledgeMetadataFormValueSchema = z.union([z.string(), z.number()])
+const knowledgeDocumentMetadataFormSchema = z.object({
+  values: z.record(z.string(), knowledgeMetadataFormValueSchema),
+})
+
+export type KnowledgeDocumentMetadataFormInput = z.input<typeof knowledgeDocumentMetadataFormSchema>
+
+export interface KnowledgeDocumentMetadataInput {
+  values: Record<string, string | number>
+}
+
+export function createKnowledgeDocumentMetadataSchema(fields: KnowledgeMetadataFieldDto[]) {
+  const fieldsById = new Map(fields.map((field) => [field.id, field]))
+
+  return knowledgeDocumentMetadataFormSchema
+    .superRefine(({ values }, context) => {
+      Object.entries(values).forEach(([fieldId, value]) => {
+        const field = fieldsById.get(fieldId)
+        if (!field) {
+          context.addIssue({
+            code: 'custom',
+            message: '元数据字段已不存在',
+            path: ['values', fieldId],
+          })
+          return
+        }
+
+        if (field.type === 'number') {
+          const normalized = typeof value === 'number' ? value : Number(value.trim())
+          if ((typeof value === 'string' && !value.trim()) || !Number.isFinite(normalized)) {
+            context.addIssue({
+              code: 'custom',
+              message: `${field.name} 必须是有效数字`,
+              path: ['values', fieldId],
+            })
+          }
+          return
+        }
+
+        if (typeof value !== 'string' || !value.trim()) {
+          context.addIssue({
+            code: 'custom',
+            message: `${field.name} 不能为空`,
+            path: ['values', fieldId],
+          })
+          return
+        }
+        if (value.length > 1000) {
+          context.addIssue({
+            code: 'custom',
+            message: `${field.name} 不能超过 1000 个字符`,
+            path: ['values', fieldId],
+          })
+        }
+        if (field.type === 'time' && !Number.isFinite(Date.parse(value))) {
+          context.addIssue({
+            code: 'custom',
+            message: `${field.name} 时间无效`,
+            path: ['values', fieldId],
+          })
+        }
+      })
+    })
+    .transform(
+      ({ values }): KnowledgeDocumentMetadataInput => ({
+        values: Object.fromEntries(
+          Object.entries(values).map(([fieldId, value]) => {
+            const field = fieldsById.get(fieldId)
+            if (field?.type === 'number') {
+              return [fieldId, typeof value === 'number' ? value : Number(value.trim())]
+            }
+            if (field?.type === 'time' && typeof value === 'string') {
+              return [fieldId, new Date(value).toISOString()]
+            }
+            return [fieldId, typeof value === 'string' ? value.trim() : value]
+          }),
+        ),
+      }),
+    )
+}
 
 export const recallTestSchema = z.object({
   query: z

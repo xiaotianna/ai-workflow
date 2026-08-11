@@ -13,13 +13,14 @@ model KnowledgeBase {
 
   owner User @relation(fields: [ownerId], references: [id], onDelete: Restrict)
 
-  settings     KnowledgeBaseSettings?
-  documents    KnowledgeDocument[]
-  indexes      KnowledgeBaseIndex[]   @relation("KnowledgeBaseIndexes")
-  activeIndex  KnowledgeBaseIndex?    @relation("KnowledgeBaseActiveIndex", fields: [activeIndexId], references: [id], onDelete: SetNull)
-  outboxEvents KnowledgeOutboxEvent[]
-  apiKeys      KnowledgeBaseApiKey[]
-  apiCallLogs  KnowledgeApiCallLog[]
+  settings       KnowledgeBaseSettings?
+  documents      KnowledgeDocument[]
+  indexes        KnowledgeBaseIndex[]     @relation("KnowledgeBaseIndexes")
+  activeIndex    KnowledgeBaseIndex?      @relation("KnowledgeBaseActiveIndex", fields: [activeIndexId], references: [id], onDelete: SetNull)
+  outboxEvents   KnowledgeOutboxEvent[]
+  apiKeys        KnowledgeBaseApiKey[]
+  apiCallLogs    KnowledgeApiCallLog[]
+  metadataFields KnowledgeMetadataField[]
 
   @@index([ownerId, lifecycleStatus, updatedAt])
   @@map("knowledge_bases")
@@ -108,6 +109,7 @@ model KnowledgeDocument {
   enabled                     Boolean                     @default(true)
   characterCount              Int                         @default(0)
   chunkCount                  Int                         @default(0)
+  metadata                    Json                        @default("{}")
   errorMessage                String?                     @db.Text
   createdAt                   DateTime                    @default(now())
   updatedAt                   DateTime                    @updatedAt
@@ -125,6 +127,21 @@ model KnowledgeDocument {
   @@index([knowledgeBaseId, createdAt])
   @@index([knowledgeBaseId, enabled])
   @@map("knowledge_documents")
+}
+
+model KnowledgeMetadataField {
+  id              String   @id @default(uuid()) @db.Uuid
+  knowledgeBaseId String   @db.Uuid
+  name            String   @db.VarChar(40)
+  type            String   @db.VarChar(16)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@unique([knowledgeBaseId, name])
+  @@index([knowledgeBaseId, createdAt])
+  @@map("knowledge_metadata_fields")
 }
 
 model KnowledgeChunk {

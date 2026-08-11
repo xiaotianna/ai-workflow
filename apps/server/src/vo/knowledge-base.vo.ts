@@ -71,9 +71,18 @@ export interface KnowledgeDocumentVo {
   enabled: boolean
   characterCount: number
   chunkCount: number
+  metadata: Record<string, string | number>
   recallCount: number
   needsReindex: boolean
   errorMessage?: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface KnowledgeMetadataFieldVo {
+  id: string
+  name: string
+  type: 'string' | 'number' | 'time'
   createdAt: Date
   updatedAt: Date
 }

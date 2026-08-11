@@ -10,7 +10,9 @@ export { getDocumentActions } from './components/document-actions'
 export { KnowledgeBaseDetailIdentity } from './components/knowledge-base-detail-identity'
 export { KnowledgeBaseSidebarSummary } from './components/knowledge-base-sidebar-summary'
 export { KnowledgeDocumentSwitcher } from './components/knowledge-document-switcher'
+export { KnowledgeDocumentMetadataPanel } from './components/knowledge-document-metadata-panel'
 export { KnowledgeChunkContent } from './components/knowledge-chunk-content'
+export { KnowledgeChunkCreatePanel } from './components/knowledge-chunk-create-panel'
 export { KnowledgeChunkEditPanel } from './components/knowledge-chunk-edit-panel'
 export { KnowledgeSelectionActions } from './components/knowledge-selection-actions'
 export { KnowledgeRetrievalMethodIcon } from './components/knowledge-retrieval-method-icon'
@@ -43,6 +45,8 @@ export {
   RECALL_TEST_INITIAL_VALUES,
   knowledgeBaseSettingsSchema,
   knowledgeChunkEditSchema,
+  knowledgeMetadataFieldSchema,
+  createKnowledgeDocumentMetadataSchema,
   knowledgeRetrievalSettingsSchema,
   recallTestSchema,
 } from './schema'
@@ -51,6 +55,10 @@ export type {
   CreateKnowledgeBaseInput,
   KnowledgeChunkEditFormInput,
   KnowledgeChunkEditInput,
+  KnowledgeDocumentMetadataFormInput,
+  KnowledgeDocumentMetadataInput,
+  KnowledgeMetadataFieldFormInput,
+  KnowledgeMetadataFieldInput,
   KnowledgeBaseSettingsFormInput,
   KnowledgeBaseSettingsInput,
   KnowledgeRetrievalSettingsFormInput,

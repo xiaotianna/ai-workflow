@@ -136,11 +136,17 @@
 - `KnowledgeChunk.enabled` 是活动 Head 分段的管理面状态。单条禁用不改写不可变正文或向量投影；
   OpenSearch 先召回候选，服务端返回前再用 PostgreSQL `enabled` 强一致过滤，因此残留投影不会被
   返回；重新启用后可继续使用原投影。
+- `KnowledgeMetadataField` 保存知识库级字段目录，字段使用稳定 UUID、知识库内唯一名称和
+  `string / number / time` 类型；`KnowledgeDocument.metadata` 使用字段 UUID 作为 JSON Key 保存当前
+  文档标注值。字段重命名保留值，字段改类型或删除时在同一事务清理所有文档的对应 JSON Key；文档
+  元数据保存是整对象替换，并在 Service 层按当前目录重新校验归属与类型。
 - 检索返回前的 PostgreSQL 强一致过滤同时要求 `KnowledgeDocument.status = READY`；即使 OpenSearch
   仍存在失败文档的旧投影，也不得把管理面已失败的文档返回给 RAG 或召回测试。
 - 手动编辑分段正文必须保留当前 Head 可服务：复制当前版本全部 Chunk，只在新版本替换目标
   正文，继承其他 Chunk 的元数据与启用状态，直接进入 Embedding / Projection 链路；投影完整性
   校验成功后才切换 `KnowledgeDocumentIndexHead`。无活动 Index 的兼容 Chunk 可直接修改事实行。
+- 手动新增分段与正文编辑使用相同的 Head 保留语义：有活动 Index 时复制当前版本 Chunk、在末尾追加
+  新分段并创建 Projection Outbox，完整投影后再切换 Head；无活动 Index 时才直接追加兼容 Chunk。
 - 文档入库、重建和清理任务通过同事务 `OutboxEvent` 可靠发布到 RabbitMQ 的知识库专用
   Exchange/Queue；不得与工作流 Command Queue 混用，Redis 不作为任务事实来源。
   `KnowledgeCleanupJob` 保留外部资源清理进度，清理成功前业务行保持删除中状态。

@@ -1,5 +1,7 @@
 import {
+  CreateKnowledgeChunkDto,
   CreateKnowledgeDocumentsDto,
+  CreateKnowledgeMetadataFieldDto,
   CreateKnowledgeBaseDto,
   ListKnowledgeChunksDto,
   ListKnowledgeBasesDto,
@@ -8,6 +10,8 @@ import {
   UpdateKnowledgeBaseDto,
   UpdateKnowledgeDocumentDto,
   UpdateKnowledgeChunkDto,
+  UpdateKnowledgeDocumentMetadataDto,
+  UpdateKnowledgeMetadataFieldDto,
 } from '@/dto/knowledge-base.dto'
 import {
   KNOWLEDGE_DOCUMENT_PARSER_VERSION,
@@ -22,6 +26,7 @@ import {
   type KnowledgeBaseSettingsRecord,
   type KnowledgeChunkListRecord,
   type KnowledgeDocumentRecord,
+  type KnowledgeMetadataFieldRecord,
   type RebuildKnowledgeBaseIndexResult,
   type UpdateChunkContentResult,
 } from '@/repositories/knowledge-base.repository'
@@ -41,6 +46,7 @@ import type {
   KnowledgeDocumentListVo,
   KnowledgeDocumentPreviewVo,
   KnowledgeDocumentVo,
+  KnowledgeMetadataFieldVo,
 } from '@/vo/knowledge-base.vo'
 import { normalizeUploadedFileName } from '@/utils/uploaded-file-name'
 import { createHash } from 'node:crypto'
@@ -70,6 +76,131 @@ export class KnowledgeBaseService {
     return {
       items: knowledgeBases.map((knowledgeBase) => this.toVo(knowledgeBase)),
     }
+  }
+
+  async listMetadataFields(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<KnowledgeMetadataFieldVo[]> {
+    await this.requireKnowledgeBase(ownerId, knowledgeBaseId)
+    const fields = await this.knowledgeBaseRepository.listMetadataFields(ownerId, knowledgeBaseId)
+    return fields.map((field) => this.toMetadataFieldVo(field))
+  }
+
+  async createMetadataField(
+    ownerId: string,
+    knowledgeBaseId: string,
+    dto: CreateKnowledgeMetadataFieldDto,
+  ): Promise<KnowledgeMetadataFieldVo> {
+    const result = await this.knowledgeBaseRepository.createMetadataField({
+      ownerId,
+      knowledgeBaseId,
+      name: dto.name,
+      type: dto.type,
+    })
+    if (result === 'not-found') throw new NotFoundException('知识库不存在')
+    if (result === 'duplicate') throw new ConflictException('元数据名称已存在')
+    return this.toMetadataFieldVo(result)
+  }
+
+  async updateMetadataField(
+    ownerId: string,
+    knowledgeBaseId: string,
+    fieldId: string,
+    dto: UpdateKnowledgeMetadataFieldDto,
+  ): Promise<KnowledgeMetadataFieldVo> {
+    if (dto.name === undefined && dto.type === undefined) {
+      throw new BadRequestException('至少需要提供一个待修改字段')
+    }
+    const result = await this.knowledgeBaseRepository.updateMetadataField({
+      ownerId,
+      knowledgeBaseId,
+      fieldId,
+      ...(dto.name !== undefined ? { name: dto.name } : {}),
+      ...(dto.type !== undefined ? { type: dto.type } : {}),
+    })
+    if (result === 'not-found') throw new NotFoundException('元数据字段不存在')
+    if (result === 'duplicate') throw new ConflictException('元数据名称已存在')
+    return this.toMetadataFieldVo(result)
+  }
+
+  async deleteMetadataField(
+    ownerId: string,
+    knowledgeBaseId: string,
+    fieldId: string,
+  ): Promise<void> {
+    const deleted = await this.knowledgeBaseRepository.deleteMetadataField({
+      ownerId,
+      knowledgeBaseId,
+      fieldId,
+    })
+    if (!deleted) throw new NotFoundException('元数据字段不存在')
+  }
+
+  async updateDocumentMetadata(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    dto: UpdateKnowledgeDocumentMetadataDto,
+  ): Promise<KnowledgeDocumentVo> {
+    const fields = await this.knowledgeBaseRepository.listMetadataFields(ownerId, knowledgeBaseId)
+    const fieldsById = new Map(fields.map((field) => [field.id, field]))
+    const entries = Object.entries(dto.values)
+    if (entries.length > 50) throw new BadRequestException('单个文档最多标注 50 个元数据字段')
+
+    const metadata: Record<string, string | number> = {}
+    for (const [fieldId, value] of entries) {
+      const field = fieldsById.get(fieldId)
+      if (!field) throw new BadRequestException('包含不存在的元数据字段')
+
+      if (field.type === 'number') {
+        if (typeof value !== 'number' || !Number.isFinite(value)) {
+          throw new BadRequestException(`${field.name} 必须是有效数字`)
+        }
+        metadata[fieldId] = value
+        continue
+      }
+
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new BadRequestException(`${field.name} 不能为空`)
+      }
+      if (value.length > 1000) throw new BadRequestException(`${field.name} 不能超过 1000 个字符`)
+      if (field.type === 'time') {
+        const timestamp = Date.parse(value)
+        if (!Number.isFinite(timestamp)) throw new BadRequestException(`${field.name} 时间无效`)
+        metadata[fieldId] = new Date(timestamp).toISOString()
+      } else {
+        metadata[fieldId] = value.trim()
+      }
+    }
+
+    const document = await this.knowledgeBaseRepository.updateDocumentMetadata(
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      metadata,
+    )
+    if (!document) throw new NotFoundException('文档不存在')
+    return this.toDocumentVo(document)
+  }
+
+  async createChunk(
+    ownerId: string,
+    knowledgeBaseId: string,
+    documentId: string,
+    dto: CreateKnowledgeChunkDto,
+  ): Promise<KnowledgeChunkVo> {
+    const result = await this.knowledgeBaseRepository.createChunk({
+      ownerId,
+      knowledgeBaseId,
+      documentId,
+      content: dto.content,
+    })
+    if (result.status === 'not-found') throw new NotFoundException('文档不存在')
+    if (result.status === 'busy') {
+      throw new ConflictException('文档分段正在更新，请稍后重试')
+    }
+    return this.toChunkVo(result.chunk)
   }
 
   async updateChunk(
@@ -646,6 +777,7 @@ export class KnowledgeBaseService {
       enabled: document.enabled,
       characterCount: document.characterCount,
       chunkCount: document.chunkCount,
+      metadata: document.metadata as Record<string, string | number>,
       recallCount: document._count.retrievalHits,
       needsReindex: document.indexedSegmentationRevision < currentRevision,
       ...(document.errorMessage ? { errorMessage: document.errorMessage } : {}),
@@ -690,6 +822,16 @@ export class KnowledgeBaseService {
       enabled: chunk.enabled,
       metadata: chunk.metadata as Record<string, unknown>,
       createdAt: chunk.createdAt,
+    }
+  }
+
+  private toMetadataFieldVo(field: KnowledgeMetadataFieldRecord): KnowledgeMetadataFieldVo {
+    return {
+      id: field.id,
+      name: field.name,
+      type: field.type as KnowledgeMetadataFieldVo['type'],
+      createdAt: field.createdAt,
+      updatedAt: field.updatedAt,
     }
   }
 }
