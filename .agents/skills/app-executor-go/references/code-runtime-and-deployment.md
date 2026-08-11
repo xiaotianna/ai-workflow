@@ -52,6 +52,9 @@ RabbitMQ 密码和内部认证令牌由 Compose 的 `secrets-init` 首次随机�
 密钥卷；入口脚本读取后再启动 Worker，不要求用户手动创建 `.env`。
 根 `pnpm-lock.yaml` 当前不纳入版本控制，三个应用 Dockerfile 不得强制复制该文件；容器内安装依赖
 显式使用 `--no-frozen-lockfile`，避免服务器从仓库检出后在 Docker `COPY` 阶段失败。
+Go 构建阶段先复制两个 Module 的 `go.mod`/`go.sum` 并执行独立的 `go mod download` 缓存层；默认
+`GOPROXY=https://goproxy.cn,direct`，Compose 允许通过同名构建参数覆盖，避免国内服务器访问
+`proxy.golang.org` 超时。
 
 部署或修改 Executor 镜像时确认：
 

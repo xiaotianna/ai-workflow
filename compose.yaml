@@ -120,6 +120,8 @@ services:
     build:
       context: .
       dockerfile: apps/executor-go/Dockerfile
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
     restart: unless-stopped
     init: true
     environment:

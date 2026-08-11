@@ -1,5 +1,15 @@
 FROM golang:1.25-bookworm AS go-build
 
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY}
+WORKDIR /workspace
+
+COPY packages/workflow-protocol/go.mod packages/workflow-protocol/go.sum ./packages/workflow-protocol/
+COPY apps/executor-go/go.mod apps/executor-go/go.sum ./apps/executor-go/
+
+WORKDIR /workspace/apps/executor-go
+RUN go mod download
+
 WORKDIR /workspace
 COPY packages/workflow-protocol ./packages/workflow-protocol
 COPY apps/executor-go ./apps/executor-go

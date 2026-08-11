@@ -107,6 +107,9 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
+Go 依赖默认通过 `https://goproxy.cn,direct` 下载，避免服务器访问 `proxy.golang.org` 超时；如需
+使用其他代理，可在可选的 `.env` 中覆盖 `GOPROXY`。
+
 查看状态和日志：
 
 ```bash
