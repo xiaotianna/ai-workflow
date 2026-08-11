@@ -46,7 +46,8 @@
 构建静态 Executor，并以包含 Node.js 22 和 Nginx 的 Debian 镜像作为运行层。Web、Server、Executor
 复用该应用镜像，但仍以三个独立容器运行。镜像固定配置
 `CODE_NODE_BINARY=node` 和 `CODE_NODE_MODULES_PATH=/workspace/node_modules`，并按根 `.npmrc` 安装
-workspace 的生产依赖，使容器内第三方包解析规则与仓库一致；Compose 使用非 root 用户、只读根文件
+workspace 的生产依赖，同时显式安装 `ca-certificates`，保证静态 Go Executor 能使用系统 CA 校验
+HTTPS 上游证书；Compose 使用非 root 用户、只读根文件
 系统、独立可写 `/tmp`、能力删除、PID/CPU/内存限制和独立 Executor 网络运行它。默认启动 `legacy`
 Profile，与 Server 的 `WORKFLOW_EXECUTOR_ROUTING_MODE=legacy` 对齐。
 RabbitMQ 密码和内部认证令牌由 Compose 的 `secrets-init` 首次随机生成，Executor 只挂载自身需要的
@@ -63,11 +64,12 @@ Go 构建阶段先复制两个 Module 的 `go.mod`/`go.sum` 并执行独立的 `
 2. 镜像包含 Node.js 22 或更高版本
 3. `node` 位于 `PATH`，或正确配置 `CODE_NODE_BINARY`
 4. 需要开放的 npm 包存在于可解析的 `node_modules`，或正确配置 `CODE_NODE_MODULES_PATH`
-5. 使用最小权限非 root 用户和只读根文件系统
-6. 临时目录可写且每次执行后能够清理
-7. 配置容器级 CPU、内存和 PID 限制
-8. 配置最小网络权限且不向用户代码暴露 Server、数据库或模型凭证
-9. 只运行受信任的 Code 和插件源码，并明确本地子进程不提供多租户强隔离
+5. 镜像包含有效的系统 CA bundle，Go HTTP Executor 能验证公共 HTTPS 证书
+6. 使用最小权限非 root 用户和只读根文件系统
+7. 临时目录可写且每次执行后能够清理
+8. 配置容器级 CPU、内存和 PID 限制
+9. 配置最小网络权限且不向用户代码暴露 Server、数据库或模型凭证
+10. 只运行受信任的 Code 和插件源码，并明确本地子进程不提供多租户强隔离
 
 ## Command 租约
 

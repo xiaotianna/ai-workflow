@@ -36,6 +36,10 @@ ENV NODE_ENV=production \
   CODE_NODE_MODULES_PATH=/workspace/node_modules
 WORKDIR /workspace
 
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
 COPY --from=node-dependencies --chown=node:node /workspace/node_modules ./node_modules
 COPY --from=go-build --chown=node:node /out/executor ./executor
 COPY --chown=node:node apps/executor-go/docker-entrypoint.sh ./docker-entrypoint.sh

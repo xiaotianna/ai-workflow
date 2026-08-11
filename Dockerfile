@@ -51,7 +51,7 @@ ENV NODE_ENV=production \
 WORKDIR /workspace
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends nginx \
+  && apt-get install -y --no-install-recommends ca-certificates nginx \
   && rm -rf /var/lib/apt/lists/* \
   && mkdir -p \
     /workspace/apps/server/logs \
