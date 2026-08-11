@@ -1,4 +1,9 @@
-import { DATA_TYPE_KINDS, type NodeOutputDefinition, type WorkflowNode } from '@ai-workflow/core'
+import {
+  DATA_TYPE_KINDS,
+  jsonValueSchema,
+  type NodeOutputDefinition,
+  type WorkflowNode,
+} from '@ai-workflow/core'
 
 /** 从节点输入绑定派生单节点运行表单字段；有输入时一律视为必填。 */
 export function createSingleNodeTestRunInputDefinitions(
@@ -26,12 +31,16 @@ export function createSingleNodeTestRunInputDefinitions(
         }
       }
       if (value !== null && typeof value === 'object') {
-        return {
-          key,
-          label: key,
-          dataType: DATA_TYPE_KINDS.JSON,
-          required: true,
-          defaultValue: value,
+        const parsedValue = jsonValueSchema.safeParse(value)
+
+        if (parsedValue.success) {
+          return {
+            key,
+            label: key,
+            dataType: DATA_TYPE_KINDS.JSON,
+            required: true,
+            defaultValue: parsedValue.data,
+          }
         }
       }
       return {

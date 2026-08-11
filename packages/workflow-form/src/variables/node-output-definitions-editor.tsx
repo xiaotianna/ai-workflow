@@ -1,4 +1,4 @@
-import type { NodeOutputDefinition, VariableValueInput } from '@ai-workflow/core'
+import type { NodeOutputDefinitionInput, VariableValueInput } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Form } from '@ai-workflow/ui/components/form'
 import { Input } from '@ai-workflow/ui/components/input'
@@ -25,7 +25,12 @@ function getReferencedVariable(
 ) {
   if (value.type !== 'reference') return undefined
 
-  return availableVariables.find((option) => referencesEqual(option.reference, value.reference))
+  const reference = {
+    ...value.reference,
+    path: value.reference.path ?? [],
+  }
+
+  return availableVariables.find((option) => referencesEqual(option.reference, reference))
 }
 
 export function NodeOutputDefinitionsEditor({
@@ -55,7 +60,7 @@ export function NodeOutputDefinitionsEditor({
     ])
   }
 
-  function updateOutputDefinition(index: number, values: Partial<NodeOutputDefinition>) {
+  function updateOutputDefinition(index: number, values: Partial<NodeOutputDefinitionInput>) {
     if (fixedOutputKeys.has(outputs[index]?.key ?? '')) return
 
     onOutputsChange(
@@ -74,19 +79,19 @@ export function NodeOutputDefinitionsEditor({
     const output = outputs[index]
     if (!output) return
 
-    const isFixed = fixedOutputKeys.has(output.key)
-    const isEmptyDirectValue = value.type === 'value' && value.value === ''
-    const referencedVariable = getReferencedVariable(value, availableVariables)
-    const nextOutput: NodeOutputDefinition = {
-      ...output,
-      ...(!isFixed
-        ? {
-            dataType: referencedVariable?.dataType ?? 'string',
-            defaultValue: undefined,
-          }
-        : {}),
-      ...(isEmptyDirectValue ? {} : { value }),
-    }
+    const isFixed = fixedOutputKeys.has(output.key),
+      isEmptyDirectValue = value.type === 'value' && value.value === '',
+      referencedVariable = getReferencedVariable(value, availableVariables),
+      nextOutput: NodeOutputDefinitionInput = {
+        ...output,
+        ...(!isFixed
+          ? {
+              dataType: referencedVariable?.dataType ?? 'string',
+              defaultValue: undefined,
+            }
+          : {}),
+        ...(isEmptyDirectValue ? {} : { value }),
+      }
 
     if (isEmptyDirectValue) delete nextOutput.value
 
@@ -118,12 +123,12 @@ export function NodeOutputDefinitionsEditor({
       {outputs.length > 0 ? (
         <div className="space-y-2">
           {outputs.map((output, index) => {
-            const isFixed = fixedOutputKeys.has(output.key)
-            const keyError = getFieldError(outputErrors, `${index}.key`)
-            const labelError = getFieldError(outputErrors, `${index}.label`)
-            const dataTypeError = getFieldError(outputErrors, `${index}.dataType`)
-            const valueError = getFieldError(outputErrors, `${index}.value`)
-            const error = keyError ?? labelError ?? dataTypeError ?? valueError
+            const isFixed = fixedOutputKeys.has(output.key),
+              keyError = getFieldError(outputErrors, `${index}.key`),
+              labelError = getFieldError(outputErrors, `${index}.label`),
+              dataTypeError = getFieldError(outputErrors, `${index}.dataType`),
+              valueError = getFieldError(outputErrors, `${index}.value`),
+              error = keyError ?? labelError ?? dataTypeError ?? valueError
 
             if (isFixed) {
               return (

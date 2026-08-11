@@ -1,4 +1,4 @@
-import type { VariableValueInput } from '@ai-workflow/core'
+import type { VariableReference, VariableValueInput } from '@ai-workflow/core'
 import { Button } from '@ai-workflow/ui/components/button'
 import { Input } from '@ai-workflow/ui/components/input'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@ai-workflow/ui/components/select'
@@ -29,6 +29,15 @@ function referencesEqual(left: unknown, right: unknown) {
   return JSON.stringify(left) === JSON.stringify(right)
 }
 
+function normalizeVariableReference(
+  reference: Extract<VariableValueInput, { type: 'reference' }>['reference'],
+): VariableReference {
+  return {
+    ...reference,
+    path: reference.path ?? [],
+  }
+}
+
 export interface VariableValueEditorProps {
   value: VariableValueInput
   availableVariables: readonly AvailableVariableOption[]
@@ -54,10 +63,12 @@ export function VariableValueEditor({
   variablePickerEndOffset,
   onChange,
 }: VariableValueEditorProps) {
-  const variableTriggerRef = useRef<HTMLButtonElement>(null)
-  const selectedVariable = availableVariables.find(
-    (option) => value.type === 'reference' && referencesEqual(option.reference, value.reference),
-  )
+  const variableTriggerRef = useRef<HTMLButtonElement>(null),
+    normalizedReference =
+      value.type === 'reference' ? normalizeVariableReference(value.reference) : undefined,
+    selectedVariable = availableVariables.find(
+      (option) => normalizedReference && referencesEqual(option.reference, normalizedReference),
+    )
 
   if (variant === 'table-cell') {
     if (value.type === 'value') {
@@ -120,6 +131,8 @@ export function VariableValueEditor({
       )
     }
 
+    const reference = normalizeVariableReference(value.reference)
+
     return (
       <div className={cn('flex min-w-0 items-center', className)}>
         <NodeVariablePicker
@@ -137,7 +150,7 @@ export function VariableValueEditor({
               aria-invalid={Boolean(error)}
               className="hover:bg-background focus-visible:bg-background aria-invalid:bg-destructive/5 h-9 min-w-0 flex-1 justify-start gap-1 rounded-none px-2.5 text-[13px] font-normal shadow-none aria-invalid:border-transparent dark:aria-invalid:border-transparent"
             >
-              <VariableReferenceIcon reference={value.reference} className="size-3.5" />
+              <VariableReferenceIcon reference={reference} className="size-3.5" />
               {selectedVariable ? (
                 <>
                   <span className="max-w-[40%] truncate">{selectedVariable.sourceLabel}</span>
@@ -145,7 +158,7 @@ export function VariableValueEditor({
                   <span
                     className={cn(
                       'min-w-0 truncate font-medium',
-                      getVariableReferenceColorClass(value.reference),
+                      getVariableReferenceColorClass(reference),
                     )}
                   >
                     {selectedVariable.variableName}

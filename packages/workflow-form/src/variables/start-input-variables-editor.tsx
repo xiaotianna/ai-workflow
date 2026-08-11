@@ -2,6 +2,7 @@ import {
   nodeOutputDefinitionSchema,
   nodeOutputDefinitionsSchema,
   type NodeOutputDefinition,
+  type NodeOutputDefinitionInput,
 } from '@ai-workflow/core'
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
@@ -45,7 +46,7 @@ const startInputVariableFormSchema = z
     defaultValue: z.string(),
     required: z.boolean(),
   })
-  .transform((value, context): NodeOutputDefinition => {
+  .transform((value, context) => {
     const { defaultValue, description, ...output } = value
     let parsedDefaultValue: NodeOutputDefinition['defaultValue'] = undefined
 
@@ -81,13 +82,25 @@ const startInputVariableFormSchema = z
       }
     }
 
-    return {
+    const parsedOutput = nodeOutputDefinitionSchema.safeParse({
       ...output,
       ...(description?.trim() ? { description } : {}),
       ...(parsedDefaultValue !== undefined ? { defaultValue: parsedDefaultValue } : {}),
+    })
+
+    if (!parsedOutput.success) {
+      for (const issue of parsedOutput.error.issues) {
+        context.addIssue({
+          code: 'custom',
+          path: issue.path,
+          message: issue.message,
+        })
+      }
+      return z.NEVER
     }
+
+    return parsedOutput.data
   })
-  .pipe(nodeOutputDefinitionSchema)
 
 type InputVariableFormInput = z.input<typeof startInputVariableFormSchema>
 
@@ -110,15 +123,15 @@ function getOutputError(
 ) {
   if (!errors) return undefined
 
-  const path = field ? `${index}.${field}` : `${index}`
-  const matchingEntry = Object.entries(errors).find(
-    ([errorPath]) => errorPath === path || errorPath.startsWith(`${path}.`),
-  )
+  const path = field ? `${index}.${field}` : `${index}`,
+    matchingEntry = Object.entries(errors).find(
+      ([errorPath]) => errorPath === path || errorPath.startsWith(`${path}.`),
+    )
 
   return matchingEntry?.[1]
 }
 
-function getDefaultValueInput(output: NodeOutputDefinition) {
+function getDefaultValueInput(output: NodeOutputDefinitionInput) {
   if (output.defaultValue === undefined) return ''
   if (output.dataType === 'json') return JSON.stringify(output.defaultValue, null, 2)
   return String(output.defaultValue)
@@ -131,23 +144,22 @@ export function StartInputVariablesEditor({
   disabled,
   onOutputsChange,
 }: NodeVariableSectionRendererProps) {
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [editingIndex, setEditingIndex] = useState<number | undefined>()
-  const [touchedFields, setTouchedFields] = useState<TouchedFields>({})
-  const { form, setForm, updateFormField, updateForm, resetForm } =
-    useFormData<InputVariableFormInput>(EMPTY_INPUT_VARIABLE)
-
-  const candidateIndex = editingIndex ?? outputs.length
-  const formValidation = validateFormByZod(startInputVariableFormSchema, form)
-  const candidateOutputs = formValidation.success
-    ? editingIndex === undefined
-      ? [...outputs, formValidation.data]
-      : outputs.map((output, index) => (index === editingIndex ? formValidation.data : output))
-    : undefined
-  const outputsValidation = candidateOutputs
-    ? validateFormByZod(nodeOutputDefinitionsSchema, candidateOutputs)
-    : undefined
-  const canSubmit = formValidation.success && outputsValidation?.success === true
+  const [dialogOpen, setDialogOpen] = useState(false),
+    [editingIndex, setEditingIndex] = useState<number | undefined>(),
+    [touchedFields, setTouchedFields] = useState<TouchedFields>({}),
+    { form, setForm, updateFormField, updateForm, resetForm } =
+      useFormData<InputVariableFormInput>(EMPTY_INPUT_VARIABLE),
+    candidateIndex = editingIndex ?? outputs.length,
+    formValidation = validateFormByZod(startInputVariableFormSchema, form),
+    candidateOutputs = formValidation.success
+      ? editingIndex === undefined
+        ? [...outputs, formValidation.data]
+        : outputs.map((output, index) => (index === editingIndex ? formValidation.data : output))
+      : undefined,
+    outputsValidation = candidateOutputs
+      ? validateFormByZod(nodeOutputDefinitionsSchema, candidateOutputs)
+      : undefined,
+    canSubmit = formValidation.success && outputsValidation?.success === true
 
   function resetDialogForm() {
     resetForm()
@@ -220,10 +232,10 @@ export function StartInputVariablesEditor({
     }
 
     const nextOutputs =
-      editingIndex === undefined
-        ? [...outputs, parsedForm.data]
-        : outputs.map((output, index) => (index === editingIndex ? parsedForm.data : output))
-    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+        editingIndex === undefined
+          ? [...outputs, parsedForm.data]
+          : outputs.map((output, index) => (index === editingIndex ? parsedForm.data : output)),
+      parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     if (!parsedOutputs.success) {
       setTouchedFields({

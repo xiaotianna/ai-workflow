@@ -86,6 +86,10 @@ import {
 `src/config` 维护整节点 renderer 注册表，`src/variables` 维护包内置的变量编辑器和 renderer
 注册表；两者不提供独立公开入口。不要从这些内部目录或 `packages/workflow-form/src/*` 深层导入。
 
+`NodeVariableSection` 的 `inputs` 与 `outputs` 使用 Core schema 的 input 类型承载可暂时无效的
+编辑草稿；renderer 回调也返回 input 类型。调用方必须通过对应 Core schema 校验，成功后只把
+output 类型写回工作流领域模型，不能用类型断言跳过 input/output 边界。
+
 ## 目录结构
 
 ```text

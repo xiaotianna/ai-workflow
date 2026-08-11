@@ -54,14 +54,7 @@ client.interceptors.request.use((config) => {
 })
 
 client.interceptors.response.use(
-  (response) => {
-    if (response.config.responseType === 'blob') {
-      return response
-    }
-
-    const result = response.data as ApiResponse<unknown>
-    return result.data as AxiosResponse
-  },
+  (response) => response,
   (error: unknown) => {
     if (!isAxiosError<ApiErrorResponse>(error)) {
       showToast('error', '请求失败，请稍后重试')
@@ -72,9 +65,9 @@ client.interceptors.response.use(
       return Promise.reject(error)
     }
 
-    const status = error.response?.status
-    const authorization = AxiosHeaders.from(error.config?.headers).get('Authorization')
-    const isUnauthorized = status === 401 || status === 403
+    const status = error.response?.status,
+      authorization = AxiosHeaders.from(error.config?.headers).get('Authorization'),
+      isUnauthorized = status === 401 || status === 403
 
     if (isUnauthorized && authorization) {
       if (authOptions?.getAccessToken()) {
@@ -115,24 +108,41 @@ function getErrorMessage(error: {
 }
 
 export const apiClient = {
-  delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return client.delete<ApiResponse<T>, T>(url, config)
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await client.delete<ApiResponse<T>>(url, config)
+    return response.data.data
   },
 
-  get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
-    return client.get<ApiResponse<T>, T>(url, config)
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
+    const response = await client.get<ApiResponse<T>>(url, config)
+    return response.data.data
   },
 
-  post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
-    return client.post<ApiResponse<T>, T, D>(url, data, config)
+  async post<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
+    const response = await client.post<ApiResponse<T>, AxiosResponse<ApiResponse<T>, D>, D>(
+      url,
+      data,
+      config,
+    )
+    return response.data.data
   },
 
-  put<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
-    return client.put<ApiResponse<T>, T, D>(url, data, config)
+  async put<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
+    const response = await client.put<ApiResponse<T>, AxiosResponse<ApiResponse<T>, D>, D>(
+      url,
+      data,
+      config,
+    )
+    return response.data.data
   },
 
-  patch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
-    return client.patch<ApiResponse<T>, T, D>(url, data, config)
+  async patch<T, D = unknown>(url: string, data?: D, config?: AxiosRequestConfig<D>): Promise<T> {
+    const response = await client.patch<ApiResponse<T>, AxiosResponse<ApiResponse<T>, D>, D>(
+      url,
+      data,
+      config,
+    )
+    return response.data.data
   },
 
   getBlob(url: string, config?: AxiosRequestConfig): Promise<AxiosResponse<Blob>> {
@@ -170,8 +180,8 @@ async function fetchSseStream(
   request: RequestInit,
   options: SseStreamOptions,
 ): Promise<void> {
-  const token = authOptions?.getAccessToken()
-  const headers = new Headers(request.headers)
+  const token = authOptions?.getAccessToken(),
+    headers = new Headers(request.headers)
   headers.set('Accept', 'text/event-stream')
   if (token) headers.set('Authorization', `Bearer ${token}`)
 
@@ -240,16 +250,16 @@ function findSseFrameBoundary(value: string): { index: number; length: number } 
 }
 
 function parseSseFrame(frame: string): SseMessage | undefined {
-  let event = 'message'
-  let id: string | undefined = undefined
+  let event = 'message',
+    id: string | undefined = undefined
   const data: string[] = []
 
   for (const line of frame.split(/\r?\n/)) {
     if (!line || line.startsWith(':')) continue
-    const separatorIndex = line.indexOf(':')
-    const field = separatorIndex === -1 ? line : line.slice(0, separatorIndex)
-    const rawValue = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1)
-    const value = rawValue.startsWith(' ') ? rawValue.slice(1) : rawValue
+    const separatorIndex = line.indexOf(':'),
+      field = separatorIndex === -1 ? line : line.slice(0, separatorIndex),
+      rawValue = separatorIndex === -1 ? '' : line.slice(separatorIndex + 1),
+      value = rawValue.startsWith(' ') ? rawValue.slice(1) : rawValue
 
     if (field === 'event') event = value
     if (field === 'id') id = value

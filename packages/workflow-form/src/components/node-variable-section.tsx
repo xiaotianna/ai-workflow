@@ -1,6 +1,7 @@
 import type {
   NodeInputBindingsInput,
   NodeOutputDefinition,
+  NodeOutputDefinitionInput,
   NodeVariableFormSection,
 } from '@ai-workflow/core'
 import type { ComponentType } from 'react'
@@ -14,14 +15,14 @@ export type NodeInputBindingsFormValue = Exclude<NodeInputBindingsInput, undefin
 export interface NodeVariableSectionRendererProps {
   section: NodeVariableFormSection
   inputs: NodeInputBindingsFormValue
-  outputs: readonly NodeOutputDefinition[]
+  outputs: readonly NodeOutputDefinitionInput[]
   fixedOutputs?: readonly NodeOutputDefinition[]
   availableVariables?: readonly AvailableVariableOption[]
   inputErrors?: NodeVariableFieldErrors
   outputErrors?: NodeVariableFieldErrors
   disabled?: boolean
   onInputsChange: (inputs: NodeInputBindingsFormValue) => void
-  onOutputsChange: (outputs: NodeOutputDefinition[]) => void
+  onOutputsChange: (outputs: NodeOutputDefinitionInput[]) => void
 }
 
 export type NodeVariableSectionRenderer = ComponentType<NodeVariableSectionRendererProps>

@@ -82,15 +82,14 @@ interface WorkflowConfigPanelProps {
 }
 
 const INLINE_TEXT_INPUT_CLASS_NAME =
-  'm-0 h-auto rounded-none border-0 bg-transparent p-0 shadow-none transition-none hover:border-transparent hover:bg-transparent focus-visible:border-transparent focus-visible:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent'
-
-const workflowConfigPanelFormSchema = z.object({
-  label: z.string().trim().min(1, '节点名称不能为空'),
-  description: z.string().trim(),
-  inputs: nodeInputBindingsSchema,
-  outputs: nodeOutputDefinitionsSchema,
-  config: z.record(z.string(), z.unknown()),
-})
+    'm-0 h-auto rounded-none border-0 bg-transparent p-0 shadow-none transition-none hover:border-transparent hover:bg-transparent focus-visible:border-transparent focus-visible:bg-transparent dark:bg-transparent dark:hover:bg-transparent dark:focus-visible:bg-transparent',
+  workflowConfigPanelFormSchema = z.object({
+    label: z.string().trim().min(1, '节点名称不能为空'),
+    description: z.string().trim(),
+    inputs: nodeInputBindingsSchema,
+    outputs: nodeOutputDefinitionsSchema,
+    config: z.record(z.string(), z.unknown()),
+  })
 
 type WorkflowConfigPanelFormInput = z.input<typeof workflowConfigPanelFormSchema>
 type NodeOutputDefinitionsFormValue = NonNullable<WorkflowConfigPanelFormInput['outputs']>
@@ -101,8 +100,8 @@ function resolveInitialNodeConfig(
 ): Record<string, unknown> {
   if (!nodeType) return { ...config }
 
-  const parsedConfig = nodeType.schema.safeParse(config)
-  const normalizedConfig = parsedConfig.success ? parsedConfig.data : undefined
+  const parsedConfig = nodeType.schema.safeParse(config),
+    normalizedConfig = parsedConfig.success ? parsedConfig.data : undefined
 
   return normalizedConfig &&
     typeof normalizedConfig === 'object' &&
@@ -158,25 +157,25 @@ export const WorkflowConfigPanel = ({
   onPauseTestRun,
   onSubmitSingleNodeTestRun,
 }: WorkflowConfigPanelProps) => {
-  const catalog = useWorkflowCatalog()
-  const { nodeRegistry } = catalog
-  const nodeType = nodeRegistry.get(node.type)
-  const resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type
-  const initialConfig = resolveInitialNodeConfig(nodeType, node.config)
-  const [activeTab, setActiveTab] = useState<WorkflowConfigPanelTab>('settings')
-  const lastRunQuery = useWorkflowNodeLastRun(
-    appId,
-    node.id,
-    activeTab === 'last-run',
-    lastRunRefreshKey,
-  )
-  const { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
-    label: node.label ?? resolvedDefaultLabel,
-    description: node.description ?? nodeType?.definition.description ?? '',
-    inputs: { ...node.inputs },
-    outputs: normalizeConfigPanelOutputs(node, nodeType, initialConfig, node.outputs),
-    config: initialConfig,
-  })
+  const catalog = useWorkflowCatalog(),
+    { nodeRegistry } = catalog,
+    nodeType = nodeRegistry.get(node.type),
+    resolvedDefaultLabel = defaultLabel ?? nodeType?.definition.label ?? node.type,
+    initialConfig = resolveInitialNodeConfig(nodeType, node.config),
+    [activeTab, setActiveTab] = useState<WorkflowConfigPanelTab>('settings'),
+    lastRunQuery = useWorkflowNodeLastRun(
+      appId,
+      node.id,
+      activeTab === 'last-run',
+      lastRunRefreshKey,
+    ),
+    { form, updateFormField } = useFormData<WorkflowConfigPanelFormInput>({
+      label: node.label ?? resolvedDefaultLabel,
+      description: node.description ?? nodeType?.definition.description ?? '',
+      inputs: { ...node.inputs },
+      outputs: normalizeConfigPanelOutputs(node, nodeType, initialConfig, node.outputs),
+      config: initialConfig,
+    })
 
   useEffect(() => {
     setActiveTab('settings')
@@ -205,41 +204,39 @@ export const WorkflowConfigPanel = ({
     )
   }
 
-  const configValidation = validateFormByZod(nodeType.schema, form.config)
-  const errors: NodeConfigFieldErrors = configValidation.success ? {} : configValidation.errors
-  const inputs = form.inputs ?? {}
-  const outputs = form.outputs ?? []
-  const outputValidation = validateFormByZod(nodeOutputDefinitionsSchema, outputs)
-  const derivedCodeOutputs =
-    node.type === BuiltinNodeType.CODE && typeof form.config.code === 'string'
-      ? deriveCodeNodeOutputs(form.config.code)
-      : undefined
-  const lastValidCodeOutputs = outputValidation.success
-    ? outputValidation.data.filter((output) => output.value === undefined)
-    : []
-  const fixedOutputs =
-    node.type === BuiltinNodeType.CODE
-      ? (derivedCodeOutputs ?? lastValidCodeOutputs)
-      : nodeType.fixedOutputs
-  const inputValidation = validateFormByZod(nodeInputBindingsSchema, inputs)
-  const inputErrors: NodeVariableFieldErrors = inputValidation.success ? {} : inputValidation.errors
-  const outputErrors: NodeVariableFieldErrors = outputValidation.success
-    ? {}
-    : outputValidation.errors
+  const configValidation = validateFormByZod(nodeType.schema, form.config),
+    errors: NodeConfigFieldErrors = configValidation.success ? {} : configValidation.errors,
+    inputs = form.inputs ?? {},
+    outputs = form.outputs ?? [],
+    outputValidation = validateFormByZod(nodeOutputDefinitionsSchema, outputs),
+    derivedCodeOutputs =
+      node.type === BuiltinNodeType.CODE && typeof form.config.code === 'string'
+        ? deriveCodeNodeOutputs(form.config.code)
+        : undefined,
+    lastValidCodeOutputs = outputValidation.success
+      ? outputValidation.data.filter((output) => output.value === undefined)
+      : [],
+    fixedOutputs =
+      node.type === BuiltinNodeType.CODE
+        ? (derivedCodeOutputs ?? lastValidCodeOutputs)
+        : nodeType.fixedOutputs,
+    inputValidation = validateFormByZod(nodeInputBindingsSchema, inputs),
+    inputErrors: NodeVariableFieldErrors = inputValidation.success ? {} : inputValidation.errors,
+    outputErrors: NodeVariableFieldErrors = outputValidation.success ? {} : outputValidation.errors
 
   function reportDraftValidationIssues(changes: Partial<WorkflowConfigPanelFormInput>) {
     const draftForm = {
-      ...form,
-      inputs,
-      outputs,
-      ...changes,
-    }
-    const draftFormValidation = validateFormByZod(workflowConfigPanelFormSchema, draftForm)
-    const draftConfigValidation = validateFormByZod(nodeType!.schema, draftForm.config)
-    const messages = [
-      ...(draftFormValidation.success ? [] : Object.values(draftFormValidation.errors)),
-      ...(draftConfigValidation.success ? [] : Object.values(draftConfigValidation.errors)),
-    ].filter((message): message is string => typeof message === 'string' && message.length > 0)
+        ...form,
+        inputs,
+        outputs,
+        ...changes,
+      },
+      draftFormValidation = validateFormByZod(workflowConfigPanelFormSchema, draftForm),
+      draftConfigValidation = validateFormByZod(nodeType!.schema, draftForm.config),
+      messages = [
+        ...(draftFormValidation.success ? [] : Object.values(draftFormValidation.errors)),
+        ...(draftConfigValidation.success ? [] : Object.values(draftConfigValidation.errors)),
+      ].filter((message): message is string => typeof message === 'string' && message.length > 0)
 
     onDraftValidationIssuesChange(node.id, [...new Set(messages)])
   }
@@ -325,9 +322,9 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleConfigChange(nextConfig: Record<string, unknown>) {
-    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
-    const nextOutputs = normalizeConfigPanelOutputs(node, nodeType, nextConfig, outputs)
-    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig),
+      nextOutputs = normalizeConfigPanelOutputs(node, nodeType, nextConfig, outputs),
+      parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     updateFormField('config', nextConfig)
     updateFormField('outputs', nextOutputs)
@@ -350,17 +347,18 @@ export const WorkflowConfigPanel = ({
   }
 
   function handleSubWorkflowSelection(payload: SubWorkflowSelectionPayload) {
-    const { inputs: nextInputs, outputs: nextOutputs } = createSubWorkflowNodeVariables(
-      payload.target,
-      inputs,
-    )
-    const nextConfig = {
-      ...form.config,
-      workflow: payload.workflow,
-    }
-    const parsedConfig = validateFormByZod(nodeType!.schema, nextConfig)
-    const parsedInputs = validateFormByZod(nodeInputBindingsSchema, nextInputs)
-    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
+    const parsedCurrentInputs = validateFormByZod(nodeInputBindingsSchema, inputs),
+      { inputs: nextInputs, outputs: nextOutputs } = createSubWorkflowNodeVariables(
+        payload.target,
+        parsedCurrentInputs.success ? parsedCurrentInputs.data : node.inputs,
+      ),
+      nextConfig = {
+        ...form.config,
+        workflow: payload.workflow,
+      },
+      parsedConfig = validateFormByZod(nodeType!.schema, nextConfig),
+      parsedInputs = validateFormByZod(nodeInputBindingsSchema, nextInputs),
+      parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     updateFormField('config', nextConfig)
     updateFormField('inputs', nextInputs)
@@ -394,90 +392,87 @@ export const WorkflowConfigPanel = ({
     })
   }
 
-  function handleOutputsChange(nextOutputs: WorkflowNode['outputs']) {
-    const normalizedOutputs = normalizeNodeOutputs(nextOutputs, fixedOutputs)
-
-    updateFormField('outputs', normalizedOutputs)
-    reportDraftValidationIssues({ outputs: normalizedOutputs })
-    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, normalizedOutputs)
+  function handleOutputsChange(nextOutputs: NodeOutputDefinitionsFormValue) {
+    updateFormField('outputs', nextOutputs)
+    reportDraftValidationIssues({ outputs: nextOutputs })
+    const parsedOutputs = validateFormByZod(nodeOutputDefinitionsSchema, nextOutputs)
 
     if (!parsedOutputs.success) return
 
+    const normalizedOutputs = normalizeNodeOutputs(parsedOutputs.data, fixedOutputs)
+    updateFormField('outputs', normalizedOutputs)
+
     onApply({
       ...node,
-      outputs: parsedOutputs.data,
+      outputs: normalizedOutputs,
     })
   }
 
-  const formFields = nodeType.form
-  const hasFields = formFields && Object.keys(formFields).length > 0
-  const configRenderer = nodeType.configRenderer
-  const hasConfigSection = Boolean(configRenderer || hasFields)
-  const variableForm = resolveNodeVariableForm(nodeType.variableForm)
-  const inputVariableSection = variableForm.input
-  const outputVariableSection = variableForm.output
-  // 子工作流需先选择目标再同步输入键，配置区放在输入变量之前
-  const configBeforeInputs = node.type === BuiltinNodeType.SUB_WORKFLOW
-  const hasPanelContent = Boolean(
-    inputVariableSection || configRenderer || hasFields || outputVariableSection,
-  )
-
-  const configSection = configRenderer ? (
-    <div className="px-5">
-      <NodeConfigSection
-        renderer={configRenderer}
-        renderers={catalog.configRenderers}
-        config={form.config}
-        availableVariables={availableVariables}
-        errors={errors}
-        onConfigChange={handleConfigChange}
-      />
-    </div>
-  ) : hasFields ? (
-    <div className="px-5">
-      <NodeConfigFields
-        fields={formFields}
-        renderers={catalog.fieldRenderers}
-        values={form.config}
-        errors={errors}
-        availableVariables={availableVariables}
-        onChange={handleFieldChange}
-      />
-    </div>
-  ) : null
-
-  const inputSection = inputVariableSection ? (
-    <div className="px-5">
-      <NodeVariableSection
-        section={inputVariableSection}
-        inputs={inputs}
-        outputs={outputs}
-        availableVariables={availableVariables}
-        inputErrors={inputErrors}
-        outputErrors={outputErrors}
-        onInputsChange={handleInputsChange}
-        onOutputsChange={handleOutputsChange}
-      />
-    </div>
-  ) : null
-
-  const outputSection = outputVariableSection ? (
-    <div className="px-5">
-      <NodeVariableSection
-        section={outputVariableSection}
-        inputs={inputs}
-        outputs={outputs}
-        fixedOutputs={fixedOutputs}
-        availableVariables={availableVariables}
-        inputErrors={inputErrors}
-        outputErrors={outputErrors}
-        onInputsChange={handleInputsChange}
-        onOutputsChange={handleOutputsChange}
-      />
-    </div>
-  ) : null
-
-  const nodeLabel = form.label || resolvedDefaultLabel
+  const formFields = nodeType.form,
+    hasFields = formFields && Object.keys(formFields).length > 0,
+    configRenderer = nodeType.configRenderer,
+    hasConfigSection = Boolean(configRenderer || hasFields),
+    variableForm = resolveNodeVariableForm(nodeType.variableForm),
+    inputVariableSection = variableForm.input,
+    outputVariableSection = variableForm.output,
+    // 子工作流需先选择目标再同步输入键，配置区放在输入变量之前
+    configBeforeInputs = node.type === BuiltinNodeType.SUB_WORKFLOW,
+    hasPanelContent = Boolean(
+      inputVariableSection || configRenderer || hasFields || outputVariableSection,
+    ),
+    configSection = configRenderer ? (
+      <div className="px-5">
+        <NodeConfigSection
+          renderer={configRenderer}
+          renderers={catalog.configRenderers}
+          config={form.config}
+          availableVariables={availableVariables}
+          errors={errors}
+          onConfigChange={handleConfigChange}
+        />
+      </div>
+    ) : hasFields ? (
+      <div className="px-5">
+        <NodeConfigFields
+          fields={formFields}
+          renderers={catalog.fieldRenderers}
+          values={form.config}
+          errors={errors}
+          availableVariables={availableVariables}
+          onChange={handleFieldChange}
+        />
+      </div>
+    ) : null,
+    inputSection = inputVariableSection ? (
+      <div className="px-5">
+        <NodeVariableSection
+          section={inputVariableSection}
+          inputs={inputs}
+          outputs={outputs}
+          availableVariables={availableVariables}
+          inputErrors={inputErrors}
+          outputErrors={outputErrors}
+          onInputsChange={handleInputsChange}
+          onOutputsChange={handleOutputsChange}
+        />
+      </div>
+    ) : null,
+    outputSection = outputVariableSection ? (
+      <div className="px-5">
+        <NodeVariableSection
+          section={outputVariableSection}
+          inputs={inputs}
+          outputs={outputs}
+          fixedOutputs={fixedOutputs}
+          availableVariables={availableVariables}
+          inputErrors={inputErrors}
+          outputErrors={outputErrors}
+          onInputsChange={handleInputsChange}
+          onOutputsChange={handleOutputsChange}
+        />
+      </div>
+    ) : null,
+    nodeLabel = form.label || resolvedDefaultLabel
 
   return (
     <aside className="nodrag nowheel nokey bg-background border-border/50 relative flex h-full w-full flex-col overflow-hidden rounded-2xl border-[0.5px] shadow-lg">
