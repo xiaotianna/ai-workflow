@@ -80,6 +80,7 @@ interface DocumentTableProps {
   onDocumentEnabledChange: (documentId: string, enabled: boolean) => void
   onSelectedDocumentsDelete: () => void
   onSelectedDocumentsEnabledChange: (enabled: boolean) => void
+  onSelectedDocumentsReindex: () => void
   onPageChange: (pageIndex: number) => void
   onPageSizeChange: (pageSize: number) => void
   onRowSelectionChange: OnChangeFn<RowSelectionState>
@@ -180,6 +181,7 @@ export function DocumentTable({
   onDocumentEnabledChange,
   onSelectedDocumentsDelete,
   onSelectedDocumentsEnabledChange,
+  onSelectedDocumentsReindex,
   onPageChange,
   onPageSizeChange,
   onRowSelectionChange,
@@ -497,6 +499,7 @@ export function DocumentTable({
           count={selectedDocumentCount}
           onEnable={() => onSelectedDocumentsEnabledChange(true)}
           onDisable={() => onSelectedDocumentsEnabledChange(false)}
+          onReindex={onSelectedDocumentsReindex}
           onDelete={onSelectedDocumentsDelete}
           onCancel={() => onRowSelectionChange({})}
         />

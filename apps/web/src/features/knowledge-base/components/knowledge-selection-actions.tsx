@@ -1,6 +1,6 @@
 import { Button } from '@ai-workflow/ui/components/button'
 import { cn } from '@ai-workflow/ui/lib/utils'
-import { CircleCheck, CircleX, Trash2 } from 'lucide-react'
+import { CircleCheck, CircleX, RefreshCw, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 
 const selectionActionButtonClassName =
@@ -18,6 +18,7 @@ interface KnowledgeSelectionActionsProps {
   onDelete: () => void
   onDisable: () => void
   onEnable: () => void
+  onReindex?: () => void
 }
 
 export function KnowledgeSelectionActions({
@@ -29,6 +30,7 @@ export function KnowledgeSelectionActions({
   onDelete,
   onDisable,
   onEnable,
+  onReindex,
 }: KnowledgeSelectionActionsProps) {
   return (
     <MotionConfig reducedMotion="user">
@@ -79,6 +81,19 @@ export function KnowledgeSelectionActions({
                 <CircleX aria-hidden className="size-4" />
                 <span className="px-0.5">禁用</span>
               </Button>
+              {onReindex ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className={cn(selectionActionButtonClassName, 'gap-x-0.5 px-3')}
+                  disabled={busy || disableActions}
+                  onClick={onReindex}
+                >
+                  <RefreshCw aria-hidden className="size-4" />
+                  <span className="px-0.5">重新索引</span>
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="ghost"

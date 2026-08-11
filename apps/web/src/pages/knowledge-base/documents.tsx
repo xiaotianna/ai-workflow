@@ -269,6 +269,59 @@ export default function KnowledgeBaseDocumentsPage() {
     }
   }
 
+  async function handleSelectedDocumentsReindex() {
+    if (batchUpdatingDocuments) return
+    const selectedDocuments = documents.filter((document) => rowSelection[document.id])
+    if (selectedDocuments.length === 0) return
+
+    const selectedDocumentsById = new Map(
+      selectedDocuments.map((document) => [document.id, document]),
+    )
+    selectedDocuments.forEach((document) => reindexingDocumentIds.current.add(document.id))
+    setBatchUpdatingDocuments(true)
+    setDocumentStatusRefreshFailed(false)
+    setDocuments((currentDocuments) =>
+      currentDocuments.map((document) =>
+        selectedDocumentsById.has(document.id)
+          ? { ...document, status: 'indexing', statusLabel: '处理中' }
+          : document,
+      ),
+    )
+
+    try {
+      const results = await Promise.allSettled(
+        selectedDocuments.map((document) => reindexKnowledgeDocument(knowledgeBaseId, document.id)),
+      )
+      const reindexedDocuments = results.flatMap((result) =>
+        result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
+      )
+      const reindexedDocumentsById = new Map(
+        reindexedDocuments.map((document) => [document.id, document]),
+      )
+
+      setDocuments((currentDocuments) =>
+        currentDocuments.map(
+          (document) =>
+            reindexedDocumentsById.get(document.id) ??
+            selectedDocumentsById.get(document.id) ??
+            document,
+        ),
+      )
+      setRowSelection((currentSelection) => {
+        const nextSelection = { ...currentSelection }
+        reindexedDocuments.forEach((document) => delete nextSelection[document.id])
+        return nextSelection
+      })
+
+      if (reindexedDocuments.length > 0) {
+        showToast('success', `已提交 ${reindexedDocuments.length} 个文档重新索引`)
+      }
+    } finally {
+      selectedDocuments.forEach((document) => reindexingDocumentIds.current.delete(document.id))
+      setBatchUpdatingDocuments(false)
+    }
+  }
+
   async function handleDeleteDocuments(targetDocuments: KnowledgeBaseDocument[]) {
     if (batchUpdatingDocuments || targetDocuments.length === 0) return
 
@@ -499,6 +552,7 @@ export default function KnowledgeBaseDocumentsPage() {
                   onSelectedDocumentsEnabledChange={(enabled) =>
                     void handleSelectedDocumentsEnabledChange(enabled)
                   }
+                  onSelectedDocumentsReindex={() => void handleSelectedDocumentsReindex()}
                   onPageChange={handlePageChange}
                   onPageSizeChange={handlePageSizeChange}
                   onRowSelectionChange={setRowSelection}
