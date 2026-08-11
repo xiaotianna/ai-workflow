@@ -50,6 +50,8 @@ workspace 的生产依赖，使容器内第三方包解析规则与仓库一致�
 Profile，与 Server 的 `WORKFLOW_EXECUTOR_ROUTING_MODE=legacy` 对齐。
 RabbitMQ 密码和内部认证令牌由 Compose 的 `secrets-init` 首次随机生成，Executor 只挂载自身需要的
 密钥卷；入口脚本读取后再启动 Worker，不要求用户手动创建 `.env`。
+根 `pnpm-lock.yaml` 当前不纳入版本控制，三个应用 Dockerfile 不得强制复制该文件；容器内安装依赖
+显式使用 `--no-frozen-lockfile`，避免服务器从仓库检出后在 Docker `COPY` 阶段失败。
 
 部署或修改 Executor 镜像时确认：
 

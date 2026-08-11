@@ -32,7 +32,8 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 根目录 `compose.yaml` 和三个应用 Dockerfile 已提供单机自托管部署：Nginx 统一提供 Web 与 API
   反向代理，Server 启动前执行 `prisma migrate deploy`，Go Executor 运行层包含 Node.js 22；生产配置
   的敏感值由 `secrets-init` 首次启动时随机生成并按服务隔离保存在 Docker named volume，也可以在首次
-  启动前通过根 `.env` 覆盖；业务数据和本地产物同样保存在独立 named volume。
+  启动前通过根 `.env` 覆盖；业务数据和本地产物同样保存在独立 named volume。根 lockfile 当前不纳入
+  版本控制，因此应用 Dockerfile 不复制 `pnpm-lock.yaml`，依赖安装使用 `--no-frozen-lockfile`。
 - Prisma 7 的 schema、migration、Client generator 和 PostgreSQL driver adapter 依赖已配置；NestJS 已通过全局 `PrismaModule`/`PrismaService` 接入数据库，认证与 Studio 模块已使用 Repository 封装数据访问。Redis 已接入认证会话，LangGraph 尚未接入应用。
 - 模型管理已通过 `ModelsModule` 接入：按用户持久化对话/嵌入模型组，API Key 使用 AES-256-GCM 加密，并由服务端供应商适配器执行模型列表连通性与单模型流式对话测试。`ExecutorModelModule` 另提供受 NodeRun 租约保护的内部解析接口，只按不可变版本中的稳定模型 ID 向 Go LLM Executor 提供本次运行所需配置。
 - 应用 Service API 已通过 `StudioModule` 接入：应用级 `app-` API Key 只保存 SHA-256 哈希和末尾

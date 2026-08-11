@@ -3,13 +3,13 @@ FROM node:22-bookworm-slim AS build
 ENV HUSKY=0
 WORKDIR /workspace
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY package.json pnpm-workspace.yaml .npmrc ./
 COPY configs ./configs
 COPY packages ./packages
 COPY apps/server ./apps/server
 
 RUN corepack enable \
-  && pnpm install --frozen-lockfile
+  && pnpm install --no-frozen-lockfile
 RUN pnpm --filter @ai-workflow/server build
 
 FROM node:22-bookworm-slim
