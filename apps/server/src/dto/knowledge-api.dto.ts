@@ -5,6 +5,7 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   IsUUID,
@@ -38,4 +39,8 @@ export class RetrieveKnowledgeApiDto {
   @IsInt({ message: '返回条数必须是整数' })
   @IsOptional()
   topK?: number
+
+  @IsObject({ message: '元数据过滤条件必须是对象' })
+  @IsOptional()
+  metadataFilter?: Record<string, unknown>
 }

@@ -2,9 +2,11 @@ import {
   KnowledgeSearchProjectionStore,
   type KnowledgeSearchHit,
 } from '@/infra/knowledge/knowledge-search-projection.store'
+import { KnowledgeVectorStore } from '@/infra/knowledge/knowledge-vector.store'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
 import {
   KnowledgeRetrievalRepository,
+  type RetrievableKnowledgeChunk,
   type KnowledgeRetrievalIndex,
 } from '@/repositories/knowledge-retrieval.repository'
 import { KnowledgeEmbeddingService } from '@/services/knowledge-embedding.service'
@@ -17,6 +19,7 @@ import type {
 } from '@/vo/knowledge-retrieval.vo'
 import { ragNodeSchema, workflowSchema } from '@ai-workflow/core'
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -43,6 +46,7 @@ export class KnowledgeRetrievalService {
     private readonly knowledgeRetrievalRepository: KnowledgeRetrievalRepository,
     private readonly knowledgeEmbeddingService: KnowledgeEmbeddingService,
     private readonly projectionStore: KnowledgeSearchProjectionStore,
+    private readonly vectorStore: KnowledgeVectorStore,
     private readonly profileService: KnowledgeRetrievalProfileService,
     private readonly rerankerService: KnowledgeRerankerService,
   ) {}
@@ -74,14 +78,19 @@ export class KnowledgeRetrievalService {
     knowledgeBaseIds: string[],
     query: string,
     topK: number,
-    options: { workflowCommandId?: string; debug?: boolean } = {},
+    options: {
+      workflowCommandId?: string
+      debug?: boolean
+      metadataFilter?: Record<string, unknown>
+    } = {},
   ): Promise<KnowledgeRetrievalVo> {
-    const startedAt = Date.now()
-    const uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)]
-    const indexes = await this.knowledgeRetrievalRepository.findActiveIndexes(
-      ownerId,
-      uniqueKnowledgeBaseIds,
-    )
+    const startedAt = Date.now(),
+      uniqueKnowledgeBaseIds = [...new Set(knowledgeBaseIds)],
+      requestedMetadataFilter = normalizeMetadataFilter(options.metadataFilter),
+      indexes = await this.knowledgeRetrievalRepository.findActiveIndexes(
+        ownerId,
+        uniqueKnowledgeBaseIds,
+      )
     if (indexes.length !== uniqueKnowledgeBaseIds.length) {
       const states = await this.knowledgeRetrievalRepository.findRetrievalStates(
         ownerId,
@@ -101,115 +110,124 @@ export class KnowledgeRetrievalService {
       }
       throw new ConflictException('知识库尚未完成索引')
     }
-    const groups = groupIndexes(indexes)
-    const profile = this.profileService.resolve(
-      indexes.map((index) => index.knowledgeBase.settings?.retrievalProfile ?? 'HYBRID_ACCURATE'),
-    )
-    const channels = await Promise.all(
-      groups.map(async (group) => {
-        const queryVector = await this.knowledgeEmbeddingService.embedQuery(group[0], query)
-        const result = await this.projectionStore.search({
-          embeddingSpaceKey: group[0].embeddingSpaceKey as string,
-          ownerId,
-          knowledgeBaseIds: group.map(({ knowledgeBaseId }) => knowledgeBaseId),
-          knowledgeBaseIndexIds: group.map(({ id }) => id),
-          query,
-          queryVector,
-          candidateCount: profile.candidateCount,
-        })
-        return { ...result, distanceMetric: group[0].distanceMetric }
-      }),
-    )
-
-    const candidateVersionIds = [
-      ...new Set(
-        channels.flatMap((channel) =>
-          [...channel.bm25, ...channel.dense].map(({ documentVersionId }) => documentVersionId),
-        ),
+    const metadataFilter = await this.validateMetadataFilter(
+        ownerId,
+        uniqueKnowledgeBaseIds,
+        requestedMetadataFilter,
       ),
-    ]
-    const retrievableVersionIds = await this.knowledgeRetrievalRepository.findRetrievableVersionIds(
-      ownerId,
-      candidateVersionIds,
-    )
-    const enabledChunkIds = await this.knowledgeRetrievalRepository.findEnabledChunkIds(
-      channels.flatMap((channel) =>
-        [...channel.bm25, ...channel.dense].map(({ chunkId }) => chunkId),
+      groups = groupIndexes(indexes),
+      profile = this.profileService.resolve(
+        indexes.map((index) => index.knowledgeBase.settings?.retrievalProfile ?? 'HYBRID_ACCURATE'),
       ),
-    )
-
-    const scores = new Map<string, FusionCandidate>()
+      channels = await Promise.all(
+        groups.map(async (group) => {
+          const queryVector = await this.knowledgeEmbeddingService.embedQuery(group[0], query),
+            groupKnowledgeBaseIds = group.map(({ knowledgeBaseId }) => knowledgeBaseId),
+            knowledgeBaseIndexIds = group.map(({ id }) => id),
+            [bm25, dense] = await Promise.all([
+              this.projectionStore.searchBm25({
+                embeddingSpaceKey: group[0].embeddingSpaceKey as string,
+                ownerId,
+                knowledgeBaseIds: groupKnowledgeBaseIds,
+                knowledgeBaseIndexIds,
+                query,
+                candidateCount: profile.candidateCount,
+              }),
+              this.vectorStore.search({
+                ownerId,
+                knowledgeBaseIds: groupKnowledgeBaseIds,
+                knowledgeBaseIndexIds,
+                queryVector,
+                embeddingDimension: group[0].embeddingDimension as number,
+                distanceMetric: group[0].distanceMetric,
+                candidateCount: profile.candidateCount,
+                ...(metadataFilter ? { metadataFilter } : {}),
+              }),
+            ])
+          return { bm25, dense, distanceMetric: group[0].distanceMetric }
+        }),
+      ),
+      retrievableChunks = await this.knowledgeRetrievalRepository.findRetrievableChunks(
+        ownerId,
+        [
+          ...new Set(
+            channels.flatMap((channel) =>
+              [...channel.bm25, ...channel.dense].map(({ chunkId }) => chunkId),
+            ),
+          ),
+        ],
+        metadataFilter,
+      ),
+      scores = new Map<string, FusionCandidate>()
     for (const channel of channels) {
       addRrfScores(
         scores,
-        channel.bm25.filter(
-          ({ chunkId, documentVersionId }) =>
-            enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
-        ),
+        hydrateRetrievableHits(channel.bm25, retrievableChunks),
         'bm25Rank',
         channel.distanceMetric,
       )
       addRrfScores(
         scores,
-        channel.dense.filter(
-          ({ chunkId, documentVersionId }) =>
-            enabledChunkIds.has(chunkId) && retrievableVersionIds.has(documentVersionId),
-        ),
+        hydrateRetrievableHits(channel.dense, retrievableChunks),
         'denseRank',
         channel.distanceMetric,
       )
     }
     const fusedCandidates = [...scores.values()]
-      .sort(
-        (left, right) =>
-          right.score - left.score || left.hit.chunkId.localeCompare(right.hit.chunkId),
-      )
-      .map(({ hit, score, distanceMetric, bm25Rank, denseRank, bm25Score, denseScore }, index) => ({
-        ...hit,
-        score,
-        distanceMetric,
-        rrfScore: score,
-        rrfRank: index + 1,
-        ...(bm25Rank ? { bm25Rank } : {}),
-        ...(denseRank ? { denseRank } : {}),
-        ...(bm25Score !== undefined ? { bm25Score } : {}),
-        ...(denseScore !== undefined ? { denseScore } : {}),
-      }))
-    const rankedCandidates = profile.rerank
-      ? this.rerankerService
-          .rerank(
-            query,
-            fusedCandidates.slice(0, profile.rerankCandidateCount),
-            profile.minimumRerankScore,
-          )
-          .map((candidate) => ({ ...candidate, score: candidate.rerankScore }))
-      : fusedCandidates
-    const selectedCandidates = selectDiverseCandidates(
-      rankedCandidates,
-      topK,
-      profile.maxResultsPerDocument,
-    )
-    const documents = selectedCandidates.map((candidate) => ({
-      chunkId: candidate.chunkId,
-      documentId: candidate.documentId,
-      documentVersionId: candidate.documentVersionId,
-      documentName: candidate.documentName,
-      sequence: candidate.sequence,
-      content: candidate.content,
-      metadata: candidate.metadata,
-      score: candidate.score,
-      ...(options.debug
-        ? {
-            ...(candidate.bm25Rank ? { bm25Rank: candidate.bm25Rank } : {}),
-            ...(candidate.denseRank ? { denseRank: candidate.denseRank } : {}),
-            ...(candidate.bm25Score !== undefined ? { bm25Score: candidate.bm25Score } : {}),
-            ...(candidate.denseScore !== undefined ? { denseScore: candidate.denseScore } : {}),
-            rrfRank: candidate.rrfRank,
-            rrfScore: candidate.rrfScore,
-            ...('rerankScore' in candidate ? { rerankScore: candidate.rerankScore as number } : {}),
-          }
-        : {}),
-    })) satisfies KnowledgeRetrievalDocumentVo[]
+        .sort(
+          (left, right) =>
+            right.score - left.score || left.hit.chunkId.localeCompare(right.hit.chunkId),
+        )
+        .map(
+          ({ hit, score, distanceMetric, bm25Rank, denseRank, bm25Score, denseScore }, index) => ({
+            ...hit,
+            score,
+            distanceMetric,
+            rrfScore: score,
+            rrfRank: index + 1,
+            ...(bm25Rank ? { bm25Rank } : {}),
+            ...(denseRank ? { denseRank } : {}),
+            ...(bm25Score !== undefined ? { bm25Score } : {}),
+            ...(denseScore !== undefined ? { denseScore } : {}),
+          }),
+        ),
+      rankedCandidates = profile.rerank
+        ? this.rerankerService
+            .rerank(
+              query,
+              fusedCandidates.slice(0, profile.rerankCandidateCount),
+              profile.minimumRerankScore,
+            )
+            .map((candidate) => ({ ...candidate, score: candidate.rerankScore }))
+        : fusedCandidates,
+      selectedCandidates = selectDiverseCandidates(
+        rankedCandidates,
+        topK,
+        profile.maxResultsPerDocument,
+      ),
+      documents = selectedCandidates.map((candidate) => ({
+        chunkId: candidate.chunkId,
+        documentId: candidate.documentId,
+        documentVersionId: candidate.documentVersionId,
+        documentName: candidate.documentName,
+        sequence: candidate.sequence,
+        content: candidate.content,
+        metadata: candidate.metadata,
+        score: candidate.score,
+        ...(options.debug
+          ? {
+              ...(candidate.bm25Rank ? { bm25Rank: candidate.bm25Rank } : {}),
+              ...(candidate.denseRank ? { denseRank: candidate.denseRank } : {}),
+              ...(candidate.bm25Score !== undefined ? { bm25Score: candidate.bm25Score } : {}),
+              ...(candidate.denseScore !== undefined ? { denseScore: candidate.denseScore } : {}),
+              rrfRank: candidate.rrfRank,
+              rrfScore: candidate.rrfScore,
+              ...('rerankScore' in candidate
+                ? { rerankScore: candidate.rerankScore as number }
+                : {}),
+            }
+          : {}),
+      })) satisfies KnowledgeRetrievalDocumentVo[]
 
     if (options.workflowCommandId) {
       await this.knowledgeRetrievalRepository.recordWorkflowRetrieval({
@@ -228,7 +246,81 @@ export class KnowledgeRetrievalService {
       documents,
     }
   }
+
+  private async validateMetadataFilter(
+    ownerId: string,
+    knowledgeBaseIds: string[],
+    filter: Record<string, string | number> | undefined,
+  ): Promise<Record<string, string | number> | undefined> {
+    if (!filter) return undefined
+    const fields = await this.knowledgeRetrievalRepository.findMetadataFields(
+      ownerId,
+      knowledgeBaseIds,
+      Object.keys(filter),
+    )
+    if (fields.length !== Object.keys(filter).length) {
+      throw new BadRequestException('元数据过滤字段不存在或不属于所选知识库')
+    }
+    const normalized = { ...filter }
+    for (const field of fields) {
+      const value = filter[field.id]
+      if (field.type === 'number' && typeof value !== 'number') {
+        throw new BadRequestException('数字元数据过滤值必须是数字')
+      }
+      if (
+        field.type === 'time' &&
+        (typeof value !== 'string' || !Number.isFinite(Date.parse(value)))
+      ) {
+        throw new BadRequestException('时间元数据过滤值必须是有效时间字符串')
+      }
+      if (field.type === 'time') normalized[field.id] = new Date(value as string).toISOString()
+      if (field.type === 'string' && typeof value !== 'string') {
+        throw new BadRequestException('文本元数据过滤值必须是字符串')
+      }
+    }
+    return normalized
+  }
 }
+
+function hydrateRetrievableHits(
+  hits: KnowledgeSearchHit[],
+  chunks: Map<string, RetrievableKnowledgeChunk>,
+): KnowledgeSearchHit[] {
+  return hits.flatMap((hit) => {
+    const chunk = chunks.get(hit.chunkId)
+    return chunk?.documentVersionId === hit.documentVersionId
+      ? [{ ...hit, metadata: chunk.metadata }]
+      : []
+  })
+}
+
+function normalizeMetadataFilter(
+  value: Record<string, unknown> | undefined,
+): Record<string, string | number> | undefined {
+  if (value === undefined) return undefined
+  const entries = Object.entries(value)
+  if (entries.length > 20) throw new BadRequestException('元数据过滤条件不能超过 20 个')
+  if (!entries.length) return undefined
+
+  const normalized: Record<string, string | number> = {}
+  for (const [fieldId, fieldValue] of entries) {
+    if (!UUID_V4_PATTERN.test(fieldId)) throw new BadRequestException('元数据过滤字段 ID 无效')
+    if (typeof fieldValue === 'string') {
+      const text = fieldValue.trim()
+      if (!text || text.length > 1000) throw new BadRequestException('元数据过滤值无效')
+      normalized[fieldId] = text
+      continue
+    }
+    if (typeof fieldValue === 'number' && Number.isFinite(fieldValue)) {
+      normalized[fieldId] = fieldValue
+      continue
+    }
+    throw new BadRequestException('元数据过滤值只支持字符串、时间字符串或数字')
+  }
+  return normalized
+}
+
+const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
 
 function collapseDocumentHits(documents: KnowledgeRetrievalDocumentVo[]): Array<{
   documentId: string
@@ -289,8 +381,8 @@ function addRrfScores(
   distanceMetric: KnowledgeRetrievalIndex['distanceMetric'],
 ): void {
   hits.forEach((hit, index) => {
-    const current = scores.get(hit.chunkId)
-    const score = (current?.score ?? 0) + 1 / (RRF_RANK_CONSTANT + index + 1)
+    const current = scores.get(hit.chunkId),
+      score = (current?.score ?? 0) + 1 / (RRF_RANK_CONSTANT + index + 1)
     scores.set(hit.chunkId, {
       hit,
       score,
@@ -310,9 +402,9 @@ function selectDiverseCandidates<T extends { chunkId: string; documentId: string
   topK: number,
   maxResultsPerDocument: number,
 ): T[] {
-  const selected: T[] = []
-  const deferred: T[] = []
-  const documentCounts = new Map<string, number>()
+  const selected: T[] = [],
+    deferred: T[] = [],
+    documentCounts = new Map<string, number>()
 
   for (const candidate of candidates) {
     const documentCount = documentCounts.get(candidate.documentId) ?? 0

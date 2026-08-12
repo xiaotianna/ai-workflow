@@ -81,30 +81,30 @@ export class KnowledgeIngestionRepository {
       )
 
       const documents = await transaction.knowledgeDocument.findMany({
-        where: {
-          knowledgeBaseId: index.knowledgeBaseId,
-          lifecycleStatus: 'ACTIVE',
-          status: { in: ['READY', 'FAILED'] },
-          enabled: true,
-        },
-        select: {
-          id: true,
-          status: true,
-          sources: {
-            orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-            take: 1,
-            select: { id: true, checksum: true },
+          where: {
+            knowledgeBaseId: index.knowledgeBaseId,
+            lifecycleStatus: 'ACTIVE',
+            status: { in: ['READY', 'FAILED'] },
+            enabled: true,
           },
-        },
-      })
-
-      const chunkConfig = parseChunkConfig(index.defaultChunkConfig)
-      const cleaningConfig = parseCleaningConfig(index.defaultCleaningConfig)
-      const processingDocumentIds = documents.flatMap((document) =>
-        document.sources[0] && (!index.knowledgeBase.activeIndexId || document.status === 'FAILED')
-          ? [document.id]
-          : [],
-      )
+          select: {
+            id: true,
+            status: true,
+            sources: {
+              orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+              take: 1,
+              select: { id: true, checksum: true },
+            },
+          },
+        }),
+        chunkConfig = parseChunkConfig(index.defaultChunkConfig),
+        cleaningConfig = parseCleaningConfig(index.defaultCleaningConfig),
+        processingDocumentIds = documents.flatMap((document) =>
+          document.sources[0] &&
+          (!index.knowledgeBase.activeIndexId || document.status === 'FAILED')
+            ? [document.id]
+            : [],
+        )
       if (processingDocumentIds.length > 0) {
         await transaction.knowledgeDocument.updateMany({
           where: { id: { in: processingDocumentIds } },
@@ -117,42 +117,42 @@ export class KnowledgeIngestionRepository {
           if (!source) return
 
           const idempotencyKey = createHash('sha256')
-            .update(
-              `${index.id}:${document.id}:${source.id}:${source.checksum}:${index.configHash}`,
-            )
-            .digest('hex')
-          const existing = await transaction.knowledgeDocumentVersion.findFirst({
-            where: {
-              documentId: document.id,
-              sourceId: source.id,
-              knowledgeBaseIndexId: index.id,
-            },
-            select: { id: true },
-          })
+              .update(
+                `${index.id}:${document.id}:${source.id}:${source.checksum}:${index.configHash}`,
+              )
+              .digest('hex'),
+            existing = await transaction.knowledgeDocumentVersion.findFirst({
+              where: {
+                documentId: document.id,
+                sourceId: source.id,
+                knowledgeBaseIndexId: index.id,
+              },
+              select: { id: true },
+            })
           if (existing) return
 
           const latest = await transaction.knowledgeDocumentVersion.findFirst({
-            where: { documentId: document.id, knowledgeBaseIndexId: index.id },
-            orderBy: { version: 'desc' },
-            select: { version: true },
-          })
-          const version = await transaction.knowledgeDocumentVersion.create({
-            data: {
-              knowledgeBaseId: index.knowledgeBaseId,
-              documentId: document.id,
-              sourceId: source.id,
-              knowledgeBaseIndexId: index.id,
-              version: (latest?.version ?? 0) + 1,
-              idempotencyKey,
-              parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
-              cleanerVersion: 'conservative-v1',
-              cleaningConfig: cleaningConfig as Prisma.InputJsonValue,
-              segmentationMode: chunkConfig.segmentationMode,
-              chunkConfig: chunkConfig as Prisma.InputJsonValue,
-              configHash: index.configHash,
-            },
-            select: { id: true },
-          })
+              where: { documentId: document.id, knowledgeBaseIndexId: index.id },
+              orderBy: { version: 'desc' },
+              select: { version: true },
+            }),
+            version = await transaction.knowledgeDocumentVersion.create({
+              data: {
+                knowledgeBaseId: index.knowledgeBaseId,
+                documentId: document.id,
+                sourceId: source.id,
+                knowledgeBaseIndexId: index.id,
+                version: (latest?.version ?? 0) + 1,
+                idempotencyKey,
+                parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
+                cleanerVersion: 'conservative-v1',
+                cleaningConfig: cleaningConfig as Prisma.InputJsonValue,
+                segmentationMode: chunkConfig.segmentationMode,
+                chunkConfig: chunkConfig as Prisma.InputJsonValue,
+                configHash: index.configHash,
+              },
+              select: { id: true },
+            })
           await transaction.knowledgeSearchProjection.create({
             data: {
               knowledgeBaseIndexId: index.id,
@@ -286,10 +286,10 @@ export class KnowledgeIngestionRepository {
         return null
       }
 
-      const chunkConfig = parseChunkConfig(version.chunkConfig)
-      const cleaningConfig = parseCleaningConfig(version.cleaningConfig)
-      const attempt = version.attemptCount + 1
-      const attemptId = randomUUID()
+      const chunkConfig = parseChunkConfig(version.chunkConfig),
+        cleaningConfig = parseCleaningConfig(version.cleaningConfig),
+        attempt = version.attemptCount + 1,
+        attemptId = randomUUID()
       await transaction.knowledgeDocumentVersion.update({
         where: { id: version.id },
         data: {
@@ -552,8 +552,8 @@ export class KnowledgeIngestionRepository {
         return null
       }
 
-      const attempt = version.attemptCount + 1
-      const attemptId = randomUUID()
+      const attempt = version.attemptCount + 1,
+        attemptId = randomUUID()
       await transaction.knowledgeDocumentVersion.update({
         where: { id: version.id },
         data: { attemptCount: attempt, progress: 60 },
@@ -612,7 +612,11 @@ export class KnowledgeIngestionRepository {
           characterCount: true,
           chunkCount: true,
           projection: {
-            select: { expectedChunkCount: true, expectedChecksum: true },
+            select: {
+              status: true,
+              expectedChunkCount: true,
+              expectedChecksum: true,
+            },
           },
           knowledgeBaseIndex: {
             select: {
@@ -628,6 +632,7 @@ export class KnowledgeIngestionRepository {
         version.status !== 'EMBEDDING' ||
         !['BUILDING', 'READY'].includes(version.knowledgeBaseIndex.status) ||
         !version.projection ||
+        version.projection.status !== 'WRITING' ||
         version.projection.expectedChunkCount !== options.projectedChunkCount ||
         version.projection.expectedChecksum !== options.projectedChecksum
       ) {
@@ -640,6 +645,21 @@ export class KnowledgeIngestionRepository {
           version.knowledgeBaseIndex.embeddingSpaceKey !== options.embeddingSpaceKey)
       ) {
         throw new Error('索引代际的 Embedding 空间发生冲突')
+      }
+
+      const vectorRows = await transaction.$queryRaw<Array<{ count: number }>>(
+        Prisma.sql`
+          SELECT COUNT(*)::int AS "count"
+          FROM "knowledge_chunks"
+          WHERE "documentVersionId" = ${version.id}::uuid
+            AND "knowledgeBaseIndexId" = ${version.knowledgeBaseIndexId}::uuid
+            AND "embedding" IS NOT NULL
+            AND "embeddingDimension" = ${options.embeddingDimension}
+            AND vector_dims("embedding") = ${options.embeddingDimension}
+        `,
+      )
+      if ((vectorRows[0]?.count ?? 0) !== options.projectedChunkCount) {
+        throw new Error('pgvector 向量写入完整性校验失败')
       }
 
       await transaction.knowledgeBaseIndex.update({
@@ -662,16 +682,16 @@ export class KnowledgeIngestionRepository {
         where: { id: version.id },
         data: { status: 'READY', progress: 100, readyAt: new Date() },
       })
-      const chunkConfig = parseChunkConfig(version.chunkConfig)
-      const cleaningConfig = parseCleaningConfig(version.cleaningConfig)
-      const settings = await transaction.knowledgeBaseSettings.findUnique({
-        where: { knowledgeBaseId: version.knowledgeBaseId },
-        select: { segmentationRevision: true },
-      })
-      const knowledgeBase = await transaction.knowledgeBase.findUnique({
-        where: { id: version.knowledgeBaseId },
-        select: { activeIndexId: true },
-      })
+      const chunkConfig = parseChunkConfig(version.chunkConfig),
+        cleaningConfig = parseCleaningConfig(version.cleaningConfig),
+        settings = await transaction.knowledgeBaseSettings.findUnique({
+          where: { knowledgeBaseId: version.knowledgeBaseId },
+          select: { segmentationRevision: true },
+        }),
+        knowledgeBase = await transaction.knowledgeBase.findUnique({
+          where: { id: version.knowledgeBaseId },
+          select: { activeIndexId: true },
+        })
       if (
         !knowledgeBase?.activeIndexId ||
         knowledgeBase.activeIndexId === version.knowledgeBaseIndexId
@@ -885,13 +905,13 @@ export class KnowledgeIngestionRepository {
       if (!updated.count) return
 
       const runningVersions = await transaction.knowledgeDocumentVersion.findMany({
-        where: {
-          knowledgeBaseIndexId,
-          status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
-        },
-        select: { id: true, documentId: true },
-      })
-      const versionIds = runningVersions.map(({ id }) => id)
+          where: {
+            knowledgeBaseIndexId,
+            status: { in: ['QUEUED', 'PARSING', 'CHUNKING', 'EMBEDDING'] },
+          },
+          select: { id: true, documentId: true },
+        }),
+        versionIds = runningVersions.map(({ id }) => id)
       await transaction.knowledgeDocumentVersion.updateMany({
         where: { id: { in: versionIds } },
         data: { status: 'CANCELLED', errorCode: 'INDEX_BUILD_FAILED' },
@@ -926,9 +946,9 @@ function parseChunkConfig(value: Prisma.JsonValue): {
   overlapLength: number
 } {
   if (!isRecord(value)) throw new Error('索引分段配置损坏')
-  const segmentationMode = value.segmentationMode
-  const maxSegmentLength = value.maxSegmentLength
-  const overlapLength = value.overlapLength
+  const segmentationMode = value.segmentationMode,
+    maxSegmentLength = value.maxSegmentLength,
+    overlapLength = value.overlapLength
   if (
     !['GENERAL', 'QA', 'PARENT_CHILD'].includes(String(segmentationMode)) ||
     !Number.isSafeInteger(maxSegmentLength) ||

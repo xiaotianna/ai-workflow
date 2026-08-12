@@ -100,7 +100,7 @@ model WorkflowDraftPluginDependency {
   workflowDraft WorkflowDraft @relation(fields: [workflowDraftId], references: [id], onDelete: Cascade)
   pluginVersion PluginVersion @relation(fields: [pluginVersionId], references: [id], onDelete: Restrict)
 
-  @@unique([workflowDraftId, pluginVersionId])
+  @@unique([workflowDraftId, pluginVersionId], map: "workflow_draft_plugin_dependencies_workflowDraftId_pluginVersio")
   @@index([pluginVersionId])
   @@map("workflow_draft_plugin_dependencies")
 }

@@ -126,6 +126,7 @@ model KnowledgeDocument {
 
   @@index([knowledgeBaseId, createdAt])
   @@index([knowledgeBaseId, enabled])
+  @@index([metadata(ops: JsonbPathOps)], type: Gin, map: "knowledge_documents_metadata_gin_idx")
   @@map("knowledge_documents")
 }
 
@@ -145,17 +146,19 @@ model KnowledgeMetadataField {
 }
 
 model KnowledgeChunk {
-  id                   String   @id @default(uuid()) @db.Uuid
-  documentId           String   @db.Uuid
-  documentVersionId    String?  @db.Uuid
-  knowledgeBaseIndexId String?  @db.Uuid
+  id                   String                 @id @default(uuid()) @db.Uuid
+  documentId           String                 @db.Uuid
+  documentVersionId    String?                @db.Uuid
+  knowledgeBaseIndexId String?                @db.Uuid
   sequence             Int
-  content              String   @db.Text
-  contentHash          String?  @db.VarChar(64)
+  content              String                 @db.Text
+  contentHash          String?                @db.VarChar(64)
   tokenCount           Int
-  enabled              Boolean  @default(true)
-  metadata             Json     @default("{}")
-  createdAt            DateTime @default(now())
+  enabled              Boolean                @default(true)
+  metadata             Json                   @default("{}")
+  embeddingDimension   Int?
+  embedding            Unsupported("vector")?
+  createdAt            DateTime               @default(now())
 
   document           KnowledgeDocument         @relation(fields: [documentId], references: [id], onDelete: Cascade)
   documentVersion    KnowledgeDocumentVersion? @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
@@ -164,6 +167,7 @@ model KnowledgeChunk {
   @@unique([documentVersionId, sequence])
   @@index([documentVersionId, sequence])
   @@index([knowledgeBaseIndexId, documentId])
+  @@index([knowledgeBaseIndexId, enabled])
   @@index([documentId, sequence])
   @@index([documentId, enabled, sequence])
   @@map("knowledge_chunks")
@@ -257,8 +261,8 @@ model KnowledgeDocumentVersion {
   currentHead        KnowledgeDocumentIndexHead?
   projection         KnowledgeSearchProjection?
 
-  @@unique([documentId, knowledgeBaseIndexId, version])
-  @@index([knowledgeBaseIndexId, status, createdAt])
+  @@unique([documentId, knowledgeBaseIndexId, version], map: "knowledge_document_versions_documentId_knowledgeBaseIndexId_ver")
+  @@index([knowledgeBaseIndexId, status, createdAt], map: "knowledge_document_versions_knowledgeBaseIndexId_status_created")
   @@index([documentId, createdAt])
   @@map("knowledge_document_versions")
 }
@@ -276,7 +280,7 @@ model KnowledgeDocumentIndexHead {
   currentVersion     KnowledgeDocumentVersion @relation(fields: [currentVersionId], references: [id], onDelete: Restrict)
 
   @@id([documentId, knowledgeBaseIndexId])
-  @@index([knowledgeBaseId, knowledgeBaseIndexId])
+  @@index([knowledgeBaseId, knowledgeBaseIndexId], map: "knowledge_document_index_heads_knowledgeBaseId_knowledgeBaseInd")
   @@map("knowledge_document_index_heads")
 }
 

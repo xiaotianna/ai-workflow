@@ -18,13 +18,10 @@ interface ProjectionChunk {
   content: string
   contentHash: string
   metadata: Record<string, unknown>
-  embedding: number[]
 }
 
 interface WriteProjectionInput {
   embeddingSpaceKey: string
-  embeddingDimension: number
-  distanceMetric: 'COSINE' | 'EUCLIDEAN' | 'INNER_PRODUCT'
   ownerId: string
   knowledgeBaseId: string
   knowledgeBaseIndexId: string
@@ -54,8 +51,8 @@ export class KnowledgeSearchProjectionStore {
   private readonly searchSchemaReadyIndexes = new Set<string>()
 
   constructor(configService: ConfigService) {
-    const username = configService.get<string>(OPENSEARCH_USERNAME) || undefined
-    const password = configService.get<string>(OPENSEARCH_PASSWORD) || undefined
+    const username = configService.get<string>(OPENSEARCH_USERNAME) || undefined,
+      password = configService.get<string>(OPENSEARCH_PASSWORD) || undefined
     this.client = new Client({
       node: configService.getOrThrow<string>(OPENSEARCH_URL),
       ...(username && password ? { auth: { username, password } } : {}),
@@ -67,19 +64,19 @@ export class KnowledgeSearchProjectionStore {
 
   async writeVersion(input: WriteProjectionInput): Promise<{ count: number; checksum: string }> {
     const index = this.getPhysicalIndexName(input.embeddingSpaceKey)
-    await this.ensureIndex(index, input.embeddingDimension, input.distanceMetric)
+    await this.ensureIndex(index)
 
     const body = input.chunks.flatMap((chunk) => [
-      { index: { _index: index, _id: chunk.id } },
-      createProjectionDocument(input, chunk),
-    ])
-    const result = await this.client.bulk({ body, refresh: 'wait_for' })
+        { index: { _index: index, _id: chunk.id } },
+        createProjectionDocument(input, chunk),
+      ]),
+      result = await this.client.bulk({ body, refresh: 'wait_for' })
     if (result.body.errors) {
       const failed = result.body.items.find((item) => {
-        const operation = item.index ?? item.create ?? item.update ?? item.delete
-        return Boolean(operation?.error)
-      })
-      const reason = failed ? JSON.stringify(failed).slice(0, 1000) : '未知 bulk 错误'
+          const operation = item.index ?? item.create ?? item.update ?? item.delete
+          return Boolean(operation?.error)
+        }),
+        reason = failed ? JSON.stringify(failed).slice(0, 1000) : '未知 bulk 错误'
       throw new Error(`OpenSearch Bulk 写入失败：${reason}`)
     }
 
@@ -100,46 +97,36 @@ export class KnowledgeSearchProjectionStore {
     return { count: validation.body.count, checksum: input.projectionChecksum }
   }
 
-  ensureEmbeddingSpace(options: {
-    embeddingSpaceKey: string
-    embeddingDimension: number
-    distanceMetric: WriteProjectionInput['distanceMetric']
-  }): Promise<void> {
-    return this.ensureIndex(
-      this.getPhysicalIndexName(options.embeddingSpaceKey),
-      options.embeddingDimension,
-      options.distanceMetric,
-    )
+  ensureEmbeddingSpace(options: { embeddingSpaceKey: string }): Promise<void> {
+    return this.ensureIndex(this.getPhysicalIndexName(options.embeddingSpaceKey))
   }
 
-  async search(options: {
+  async searchBm25(options: {
     embeddingSpaceKey: string
     ownerId: string
     knowledgeBaseIds: string[]
     knowledgeBaseIndexIds: string[]
     query: string
-    queryVector: number[]
     candidateCount: number
-  }): Promise<{ bm25: KnowledgeSearchHit[]; dense: KnowledgeSearchHit[] }> {
+  }): Promise<KnowledgeSearchHit[]> {
     const index = this.getPhysicalIndexName(options.embeddingSpaceKey)
     await this.ensureSearchFields(index)
     const filter = [
-      { term: { owner_id: options.ownerId } },
-      { terms: { knowledge_base_id: options.knowledgeBaseIds } },
-      { terms: { knowledge_base_index_id: options.knowledgeBaseIndexIds } },
-      { term: { document_enabled: true } },
-    ]
-    const source = [
-      'document_id',
-      'document_version_id',
-      'document_name',
-      'sequence',
-      'content',
-      'content_hash',
-      'metadata',
-    ]
-    const [bm25, dense] = await Promise.all([
-      this.client.search({
+        { term: { owner_id: options.ownerId } },
+        { terms: { knowledge_base_id: options.knowledgeBaseIds } },
+        { terms: { knowledge_base_index_id: options.knowledgeBaseIndexIds } },
+        { term: { document_enabled: true } },
+      ],
+      source = [
+        'document_id',
+        'document_version_id',
+        'document_name',
+        'sequence',
+        'content',
+        'content_hash',
+        'metadata',
+      ],
+      bm25 = await this.client.search({
         index,
         body: {
           size: options.candidateCount,
@@ -163,43 +150,27 @@ export class KnowledgeSearchProjectionStore {
               ],
               should: [
                 { match_phrase: { title: { query: options.query, boost: 8 } } },
-                { match_phrase: { title_path: { query: options.query, boost: 6 } } },
-                { match_phrase: { search_content: { query: options.query, boost: 4 } } },
+                {
+                  match_phrase: {
+                    title_path: { query: options.query, boost: 6 },
+                  },
+                },
+                {
+                  match_phrase: {
+                    search_content: { query: options.query, boost: 4 },
+                  },
+                },
                 { match_phrase: { content: { query: options.query, boost: 2 } } },
               ],
               filter,
             },
           },
         },
-      }),
-      this.client.search({
-        index,
-        body: {
-          size: options.candidateCount,
-          _source: source,
-          query: {
-            knn: {
-              content_vector: {
-                vector: options.queryVector,
-                k: options.candidateCount,
-                filter: { bool: { filter } },
-              },
-            },
-          },
-        },
-      }),
-    ])
-    return {
-      bm25: parseSearchHits(bm25.body.hits.hits),
-      dense: parseSearchHits(dense.body.hits.hits),
-    }
+      })
+    return parseSearchHits(bm25.body.hits.hits)
   }
 
-  private async ensureIndex(
-    index: string,
-    dimension: number,
-    distanceMetric: WriteProjectionInput['distanceMetric'],
-  ): Promise<void> {
+  private async ensureIndex(index: string): Promise<void> {
     const exists = await this.client.indices.exists({ index })
     if (exists.body) {
       await this.ensureSearchFields(index)
@@ -210,11 +181,6 @@ export class KnowledgeSearchProjectionStore {
       await this.client.indices.create({
         index,
         body: {
-          settings: {
-            index: {
-              knn: true,
-            },
-          },
           mappings: {
             dynamic: false,
             properties: {
@@ -233,15 +199,6 @@ export class KnowledgeSearchProjectionStore {
               content_hash: { type: 'keyword' },
               projection_checksum: { type: 'keyword' },
               metadata: { type: 'flat_object' },
-              content_vector: {
-                type: 'knn_vector',
-                dimension,
-                space_type: toOpenSearchSpaceType(distanceMetric),
-                method: {
-                  name: 'hnsw',
-                  engine: 'lucene',
-                },
-              },
             },
           },
         },
@@ -295,7 +252,6 @@ function createProjectionDocument(input: WriteProjectionInput, chunk: Projection
     content_hash: chunk.contentHash,
     projection_checksum: input.projectionChecksum,
     metadata: chunk.metadata,
-    content_vector: chunk.embedding,
   }
 }
 
@@ -332,12 +288,4 @@ function parseSearchHits(hits: Array<Record<string, unknown>>): KnowledgeSearchH
       score: typeof hit._score === 'number' ? hit._score : 0,
     }
   })
-}
-
-function toOpenSearchSpaceType(
-  distanceMetric: WriteProjectionInput['distanceMetric'],
-): 'cosinesimil' | 'l2' | 'innerproduct' {
-  if (distanceMetric === 'EUCLIDEAN') return 'l2'
-  if (distanceMetric === 'INNER_PRODUCT') return 'innerproduct'
-  return 'cosinesimil'
 }

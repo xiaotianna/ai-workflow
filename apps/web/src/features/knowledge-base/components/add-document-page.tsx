@@ -1,6 +1,7 @@
 import { useFormData } from '@ai-workflow/shared/hooks/use-form-data'
 import { validateFormByZod } from '@ai-workflow/shared/utils/validate-form-by-zod'
 import { Form } from '@ai-workflow/ui/components/form'
+import { showToast } from '@ai-workflow/ui/lib/toast'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useState, type FormEvent } from 'react'
 
@@ -26,6 +27,7 @@ interface AddDocumentPageProps {
     'segmentationMode' | 'maxSegmentLength' | 'overlapLength' | 'replaceWhitespace'
   >
   onAdd: (input: AddDocumentInput) => Promise<KnowledgeDocumentDto[]>
+  onConfigureEmbedding: () => void
   onPreview: (input: AddDocumentInput) => Promise<DocumentPreview>
   onRefreshDocument: (documentId: string, signal?: AbortSignal) => Promise<KnowledgeDocumentDto>
   onClose: () => void
@@ -48,28 +50,31 @@ export function AddDocumentPage({
   knowledgeBaseName,
   initialSettings,
   onAdd,
+  onConfigureEmbedding,
   onPreview,
   onRefreshDocument,
   onClose,
 }: AddDocumentPageProps) {
   const { form, updateForm, updateFormField } = useFormData<AddDocumentFormInput>({
-    ...ADD_DOCUMENT_INITIAL_VALUES,
-    ...initialSettings,
-  })
-  const [step, setStep] = useState<AddDocumentStep>(1)
-  const [direction, setDirection] = useState(1)
-  const [filesSubmitted, setFilesSubmitted] = useState(false)
-  const [settingsSubmitted, setSettingsSubmitted] = useState(false)
-  const [submittedInput, setSubmittedInput] = useState<AddDocumentInput>()
-  const [submittedDocuments, setSubmittedDocuments] = useState<KnowledgeDocumentDto[]>()
-  const [submitting, setSubmitting] = useState(false)
-  const filesValidation = validateFormByZod(addDocumentFilesSchema, {
-    files: form.files,
-  })
-  const formValidation = validateFormByZod(addDocumentSchema, form)
-  const filesError =
-    filesSubmitted && !filesValidation.success ? getFilesError(filesValidation.errors) : undefined
-  const settingsErrors = settingsSubmitted && !formValidation.success ? formValidation.errors : {}
+      ...ADD_DOCUMENT_INITIAL_VALUES,
+      ...initialSettings,
+    }),
+    [step, setStep] = useState<AddDocumentStep>(1),
+    [direction, setDirection] = useState(1),
+    [filesSubmitted, setFilesSubmitted] = useState(false),
+    [settingsSubmitted, setSettingsSubmitted] = useState(false),
+    [submittedInput, setSubmittedInput] = useState<AddDocumentInput>(),
+    [submittedDocuments, setSubmittedDocuments] = useState<KnowledgeDocumentDto[]>(),
+    [submitting, setSubmitting] = useState(false),
+    filesValidation = validateFormByZod(addDocumentFilesSchema, {
+      files: form.files,
+    }),
+    formValidation = validateFormByZod(addDocumentSchema, form),
+    filesError =
+      filesSubmitted && !filesValidation.success
+        ? getFilesError(filesValidation.errors)
+        : undefined,
+    settingsErrors = settingsSubmitted && !formValidation.success ? formValidation.errors : {}
 
   function moveToStep(nextStep: AddDocumentStep) {
     setDirection(nextStep > step ? 1 : -1)
@@ -93,6 +98,10 @@ export function AddDocumentPage({
 
     const result = validateFormByZod(addDocumentSchema, form)
     if (!result.success) return
+    if (!embeddingEnabled) {
+      showToast('error', '请先在知识库设置中选择并启用嵌入模型')
+      return
+    }
 
     setSubmitting(true)
     try {
@@ -147,6 +156,7 @@ export function AddDocumentPage({
 
             {step === 2 ? (
               <AddDocumentSegmentationStep
+                embeddingEnabled={embeddingEnabled}
                 errors={settingsErrors}
                 files={form.files}
                 maxSegmentLength={form.maxSegmentLength}
@@ -156,6 +166,7 @@ export function AddDocumentPage({
                 submitting={submitting}
                 onBack={() => moveToStep(1)}
                 onClose={onClose}
+                onConfigureEmbedding={onConfigureEmbedding}
                 onMaxSegmentLengthChange={(value) => updateFormField('maxSegmentLength', value)}
                 onOverlapLengthChange={(value) => updateFormField('overlapLength', value)}
                 onReplaceWhitespaceChange={(checked) =>
@@ -171,7 +182,6 @@ export function AddDocumentPage({
             {step === 3 && submittedInput && submittedDocuments ? (
               <AddDocumentProcessingStep
                 documents={submittedDocuments}
-                embeddingEnabled={embeddingEnabled}
                 input={submittedInput}
                 knowledgeBaseName={knowledgeBaseName}
                 onClose={onClose}

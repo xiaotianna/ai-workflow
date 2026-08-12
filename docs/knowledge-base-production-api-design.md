@@ -1,7 +1,7 @@
 # 生产级知识库、混合检索与外部 API 方案
 
 > 状态：生产目标设计与实施台账。知识库事实模型、可靠异步入库、对象存储、Embedding、
-> OpenSearch 投影、混合召回、Web 召回测试和工作流 RAG 主链路已实现；迁移部署、环境联调、
+> pgvector Dense、OpenSearch BM25 投影、混合召回、Web 召回测试和工作流 RAG 主链路已实现；迁移部署、环境联调、
 > 检索质量评测、外部 API 限流与完整安全加固、生产运维仍待完成。
 >
 > 适用范围：`apps/server` 知识库模块、文档入库 Worker、工作流 RAG 节点，以及供其他项目调用的
@@ -52,7 +52,7 @@
 | 1A   | 知识库级嵌入模型选择和稳定引用                                      | 已完成             | 设置页只列出模型页中可用的 Embedding 模型；后端校验 owner/type/enabled；引用删除和嵌入中的 ID 变更受保护 |
 | 1B   | Index、Source、Version、Head、Attempt、Projection、Outbox 事实模型  | 已实现，待部署迁移 | 所有处理结果可按文档版本和索引代际追溯，失败不覆盖活动 Head                                              |
 | 1C   | S3/MinIO、RabbitMQ、幂等 Worker、PDF 文本解析与孤儿 Source GC       | 已实现，待环境联调 | 重复消息不产生重复版本/Chunk；失败可重试和进死信；原文件不依赖本机磁盘                                   |
-| 1D   | OpenSearch schema、投影写入和完整性校验                             | 已实现，待环境联调 | READY 文档的 count/checksum 与检索投影 100% 一致                                                         |
+| 1D   | pgvector 向量、OpenSearch BM25 schema、投影写入和完整性校验         | 已实现，待环境联调 | READY 文档的向量数与文本投影 count/checksum 100% 一致                                                    |
 | 2    | Embedding Adapter、BM25、Dense、ACL/generation filter、真实召回测试 | 已实现，待评测     | 两路召回可独立度量，权限泄漏为 0，召回测试不使用 Mock                                                    |
 | 3    | RRF、Rerank、父块扩展、去重、证据预算和黄金集门槛                   | 部分完成           | `hybrid-accurate-v2` 达到批准的 Recall/MRR/nDCG/拒答/引用门槛                                            |
 | 4    | 统一 Retriever、工作流 RAG、`/v1/knowledge/retrieve`                | 部分完成           | Web、工作流和外部 API 在相同身份/profile/query 下返回相同证据                                            |
@@ -68,23 +68,24 @@
 
 ### 0.5 当前迭代验收记录
 
-| 日期       | 范围                      | 结果                                                                                                                                                                                                                                                                                                            |
-| ---------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-08-10 | 1B 事实模型               | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一                                                                                                                                         |
-| 2026-08-10 | 1B 索引配置不可变快照     | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                                                                                                                                                               |
-| 2026-08-10 | 1C RabbitMQ 与幂等 Worker | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                                                                                                                                                            |
-| 2026-08-10 | 1C 对象存储 Adapter       | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                                                                                                                                                                      |
-| 2026-08-10 | 1C 解析与分段 Worker      | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）、DOCX、PPTX、XLSX、CSV、HTML；Office 压缩文档限制解压总量、条目数和表格单元格数；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum                                                                                                           |
-| 2026-08-10 | 上传文件名编码            | 知识库上传在预览、对象存储和数据库写入前统一恢复被 Multipart 按 Latin-1 解码的 UTF-8 文件名，并执行路径剥离和 Unicode NFC 规范化                                                                                                                                                                                |
-| 2026-08-10 | 1C Source GC              | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                                                                                                                                                             |
-| 2026-08-10 | 1D Embedding 与投影       | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                                                                                                                                                             |
-| 2026-08-10 | 2 混合召回                | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                                                                                                                                                                |
-| 2026-08-10 | 2 强一致返回过滤          | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                                                                                                                                                          |
-| 2026-08-10 | 4 统一 Retriever 与 RAG   | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                                                                                                                                                           |
-| 2026-08-10 | 4 文档召回计数            | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                                                                                                                           |
-| 2026-08-11 | 3 查询画像与二阶段重排    | `HYBRID_ACCURATE` 使用每路 100 候选并对全局 50 候选按标题、标题路径、精确短语、词项覆盖与 Dense 相关度确定性重排；RRF 只用于融合/同分排序，短关键词无连续字面证据时不给词项或语义保底分，并以阈值过滤噪声；`HYBRID_FAST` 使用每路 30 候选并直接返回 RRF；召回测试展示真实画像、分数类型、两路排名及原始分数诊断 |
-| 2026-08-11 | 3 搜索文本投影            | Chunk 保存 Markdown 标题路径元数据，OpenSearch 平滑追加 `title`、`title_path`、`search_content` 字段；检索文本执行 Unicode 规范化和英文驼峰拆词，旧投影仍可通过正文标题解析参与二阶段重排                                                                                                                       |
-| 2026-08-11 | 4 外部 Retrieve API       | 已实现独立 `kb-live-` Key 的创建、掩码列表和撤销，Key 只存 SHA-256；知识库总开关、scope 与单库绑定共同鉴权；`POST /v1/knowledge/retrieve` 复用统一 Retriever，限制 query/TopK/知识库 ID，并以 query 哈希写入最小审计日志；限流、多库 grant 和完整生产错误契约待补齐                                             |
+| 日期       | 范围                        | 结果                                                                                                                                                                                                                                                                                                            |
+| ---------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-08-10 | 1B 事实模型                 | Prisma 已落地 Index、Source、Version、Head、Attempt、Projection、Outbox；旧文档和同步 Chunk 保留兼容读取，新版本 Chunk 以 `documentVersionId + sequence` 保证代际内唯一                                                                                                                                         |
+| 2026-08-10 | 1B 索引配置不可变快照       | 嵌入模型或分段配置变化时，在事务内创建 BUILDING 代际和 Outbox；旧活动索引不变；同一知识库只允许一个 BUILDING 代际                                                                                                                                                                                               |
+| 2026-08-10 | 1C RabbitMQ 与幂等 Worker   | 已实现独立持久化交换机/队列、Confirm、手动 Ack、延迟重试、死信、Outbox 抢占恢复；消息只携带稳定聚合 ID；重复消费按事实状态跳过或续跑                                                                                                                                                                            |
+| 2026-08-10 | 1C 对象存储 Adapter         | Source Store 已支持 `local` / `s3` 驱动；生产默认并要求 S3 Bucket；支持 AWS 默认凭证链和 MinIO endpoint/path-style；本地驱动只作为开发兼容                                                                                                                                                                      |
+| 2026-08-10 | 1C 解析与分段 Worker        | 已支持 Markdown、TXT、文本型 PDF（500 页上限、无 OCR）、DOCX、PPTX、XLSX、CSV、HTML；Office 压缩文档限制解压总量、条目数和表格单元格数；能从不可变 Source 生成 Version 专属 Chunk 和预期投影 checksum                                                                                                           |
+| 2026-08-10 | 上传文件名编码              | 知识库上传在预览、对象存储和数据库写入前统一恢复被 Multipart 按 Latin-1 解码的 UTF-8 文件名，并执行路径剥离和 Unicode NFC 规范化                                                                                                                                                                                |
+| 2026-08-10 | 1C Source GC                | 已实现 local/S3 分页扫描、严格托管 key 识别、数据库双重引用核对、保护期和幂等删除；生产默认启用，默认保护期 24 小时                                                                                                                                                                                             |
+| 2026-08-10 | 1D Embedding 与投影         | 已实现 OpenAI-compatible/Ollama Embedding、批量向量化、维度校验、OpenSearch mapping/bulk、count/checksum 校验；全部成功后才切 Head 与 activeIndexId                                                                                                                                                             |
+| 2026-08-10 | 2 混合召回                  | 已实现按 embedding space 分组的查询向量、BM25、Dense、owner/知识库/active generation/文档启用过滤，以及跨通道应用层 RRF；Web 召回测试已移除 Mock                                                                                                                                                                |
+| 2026-08-10 | 2 强一致返回过滤            | OpenSearch 候选返回前再次以 PostgreSQL 当前 Head、活动 Index、Projection READY、文档及分段启用状态和 owner 校验；禁用/删除后的残留投影不会泄漏给调用方                                                                                                                                                          |
+| 2026-08-10 | 4 统一 Retriever 与 RAG     | JWT 召回测试和 Go RAG Executor 共用服务端 `KnowledgeRetrievalService`；Executor 端只提交 Command 身份、租约和 Query，知识库归属从不可变工作流版本解析                                                                                                                                                           |
+| 2026-08-10 | 4 文档召回计数              | 工作流 RAG 最终命中已写入 Retrieval Log/Hit，同一次检索按文档去重；Web 召回测试不计数，文档列表从命中事实聚合召回次数                                                                                                                                                                                           |
+| 2026-08-11 | 3 查询画像与二阶段重排      | `HYBRID_ACCURATE` 使用每路 100 候选并对全局 50 候选按标题、标题路径、精确短语、词项覆盖与 Dense 相关度确定性重排；RRF 只用于融合/同分排序，短关键词无连续字面证据时不给词项或语义保底分，并以阈值过滤噪声；`HYBRID_FAST` 使用每路 30 候选并直接返回 RRF；召回测试展示真实画像、分数类型、两路排名及原始分数诊断 |
+| 2026-08-11 | 3 搜索文本投影              | Chunk 保存 Markdown 标题路径元数据，OpenSearch 平滑追加 `title`、`title_path`、`search_content` 字段；检索文本执行 Unicode 规范化和英文驼峰拆词，旧投影仍可通过正文标题解析参与二阶段重排                                                                                                                       |
+| 2026-08-11 | 4 外部 Retrieve API         | 已实现独立 `kb-live-` Key 的创建、掩码列表和撤销，Key 只存 SHA-256；知识库总开关、scope 与单库绑定共同鉴权；`POST /v1/knowledge/retrieve` 复用统一 Retriever，限制 query/TopK/知识库 ID，并以 query 哈希写入最小审计日志；限流、多库 grant 和完整生产错误契约待补齐                                             |
+| 2026-08-12 | pgvector Dense 与元数据过滤 | Chunk Embedding 写入 PostgreSQL `vector` 并校验维度和数量；Dense 召回按 cosine/L2/inner-product 精确排序，OpenSearch 只保留 BM25；两路候选融合前按 owner、活动 Index、Head、文档/Chunk 状态及文档 JSONB 元数据强一致过滤，响应合并文档与 Chunk 元数据                                                           |
 
 下一批工作按以下顺序继续：
 
@@ -99,16 +100,16 @@
 
 当前项目的生产目标采用以下组合：
 
-| 能力           | 选择                         | 定位                                              |
-| -------------- | ---------------------------- | ------------------------------------------------- |
-| API 与业务编排 | NestJS 11                    | 管理、鉴权、检索编排、外部 API、审计              |
-| 业务事实源     | PostgreSQL 17 + Prisma 7     | 知识库、文档、版本、任务、索引代际、API Key、日志 |
-| 原文件         | S3 兼容对象存储              | 原始文件、解析产物或大对象                        |
-| 生产检索引擎   | OpenSearch 当前受支持版本    | 同一 Chunk 投影上的 BM25、向量检索、过滤与 RRF    |
-| 异步队列       | PostgreSQL Outbox + RabbitMQ | 入库、重建、删除任务；复用项目现有 RabbitMQ 能力  |
-| Redis          | Redis 7.4                    | 限流、短期缓存、分布式协调，不保存唯一事实        |
-| 模型能力       | Provider Adapter             | Embedding、Rerank、LLM 分开配置和版本化           |
-| 质量体系       | 黄金集 + 离线评测 + 线上反馈 | 用指标定义“准确”，把评测作为发布门槛              |
+| 能力           | 选择                                | 定位                                             |
+| -------------- | ----------------------------------- | ------------------------------------------------ |
+| API 与业务编排 | NestJS 11                           | 管理、鉴权、检索编排、外部 API、审计             |
+| 业务与向量源   | PostgreSQL 17 + pgvector + Prisma 7 | 知识库事实、Chunk Dense 向量、元数据过滤与日志   |
+| 原文件         | S3 兼容对象存储                     | 原始文件、解析产物或大对象                       |
+| 文本检索引擎   | OpenSearch 当前受支持版本           | 可重建的 Chunk BM25 文本投影                     |
+| 异步队列       | PostgreSQL Outbox + RabbitMQ        | 入库、重建、删除任务；复用项目现有 RabbitMQ 能力 |
+| Redis          | Redis 7.4                           | 限流、短期缓存、分布式协调，不保存唯一事实       |
+| 模型能力       | Provider Adapter                    | Embedding、Rerank、LLM 分开配置和版本化          |
+| 质量体系       | 黄金集 + 离线评测 + 线上反馈        | 用指标定义“准确”，把评测作为发布门槛             |
 
 线上检索固定采用多阶段管线：
 
@@ -175,9 +176,10 @@ flowchart TB
   Auth --> Retrieval["KnowledgeRetrievalService"]
   Retrieval --> Profile["RetrievalProfile Resolver"]
   Retrieval --> EmbedQuery["Query Embedding Adapter"]
-  Retrieval --> Search["OpenSearch Hybrid Adapter"]
+  Retrieval --> Search["OpenSearch BM25 Adapter"]
+  Retrieval --> Vector["PostgreSQL / pgvector"]
   Search --> BM25["BM25"]
-  Search --> Dense["Dense k-NN"]
+  Vector --> Dense["Dense Similarity"]
   BM25 --> RRF["RRF Fusion"]
   Dense --> RRF
   RRF --> Rerank["Rerank Adapter"]
@@ -193,7 +195,9 @@ flowchart TB
   Worker --> Storage
   Worker --> Parser["Parser / Cleaner / Chunker"]
   Parser --> EmbedDoc["Document Embedding Adapter"]
-  EmbedDoc --> Projection["OpenSearch Projection Writer"]
+  EmbedDoc --> VectorWrite["pgvector Writer"]
+  Parser --> Projection["OpenSearch BM25 Projection Writer"]
+  VectorWrite --> Vector
   Projection --> Search
   Worker --> PG
 
@@ -209,38 +213,36 @@ flowchart TB
 3. **检索面**：权限解析、混合召回、融合、Rerank 和证据组装。
 4. **外部 API 面**：稳定 DTO、鉴权、配额、版本、审计和错误契约。
 
-## 4. 为什么生产主检索选择 OpenSearch
+## 4. 为什么拆分为 pgvector Dense 与 OpenSearch BM25
 
-### 4.1 与 PostgreSQL + pgvector 的关系
+### 4.1 PostgreSQL + pgvector 的职责
 
-pgvector 很适合做最小闭环、精确向量基线和中小规模向量检索，官方也提供与 PostgreSQL Full Text
-Search、RRF 和 cross-encoder 组合的混合检索方案。但是本项目的生产目标明确包含：
+pgvector 保存每个不可变版本 Chunk 的 Embedding，并与 PostgreSQL 中的 owner、活动索引、Head、
+文档/Chunk 状态和用户元数据在同一查询中执行强制过滤。这样元数据或启停状态变化后无需等待外部
+向量投影同步，Dense 候选不会越过业务事实边界。
+
+当前 Chunk 使用无固定维度 `vector` 列，以支持不同 Embedding Space；在每个 Space 内按配置的
+cosine、L2 或 inner-product 操作符执行精确距离排序。混合维度列不能直接建立一个通用 ANN 索引，
+因此只有确定生产维度并完成召回/容量评测后，才增加按维度和距离算子的部分 HNSW 索引。
+
+### 4.2 OpenSearch 的职责
+
+OpenSearch 继续负责以下文本检索目标：
 
 - 中文全文检索与领域词典。
-- Dense 与 BM25 的统一过滤和排名解释。
+- BM25 字段权重和排名解释。
 - 多租户、active generation、文档状态、时间和 ACL 过滤。
 - 外部 API 的稳定延迟、检索画像和可观测性。
 - 后续同义词、字段权重、查询分析和专用搜索扩缩容。
 
-因此生产主路径选择 OpenSearch：同一条 Chunk 投影同时保存可检索正文、关键词字段、向量和过滤
-字段；在同一个搜索请求和过滤范围内执行 BM25 与 k-NN，再用 search pipeline 做 rank fusion。
+因此 OpenSearch 只保存可重建的标题、标题路径、正文和过滤标识，用于 BM25 候选；Dense 候选来自
+pgvector。两路候选返回后统一经过 PostgreSQL 当前事实校验，再由应用层 RRF 和 Rerank 合并，避免
+把 OpenSearch 中的残留文本投影视为当前可服务数据。
 
-PostgreSQL 继续保存业务正文、状态和版本，但不承担生产查询的主向量索引，也不同时维护另一套
-实时检索排名。这样避免“双搜索引擎都返回一半结果，再由应用猜一致性”的复杂度。
+### 4.3 为什么保留 OpenSearch 而不是把文本检索写死在业务层
 
-pgvector 可以保留为：
-
-- 本地开发或早期最小闭环方案。
-- 离线精确检索基线，用于抽样比较近似检索召回。
-- OpenSearch 未采用前的短期实现。
-
-它不作为 OpenSearch 生产主路径的同步降级库；否则每次写入、更新和删除都要同时维护两套检索
-投影，故障时很难证明结果一致。
-
-### 4.2 为什么选 OpenSearch 而不是把检索写死在业务层
-
-- OpenSearch 原生支持 hybrid query、score normalization 和 rank-based fusion。
-- BM25、向量、term/range/ACL filter 在同一个检索引擎中执行。
+- OpenSearch 提供成熟的中文 analyzer、multi-field BM25 和短语查询。
+- 文本字段、term/range/ACL filter 可独立扩容和重建。
 - 搜索索引可以独立扩容、创建副本、做快照和重建。
 - 通过 `HybridSearchStore` 接口隔离后，业务服务不依赖具体 DSL，未来仍可替换为 Elasticsearch 或
   其他引擎。
@@ -277,15 +279,15 @@ pgvector 可以保留为：
 
 ### 5.2 建议新增或补充的数据模型
 
-| 模型                        | 关键字段                                            | 用途                                  |
-| --------------------------- | --------------------------------------------------- | ------------------------------------- |
-| `KnowledgeRetrievalProfile` | ownerId、name、version、config、status              | 不可变或版本化的查询配置              |
-| `KnowledgeApiKey`           | ownerId、keyHash、prefix、suffix、scopes、expiresAt | 外部服务鉴权，明文只返回一次          |
-| `KnowledgeApiKeyGrant`      | apiKeyId、knowledgeBaseId、permission               | Key 可以访问的知识库和动作            |
-| `KnowledgeApiCallLog`       | apiKeyId、requestId、path、status、latency、usage   | 外部 API 审计，不保存 Authorization   |
-| `KnowledgeSearchProjection` | indexId、documentVersionId、status、checksum        | PostgreSQL 中记录 OpenSearch 投影状态 |
-| `KnowledgeRetrievalLog`     | profile、index、queryHash、status、latency          | 一次检索的主记录                      |
-| `KnowledgeRetrievalHit`     | logId、chunkId、rank、scoreSnapshot                 | 最终证据和最小排名快照                |
+| 模型                        | 关键字段                                            | 用途                                              |
+| --------------------------- | --------------------------------------------------- | ------------------------------------------------- |
+| `KnowledgeRetrievalProfile` | ownerId、name、version、config、status              | 不可变或版本化的查询配置                          |
+| `KnowledgeApiKey`           | ownerId、keyHash、prefix、suffix、scopes、expiresAt | 外部服务鉴权，明文只返回一次                      |
+| `KnowledgeApiKeyGrant`      | apiKeyId、knowledgeBaseId、permission               | Key 可以访问的知识库和动作                        |
+| `KnowledgeApiCallLog`       | apiKeyId、requestId、path、status、latency、usage   | 外部 API 审计，不保存 Authorization               |
+| `KnowledgeSearchProjection` | indexId、documentVersionId、status、checksum        | PostgreSQL 中记录 pgvector 与 OpenSearch 投影状态 |
+| `KnowledgeRetrievalLog`     | profile、index、queryHash、status、latency          | 一次检索的主记录                                  |
+| `KnowledgeRetrievalHit`     | logId、chunkId、rank、scoreSnapshot                 | 最终证据和最小排名快照                            |
 
 `KnowledgeApiKey` 与已有应用 `app-` Key 分开。`app-` Key 绑定一个已发布工作流；知识库 Key 使用
 `kb-` 前缀，绑定明确的知识库集合和 scope，不能互相调用。
@@ -309,7 +311,6 @@ enabled                  boolean
 title                    text + keyword
 title_path               text + keyword
 content                  text
-content_vector           knn_vector
 language                 keyword
 tags                     keyword[]
 acl_subjects             keyword[]
@@ -333,7 +334,7 @@ OpenSearch 文档 ID 使用稳定组合，例如：
 
 ### 5.4 不同 Embedding 模型怎样共存
 
-一个 OpenSearch 向量字段的维度和映射固定，不同维度不能混在同一向量空间。定义：
+pgvector 使用无固定维度列保存不同模型的向量，但单次距离运算只允许同一维度和语义空间。定义：
 
 ```text
 embeddingSpaceKey = hash(
@@ -341,7 +342,7 @@ embeddingSpaceKey = hash(
 )
 ```
 
-同一 `embeddingSpaceKey` 的索引代际共享一个物理索引或索引族，例如：
+OpenSearch 的 BM25 文本投影仍按 `embeddingSpaceKey` 组织物理索引或索引族，例如：
 
 ```text
 knowledge-chunks-{embeddingSpaceKey}-v1
@@ -352,7 +353,7 @@ knowledge-chunks-{embeddingSpaceKey}-v1
 1. 从 PostgreSQL 读取每个知识库的 `activeIndexId`。
 2. 按 `embeddingSpaceKey` 分组。
 3. 每个组只生成一次兼容的 query embedding。
-4. 每个组在自己的 OpenSearch 索引中完成 BM25 + Dense + 本组 RRF。
+4. 每个组并行执行 OpenSearch BM25 与 pgvector Dense，再做本组 RRF。
 5. 合并所有组的候选并执行统一 cross-encoder Rerank。
 
 最终 Rerank 分数用于跨组排序，不直接比较不同向量模型的 cosine 分数或不同索引的 BM25 分数。
@@ -363,14 +364,14 @@ knowledge-chunks-{embeddingSpaceKey}-v1
 
 Web 的“文本分段与清洗”步骤在正式提交前可以请求临时预览。预览与正式入库必须复用相同的
 Parser、Cleaner、Chunker 版本和配置解释器，但预览不创建正式 Document、Version、Chunk，
-不生成 Embedding，也不写 OpenSearch。Cleaner 只执行确定性、可版本化的保守规则：规范换行和
+不生成 Embedding，也不写 pgvector 或 OpenSearch。Cleaner 只执行确定性、可版本化的保守规则：规范换行和
 普通正文空白、移除非法控制字符、在高置信度下去除重复页眉页脚，同时保留 URL、邮箱、编号、
 标点、代码、表格和段落结构。
 
 Chunker 负责按照 `GENERAL/QA/PARENT_CHILD` 生成检索单元，Embedding Provider 只负责在切分完成后
 将检索文本向量化：通用模式向量化普通 Chunk；Q&A 模式向量化以问题为主的问答单元；父子分段
-向量化子块并保留 `parentChunkId`，召回子块后再扩展父块。三种模式都写入同一套 BM25 文本字段、
-Dense 向量字段和来源元数据，不能为不同模式维护互不兼容的检索实现。
+向量化子块并保留 `parentChunkId`，召回子块后再扩展父块。三种模式都把 BM25 文本投影写入
+OpenSearch、把 Dense 向量写入 pgvector，并保留来源元数据，不能为不同模式维护互不兼容的检索实现。
 
 ```mermaid
 sequenceDiagram
@@ -459,7 +460,7 @@ projection repair 可以拆分 routing key 或独立队列，但不得改变“�
 
 - 必须属于 Key grant。
 - 必须是 ACTIVE，且有 READY `activeIndexId`。
-- active index 的 OpenSearch projection 必须是 READY。
+- active index 的 pgvector 向量和 OpenSearch BM25 projection 必须是 READY。
 - 解析被允许的 `KnowledgeRetrievalProfile` 版本。
 
 请求不能携带 provider、model、index name、ownerId、OpenSearch DSL 或任意 ACL。
@@ -498,8 +499,8 @@ effective_to is null OR effective_to > asOf
 
 ```text
 BM25：对 title、title_path、content 做 multi-field 搜索
-Dense：对 content_vector 做 k-NN
-Filter：两路使用相同 owner / generation / enabled / ACL / time 条件
+Dense：在 pgvector 中按当前距离算法做向量相似度排序
+Filter：Dense SQL 直接应用 owner / generation / enabled / metadata；BM25 候选在融合前用同一 PostgreSQL 事实再次过滤
 ```
 
 字段权重的起始方向：
@@ -518,7 +519,7 @@ BM25 与向量分数不在同一尺度，第一版不直接加权相加。使用
 RRF(d) = Σ 1 / (rankConstant + rank_i(d))
 ```
 
-OpenSearch 的 score ranker search pipeline 负责本组融合。RRF 优点是对分数尺度不敏感，缺点是无法
+应用层负责本组融合。RRF 优点是对分数尺度不敏感，缺点是无法
 表达所有业务偏好。因此它是稳定基线，不是永远不变的最终算法。
 
 ### 7.7 第 6 步：跨组候选合并
@@ -925,18 +926,18 @@ GET    /v1/knowledge/retrievals/:requestId        # 仅有审计权限时
 }
 ```
 
-| HTTP | 典型 code                   | 说明                                       |
-| ---- | --------------------------- | ------------------------------------------ |
-| 400  | `INVALID_REQUEST`           | DTO、字段、数量或 filter 不合法            |
-| 401  | `INVALID_API_KEY`           | Key 缺失、无效或过期                       |
-| 403  | `KNOWLEDGE_SCOPE_DENIED`    | scope 或 grant 不允许                      |
-| 404  | `KNOWLEDGE_BASE_NOT_FOUND`  | 不存在或不属于 Key，避免枚举               |
-| 409  | `IDEMPOTENCY_CONFLICT`      | 同一幂等键对应不同请求                     |
-| 409  | `KNOWLEDGE_INDEX_NOT_READY` | active projection 尚不可服务               |
-| 413  | `PAYLOAD_TOO_LARGE`         | 文件或请求超过配置上限                     |
-| 429  | `RATE_LIMITED`              | 返回 `Retry-After` 和限流响应头            |
-| 503  | `RETRIEVAL_UNAVAILABLE`     | OpenSearch、Embedding 或强制 Rerank 不可用 |
-| 504  | `RETRIEVAL_TIMEOUT`         | 超过服务端 deadline                        |
+| HTTP | 典型 code                   | 说明                                                 |
+| ---- | --------------------------- | ---------------------------------------------------- |
+| 400  | `INVALID_REQUEST`           | DTO、字段、数量或 filter 不合法                      |
+| 401  | `INVALID_API_KEY`           | Key 缺失、无效或过期                                 |
+| 403  | `KNOWLEDGE_SCOPE_DENIED`    | scope 或 grant 不允许                                |
+| 404  | `KNOWLEDGE_BASE_NOT_FOUND`  | 不存在或不属于 Key，避免枚举                         |
+| 409  | `IDEMPOTENCY_CONFLICT`      | 同一幂等键对应不同请求                               |
+| 409  | `KNOWLEDGE_INDEX_NOT_READY` | active projection 尚不可服务                         |
+| 413  | `PAYLOAD_TOO_LARGE`         | 文件或请求超过配置上限                               |
+| 429  | `RATE_LIMITED`              | 返回 `Retry-After` 和限流响应头                      |
+| 503  | `RETRIEVAL_UNAVAILABLE`     | OpenSearch、pgvector、Embedding 或强制 Rerank 不可用 |
+| 504  | `RETRIEVAL_TIMEOUT`         | 超过服务端 deadline                                  |
 
 日志不得记录 Authorization、完整 API Key、完整文档或默认记录完整 query。
 
@@ -1054,7 +1055,7 @@ model 或 OpenSearch response 直接成为公开 DTO。
 ```text
 认证与 active index 解析   50 ms
 query embedding           250 ms
-OpenSearch hybrid         300 ms
+OpenSearch BM25 + pgvector Dense  300 ms
 Rerank                    400 ms
 context build              50 ms
 审计写入                   50 ms
@@ -1101,6 +1102,7 @@ owner + API key grant version + ACL subjects hash + kb active index IDs
 | ---------------------------- | ------------------------------------ | --------------------------------- |
 | Query Embedding 超时         | `503`，不假装完整混合检索            | 可降级 BM25，`degraded=true`      |
 | OpenSearch 不可用            | `503`                                | `503`，不查询 PostgreSQL 全表兜底 |
+| pgvector 查询不可用          | `503`                                | 可降级 BM25，`degraded=true`      |
 | Rerank 超时                  | `503`                                | 返回 RRF，`degraded=true`         |
 | 审计数据库不可用             | 默认 fail-closed                     | 是否缓冲后返回由合规策略决定      |
 | RetrievalLog 写入失败        | API 审计仍保留；质量日志进入可靠补偿 | 同左                              |
@@ -1123,7 +1125,7 @@ profileId + version
 active index IDs + embedding space keys
 query normalization / rewrite version
 embedding provider + model + latency
-OpenSearch total / BM25 / Dense latency and candidate counts
+OpenSearch BM25 / pgvector Dense latency and candidate counts
 RRF local ranks
 Rerank model + latency + candidate count
 final chunk IDs + citation IDs
@@ -1151,6 +1153,9 @@ total latency / degraded / error code
 ### PostgreSQL
 
 - 生产使用高可用实例、PITR、自动备份和 migration 单次发布任务。
+- PostgreSQL 镜像或托管实例必须安装 pgvector 扩展；迁移账号必须能执行 `CREATE EXTENSION vector`。
+- 监控不同 Embedding Space 的 Chunk 数、精确距离查询延迟和元数据过滤选择性；达到容量门槛后按
+  已确认的维度与距离算法增加部分 HNSW 索引，不为混合维度列创建无效的通用 ANN 索引。
 - Search projection 状态和 Outbox 必须可从备份恢复。
 
 ### OpenSearch
@@ -1179,14 +1184,15 @@ total latency / degraded / error code
 - 已实现 S3/MinIO、本地开发存储、RabbitMQ 知识队列和幂等 Worker；孤儿对象 GC 待补齐。
 - 已支持 Markdown / TXT / 文本型 PDF / DOCX / PPTX / XLSX / CSV / HTML，统一的结构化解析、
   保守清洗、三种分段模式与临时预览。
-- 已建立 OpenSearch schema、projection writer 和 count/checksum 完整性校验；待生产环境联调。
+- 已建立 pgvector writer、OpenSearch BM25 schema、projection writer 和 count/checksum 完整性校验；待生产环境联调。
 
 验收：重复消息不重复写；失败不切 Head；READY 投影完整率 100%。
 
 ### 阶段 2：Dense、BM25 与召回测试
 
 - 已实现 Embedding Adapter 和 embedding space 分组。
-- 已实现 OpenSearch BM25、k-NN、强制 owner / knowledge base / generation / document filter。
+- 已实现 OpenSearch BM25、pgvector Dense 相似度召回、强制 owner / knowledge base / generation /
+  document / Chunk filter，以及字段白名单和类型校验后的 JSONB 元数据过滤。
 - 召回测试页已使用真实 Retriever 展示最终结果、实际画像、分数类型和 BM25 / Dense 候选排名。
 - 建立第一批 200 条黄金集和三个基线。
 
@@ -1194,8 +1200,8 @@ total latency / degraded / error code
 
 ### 阶段 3：RRF、Rerank 和准确性门槛
 
-- 已实现标题/标题路径加权 BM25、Dense、跨 embedding space 的应用层 RRF，以及 Accurate 画像的
-  确定性二阶段重排；是否切换 OpenSearch score ranker 由压测决定。
+- 已实现标题/标题路径加权 BM25、pgvector Dense、跨 embedding space 的应用层 RRF，以及 Accurate
+  画像的确定性二阶段重排。
 - 接入独立 cross-encoder Provider，替换当前确定性重排并按画像落实失败策略。
 - parent-child、去重、证据预算和引用。
 - profile 版本、离线评测报告和发布门槛。
@@ -1227,7 +1233,7 @@ total latency / degraded / error code
 - [ ] BM25、Dense、Hybrid、Hybrid + Rerank 有逐题对比报告。
 - [ ] 达到已批准的 Recall、MRR、nDCG、拒答和引用门槛。
 - [ ] ANN 抽样与精确基线比较，召回损失在门槛内。
-- [ ] 所有 READY 文档 count 和 checksum 与 OpenSearch 一致。
+- [ ] 所有 READY 文档的 pgvector 向量数量/维度和 OpenSearch BM25 count/checksum 一致。
 
 ### 安全与 API
 
@@ -1271,8 +1277,8 @@ total latency / degraded / error code
 本方案把知识库当成一个独立的检索服务，而不是工作流里的一个辅助函数：
 
 ```text
-PostgreSQL 管事实
-OpenSearch 管可重建检索投影
+PostgreSQL / pgvector 管事实与 Dense 向量
+OpenSearch 管可重建 BM25 文本投影
 RabbitMQ 管可靠异步传递
 Retrieval Profile 管算法版本
 黄金集和指标管准确性

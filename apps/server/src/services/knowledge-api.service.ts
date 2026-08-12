@@ -17,9 +17,9 @@ import {
 } from '@nestjs/common'
 import { createHash, randomBytes } from 'node:crypto'
 
-const API_KEY_PREFIX = 'kb-live-'
-const API_KEY_MASK_LENGTH = 20
-const RETRIEVE_SCOPE = 'knowledge:retrieve'
+const API_KEY_PREFIX = 'kb-live-',
+  API_KEY_MASK_LENGTH = 20,
+  RETRIEVE_SCOPE = 'knowledge:retrieve'
 
 @Injectable()
 export class KnowledgeApiService {
@@ -63,15 +63,15 @@ export class KnowledgeApiService {
   }
 
   async createKey(ownerId: string, knowledgeBaseId: string): Promise<CreatedKnowledgeApiKeyVo> {
-    const secret = `${API_KEY_PREFIX}${randomBytes(32).toString('base64url')}`
-    const key = await this.knowledgeApiRepository.createOwnedApiKey({
-      ownerId,
-      knowledgeBaseId,
-      prefix: API_KEY_PREFIX,
-      suffix: secret.slice(-5),
-      keyHash: hashValue(secret),
-      scopes: [RETRIEVE_SCOPE],
-    })
+    const secret = `${API_KEY_PREFIX}${randomBytes(32).toString('base64url')}`,
+      key = await this.knowledgeApiRepository.createOwnedApiKey({
+        ownerId,
+        knowledgeBaseId,
+        prefix: API_KEY_PREFIX,
+        suffix: secret.slice(-5),
+        keyHash: hashValue(secret),
+        scopes: [RETRIEVE_SCOPE],
+      })
     if (!key) throw new NotFoundException('知识库不存在')
 
     return { ...toApiKeyVo(key), key: secret }
@@ -99,8 +99,8 @@ export class KnowledgeApiService {
     dto: RetrieveKnowledgeApiDto,
     requestId: string,
   ): Promise<KnowledgeApiRetrieveVo> {
-    const startedAt = Date.now()
-    const queryHash = hashValue(dto.query)
+    const startedAt = Date.now(),
+      queryHash = hashValue(dto.query)
 
     try {
       if (!auth.scopes.includes(RETRIEVE_SCOPE)) {
@@ -111,12 +111,13 @@ export class KnowledgeApiService {
       }
 
       const result = await this.knowledgeRetrievalService.retrieve(
-        auth.ownerId,
-        [auth.knowledgeBaseId],
-        dto.query,
-        dto.topK ?? auth.defaultTopK,
-      )
-      const durationMs = Date.now() - startedAt
+          auth.ownerId,
+          [auth.knowledgeBaseId],
+          dto.query,
+          dto.topK ?? auth.defaultTopK,
+          dto.metadataFilter ? { metadataFilter: dto.metadataFilter } : {},
+        ),
+        durationMs = Date.now() - startedAt
 
       await this.knowledgeApiRepository.createApiCallLog({
         knowledgeBaseId: auth.knowledgeBaseId,

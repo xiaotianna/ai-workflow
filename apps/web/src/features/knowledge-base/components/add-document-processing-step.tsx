@@ -12,7 +12,6 @@ import { DocumentFileTypeIcon } from './document-file-type-icon'
 
 interface AddDocumentProcessingStepProps {
   documents: KnowledgeDocumentDto[]
-  embeddingEnabled?: boolean
   input: AddDocumentInput
   knowledgeBaseName?: string
   onClose: () => void
@@ -21,48 +20,46 @@ interface AddDocumentProcessingStepProps {
 
 export function AddDocumentProcessingStep({
   documents: initialDocuments,
-  embeddingEnabled = false,
   input,
   knowledgeBaseName,
   onClose,
   onRefreshDocument,
 }: AddDocumentProcessingStepProps) {
-  const [documents, setDocuments] = useState(initialDocuments)
-  const [refreshFailed, setRefreshFailed] = useState(false)
-  const fileNames = input.files.map((file) => file.name)
-  const uploadedDescription =
-    fileNames.length === 1 ? fileNames[0] : `${fileNames[0]} 等 ${fileNames.length} 个文件`
-  const segmentationModeOption = getDocumentSegmentationModeOption(input.segmentationMode)
-  const processingCount = documents.filter(({ status }) => status === 'PROCESSING').length
-  const failedCount = documents.filter(({ status }) => status === 'FAILED').length
-  const statusLabel = getStatusLabel({
-    embeddingEnabled,
-    failedCount,
-    processingCount,
-    refreshFailed,
-    total: documents.length,
-  })
+  const [documents, setDocuments] = useState(initialDocuments),
+    [refreshFailed, setRefreshFailed] = useState(false),
+    fileNames = input.files.map((file) => file.name),
+    uploadedDescription =
+      fileNames.length === 1 ? fileNames[0] : `${fileNames[0]} 等 ${fileNames.length} 个文件`,
+    segmentationModeOption = getDocumentSegmentationModeOption(input.segmentationMode),
+    processingCount = documents.filter(({ status }) => status === 'PROCESSING').length,
+    failedCount = documents.filter(({ status }) => status === 'FAILED').length,
+    statusLabel = getStatusLabel({
+      failedCount,
+      processingCount,
+      refreshFailed,
+      total: documents.length,
+    })
 
   useEffect(() => {
     const processingDocuments = documents.filter(({ status }) => status === 'PROCESSING')
     if (!processingDocuments.length || refreshFailed) return
 
-    const controller = new AbortController()
-    const timer = globalThis.setTimeout(() => {
-      void Promise.all(
-        processingDocuments.map(({ id }) => onRefreshDocument(id, controller.signal)),
-      )
-        .then((updatedDocuments) => {
-          if (controller.signal.aborted) return
-          const updates = new Map(updatedDocuments.map((document) => [document.id, document]))
-          setDocuments((currentDocuments) =>
-            currentDocuments.map((document) => updates.get(document.id) ?? document),
-          )
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setRefreshFailed(true)
-        })
-    }, documentStatusPollIntervalMs)
+    const controller = new AbortController(),
+      timer = globalThis.setTimeout(() => {
+        void Promise.all(
+          processingDocuments.map(({ id }) => onRefreshDocument(id, controller.signal)),
+        )
+          .then((updatedDocuments) => {
+            if (controller.signal.aborted) return
+            const updates = new Map(updatedDocuments.map((document) => [document.id, document]))
+            setDocuments((currentDocuments) =>
+              currentDocuments.map((document) => updates.get(document.id) ?? document),
+            )
+          })
+          .catch(() => {
+            if (!controller.signal.aborted) setRefreshFailed(true)
+          })
+      }, documentStatusPollIntervalMs)
 
     return () => {
       globalThis.clearTimeout(timer)
@@ -77,7 +74,7 @@ export function AddDocumentProcessingStep({
       <div className="min-h-0 flex-1 overflow-auto px-5 py-8 sm:px-8 lg:py-10">
         <div className="mx-auto w-full max-w-[640px]">
           <div className="flex flex-col gap-1 pb-3">
-            <h1 className="text-foreground text-lg leading-6 font-semibold">🎉 文档已上传</h1>
+            <h1 className="text-foreground text-lg leading-6 font-semibold">文档已提交</h1>
             <p className="text-muted-foreground text-xs leading-5">
               {knowledgeBaseName ? (
                 <>
@@ -135,9 +132,9 @@ export function AddDocumentProcessingStep({
                   </span>
                   <span
                     className={getDocumentStatusClassName(document.status)}
-                    aria-label={getDocumentStatusLabel(document.status, embeddingEnabled)}
+                    aria-label={getDocumentStatusLabel(document.status)}
                   >
-                    {getDocumentStatusLabel(document.status, embeddingEnabled)}
+                    {getDocumentStatusLabel(document.status)}
                   </span>
                   <DocumentStatusIcon status={document.status} />
                 </div>
@@ -170,29 +167,24 @@ export function AddDocumentProcessingStep({
 }
 
 function getStatusLabel(options: {
-  embeddingEnabled: boolean
   failedCount: number
   processingCount: number
   refreshFailed: boolean
   total: number
 }): string {
-  const action = options.embeddingEnabled ? '嵌入' : '文档处理'
-  if (options.refreshFailed && options.processingCount > 0) return `${action}状态更新中断`
+  if (options.refreshFailed && options.processingCount > 0) return '索引状态更新中断'
   if (options.processingCount > 0) {
-    return options.failedCount > 0 ? `正在${action}，部分文档失败` : `正在${action}`
+    return options.failedCount > 0 ? '正在构建索引，部分文档失败' : '正在构建索引'
   }
-  if (options.failedCount === options.total) return `${action}失败`
-  if (options.failedCount > 0) return `部分文档${action}失败`
-  return `${action}已完成`
+  if (options.failedCount === options.total) return '索引构建失败'
+  if (options.failedCount > 0) return '部分文档索引构建失败'
+  return '索引构建已完成'
 }
 
-function getDocumentStatusLabel(
-  status: KnowledgeDocumentDto['status'],
-  embeddingEnabled: boolean,
-): string {
-  if (status === 'PROCESSING') return embeddingEnabled ? '嵌入中' : '处理中'
-  if (status === 'FAILED') return '失败'
-  return '已完成'
+function getDocumentStatusLabel(status: KnowledgeDocumentDto['status']): string {
+  if (status === 'PROCESSING') return '索引构建中'
+  if (status === 'FAILED') return '索引构建失败'
+  return '索引已就绪'
 }
 
 function getDocumentStatusClassName(status: KnowledgeDocumentDto['status']): string {

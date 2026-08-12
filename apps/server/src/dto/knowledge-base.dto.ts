@@ -225,6 +225,10 @@ export class RetrieveKnowledgeBaseDto {
   @IsInt({ message: '返回数量必须是整数' })
   @IsOptional()
   topK = 8
+
+  @IsObject({ message: '元数据过滤条件必须是对象' })
+  @IsOptional()
+  metadataFilter?: Record<string, unknown>
 }
 
 export class CreateKnowledgeDocumentsDto {

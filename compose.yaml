@@ -1,7 +1,7 @@
 name: ai-workflow
 
 x-application-image: &application-image
-  image: "${APP_IMAGE:-ai-workflow-app:latest}"
+  image: '${APP_IMAGE:-ai-workflow-app:latest}'
   build:
     context: .
     dockerfile: Dockerfile
@@ -11,7 +11,7 @@ x-application-image: &application-image
 
 x-server-environment: &server-environment
   NODE_ENV: production
-  PORT: "3000"
+  PORT: '3000'
   AI_WORKFLOW_SECRETS_DIR: /run/ai-workflow-secrets
   POSTGRES_DB: ${POSTGRES_DB:-ai_workflow}
   POSTGRES_USER: ${POSTGRES_USER:-ai_workflow}
@@ -20,19 +20,19 @@ x-server-environment: &server-environment
   RABBITMQ_USER: ${RABBITMQ_USER:-ai_workflow}
   RABBITMQ_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
   WORKFLOW_EXECUTOR_ROUTING_MODE: legacy
-  EXECUTOR_REQUIRE_INTERNAL_AUTH: "true"
+  EXECUTOR_REQUIRE_INTERNAL_AUTH: 'true'
   PLUGIN_ARTIFACT_DIRECTORY: /workspace/apps/server/var/plugin-artifacts
   KNOWLEDGE_SOURCE_STORAGE_DRIVER: local
   KNOWLEDGE_SOURCE_DIRECTORY: /workspace/apps/server/var/knowledge-sources
   OPENSEARCH_URL: https://opensearch:9200
   OPENSEARCH_USERNAME: admin
   # 官方单节点镜像使用自签名演示证书；服务只在隔离的 backend 网络内访问。
-  OPENSEARCH_TLS_REJECT_UNAUTHORIZED: "false"
+  OPENSEARCH_TLS_REJECT_UNAUTHORIZED: 'false'
 
 services:
   secrets-init:
     image: alpine:3.22
-    restart: "no"
+    restart: 'no'
     network_mode: none
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-}
@@ -41,7 +41,7 @@ services:
       JWT_SECRET: ${JWT_SECRET:-}
       EXECUTOR_INTERNAL_AUTH_TOKEN: ${EXECUTOR_INTERNAL_AUTH_TOKEN:-}
       MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-}
-    entrypoint: ["/bin/sh", "/opt/ai-workflow/init-secrets.sh"]
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/init-secrets.sh']
     volumes:
       - ./deploy/init-secrets.sh:/opt/ai-workflow/init-secrets.sh:ro
       - server_secrets:/secrets/server
@@ -59,10 +59,10 @@ services:
 
   web:
     <<: *application-image
-    command: ["web"]
+    command: ['web']
     restart: unless-stopped
     ports:
-      - "${APP_PORT:-127.0.0.1:8080}:8080"
+      - '${APP_PORT:-127.0.0.1:8080}:8080'
     depends_on:
       secrets-init:
         condition: service_completed_successfully
@@ -78,12 +78,12 @@ services:
 
   server:
     <<: *application-image
-    command: ["server"]
+    command: ['server']
     restart: unless-stopped
     init: true
     environment: *server-environment
     expose:
-      - "3000"
+      - '3000'
     depends_on:
       secrets-init:
         condition: service_completed_successfully
@@ -107,9 +107,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "fetch('http://127.0.0.1:3000').then(() => process.exit(0)).catch(() => process.exit(1))",
         ]
       interval: 10s
@@ -121,7 +121,7 @@ services:
 
   executor:
     <<: *application-image
-    command: ["executor"]
+    command: ['executor']
     restart: unless-stopped
     init: true
     environment:
@@ -133,7 +133,7 @@ services:
       MODEL_RUNTIME_RESOLVER_URL: http://server:3000/internal/executor/models/resolve
       KNOWLEDGE_RUNTIME_RETRIEVER_URL: http://server:3000/internal/executor/knowledge/retrieve
       PLUGIN_ARTIFACT_RESOLVER_URL: http://server:3000/internal/executor/plugin-artifacts/resolve
-      EXECUTOR_REQUIRE_INTERNAL_AUTH: "true"
+      EXECUTOR_REQUIRE_INTERNAL_AUTH: 'true'
       CODE_NODE_BINARY: node
       CODE_NODE_MODULES_PATH: /workspace/node_modules
     depends_on:
@@ -159,7 +159,7 @@ services:
     cpus: 1.0
 
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ai_workflow}
@@ -174,8 +174,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test:
-        ["CMD-SHELL", 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -185,13 +184,13 @@ services:
   redis:
     image: redis:7.4-alpine
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ['redis-server', '--appendonly', 'yes']
     volumes:
       - redis_data:/data
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -204,7 +203,7 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-ai_workflow}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
-    entrypoint: ["/bin/sh", "/opt/ai-workflow/rabbitmq-entrypoint.sh"]
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/rabbitmq-entrypoint.sh']
     depends_on:
       secrets-init:
         condition: service_completed_successfully
@@ -216,7 +215,7 @@ services:
       - backend
       - executor
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
       interval: 10s
       timeout: 5s
       retries: 20
@@ -229,9 +228,9 @@ services:
     restart: unless-stopped
     environment:
       discovery.type: single-node
-      bootstrap.memory_lock: "true"
+      bootstrap.memory_lock: 'true'
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
-    entrypoint: ["/bin/sh", "/opt/ai-workflow/opensearch-entrypoint.sh"]
+    entrypoint: ['/bin/sh', '/opt/ai-workflow/opensearch-entrypoint.sh']
     depends_on:
       secrets-init:
         condition: service_completed_successfully
@@ -251,7 +250,7 @@ services:
     healthcheck:
       test:
         [
-          "CMD-SHELL",
+          'CMD-SHELL',
           'curl --insecure --fail --silent --user "admin:$$(cat /run/ai-workflow-secrets/opensearch_password)" https://127.0.0.1:9200/_cluster/health >/dev/null',
         ]
       interval: 15s

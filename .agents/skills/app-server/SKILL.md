@@ -20,7 +20,7 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
 - 设计 Controller、DTO、错误、鉴权或配置：读取 [references/api-and-boundaries.md](references/api-and-boundaries.md)。
 - 接入 Prisma、PostgreSQL、Redis、LangGraph 或工作流 package：读取 [references/data-and-workflow.md](references/data-and-workflow.md)。
 - 实施节点执行类别、分级 Command Queue、Outbox 路由或 Worker 能力校验：读取 [`docs/node-execution-isolation-implementation.md`](../../../docs/node-execution-isolation-implementation.md)。
-- 实施知识库文档入库、OpenSearch 混合检索、准确性评测或对外知识库 API：读取
+- 实施知识库文档入库、pgvector + OpenSearch 混合检索、准确性评测或对外知识库 API：读取
   [`docs/knowledge-base-production-api-design.md`](../../../docs/knowledge-base-production-api-design.md)，并组合读取接口与数据引用。
 
 ## 当前结论
@@ -43,7 +43,7 @@ description: '规划和维护 AI Workflow 的服务端应用。设计或修改 a
   展示字符，正式调用直接绑定发布版本并复用 Runtime/MQ/SSE 链路；API 文档可通过独立分享令牌
   开放只读正文，公开读取不经过用户 JWT。
 - 知识库已落地管理、设置、Source/Version/Head/Attempt/Projection 事实模型、RabbitMQ + Outbox
-  异步入库、Embedding、OpenSearch `BM25 + Dense + RRF` 混合召回、召回测试和工作流 RAG 主链路；
+  异步入库、Embedding、pgvector Dense + OpenSearch BM25 + 应用层 RRF 混合召回、召回测试和工作流 RAG 主链路；
   入库解析支持 Markdown、TXT、文本型 PDF、DOCX、PPTX、XLSX、CSV 和 HTML；上传文件名在进入
   对象存储与数据库前统一修复 Multipart Latin-1/UTF-8 乱码并规范化为 Unicode NFC；
   文档顶层状态只反映当前可服务索引的 `PROCESSING / READY / FAILED`，Web 上传完成页通过文档查询

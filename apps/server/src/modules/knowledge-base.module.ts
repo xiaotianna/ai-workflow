@@ -5,6 +5,7 @@ import { ExecutorKnowledgeController } from '@/controllers/executor-knowledge.co
 import { ExecutorInternalAuthGuard } from '@/guards/executor-internal-auth.guard'
 import { KnowledgeSourceStore } from '@/infra/knowledge/knowledge-source-store'
 import { KnowledgeSearchProjectionStore } from '@/infra/knowledge/knowledge-search-projection.store'
+import { KnowledgeVectorStore } from '@/infra/knowledge/knowledge-vector.store'
 import { KnowledgeCommandConsumer } from '@/infra/knowledge-mq/knowledge-command.consumer'
 import { KnowledgeOutboxPublisher } from '@/infra/knowledge-mq/knowledge-outbox.publisher'
 import { WorkflowMqModule } from '@/infra/workflow-mq/workflow-mq.module'
@@ -45,6 +46,7 @@ import { ModelsModule } from './models.module'
     KnowledgeApiKeyGuard,
     KnowledgeSourceStore,
     KnowledgeSearchProjectionStore,
+    KnowledgeVectorStore,
     KnowledgeChunkerService,
     KnowledgeIngestionService,
     KnowledgeEmbeddingService,

@@ -2,7 +2,8 @@
 
 ## 本地开发基础设施
 
-- 根目录 `compose.dev.yaml` 统一提供 PostgreSQL 17、Redis 7.4、RabbitMQ 4 与单节点 OpenSearch，
+- 根目录 `compose.dev.yaml` 统一使用官方 `pgvector/pgvector:0.8.6-pg17-bookworm` 提供带 pgvector 的
+  PostgreSQL 17，并提供 Redis 7.4、RabbitMQ 4 与单节点 OpenSearch，
   NestJS 默认在宿主机运行，不加入 Compose。OpenSearch 安全插件只在本地开发编排中关闭。
 - 根目录通过 `docker:dev:up`、`docker:dev:down`、`docker:dev:logs` 和 `docker:dev:status` 脚本管理开发基础设施。
 - PostgreSQL、Redis、RabbitMQ 与 OpenSearch 数据使用 Docker named volume；日常停止不得隐式删除 volume。
@@ -107,7 +108,7 @@
 - 通用领域模型和状态流程以根目录 `docs/knowledge-base-design.md` 为准；生产检索、准确性评测与
   外部 API 目标以 `docs/knowledge-base-production-api-design.md` 为准，冲突时以后者为准。当前已建立
   Index/Source/Version/Head/Attempt/Projection/Outbox 事实模型、RabbitMQ 异步入库、Embedding、
-  OpenSearch 投影和检索日志；`KnowledgeDocument.status` 是管理面的当前可服务状态，创建索引任务时
+  pgvector Dense 向量、OpenSearch BM25 文本投影和检索日志；`KnowledgeDocument.status` 是管理面的当前可服务状态，创建索引任务时
   为 `PROCESSING`，当前活动索引或首个构建索引投影完成后为 `READY`，不可重试失败为 `FAILED`。
 - `KnowledgeBaseSettings.segmentationRevision` 是当前分段设置修订号，文档保存入库时的 `indexedSegmentationRevision` 和实际分段参数快照。修改知识库分段设置不允许自动覆盖已有 Chunk；只有用户显式重新索引才在事务内替换单文档 Chunk 并更新修订快照。
 - `KnowledgeBaseSettings.embeddingModelGroupId` 与 `embeddingConfiguredModelId` 同时为空或同时存在，引用模型管理中的稳定 UUID，知识库不得复制模型凭证。当前字段表达目标索引配置；在 `KnowledgeBaseIndex` 代际完成前，不得把它解释为已有 Chunk 已完成向量化。
@@ -134,10 +135,15 @@
   版本由 `KnowledgeDocumentIndexHead` 维护。
 - 文档分段模式使用 `GENERAL/QA/PARENT_CHILD` 稳定枚举，并在 `KnowledgeDocumentVersion` 保存实际
   模式和参数快照。Chunker 决定分段边界，当前 Index 的 Embedding 模型向量化检索单元；父子分段
-  只索引子块并保留父块关系，召回后扩展父块。三种模式共用 OpenSearch BM25 + Dense 投影与检索
+  只索引子块并保留父块关系，召回后扩展父块。三种模式共用 pgvector Dense + OpenSearch BM25 投影与检索
   管线，不建立按模式分叉的索引实现。
-- `KnowledgeChunk.enabled` 是活动 Head 分段的管理面状态。单条禁用不改写不可变正文或向量投影；
-  OpenSearch 先召回候选，服务端返回前再用 PostgreSQL `enabled` 强一致过滤，因此残留投影不会被
+- 临时分段预览只执行 Parser、Cleaner 和 Chunker，不要求配置 Embedding 模型，也不创建正式
+  Document、Version、Chunk 或检索投影。正式上传前必须校验知识库已选择当前用户可用且启用的
+  Embedding 模型，并且存在可写入的活动或构建中索引；否则拒绝提交。Document Version 只有在
+  pgvector 中全部 Chunk 的向量维度与数量完整、OpenSearch BM25 投影 count/checksum 完整后才能
+  进入 `READY`，任一路失败都保持处理中重试或进入失败终态。
+- `KnowledgeChunk.enabled` 是活动 Head 分段的管理面状态。单条禁用不改写不可变正文或检索投影；
+  pgvector 查询直接过滤禁用 Chunk，OpenSearch BM25 候选返回前再用 PostgreSQL `enabled` 强一致过滤，因此残留投影不会被
   返回；重新启用后可继续使用原投影。
 - `KnowledgeMetadataField` 保存知识库级字段目录，字段使用稳定 UUID、知识库内唯一名称和
   `string / number / time` 类型；`KnowledgeDocument.metadata` 使用字段 UUID 作为 JSON Key 保存当前
@@ -158,8 +164,9 @@
 - 检索次数从 `KnowledgeRetrievalLog` 与 `KnowledgeRetrievalHit` 聚合：工作流 RAG 的最终结果按
   “一次检索 + 一个文档”去重记录，同一次检索命中该文档多个 Chunk 只计一次；Web 召回测试不计入生产召回。
   工作流日志以 Command ID 作为幂等键，消息重投不重复计数；不在知识库或文档行维护高频递增计数。
-- OpenSearch 是生产检索投影，同时保存用于 BM25 的文本字段、Dense 向量、`generationId`、文档状态
-  和 ACL 元数据；PostgreSQL 仍是唯一业务事实来源，OpenSearch 投影必须可以按 Index 代际全量重建。
+- PostgreSQL/pgvector 保存 Chunk Dense 向量并按向量相似度检索；OpenSearch 保存可重建的 BM25 文本
+  投影。两路都强制应用 owner、活动 Index、Head、文档/Chunk 状态，用户元数据过滤以 PostgreSQL
+  `KnowledgeDocument.metadata` 为强一致事实，并在最终融合前再次校验。
 - 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。当前
   `HYBRID_ACCURATE` 使用每路 100 个候选、RRF 后取全局 50 个候选执行标题、标题路径、精确短语、
   词项覆盖率与经距离度量还原的 Dense 相关度组合的确定性二阶段重排；RRF 只负责候选融合和同分
@@ -168,9 +175,11 @@
   多个知识库混用画像时采用更严格的 Accurate 路径。多个知识库仍必须先按 `embeddingSpaceKey`
   分组，禁止直接比较不同嵌入空间的向量原始分数；后续接入独立 Cross-Encoder Provider 时替换
   确定性重排实现，不改变统一 Retriever 边界。
-- pgvector 仅作为本地或小规模回退基线：如果启用，其列、维度 CHECK、部分向量索引和 Prisma 无法
-  表达的复合约束使用自定义 migration，查询封装在 `VectorStore`/Repository 边界内，不得与
-  OpenSearch 同时成为生产事实源。
+- pgvector 是 Dense 向量的存储与召回实现：`KnowledgeChunk.embedding` 使用无固定维度 `vector`，
+  `embeddingDimension` 与 `vector_dims()` 由自定义 migration 约束，查询封装在
+  `KnowledgeVectorStore` 内。混合维度先在强制过滤后执行精确距离排序；只有确定生产维度并完成
+  召回/容量评测后，才增加按维度和距离算子的部分 HNSW 索引。OpenSearch 只承担 BM25 文本投影，
+  不再保存或查询 Dense 向量。
 - 对外知识库调用使用独立 `kb-live-` Key，不复用应用 `app-` Key。`KnowledgeBase.apiEnabled` 是总开关；
   `KnowledgeBaseApiKey` 当前直接绑定单个知识库并保存 scope、SHA-256 哈希和展示后缀，明文只在
   创建时返回一次。`KnowledgeApiCallLog` 记录 Key、知识库、requestId、query 哈希、状态、耗时和

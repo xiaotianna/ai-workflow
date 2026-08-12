@@ -1,5 +1,6 @@
 import type { ModelProviderTypeValue } from '@/constant/model'
 import { KnowledgeSearchProjectionStore } from '@/infra/knowledge/knowledge-search-projection.store'
+import { KnowledgeVectorStore } from '@/infra/knowledge/knowledge-vector.store'
 import { ModelCredentialService } from '@/infra/model-provider/model-credential.service'
 import type { ModelProviderAdapter } from '@/infra/model-provider/model-provider.adapter'
 import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
@@ -8,9 +9,9 @@ import type { KnowledgeRetrievalIndex } from '@/repositories/knowledge-retrieval
 import { Injectable } from '@nestjs/common'
 import { createHash } from 'node:crypto'
 
-const EMBEDDING_BATCH_SIZE = 32
-const EMBEDDING_TIMEOUT_MS = 60_000
-const MAX_EMBEDDING_RESPONSE_BYTES = 32 * 1024 * 1024
+const EMBEDDING_BATCH_SIZE = 32,
+  EMBEDDING_TIMEOUT_MS = 60_000,
+  MAX_EMBEDDING_RESPONSE_BYTES = 32 * 1024 * 1024
 
 @Injectable()
 export class KnowledgeEmbeddingService {
@@ -19,22 +20,23 @@ export class KnowledgeEmbeddingService {
     private readonly modelCredentialService: ModelCredentialService,
     private readonly modelProviderRegistry: ModelProviderRegistry,
     private readonly projectionStore: KnowledgeSearchProjectionStore,
+    private readonly vectorStore: KnowledgeVectorStore,
   ) {}
 
   async embedQuery(index: KnowledgeRetrievalIndex, query: string): Promise<number[]> {
     const provider = this.modelProviderRegistry.get(
-      index.embeddingProvider as ModelProviderTypeValue,
-    )
-    const group = index.configuredModel.group
-    const apiKey = this.modelCredentialService.decrypt(group, group.id)
-    const vectors = await createEmbeddings({
-      provider,
-      modelId: index.embeddingModelId,
-      baseUrl: group.baseUrl,
-      apiKey,
-      contents: [query],
-    })
-    const vector = vectors[0]
+        index.embeddingProvider as ModelProviderTypeValue,
+      ),
+      group = index.configuredModel.group,
+      apiKey = this.modelCredentialService.decrypt(group, group.id),
+      vectors = await createEmbeddings({
+        provider,
+        modelId: index.embeddingModelId,
+        baseUrl: group.baseUrl,
+        apiKey,
+        contents: [query],
+      }),
+      vector = vectors[0]
     if (!vector || vector.length !== index.embeddingDimension) {
       throw new Error('查询向量维度与活动索引不一致')
     }
@@ -46,18 +48,18 @@ export class KnowledgeEmbeddingService {
     if (!index) return 'stale'
 
     const provider = this.modelProviderRegistry.get(
-      index.embeddingProvider as ModelProviderTypeValue,
-    )
-    const group = index.configuredModel.group
-    const apiKey = this.modelCredentialService.decrypt(group, group.id)
-    const vectors = await createEmbeddings({
-      provider,
-      modelId: index.embeddingModelId,
-      baseUrl: group.baseUrl,
-      apiKey,
-      contents: ['knowledge index dimension probe'],
-    })
-    const dimension = vectors[0]?.length ?? 0
+        index.embeddingProvider as ModelProviderTypeValue,
+      ),
+      group = index.configuredModel.group,
+      apiKey = this.modelCredentialService.decrypt(group, group.id),
+      vectors = await createEmbeddings({
+        provider,
+        modelId: index.embeddingModelId,
+        baseUrl: group.baseUrl,
+        apiKey,
+        contents: ['knowledge index dimension probe'],
+      }),
+      dimension = vectors[0]?.length ?? 0
     if (!dimension) throw new Error('Embedding 探测未返回有效维度')
     const embeddingSpaceKey = createEmbeddingSpaceKey({
       provider: index.embeddingProvider,
@@ -65,11 +67,7 @@ export class KnowledgeEmbeddingService {
       dimension,
       distanceMetric: index.distanceMetric,
     })
-    await this.projectionStore.ensureEmbeddingSpace({
-      embeddingSpaceKey,
-      embeddingDimension: dimension,
-      distanceMetric: index.distanceMetric,
-    })
+    await this.projectionStore.ensureEmbeddingSpace({ embeddingSpaceKey })
     return this.knowledgeIngestionRepository.activateEmptyIndex({
       knowledgeBaseIndexId: index.id,
       embeddingDimension: dimension,
@@ -89,34 +87,41 @@ export class KnowledgeEmbeddingService {
     if (!version) return 'stale'
 
     try {
-      const { knowledgeBaseIndex: index } = version
-      const provider = this.modelProviderRegistry.get(
-        index.embeddingProvider as ModelProviderTypeValue,
-      )
-      const group = index.configuredModel.group
-      const apiKey = this.modelCredentialService.decrypt(group, group.id)
-      const vectors = await createEmbeddings({
-        provider,
-        modelId: index.embeddingModelId,
-        baseUrl: group.baseUrl,
-        apiKey,
-        contents: version.chunks.map(({ content }) => content),
-      })
-
-      const dimension = vectors[0]?.length ?? 0
+      const { knowledgeBaseIndex: index } = version,
+        provider = this.modelProviderRegistry.get(
+          index.embeddingProvider as ModelProviderTypeValue,
+        ),
+        group = index.configuredModel.group,
+        apiKey = this.modelCredentialService.decrypt(group, group.id),
+        vectors = await createEmbeddings({
+          provider,
+          modelId: index.embeddingModelId,
+          baseUrl: group.baseUrl,
+          apiKey,
+          contents: version.chunks.map(({ content }) => content),
+        }),
+        dimension = vectors[0]?.length ?? 0
       if (!dimension || vectors.some((vector) => vector.length !== dimension)) {
         throw new Error('Embedding 向量维度不一致')
       }
       const embeddingSpaceKey = createEmbeddingSpaceKey({
-        provider: index.embeddingProvider,
-        model: index.embeddingModelId,
-        dimension,
-        distanceMetric: index.distanceMetric,
-      })
+          provider: index.embeddingProvider,
+          model: index.embeddingModelId,
+          dimension,
+          distanceMetric: index.distanceMetric,
+        }),
+        storedVectorCount = await this.vectorStore.writeVersion({
+          documentVersionId: version.id,
+          knowledgeBaseIndexId: index.id,
+          embeddingDimension: dimension,
+          chunks: version.chunks,
+          vectors,
+        })
+      if (storedVectorCount !== version.chunks.length) {
+        throw new Error('pgvector 向量写入完整性校验失败')
+      }
       const projected = await this.projectionStore.writeVersion({
         embeddingSpaceKey,
-        embeddingDimension: dimension,
-        distanceMetric: index.distanceMetric,
         ownerId: index.knowledgeBase.ownerId,
         knowledgeBaseId: index.knowledgeBaseId,
         knowledgeBaseIndexId: index.id,
@@ -125,14 +130,13 @@ export class KnowledgeEmbeddingService {
         documentName: version.document.name,
         documentEnabled: version.document.enabled,
         projectionChecksum: version.expectedChecksum,
-        chunks: version.chunks.map((chunk, chunkIndex) => ({
+        chunks: version.chunks.map((chunk) => ({
           id: chunk.id,
           sequence: chunk.sequence,
           content: chunk.content,
           contentHash:
             chunk.contentHash ?? createHash('sha256').update(chunk.content).digest('hex'),
           metadata: chunk.metadata as Record<string, unknown>,
-          embedding: vectors[chunkIndex],
         })),
       })
       if (
@@ -196,20 +200,20 @@ async function createEmbeddings(options: {
   )
 
   return batches.reduce<Promise<number[][]>>(async (pendingVectors, batch) => {
-    const vectors = await pendingVectors
-    const request = options.provider.createEmbeddingRequest(options.modelId, batch, options.baseUrl)
-    const response = await fetch(request.url, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
-      },
-      body: JSON.stringify(request.body),
-      redirect: 'manual',
-      signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
-    })
-    const body = await readLimitedJson(response)
+    const vectors = await pendingVectors,
+      request = options.provider.createEmbeddingRequest(options.modelId, batch, options.baseUrl),
+      response = await fetch(request.url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(options.apiKey ? { Authorization: `Bearer ${options.apiKey}` } : {}),
+        },
+        body: JSON.stringify(request.body),
+        redirect: 'manual',
+        signal: AbortSignal.timeout(EMBEDDING_TIMEOUT_MS),
+      }),
+      body = await readLimitedJson(response)
     if (!response.ok) {
       throw new Error(`Embedding 上游返回 HTTP ${response.status}：${readErrorMessage(body)}`)
     }

@@ -13,7 +13,7 @@ import { showToast } from '@ai-workflow/ui/lib/toast'
 import type { RowSelectionState } from '@tanstack/react-table'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
-import { useOutletContext, useParams } from 'react-router-dom'
+import { useNavigate, useOutletContext, useParams } from 'react-router-dom'
 
 import { PageContent } from '@/components/page-content'
 import { PageHeaderActions } from '@/components/page-header-actions'
@@ -37,38 +37,37 @@ import {
 import type { KnowledgeBaseDetailOutletContext } from '.'
 
 const segmentationModeToApi = {
-  general: 'GENERAL',
-  qa: 'QA',
-  'parent-child': 'PARENT_CHILD',
-} as const
-
-const segmentationModeFromApi = {
-  GENERAL: 'general',
-  QA: 'qa',
-  PARENT_CHILD: 'parent-child',
-} as const
+    general: 'GENERAL',
+    qa: 'QA',
+    'parent-child': 'PARENT_CHILD',
+  } as const,
+  segmentationModeFromApi = {
+    GENERAL: 'general',
+    QA: 'qa',
+    PARENT_CHILD: 'parent-child',
+  } as const
 
 export default function KnowledgeBaseDocumentsPage() {
-  const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
-  const { isResourceAvailable, knowledgeBase } =
-    useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([])
-  const [settings, setSettings] = useState<KnowledgeBaseSettingsDto>()
-  const [search, setSearch] = useState('')
-  const [fileType, setFileType] = useState<KnowledgeDocumentFileTypeFilter>('all')
-  const [sort, setSort] = useState<KnowledgeDocumentSort>('uploaded_desc')
-  const [pageIndex, setPageIndex] = useState(0)
-  const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
-  const [total, setTotal] = useState(0)
-  const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
-  const [addPageOpen, setAddPageOpen] = useState(false)
-  const [deletingDocuments, setDeletingDocuments] = useState<KnowledgeBaseDocument[]>([])
-  const [renamingDocument, setRenamingDocument] = useState<KnowledgeBaseDocument>()
-  const [batchUpdatingDocuments, setBatchUpdatingDocuments] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [reloadVersion, setReloadVersion] = useState(0)
-  const [documentStatusRefreshFailed, setDocumentStatusRefreshFailed] = useState(false)
-  const reindexingDocumentIds = useRef(new Set<string>())
+  const navigate = useNavigate(),
+    { id: knowledgeBaseId = '' } = useParams<{ id: string }>(),
+    { isResourceAvailable, knowledgeBase } = useOutletContext<KnowledgeBaseDetailOutletContext>(),
+    [documents, setDocuments] = useState<KnowledgeBaseDocument[]>([]),
+    [settings, setSettings] = useState<KnowledgeBaseSettingsDto>(),
+    [search, setSearch] = useState(''),
+    [fileType, setFileType] = useState<KnowledgeDocumentFileTypeFilter>('all'),
+    [sort, setSort] = useState<KnowledgeDocumentSort>('uploaded_desc'),
+    [pageIndex, setPageIndex] = useState(0),
+    [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0]),
+    [total, setTotal] = useState(0),
+    [rowSelection, setRowSelection] = useState<RowSelectionState>({}),
+    [addPageOpen, setAddPageOpen] = useState(false),
+    [deletingDocuments, setDeletingDocuments] = useState<KnowledgeBaseDocument[]>([]),
+    [renamingDocument, setRenamingDocument] = useState<KnowledgeBaseDocument>(),
+    [batchUpdatingDocuments, setBatchUpdatingDocuments] = useState(false),
+    [loading, setLoading] = useState(true),
+    [reloadVersion, setReloadVersion] = useState(0),
+    [documentStatusRefreshFailed, setDocumentStatusRefreshFailed] = useState(false),
+    reindexingDocumentIds = useRef(new Set<string>())
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
@@ -81,31 +80,31 @@ export default function KnowledgeBaseDocumentsPage() {
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
-    const controller = new AbortController()
-    const timer = globalThis.setTimeout(() => {
-      setLoading(true)
-      void listKnowledgeDocuments(
-        knowledgeBaseId,
-        {
-          search: search.trim() || undefined,
-          fileType: fileType === 'all' ? undefined : fileType,
-          sort,
-          page: pageIndex + 1,
-          pageSize,
-        },
-        controller.signal,
-      )
-        .then((result) => {
-          setDocuments(result.items.map(toKnowledgeBaseDocument))
-          setTotal(result.total)
-          setRowSelection({})
-          setDocumentStatusRefreshFailed(false)
-        })
-        .catch(() => undefined)
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false)
-        })
-    }, 300)
+    const controller = new AbortController(),
+      timer = globalThis.setTimeout(() => {
+        setLoading(true)
+        void listKnowledgeDocuments(
+          knowledgeBaseId,
+          {
+            search: search.trim() || undefined,
+            fileType: fileType === 'all' ? undefined : fileType,
+            sort,
+            page: pageIndex + 1,
+            pageSize,
+          },
+          controller.signal,
+        )
+          .then((result) => {
+            setDocuments(result.items.map(toKnowledgeBaseDocument))
+            setTotal(result.total)
+            setRowSelection({})
+            setDocumentStatusRefreshFailed(false)
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (!controller.signal.aborted) setLoading(false)
+          })
+      }, 300)
 
     return () => {
       globalThis.clearTimeout(timer)
@@ -135,38 +134,38 @@ export default function KnowledgeBaseDocumentsPage() {
       return
     }
 
-    const controller = new AbortController()
-    const timer = globalThis.setTimeout(() => {
-      void listKnowledgeDocuments(
-        knowledgeBaseId,
-        {
-          search: search.trim() || undefined,
-          fileType: fileType === 'all' ? undefined : fileType,
-          sort,
-          page: pageIndex + 1,
-          pageSize,
-        },
-        controller.signal,
-      )
-        .then((result) => {
-          if (controller.signal.aborted) return
-          setDocuments((currentDocuments) => {
-            const currentDocumentsById = new Map(
-              currentDocuments.map((document) => [document.id, document]),
-            )
-            return result.items.map((item) => {
-              if (reindexingDocumentIds.current.has(item.id)) {
-                return currentDocumentsById.get(item.id) ?? toKnowledgeBaseDocument(item)
-              }
-              return toKnowledgeBaseDocument(item)
+    const controller = new AbortController(),
+      timer = globalThis.setTimeout(() => {
+        void listKnowledgeDocuments(
+          knowledgeBaseId,
+          {
+            search: search.trim() || undefined,
+            fileType: fileType === 'all' ? undefined : fileType,
+            sort,
+            page: pageIndex + 1,
+            pageSize,
+          },
+          controller.signal,
+        )
+          .then((result) => {
+            if (controller.signal.aborted) return
+            setDocuments((currentDocuments) => {
+              const currentDocumentsById = new Map(
+                currentDocuments.map((document) => [document.id, document]),
+              )
+              return result.items.map((item) => {
+                if (reindexingDocumentIds.current.has(item.id)) {
+                  return currentDocumentsById.get(item.id) ?? toKnowledgeBaseDocument(item)
+                }
+                return toKnowledgeBaseDocument(item)
+              })
             })
+            setTotal(result.total)
           })
-          setTotal(result.total)
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setDocumentStatusRefreshFailed(true)
-        })
-    }, documentStatusPollIntervalMs)
+          .catch(() => {
+            if (!controller.signal.aborted) setDocumentStatusRefreshFailed(true)
+          })
+      }, documentStatusPollIntervalMs)
 
     return () => {
       globalThis.clearTimeout(timer)
@@ -194,7 +193,7 @@ export default function KnowledgeBaseDocumentsPage() {
     })
     setPageIndex(0)
     setReloadVersion((value) => value + 1)
-    showToast('success', '文档已上传，正在处理')
+    showToast('success', '文档已提交，正在构建索引')
     return createdDocuments
   }
 
@@ -241,16 +240,14 @@ export default function KnowledgeBaseDocumentsPage() {
     setBatchUpdatingDocuments(true)
     try {
       const results = await Promise.allSettled(
-        selectedDocuments.map((document) =>
-          updateKnowledgeDocument(knowledgeBaseId, document.id, { enabled }),
+          selectedDocuments.map((document) =>
+            updateKnowledgeDocument(knowledgeBaseId, document.id, { enabled }),
+          ),
         ),
-      )
-      const updatedDocuments = results.flatMap((result) =>
-        result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
-      )
-      const updatedDocumentsById = new Map(
-        updatedDocuments.map((document) => [document.id, document]),
-      )
+        updatedDocuments = results.flatMap((result) =>
+          result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
+        ),
+        updatedDocumentsById = new Map(updatedDocuments.map((document) => [document.id, document]))
 
       setDocuments((currentDocuments) =>
         currentDocuments.map((document) => updatedDocumentsById.get(document.id) ?? document),
@@ -283,21 +280,23 @@ export default function KnowledgeBaseDocumentsPage() {
     setDocuments((currentDocuments) =>
       currentDocuments.map((document) =>
         selectedDocumentsById.has(document.id)
-          ? { ...document, status: 'indexing', statusLabel: '处理中' }
+          ? { ...document, status: 'indexing', statusLabel: '索引构建中' }
           : document,
       ),
     )
 
     try {
       const results = await Promise.allSettled(
-        selectedDocuments.map((document) => reindexKnowledgeDocument(knowledgeBaseId, document.id)),
-      )
-      const reindexedDocuments = results.flatMap((result) =>
-        result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
-      )
-      const reindexedDocumentsById = new Map(
-        reindexedDocuments.map((document) => [document.id, document]),
-      )
+          selectedDocuments.map((document) =>
+            reindexKnowledgeDocument(knowledgeBaseId, document.id),
+          ),
+        ),
+        reindexedDocuments = results.flatMap((result) =>
+          result.status === 'fulfilled' ? [toKnowledgeBaseDocument(result.value)] : [],
+        ),
+        reindexedDocumentsById = new Map(
+          reindexedDocuments.map((document) => [document.id, document]),
+        )
 
       setDocuments((currentDocuments) =>
         currentDocuments.map(
@@ -328,15 +327,15 @@ export default function KnowledgeBaseDocumentsPage() {
     setBatchUpdatingDocuments(true)
     try {
       const results = await Promise.allSettled(
-        targetDocuments.map((document) => deleteKnowledgeDocument(knowledgeBaseId, document.id)),
-      )
-      const deletedIds = new Set(
-        results.flatMap((result, index) => {
-          const document = targetDocuments[index]
-          return result.status === 'fulfilled' && document ? [document.id] : []
-        }),
-      )
-      const failedDocuments = targetDocuments.filter((document) => !deletedIds.has(document.id))
+          targetDocuments.map((document) => deleteKnowledgeDocument(knowledgeBaseId, document.id)),
+        ),
+        deletedIds = new Set(
+          results.flatMap((result, index) => {
+            const document = targetDocuments[index]
+            return result.status === 'fulfilled' && document ? [document.id] : []
+          }),
+        ),
+        failedDocuments = targetDocuments.filter((document) => !deletedIds.has(document.id))
 
       if (deletedIds.size > 0) {
         setDocuments((currentDocuments) =>
@@ -379,7 +378,7 @@ export default function KnowledgeBaseDocumentsPage() {
       setDocuments((currentDocuments) =>
         currentDocuments.map((currentDocument) =>
           currentDocument.id === document.id
-            ? { ...currentDocument, status: 'indexing', statusLabel: '处理中' }
+            ? { ...currentDocument, status: 'indexing', statusLabel: '索引构建中' }
             : currentDocument,
         ),
       )
@@ -471,6 +470,9 @@ export default function KnowledgeBaseDocumentsPage() {
                     : undefined
                 }
                 onAdd={handleAddDocument}
+                onConfigureEmbedding={() =>
+                  navigate(`/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/settings`)
+                }
                 onPreview={(input) =>
                   previewKnowledgeDocuments(knowledgeBaseId, {
                     files: input.files,

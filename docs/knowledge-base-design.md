@@ -4,13 +4,13 @@
 >
 > 本文定义知识库从空白资源创建、文档入库、索引代际切换、分段向量化、召回、工作流引用到
 > 异步删除清理的完整目标模型。当前已实现空白知识库、S3/MinIO 原文、版本化异步入库、分段查看、
-> 设置与手动重新索引、Embedding、OpenSearch 投影、混合召回和工作流 RAG 主链路；外部 API 安全、
+> 设置与手动重新索引、Embedding、pgvector Dense、OpenSearch BM25 投影、混合召回和工作流 RAG 主链路；外部 API 安全、
 > 检索质量评测、资源清理和生产运维仍按后续阶段完成，数据库模型必须保持下述一致性边界。
 >
 > 第一次接触知识库或 RAG 时，请先阅读 [知识库与 RAG：从零基础到生产落地](./knowledge-base-rag-learning-guide.md)，
 > 了解技术栈、混合检索、准确性评测、生产难点和推荐学习顺序。
 >
-> 混合检索、OpenSearch 投影、RabbitMQ 知识任务和外部 `/v1/knowledge/*` API 的生产目标以
+> 混合检索、pgvector/OpenSearch 投影、RabbitMQ 知识任务和外部 `/v1/knowledge/*` API 的生产目标以
 > [生产级知识库、混合检索与外部 API 方案](./knowledge-base-production-api-design.md) 为准；本文继续
 > 负责 PostgreSQL 事实模型、索引代际和一致性基础。
 
@@ -49,8 +49,8 @@
   当前不可用的引用供用户重新选择。画布直接读取持久化快照，不加载完整目录。
 - 服务端使用模型页面中的嵌入模型稳定 UUID 和加密凭证，已支持 OpenAI-compatible 与 Ollama
   Embedding 调用、批量向量化和维度校验。
-- PostgreSQL 是事实源；RabbitMQ/Outbox 幂等 Worker、S3/MinIO Source Store 和 OpenSearch 可重建
-  投影已接入，待部署迁移及真实服务联调。
+- PostgreSQL/pgvector 是业务与 Dense 向量事实源；RabbitMQ/Outbox 幂等 Worker、S3/MinIO Source
+  Store 和 OpenSearch BM25 可重建投影已接入，待部署迁移及真实服务联调。
 - Go RAG Executor 已通过受保护的内部接口调用服务端统一 Retriever，并校验 Command 身份和租约。
 
 “创建知识库 → 上传文件 → 异步解析/切分/向量化/投影 → 查看当前 Chunk → 配置变更后构建新代际或
@@ -71,20 +71,22 @@ flowchart LR
   Worker --> Storage["对象存储中的原文件"]
   Worker --> Parser["解析与切分"]
   Parser --> Embed["Embedding Provider"]
-  Embed --> Vector["OpenSearch 混合检索投影"]
+  Embed --> Vector["PostgreSQL / pgvector Dense"]
+  Parser --> Search["OpenSearch BM25 文本投影"]
 
   Recall["召回测试"] --> Retrieval["KnowledgeRetrievalService"]
   RAG["工作流 RAG 节点"] --> Retrieval
   Retrieval --> DB
   Retrieval --> Vector
+  Retrieval --> Search
 ```
 
 ### 3.1 存储选择
 
-PostgreSQL 是知识库业务事实源；生产检索使用可从 PostgreSQL 重建的 OpenSearch Chunk 投影，在
-同一投影上完成 BM25、Dense、强制过滤和 RRF。检索查询必须封装在 `HybridSearchStore` 接口之后，
-不让业务服务直接依赖 OpenSearch DSL。pgvector 可用于早期最小闭环或离线精确基线，但不与
-OpenSearch 组成两套并行的生产主检索结果。
+PostgreSQL 是知识库业务事实源，pgvector 保存并按相似度查询 Chunk Dense 向量；OpenSearch 只保存
+可从 PostgreSQL 重建的 BM25 文本投影。两路候选统一经过 PostgreSQL 当前 Head、状态和元数据强
+一致过滤，再由应用层 RRF/Rerank 融合。检索查询分别封装在 `KnowledgeVectorStore` 与文本投影
+Adapter 后，不让业务服务直接依赖 SQL 距离操作符或 OpenSearch DSL。
 
 原始文件不得作为大字段写入 PostgreSQL。服务端通过 `ObjectStorage` 接口保存文件：
 
@@ -131,7 +133,8 @@ Web 不解析文件、不生成向量，也不根据文件大小模拟字符数�
 - Object Storage Adapter：原文件上传、读取和删除。
 - Embedding Adapter：批量向量生成和供应商差异适配。
 - Ingestion Processor：解析、清洗、切分、向量化、重试和版本切换。
-- Hybrid Search Adapter：封装 OpenSearch BM25、Dense、过滤和 RRF，不暴露 DSL 给业务层。
+- Vector Store：封装 pgvector 写入、维度校验、距离排序和强制过滤，不暴露向量 SQL 给业务层。
+- Text Search Adapter：封装 OpenSearch BM25 文本投影与候选召回，不暴露 DSL 给业务层。
 - Rerank Adapter：对融合候选统一精排并提供可校准的最终 score。
 - Retrieval Service：召回测试、工作流和外部 API 共同使用的唯一检索入口。
 - Outbox Dispatcher：可靠发布入库、重建和清理任务。
@@ -386,41 +389,41 @@ OutboxEventStatus = PENDING | PUBLISHED | FAILED
 - `CHECK(progress BETWEEN 0 AND 100)`，计数字段不能为负数。
 - `INDEX(knowledgeBaseIndexId, status, createdAt)`。
 - `INDEX(documentId, createdAt)`。
-- `READY` 必须表示所有 Chunk 均已写入，OpenSearch 投影的向量维度、count 和 checksum 校验通过；
-  使用 pgvector 基线时还必须保证没有缺失 embedding。
+- `READY` 必须表示所有 Chunk 均已写入，pgvector 向量维度/数量和 OpenSearch BM25 投影的
+  count/checksum 均校验通过，不允许存在缺失 embedding。
 
 ### 5.10 KnowledgeChunk
 
 表示可检索的最小单元。为降低向量查询的 Join 和过滤成本，直接保存所属文档和索引代际：
 
-| 字段                   | 类型        | 约束与用途                          |
-| ---------------------- | ----------- | ----------------------------------- |
-| `id`                   | UUID        | 主键                                |
-| `knowledgeBaseIndexId` | UUID        | 所属索引代际                        |
-| `documentId`           | UUID        | 所属文档                            |
-| `documentVersionId`    | UUID        | 所属文档索引版本                    |
-| `sequence`             | Int         | 版本内稳定顺序，从 0 或 1 统一起算  |
-| `content`              | Text        | 分段正文                            |
-| `tokenCount`           | Int         | Token 数                            |
-| `contentHash`          | VarChar(64) | 规范化正文哈希                      |
-| `pageNumber`           | Int?        | 页码来源                            |
-| `startOffset`          | Int?        | 来源起始位置                        |
-| `endOffset`            | Int?        | 来源结束位置                        |
-| `metadata`             | JsonB       | 系统产生、可过滤的来源元数据        |
-| `embeddingDimension`   | Int?        | 仅 pgvector 最小闭环/离线基线时保存 |
-| `embedding`            | vector?     | 仅 pgvector 最小闭环/离线基线时保存 |
-| `createdAt`            | DateTime    | 创建时间                            |
+| 字段                   | 类型        | 约束与用途                         |
+| ---------------------- | ----------- | ---------------------------------- |
+| `id`                   | UUID        | 主键                               |
+| `knowledgeBaseIndexId` | UUID        | 所属索引代际                       |
+| `documentId`           | UUID        | 所属文档                           |
+| `documentVersionId`    | UUID        | 所属文档索引版本                   |
+| `sequence`             | Int         | 版本内稳定顺序，从 0 或 1 统一起算 |
+| `content`              | Text        | 分段正文                           |
+| `tokenCount`           | Int         | Token 数                           |
+| `contentHash`          | VarChar(64) | 规范化正文哈希                     |
+| `pageNumber`           | Int?        | 页码来源                           |
+| `startOffset`          | Int?        | 来源起始位置                       |
+| `endOffset`            | Int?        | 来源结束位置                       |
+| `metadata`             | JsonB       | 系统产生、可过滤的来源元数据       |
+| `embeddingDimension`   | Int?        | Dense 向量实际维度                 |
+| `embedding`            | vector?     | pgvector Dense 向量                |
+| `createdAt`            | DateTime    | 创建时间                           |
 
 约束与索引：
 
 - `UNIQUE(documentVersionId, sequence)`。
 - 复合外键保证 Version、Document 和 Index 一致。
-- 使用 pgvector 基线时，复合外键或自定义约束保证 `embeddingDimension` 等于 Index 的维度，并检查
-  `vector_dims(embedding) = embeddingDimension`；生产 OpenSearch 主路径不要求 PostgreSQL 保存向量。
+- 自定义约束保证 embedding 与 `embeddingDimension` 同时为空或同时存在，并检查
+  `vector_dims(embedding) = embeddingDimension`；完成投影时再校验其与 Index 的维度一致。
 - `CHECK(tokenCount >= 0)`、`CHECK(startOffset <= endOffset)`。
 - B-tree 索引至少覆盖 `documentVersionId`、`knowledgeBaseIndexId` 和 `documentId`。
-- OpenSearch 投影保存生产向量、全文字段和强制过滤字段；投影状态、count 和 checksum 在 PostgreSQL
-  中留痕。只有启用 pgvector 基线时才通过自定义 migration 创建 HNSW/IVFFlat。
+- OpenSearch 投影只保存 BM25 全文字段和必要过滤标识；向量保存在 PostgreSQL。混合维度先使用强制
+  过滤后的精确距离排序，确认生产维度与容量门槛后再通过自定义 migration 创建部分 HNSW 索引。
 
 ### 5.11 KnowledgeIngestionAttempt
 
@@ -621,8 +624,9 @@ stateDiagram-v2
 1. 校验知识库归属、删除状态和 `activeIndexId`。
 2. 读取 active Index、embedding space 和已发布 Retrieval Profile。
 3. 按 embedding space 分组生成查询向量。
-4. 在 OpenSearch 中对 active generation 应用 owner、ACL、文档状态、时间和 metadata 强制过滤。
-5. 每组执行标题/路径加权 BM25 + Dense + RRF；Fast 画像直接使用 RRF，Accurate 画像对合并候选
+4. pgvector Dense SQL 应用 owner、active generation、Head、文档/Chunk 状态和 metadata 强制过滤；
+   OpenSearch BM25 候选在融合前用相同 PostgreSQL 事实再次校验。
+5. 每组执行标题/路径加权 BM25 + pgvector Dense + RRF；Fast 画像直接使用 RRF，Accurate 画像对合并候选
    执行标题、标题路径、精确短语、词项覆盖与 Dense 相关度的确定性二阶段重排，RRF 只用于融合和
    同分排序；短关键词没有连续字面证据时不接受仅由词项覆盖或 Dense 名次产生的分数。
 6. 过滤低于画像阈值的候选，再去重、父块扩展、应用证据预算和最终 Top K；结果允许少于 Top K。
@@ -634,18 +638,16 @@ stateDiagram-v2
 1. 校验工作流草稿和版本引用；存在引用时拒绝删除并返回引用节点。
 2. 把 KnowledgeBase 或 Document 标记为 `DELETING`，立即从列表候选或检索条件中排除。
 3. 在同一事务创建 CleanupJob 和 OutboxEvent。
-4. Worker 幂等删除对象、RabbitMQ 待处理任务关联和 OpenSearch 投影；可选 pgvector 基线数据在最终
+4. Worker 幂等删除对象、RabbitMQ 待处理任务关联和 OpenSearch 投影；pgvector 数据随 Chunk 在最终
    数据库级联删除时回收。
 5. 全部成功后硬删除业务行；失败时保留业务行和任务为 `DELETE_FAILED` 并允许重试。
 
 ## 7. 向量与搜索投影约束
 
 生产主检索的索引组织、混合检索和多 Embedding space 设计以
-[生产级知识库、混合检索与外部 API 方案](./knowledge-base-production-api-design.md) 为准。OpenSearch
-是可从 PostgreSQL 重建的投影，只有 projection count/checksum 校验成功后文档版本或知识库索引
-代际才能 READY / active。
-
-以下 pgvector 约束只适用于早期最小闭环或离线精确基线，不代表生产同时维护第二套主检索：
+[生产级知识库、混合检索与外部 API 方案](./knowledge-base-production-api-design.md) 为准。pgvector
+保存 Dense 向量，OpenSearch 是可从 PostgreSQL 重建的 BM25 文本投影；只有 pgvector 向量数量、维度
+以及 OpenSearch projection count/checksum 全部校验成功后，文档版本或知识库索引代际才能 READY / active。
 
 pgvector 允许无固定维度的 `vector` 列保存不同维度数据，但近似索引只能覆盖相同维度的行。因此
 第一阶段采用以下策略：
@@ -653,8 +655,8 @@ pgvector 允许无固定维度的 `vector` 列保存不同维度数据，但近�
 - Prisma 中将向量列声明为 `Unsupported("vector")`，扩展、列、CHECK 和向量索引使用自定义
   migration 创建。
 - Chunk 保存 `embeddingDimension`，数据库校验实际向量维度一致。
-- 对平台明确支持的维度和距离算法建立表达式/部分 HNSW 索引。
-- 尚未建立近似索引的维度可以降级为精确检索，或在入库前拒绝为生产可用索引。
+- 当前所有维度在强制过滤后使用精确检索；达到容量门槛后，仅对平台明确支持的维度和距离算法建立
+  表达式/部分 HNSW 索引。
 - 每种距离算法使用对应的 pgvector 操作符类；查询不能运行时任意切换为未建立索引的算法。
 - 向量查询始终携带 active Index 过滤；规模增大后评估分区、迭代扫描或专用向量库。
 
@@ -766,14 +768,13 @@ Parser、Cleaner、Chunker 版本和同一配置解释器，确保预览块与�
 入库与检索使用一条统一链路，分段模式只改变检索单元和上下文扩展方式：
 
 ```text
-入库：文件 -> Parser -> 保守 Cleaner -> 模式化 Chunker -> Embedding -> OpenSearch 投影
+入库：文件 -> Parser -> 保守 Cleaner -> 模式化 Chunker -> Embedding -> pgvector + OpenSearch BM25 投影
 查询：Query 规范化 -> Query Embedding -> BM25 + Dense 并行召回 -> RRF -> Rerank
      -> 父块扩展（仅父子分段）-> 去重与证据预算 -> Top K -> RAG 节点
 ```
 
-- PostgreSQL 保存 Document、不可变 Source、Version、Chunk 元数据和当前成功版本，作为业务事实源。
-- OpenSearch 保存 Chunk 的可重建检索投影，同一投影同时包含 BM25 文本、Dense 向量、来源、版本、
-  ACL 和父子关系字段。
+- PostgreSQL 保存 Document、不可变 Source、Version、Chunk 元数据、Dense 向量和当前成功版本，作为业务事实源。
+- OpenSearch 保存 Chunk 的可重建 BM25 文本投影，以及来源、版本、ACL 和父子关系字段。
 - Query 使用每个知识库 active Index 对应的 Embedding 模型生成向量；不同 Embedding 空间先分组召回，
   再由同一个 Cross-Encoder 对候选统一 Rerank，不能直接比较不同空间的向量分数。
 - 通用模式直接返回命中 Chunk；Q&A 返回完整问答单元；父子分段用子块参与召回，再扩展父块作为
@@ -935,7 +936,7 @@ interface RetrievedChunk {
 3. 已落地 S3/MinIO、本地开发 Source Store、PDF/Markdown/TXT/DOCX/PPTX/XLSX/CSV/HTML 解析、事实模型、RabbitMQ/Outbox、
    幂等 Worker、版本化 Chunk、投影状态和原子 Head/active Index 切换；待执行迁移和环境联调。
 4. 已实现 OpenAI-compatible/Ollama Embedding、批量调用、维度识别和 embedding space 分组。
-5. 已实现 OpenSearch BM25 + Dense、强制租户/代际/文档过滤、应用层 RRF 和真实召回测试。
+5. 已实现 OpenSearch BM25 + pgvector Dense、强制租户/代际/Head/文档/Chunk/元数据过滤、应用层 RRF 和真实召回测试。
 6. 已实现 Go RAG Executor 与统一 Retriever；继续补齐发布校验和强类型引用投影。
 7. 已补齐带保护期的 Source 孤儿对象 GC；继续完成退役代际回收、禁用/删除投影传播和失败清理。
 8. 用独立 Cross-encoder Provider 替换确定性二阶段重排，并实现父块扩展、证据预算和版本化黄金集回归门槛。

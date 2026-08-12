@@ -54,8 +54,8 @@ import {
 } from '@nestjs/common'
 import { FilesInterceptor } from '@nestjs/platform-express'
 
-const MAX_KNOWLEDGE_DOCUMENT_SIZE = 15 * 1024 * 1024
-const MAX_KNOWLEDGE_DOCUMENT_FILES = 10
+const MAX_KNOWLEDGE_DOCUMENT_SIZE = 15 * 1024 * 1024,
+  MAX_KNOWLEDGE_DOCUMENT_FILES = 10
 
 @JwtAuth()
 @Controller('knowledge-bases')
@@ -114,7 +114,8 @@ export class KnowledgeBaseController {
   @Get(':knowledgeBaseId/settings')
   getSettings(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
   ): Promise<KnowledgeBaseSettingsVo> {
     return this.knowledgeBaseService.getSettings(request.auth.userId, knowledgeBaseId)
   }
@@ -122,7 +123,8 @@ export class KnowledgeBaseController {
   @Patch(':knowledgeBaseId/settings')
   updateSettings(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Body() dto: UpdateKnowledgeBaseSettingsDto,
   ): Promise<KnowledgeBaseSettingsVo> {
     return this.knowledgeBaseService.updateSettings(request.auth.userId, knowledgeBaseId, dto)
@@ -131,7 +133,8 @@ export class KnowledgeBaseController {
   @Get(':knowledgeBaseId/metadata-fields')
   listMetadataFields(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
   ): Promise<KnowledgeMetadataFieldVo[]> {
     return this.knowledgeBaseService.listMetadataFields(request.auth.userId, knowledgeBaseId)
   }
@@ -139,7 +142,8 @@ export class KnowledgeBaseController {
   @Post(':knowledgeBaseId/metadata-fields')
   createMetadataField(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Body() dto: CreateKnowledgeMetadataFieldDto,
   ): Promise<KnowledgeMetadataFieldVo> {
     return this.knowledgeBaseService.createMetadataField(request.auth.userId, knowledgeBaseId, dto)
@@ -148,7 +152,8 @@ export class KnowledgeBaseController {
   @Patch(':knowledgeBaseId/metadata-fields/:fieldId')
   updateMetadataField(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Param('fieldId', new ParseUUIDPipe({ version: '4' })) fieldId: string,
     @Body() dto: UpdateKnowledgeMetadataFieldDto,
   ): Promise<KnowledgeMetadataFieldVo> {
@@ -163,7 +168,8 @@ export class KnowledgeBaseController {
   @Delete(':knowledgeBaseId/metadata-fields/:fieldId')
   deleteMetadataField(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Param('fieldId', new ParseUUIDPipe({ version: '4' })) fieldId: string,
   ): Promise<void> {
     return this.knowledgeBaseService.deleteMetadataField(
@@ -176,7 +182,8 @@ export class KnowledgeBaseController {
   @Get(':knowledgeBaseId/indexes')
   listIndexes(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
   ): Promise<KnowledgeBaseIndexListVo> {
     return this.knowledgeBaseService.listIndexes(request.auth.userId, knowledgeBaseId)
   }
@@ -184,7 +191,8 @@ export class KnowledgeBaseController {
   @Post(':knowledgeBaseId/indexes/rebuild')
   rebuildFailedIndex(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
   ): Promise<KnowledgeBaseIndexVo> {
     return this.knowledgeBaseService.rebuildFailedIndex(request.auth.userId, knowledgeBaseId)
   }
@@ -192,7 +200,8 @@ export class KnowledgeBaseController {
   @Post(':knowledgeBaseId/retrieve')
   retrieve(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Body() dto: RetrieveKnowledgeBaseDto,
   ): Promise<KnowledgeRetrievalVo> {
     return this.knowledgeRetrievalService.retrieve(
@@ -200,14 +209,18 @@ export class KnowledgeBaseController {
       [knowledgeBaseId],
       dto.query,
       dto.topK,
-      { debug: true },
+      {
+        debug: true,
+        ...(dto.metadataFilter ? { metadataFilter: dto.metadataFilter } : {}),
+      },
     )
   }
 
   @Get(':knowledgeBaseId/documents')
   listDocuments(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @Query() query: ListKnowledgeDocumentsDto,
   ): Promise<KnowledgeDocumentListVo> {
     return this.knowledgeBaseService.listDocuments(request.auth.userId, knowledgeBaseId, query)
@@ -224,7 +237,8 @@ export class KnowledgeBaseController {
   )
   createDocuments(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @UploadedFiles() files: UploadedKnowledgeDocument[] | undefined,
     @Body() dto: CreateKnowledgeDocumentsDto,
   ): Promise<KnowledgeDocumentVo[]> {
@@ -247,7 +261,8 @@ export class KnowledgeBaseController {
   )
   previewDocuments(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
     @UploadedFiles() files: UploadedKnowledgeDocument[] | undefined,
     @Body() dto: CreateKnowledgeDocumentsDto,
   ): Promise<KnowledgeDocumentPreviewVo> {
@@ -262,8 +277,10 @@ export class KnowledgeBaseController {
   @Get(':knowledgeBaseId/documents/:documentId')
   getDocument(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
   ): Promise<KnowledgeDocumentVo> {
     return this.knowledgeBaseService.getDocument(request.auth.userId, knowledgeBaseId, documentId)
   }
@@ -271,8 +288,10 @@ export class KnowledgeBaseController {
   @Patch(':knowledgeBaseId/documents/:documentId')
   updateDocument(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
     @Body() dto: UpdateKnowledgeDocumentDto,
   ): Promise<KnowledgeDocumentVo> {
     return this.knowledgeBaseService.updateDocument(
@@ -286,8 +305,10 @@ export class KnowledgeBaseController {
   @Put(':knowledgeBaseId/documents/:documentId/metadata')
   updateDocumentMetadata(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
     @Body() dto: UpdateKnowledgeDocumentMetadataDto,
   ): Promise<KnowledgeDocumentVo> {
     return this.knowledgeBaseService.updateDocumentMetadata(
@@ -301,8 +322,10 @@ export class KnowledgeBaseController {
   @Delete(':knowledgeBaseId/documents/:documentId')
   removeDocument(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
   ): Promise<void> {
     return this.knowledgeBaseService.removeDocument(
       request.auth.userId,
@@ -314,8 +337,10 @@ export class KnowledgeBaseController {
   @Post(':knowledgeBaseId/documents/:documentId/reindex')
   reindexDocument(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
   ): Promise<KnowledgeDocumentVo> {
     return this.knowledgeBaseService.reindexDocument(
       request.auth.userId,
@@ -327,8 +352,10 @@ export class KnowledgeBaseController {
   @Get(':knowledgeBaseId/documents/:documentId/chunks')
   listChunks(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
     @Query() query: ListKnowledgeChunksDto,
   ): Promise<KnowledgeChunkListVo> {
     return this.knowledgeBaseService.listChunks(
@@ -342,8 +369,10 @@ export class KnowledgeBaseController {
   @Post(':knowledgeBaseId/documents/:documentId/chunks')
   createChunk(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
     @Body() dto: CreateKnowledgeChunkDto,
   ): Promise<KnowledgeChunkVo> {
     return this.knowledgeBaseService.createChunk(
@@ -357,8 +386,10 @@ export class KnowledgeBaseController {
   @Patch(':knowledgeBaseId/documents/:documentId/chunks/:chunkId')
   updateChunk(
     @Req() request: AuthenticatedRequest,
-    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' })) knowledgeBaseId: string,
-    @Param('documentId', new ParseUUIDPipe({ version: '4' })) documentId: string,
+    @Param('knowledgeBaseId', new ParseUUIDPipe({ version: '4' }))
+    knowledgeBaseId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
     @Param('chunkId', new ParseUUIDPipe({ version: '4' })) chunkId: string,
     @Body() dto: UpdateKnowledgeChunkDto,
   ): Promise<KnowledgeChunkVo> {

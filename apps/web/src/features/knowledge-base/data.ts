@@ -4,19 +4,18 @@ import type { DocumentSegmentationMode } from './constants'
 import type { KnowledgeBaseDocument, KnowledgeBaseListItem } from './types'
 
 const uploadedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
-const segmentationModeMap = {
-  GENERAL: 'general',
-  QA: 'qa',
-  PARENT_CHILD: 'parent-child',
-} as const satisfies Record<KnowledgeDocumentDto['segmentationMode'], DocumentSegmentationMode>
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }),
+  segmentationModeMap = {
+    GENERAL: 'general',
+    QA: 'qa',
+    PARENT_CHILD: 'parent-child',
+  } as const satisfies Record<KnowledgeDocumentDto['segmentationMode'], DocumentSegmentationMode>
 
 type SupportedKnowledgeDocumentFileType = Exclude<KnowledgeBaseDocument['fileType'], 'other'>
 
@@ -73,9 +72,9 @@ export function toKnowledgeBaseDocument(document: KnowledgeDocumentDto): Knowled
         : status === 'stale'
           ? '待更新'
           : status === 'indexing'
-            ? '处理中'
+            ? '索引构建中'
             : status === 'error'
-              ? '处理失败'
+              ? '索引构建失败'
               : '已禁用',
     enabled: document.enabled,
     needsReindex: document.needsReindex,

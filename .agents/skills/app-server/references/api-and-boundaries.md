@@ -193,6 +193,8 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - `GET/PATCH /knowledge-bases/:knowledgeBaseId/settings`：读取或保存知识库嵌入模型、分段与检索设置。嵌入模型使用可同时为空的 `embeddingModelGroupId` / `embeddingConfiguredModelId` 稳定引用；修改引用时服务端校验 owner、`EMBEDDING` 类型以及组和模型启用状态。只有分段配置变更才提升 `segmentationRevision`，已有 Chunk 保持不变，响应通过 `staleDocumentCount` 告知需手动更新的文档数。
 - `POST /knowledge-bases/:knowledgeBaseId/retrieve`：召回测试按知识库保存的 `retrievalProfile` 执行
   统一 Retriever；请求只提交 `query` 与最终 `topK`，不得由浏览器覆盖内部候选数或重排参数。
+  可选 `metadataFilter` 使用元数据字段 UUID 作为 Key，值只接受与字段目录类型一致的字符串、时间
+  字符串或数字；过滤条件与 owner、活动索引、Head 和文档/Chunk 状态条件按 `AND` 组合。
   响应返回实际 `profile`、`profileVersion`、`scoreType` 和结果；管理端调试结果额外包含 BM25、
   Dense、RRF 排名/原始分数及可选重排分数，工作流内部调用不返回这些调试字段。Accurate 画像
   会过滤低于版本化阈值的候选，因此结果数允许少于请求的 TopK。
@@ -202,12 +204,15 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
   `READY` 与 `FAILED` 文档；失败文档先切换为 `PROCESSING`，成功 Head 随新代际激活后恢复为
   `READY`。已有 `BUILDING` 代际时返回 `409`，禁止重复投递或原地修改失败代际。
 - `GET/POST /knowledge-bases/:knowledgeBaseId/documents`：分页搜索文档，或通过 multipart 上传 PDF、
-  Markdown、TXT；上传最多 10 个文件，单文件最大 15 MiB。上传接口保存 Source、Document、Version
-  与 Outbox 后返回文档数组；存在活动或构建中索引时初始状态为 `PROCESSING`，Worker 完成当前可服务
-  索引的 Embedding 与 OpenSearch 投影后转为 `READY`，不可重试失败转为 `FAILED`。列表查询支持
+  Markdown、TXT、DOCX、PPTX、XLSX、CSV 和 HTML；上传最多 10 个文件，单文件最大 15 MiB。
+  正式上传前必须存在当前用户可用且启用的 Embedding 模型，以及活动或构建中的可写索引，否则返回
+  `409`；接口保存 Source、Document、Version 与 Outbox 后返回 `PROCESSING` 文档数组。Worker 只有在
+  pgvector 向量数量/维度和 OpenSearch BM25 投影 count/checksum 都完整后才转为 `READY`，任一路
+  不可重试失败都转为 `FAILED`。列表查询支持
   `fileType=pdf|markdown|text`，以及 `uploaded_desc`、`recall_desc`、`character_desc`、`name_asc`
   排序；筛选、排序和分页都由服务端执行。
-- `POST /knowledge-bases/:knowledgeBaseId/documents/preview`：使用与正式入库相同的 Parser/Cleaner/Chunker 生成临时预览，不写入数据库或原文存储。
+- `POST /knowledge-bases/:knowledgeBaseId/documents/preview`：使用与正式入库相同的 Parser/Cleaner/Chunker
+  生成临时预览，不要求配置 Embedding 模型，也不写入数据库、原文存储、pgvector 或 OpenSearch。
 - `GET/PATCH/DELETE /knowledge-bases/:knowledgeBaseId/documents/:documentId`：读取、启停/重命名或删除文档；
   单文档读取是管理 Web 恢复和轮询异步入库状态的事实接口，当前不为知识库状态单独提供 SSE。
 - `POST /knowledge-bases/:knowledgeBaseId/documents/:documentId/reindex`：用知识库当前分段设置重新解析保存的原文，在单个数据库事务内替换该文档 Chunk；这是配置变更后更新旧分段的唯一入口。
@@ -229,7 +234,7 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 
 知识库响应使用显式 VO，不得暴露 Prisma model。文档和 Chunk 列表返回 `items/total/page/pageSize`；
 文档响应显式返回当前分段快照、`needsReindex`、异步入库状态、失败信息和从正式检索命中事实聚合的
-`recallCount`。`READY` 只允许在当前可服务索引投影完成或无需索引任务时返回。
+`recallCount`。正式上传文档的 `READY` 只允许在当前可服务索引的 pgvector 和 OpenSearch 投影都完成后返回。
 
 ### 知识库外部 Service API
 
@@ -240,7 +245,8 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 生产错误契约仍是后续目标。
 
 - `POST /v1/knowledge/retrieve`：只执行 ACL 过滤后的混合检索和 Rerank，返回稳定的 Chunk、文档、
-  内容、元数据和相关性，不返回管理端调试分数；请求限制 query 1–4000 字符、TopK 1–20，当前只
+  内容、合并后的文档/Chunk 元数据和相关性，不返回管理端调试分数；请求限制 query 1–4000 字符、TopK 1–20，
+  可选 `metadataFilter` 与管理端召回使用相同字段白名单和类型校验；当前只
   允许提交 Key 所绑定的一个知识库。响应和 Header 返回 `requestId`，继续复用
   `KnowledgeRetrievalService`，适合其他项目自行组合上下文。
 - `POST /v1/knowledge/answer`：复用同一检索结果后生成带引用答案，支持阻塞 JSON 和 SSE；证据不足时

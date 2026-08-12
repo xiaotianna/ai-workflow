@@ -143,9 +143,9 @@ export class KnowledgeBaseService {
     documentId: string,
     dto: UpdateKnowledgeDocumentMetadataDto,
   ): Promise<KnowledgeDocumentVo> {
-    const fields = await this.knowledgeBaseRepository.listMetadataFields(ownerId, knowledgeBaseId)
-    const fieldsById = new Map(fields.map((field) => [field.id, field]))
-    const entries = Object.entries(dto.values)
+    const fields = await this.knowledgeBaseRepository.listMetadataFields(ownerId, knowledgeBaseId),
+      fieldsById = new Map(fields.map((field) => [field.id, field])),
+      entries = Object.entries(dto.values)
     if (entries.length > 50) throw new BadRequestException('单个文档最多标注 50 个元数据字段')
 
     const metadata: Record<string, string | number> = {}
@@ -319,10 +319,10 @@ export class KnowledgeBaseService {
     }
 
     const sources = await this.knowledgeBaseRepository.listSourceStorageKeys(
-      ownerId,
-      knowledgeBaseId,
-    )
-    const removed = await this.knowledgeBaseRepository.remove(ownerId, knowledgeBaseId)
+        ownerId,
+        knowledgeBaseId,
+      ),
+      removed = await this.knowledgeBaseRepository.remove(ownerId, knowledgeBaseId)
 
     if (!removed) {
       throw new NotFoundException('知识库不存在')
@@ -352,26 +352,25 @@ export class KnowledgeBaseService {
     if (!current) throw new NotFoundException('知识库不存在')
 
     const embeddingModelGroupId =
-      dto.embeddingModelGroupId === undefined
-        ? current.settings.embeddingModelGroupId
-        : dto.embeddingModelGroupId
-    const embeddingConfiguredModelId =
-      dto.embeddingConfiguredModelId === undefined
-        ? current.settings.embeddingConfiguredModelId
-        : dto.embeddingConfiguredModelId
+        dto.embeddingModelGroupId === undefined
+          ? current.settings.embeddingModelGroupId
+          : dto.embeddingModelGroupId,
+      embeddingConfiguredModelId =
+        dto.embeddingConfiguredModelId === undefined
+          ? current.settings.embeddingConfiguredModelId
+          : dto.embeddingConfiguredModelId
     if (Boolean(embeddingModelGroupId) !== Boolean(embeddingConfiguredModelId)) {
       throw new BadRequestException('嵌入模型组和模型必须同时选择或同时清空')
     }
 
     const embeddingModelChanged =
-      current.settings.embeddingModelGroupId !== embeddingModelGroupId ||
-      current.settings.embeddingConfiguredModelId !== embeddingConfiguredModelId
-
-    const segmentationChanged =
-      current.settings.segmentationMode !== dto.segmentationMode ||
-      current.settings.maxSegmentLength !== dto.maxSegmentLength ||
-      current.settings.overlapLength !== dto.overlapLength ||
-      current.settings.normalizeWhitespace !== dto.normalizeWhitespace
+        current.settings.embeddingModelGroupId !== embeddingModelGroupId ||
+        current.settings.embeddingConfiguredModelId !== embeddingConfiguredModelId,
+      segmentationChanged =
+        current.settings.segmentationMode !== dto.segmentationMode ||
+        current.settings.maxSegmentLength !== dto.maxSegmentLength ||
+        current.settings.overlapLength !== dto.overlapLength ||
+        current.settings.normalizeWhitespace !== dto.normalizeWhitespace
 
     let indexSnapshot:
       | {
@@ -395,8 +394,8 @@ export class KnowledgeBaseService {
       embeddingModelGroupId &&
       embeddingConfiguredModelId
     ) {
-      const group = await this.modelGroupRepository.findById(ownerId, embeddingModelGroupId)
-      const model = group?.models.find(({ id }) => id === embeddingConfiguredModelId)
+      const group = await this.modelGroupRepository.findById(ownerId, embeddingModelGroupId),
+        model = group?.models.find(({ id }) => id === embeddingConfiguredModelId)
 
       if (!group || group.modelType !== 'EMBEDDING' || !model) {
         throw new BadRequestException('请选择当前账号下有效的嵌入模型')
@@ -406,24 +405,24 @@ export class KnowledgeBaseService {
       }
 
       const defaultChunkConfig = {
-        segmentationMode: dto.segmentationMode,
-        maxSegmentLength: dto.maxSegmentLength,
-        overlapLength: dto.overlapLength,
-      }
-      const defaultCleaningConfig = {
-        normalizeWhitespace: dto.normalizeWhitespace,
-      }
-      const indexConfig = {
-        configuredModelId: model.id,
-        embeddingProvider: group.providerType,
-        embeddingModelId: model.modelId,
-        distanceMetric: 'COSINE',
-        defaultChunkConfig,
-        defaultCleaningConfig,
-        parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
-        cleanerVersion: 'conservative-v1',
-        mappingVersion: 'opensearch-v1',
-      }
+          segmentationMode: dto.segmentationMode,
+          maxSegmentLength: dto.maxSegmentLength,
+          overlapLength: dto.overlapLength,
+        },
+        defaultCleaningConfig = {
+          normalizeWhitespace: dto.normalizeWhitespace,
+        },
+        indexConfig = {
+          configuredModelId: model.id,
+          embeddingProvider: group.providerType,
+          embeddingModelId: model.modelId,
+          distanceMetric: 'COSINE',
+          defaultChunkConfig,
+          defaultCleaningConfig,
+          parserVersion: KNOWLEDGE_DOCUMENT_PARSER_VERSION,
+          cleanerVersion: 'conservative-v1',
+          mappingVersion: 'opensearch-v1',
+        }
       indexSnapshot = {
         configuredModelId: model.id,
         embeddingProvider: group.providerType,
@@ -508,7 +507,7 @@ export class KnowledgeBaseService {
     if (dto.overlapLength >= dto.maxSegmentLength) {
       throw new BadRequestException('重叠长度必须小于分段最大长度')
     }
-    await this.requireKnowledgeBase(ownerId, knowledgeBaseId)
+    await this.requireAvailableEmbeddingModel(ownerId, knowledgeBaseId)
 
     const config: KnowledgeChunkConfig = {
       segmentationMode: dto.segmentationMode,
@@ -518,9 +517,9 @@ export class KnowledgeBaseService {
     }
     return Promise.all(
       files.map(async (file) => {
-        const fileName = normalizeUploadedFileName(file.originalname)
-        const text = await this.knowledgeChunkerService.parseText(file.buffer, fileName)
-        const chunks = this.knowledgeChunkerService.chunk(text, config)
+        const fileName = normalizeUploadedFileName(file.originalname),
+          text = await this.knowledgeChunkerService.parseText(file.buffer, fileName),
+          chunks = this.knowledgeChunkerService.chunk(text, config)
         if (!chunks.length) throw new BadRequestException(`${fileName} 没有可用的分段内容`)
 
         const sourceStorageKey = await this.knowledgeSourceStore.store(
@@ -548,6 +547,12 @@ export class KnowledgeBaseService {
               metadata: chunk.metadata,
             })),
           })
+          if (document === 'embedding-model-unavailable') {
+            throw new ConflictException('请先在知识库设置中选择并启用嵌入模型')
+          }
+          if (document === 'index-unavailable') {
+            throw new ConflictException('知识库索引不可用，请先在设置中重新构建索引')
+          }
           return this.toDocumentVo(document)
         } catch (error) {
           await this.knowledgeSourceStore.remove(sourceStorageKey)
@@ -579,9 +584,9 @@ export class KnowledgeBaseService {
     return {
       files: await Promise.all(
         files.map(async (file) => {
-          const fileName = normalizeUploadedFileName(file.originalname)
-          const text = await this.knowledgeChunkerService.parseText(file.buffer, fileName)
-          const chunks = this.knowledgeChunkerService.chunk(text, config)
+          const fileName = normalizeUploadedFileName(file.originalname),
+            text = await this.knowledgeChunkerService.parseText(file.buffer, fileName),
+            chunks = this.knowledgeChunkerService.chunk(text, config)
           return {
             name: fileName,
             total: chunks.length,
@@ -664,17 +669,17 @@ export class KnowledgeBaseService {
     ])
     if (!document || !settingsResult) throw new NotFoundException('文档不存在')
 
-    const source = await this.knowledgeSourceStore.read(document.sourceStorageKey)
-    const sourceName = getKnowledgeDocumentSourceFileName(document.fileType)
+    const source = await this.knowledgeSourceStore.read(document.sourceStorageKey),
+      sourceName = getKnowledgeDocumentSourceFileName(document.fileType)
     if (!sourceName) throw new BadRequestException('原文件类型不受支持')
-    const text = await this.knowledgeChunkerService.parseText(source, sourceName)
-    const config: KnowledgeChunkConfig = {
-      segmentationMode: settingsResult.settings.segmentationMode,
-      maxSegmentLength: settingsResult.settings.maxSegmentLength,
-      overlapLength: settingsResult.settings.overlapLength,
-      normalizeWhitespace: settingsResult.settings.normalizeWhitespace,
-    }
-    const chunks = this.knowledgeChunkerService.chunk(text, config)
+    const text = await this.knowledgeChunkerService.parseText(source, sourceName),
+      config: KnowledgeChunkConfig = {
+        segmentationMode: settingsResult.settings.segmentationMode,
+        maxSegmentLength: settingsResult.settings.maxSegmentLength,
+        overlapLength: settingsResult.settings.overlapLength,
+        normalizeWhitespace: settingsResult.settings.normalizeWhitespace,
+      },
+      chunks = this.knowledgeChunkerService.chunk(text, config)
     if (!chunks.length) {
       throw new BadRequestException('原文中没有可用的分段内容')
     }
@@ -735,6 +740,25 @@ export class KnowledgeBaseService {
   private async requireKnowledgeBase(ownerId: string, knowledgeBaseId: string): Promise<void> {
     const knowledgeBase = await this.knowledgeBaseRepository.findById(ownerId, knowledgeBaseId)
     if (!knowledgeBase) throw new NotFoundException('知识库不存在')
+  }
+
+  private async requireAvailableEmbeddingModel(
+    ownerId: string,
+    knowledgeBaseId: string,
+  ): Promise<void> {
+    const result = await this.knowledgeBaseRepository.getSettings(ownerId, knowledgeBaseId)
+    if (!result) throw new NotFoundException('知识库不存在')
+
+    const { embeddingModelGroupId, embeddingConfiguredModelId } = result.settings
+    if (!embeddingModelGroupId || !embeddingConfiguredModelId) {
+      throw new ConflictException('请先在知识库设置中选择嵌入模型')
+    }
+
+    const group = await this.modelGroupRepository.findById(ownerId, embeddingModelGroupId),
+      model = group?.models.find(({ id }) => id === embeddingConfiguredModelId)
+    if (!group || group.modelType !== 'EMBEDDING' || !model || !group.enabled || !model.enabled) {
+      throw new ConflictException('当前嵌入模型不可用，请先在知识库设置中检查模型配置')
+    }
   }
 
   private toSettingsVo(

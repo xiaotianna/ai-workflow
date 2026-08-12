@@ -2,7 +2,7 @@ name: ai-workflow-dev
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:0.8.6-pg17-bookworm
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ai_workflow}
       POSTGRES_USER: ${POSTGRES_USER:-ai_workflow}

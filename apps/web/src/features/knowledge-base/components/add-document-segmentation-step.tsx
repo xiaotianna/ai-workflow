@@ -11,7 +11,15 @@ import {
   SelectValue,
 } from '@ai-workflow/ui/components/select'
 import { Skeleton } from '@ai-workflow/ui/components/skeleton'
-import { ArrowLeft, FileSearch, RotateCcw, Save, Search, Settings2 } from 'lucide-react'
+import {
+  ArrowLeft,
+  FileSearch,
+  RotateCcw,
+  Save,
+  Search,
+  Settings2,
+  TriangleAlert,
+} from 'lucide-react'
 import { useEffect, useState, type ReactNode } from 'react'
 
 import {
@@ -24,6 +32,7 @@ import { AddDocumentStepHeader } from './add-document-step-header'
 import { DocumentFileTypeIcon } from './document-file-type-icon'
 
 interface AddDocumentSegmentationStepProps {
+  embeddingEnabled: boolean
   errors: Record<string, string>
   files: readonly File[]
   maxSegmentLength: number
@@ -33,6 +42,7 @@ interface AddDocumentSegmentationStepProps {
   submitting: boolean
   onBack: () => void
   onClose: () => void
+  onConfigureEmbedding: () => void
   onMaxSegmentLengthChange: (value: number) => void
   onOverlapLengthChange: (value: number) => void
   onReplaceWhitespaceChange: (checked: boolean) => void
@@ -94,6 +104,7 @@ function PreviewSkeleton() {
 }
 
 export function AddDocumentSegmentationStep({
+  embeddingEnabled,
   errors,
   files,
   maxSegmentLength,
@@ -103,6 +114,7 @@ export function AddDocumentSegmentationStep({
   submitting,
   onBack,
   onClose,
+  onConfigureEmbedding,
   onMaxSegmentLengthChange,
   onOverlapLengthChange,
   onReplaceWhitespaceChange,
@@ -111,12 +123,12 @@ export function AddDocumentSegmentationStep({
   onSegmentationModeChange,
   onSubmit,
 }: AddDocumentSegmentationStepProps) {
-  const [selectedFileIndex, setSelectedFileIndex] = useState('0')
-  const [previewVisible, setPreviewVisible] = useState(false)
-  const [previewing, setPreviewing] = useState(false)
-  const [preview, setPreview] = useState<DocumentPreview>()
-  const selectedPreview = preview?.files[Number(selectedFileIndex)]
-  const segmentationModeOption = getDocumentSegmentationModeOption(segmentationMode)
+  const [selectedFileIndex, setSelectedFileIndex] = useState('0'),
+    [previewVisible, setPreviewVisible] = useState(false),
+    [previewing, setPreviewing] = useState(false),
+    [preview, setPreview] = useState<DocumentPreview>(),
+    selectedPreview = preview?.files[Number(selectedFileIndex)],
+    segmentationModeOption = getDocumentSegmentationModeOption(segmentationMode)
 
   useEffect(() => {
     setPreviewVisible(false)
@@ -251,6 +263,29 @@ export function AddDocumentSegmentationStep({
                     </Button>
                   </div>
                 </SettingCard>
+                {!embeddingEnabled ? (
+                  <div
+                    role="alert"
+                    className="border-warning/40 bg-warning/10 mt-4 flex items-start gap-3 rounded-lg border-[0.5px] px-3.5 py-3"
+                  >
+                    <TriangleAlert aria-hidden className="text-warning mt-0.5 size-4 shrink-0" />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-foreground text-xs font-medium">正式处理需要嵌入模型</p>
+                      <p className="text-muted-foreground mt-1 text-xs leading-5">
+                        你仍然可以预览分段；保存并构建索引前，请先选择并启用 Embedding 模型。
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="xs"
+                      className="shrink-0"
+                      onClick={onConfigureEmbedding}
+                    >
+                      前往设置
+                    </Button>
+                  </div>
+                ) : null}
               </section>
             </div>
           </div>
@@ -341,7 +376,13 @@ export function AddDocumentSegmentationStep({
           <ArrowLeft aria-hidden className="size-4" />
           上一步
         </Button>
-        <Button type="button" variant="confirm" size="sm" disabled={submitting} onClick={onSubmit}>
+        <Button
+          type="button"
+          variant="confirm"
+          size="sm"
+          disabled={submitting || !embeddingEnabled}
+          onClick={onSubmit}
+        >
           <Save aria-hidden className="size-4" />
           {submitting ? '处理中…' : '保存并处理'}
         </Button>
