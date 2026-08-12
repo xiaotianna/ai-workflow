@@ -4,10 +4,9 @@ import { CircleCheck, CircleX, RefreshCw, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion, MotionConfig } from 'motion/react'
 
 const selectionActionButtonClassName =
-  'hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))]'
-
-const selectionDestructiveButtonClassName =
-  'text-destructive hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] hover:text-destructive focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] focus-visible:text-destructive dark:hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))]'
+    'hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:hover:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--primary)_14%,var(--background))]',
+  selectionDestructiveButtonClassName =
+    'text-destructive hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] hover:text-destructive focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] focus-visible:text-destructive dark:hover:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))] dark:focus-visible:bg-[color-mix(in_oklab,var(--destructive)_12%,var(--background))]'
 
 interface KnowledgeSelectionActionsProps {
   ariaLabel: string

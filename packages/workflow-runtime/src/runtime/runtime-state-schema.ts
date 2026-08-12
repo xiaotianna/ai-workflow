@@ -51,16 +51,15 @@ export const RUNTIME_EXECUTION_STATUSES = {
   FAILED: 'FAILED',
 } as const
 
-const runtimeRunStatusSchema = z.enum(RUNTIME_RUN_STATUSES)
-const runtimeNodeStatusSchema = z.enum(RUNTIME_NODE_STATUSES)
-const runtimeEdgeStatusSchema = z.enum(RUNTIME_EDGE_STATUSES)
-const runtimeExecutionStatusSchema = z.enum(RUNTIME_EXECUTION_STATUSES)
-
-// 当前 Run 可读取的系统级变量，例如用户、应用、Workflow 和 Run 标识；键和值契约复用 Core
-const runtimeSystemVariablesSchema: z.ZodType<Record<SystemVariableKey, JsonValue>> = z.record(
-  systemVariableKeySchema,
-  jsonValueSchema,
-)
+const runtimeRunStatusSchema = z.enum(RUNTIME_RUN_STATUSES),
+  runtimeNodeStatusSchema = z.enum(RUNTIME_NODE_STATUSES),
+  runtimeEdgeStatusSchema = z.enum(RUNTIME_EDGE_STATUSES),
+  runtimeExecutionStatusSchema = z.enum(RUNTIME_EXECUTION_STATUSES),
+  // 当前 Run 可读取的系统级变量，例如用户、应用、Workflow 和 Run 标识；键和值契约复用 Core
+  runtimeSystemVariablesSchema: z.ZodType<Record<SystemVariableKey, JsonValue>> = z.record(
+    systemVariableKeySchema,
+    jsonValueSchema,
+  )
 
 export const runtimeNodeStateSchema = z.object({
   // 当前节点在根 DAG 中的运行状态

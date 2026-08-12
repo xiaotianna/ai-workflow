@@ -31,21 +31,21 @@ export function useWorkflowSave({
   snapshot,
   nodeRegistry,
 }: UseWorkflowSaveOptions) {
-  const signature = getSnapshotSignature(snapshot)
-  const [errors, setErrors] = useState<string[]>([])
-  const [lastSavedAt, setLastSavedAt] = useState<Date | undefined>(initialSavedAt)
-  const [pending, setPending] = useState(false)
-  const [status, setStatus] = useState<WorkflowSaveStatus>('saved')
-  const debounceElapsedRef = useRef(false)
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const inFlightSignatureRef = useRef<string | undefined>(undefined)
-  const latestSignatureRef = useRef(signature)
-  const latestSnapshotRef = useRef(snapshot)
-  const mountedRef = useRef(true)
-  const onSaveRef = useRef(onSave)
-  const onSavedRef = useRef(onSaved)
-  const savedSignatureRef = useRef(signature)
-  const savingRef = useRef(false)
+  const signature = getSnapshotSignature(snapshot),
+    [errors, setErrors] = useState<string[]>([]),
+    [lastSavedAt, setLastSavedAt] = useState<Date | undefined>(initialSavedAt),
+    [pending, setPending] = useState(false),
+    [status, setStatus] = useState<WorkflowSaveStatus>('saved'),
+    debounceElapsedRef = useRef(false),
+    debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined),
+    inFlightSignatureRef = useRef<string | undefined>(undefined),
+    latestSignatureRef = useRef(signature),
+    latestSnapshotRef = useRef(snapshot),
+    mountedRef = useRef(true),
+    onSaveRef = useRef(onSave),
+    onSavedRef = useRef(onSaved),
+    savedSignatureRef = useRef(signature),
+    savingRef = useRef(false)
 
   latestSignatureRef.current = signature
   latestSnapshotRef.current = snapshot
@@ -71,8 +71,8 @@ export function useWorkflowSave({
       return
     }
 
-    const savingSnapshot = latestSnapshotRef.current
-    const parsedWorkflow = workflowSchema.safeParse(savingSnapshot.workflow)
+    const savingSnapshot = latestSnapshotRef.current,
+      parsedWorkflow = workflowSchema.safeParse(savingSnapshot.workflow)
 
     if (!parsedWorkflow.success) {
       if (mountedRef.current) {
@@ -150,9 +150,9 @@ export function useWorkflowSave({
     clearDebounceTimer()
 
     const activeSignature = savingRef.current
-      ? inFlightSignatureRef.current
-      : savedSignatureRef.current
-    const shouldQueueSave = signature !== activeSignature && (dirty || savingRef.current)
+        ? inFlightSignatureRef.current
+        : savedSignatureRef.current,
+      shouldQueueSave = signature !== activeSignature && (dirty || savingRef.current)
 
     if (!shouldQueueSave) {
       if (!savingRef.current && signature === savedSignatureRef.current) {

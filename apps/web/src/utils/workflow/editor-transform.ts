@@ -22,8 +22,8 @@ export const getDefaultNodePosition = (index: number): XYPosition => {
 
 // 计算节点在嵌套关系中的层级，确保传给 React Flow 时，父节点排在子节点前面。
 const getNodeDepth = (node: WorkflowNode, nodeById: ReadonlyMap<string, WorkflowNode>): number => {
-  let depth = 0
-  let parentId = node.parentId
+  let depth = 0,
+    parentId = node.parentId
   const visited = new Set<string>()
 
   while (parentId && !visited.has(parentId)) {
@@ -41,24 +41,25 @@ export const toCanvasNodes = (
   nodeRegistry: NodeRegistryReader,
 ): WorkflowCanvasNode[] => {
   // 建立节点索引
-  const nodeById = new Map(snapshot.workflow.nodes.map((node) => [node.id, node]))
-  const loopSizeById = new Map(
-    snapshot.workflow.nodes
-      .filter((node) => node.type === BuiltinNodeType.LOOP)
-      .map((node) => [node.id, snapshot.layout.sizes?.[node.id] ?? DEFAULT_LOOP_SIZE]),
-  )
+  const nodeById = new Map(snapshot.workflow.nodes.map((node) => [node.id, node])),
+    loopSizeById = new Map(
+      snapshot.workflow.nodes
+        .filter((node) => node.type === BuiltinNodeType.LOOP)
+        .map((node) => [node.id, snapshot.layout.sizes?.[node.id] ?? DEFAULT_LOOP_SIZE]),
+    )
 
   return (
     [...snapshot.workflow.nodes]
       // 按父子层级排序(外层 Loop -> 内层 Loop -> 内层 Loop 的子节点)
       .sort((left, right) => getNodeDepth(left, nodeById) - getNodeDepth(right, nodeById))
       .map((workflowNode, index) => {
-        const size = snapshot.layout.sizes?.[workflowNode.id]
-        const fixedOutputs = nodeRegistry.get(workflowNode.type)?.fixedOutputs
-        const outputs =
-          workflowNode.type === BuiltinNodeType.CODE && typeof workflowNode.config.code === 'string'
-            ? synchronizeCodeNodeOutputs(workflowNode.config.code, workflowNode.outputs)
-            : normalizeNodeOutputs(workflowNode.outputs, fixedOutputs)
+        const size = snapshot.layout.sizes?.[workflowNode.id],
+          fixedOutputs = nodeRegistry.get(workflowNode.type)?.fixedOutputs,
+          outputs =
+            workflowNode.type === BuiltinNodeType.CODE &&
+            typeof workflowNode.config.code === 'string'
+              ? synchronizeCodeNodeOutputs(workflowNode.config.code, workflowNode.outputs)
+              : normalizeNodeOutputs(workflowNode.outputs, fixedOutputs)
 
         return {
           id: workflowNode.id,
@@ -141,8 +142,8 @@ export const toWorkflowEditorLayout = (
         // 保存宽高大小，最终会保存到layout.sizes中
         .flatMap((node) => {
           // measured是react flow提供的
-          const width = node.measured?.width
-          const height = node.measured?.height
+          const width = node.measured?.width,
+            height = node.measured?.height
           return width && height ? [[node.id, { width, height }]] : []
         }),
     ),

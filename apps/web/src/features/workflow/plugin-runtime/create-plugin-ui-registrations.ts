@@ -29,8 +29,8 @@ export function createPluginUiRegistrations(
   readonly uiRegistrations: readonly NodeUIRegistration[]
   readonly configRenderers: NodeConfigRendererMap
 } {
-  const uiRegistrations: NodeUIRegistration[] = []
-  const configRenderers: Record<string, NodeConfigRendererMap[string]> = {}
+  const uiRegistrations: NodeUIRegistration[] = [],
+    configRenderers: Record<string, NodeConfigRendererMap[string]> = {}
 
   for (const node of manifest.nodes) {
     const moduleForNode = webModule.nodes[node.key]

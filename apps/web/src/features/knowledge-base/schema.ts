@@ -126,10 +126,10 @@ export const KNOWLEDGE_METADATA_FIELD_INITIAL_VALUES = {
   type: 'string',
 } satisfies KnowledgeMetadataFieldFormInput
 
-const knowledgeMetadataFormValueSchema = z.union([z.string(), z.number()])
-const knowledgeDocumentMetadataFormSchema = z.object({
-  values: z.record(z.string(), knowledgeMetadataFormValueSchema),
-})
+const knowledgeMetadataFormValueSchema = z.union([z.string(), z.number()]),
+  knowledgeDocumentMetadataFormSchema = z.object({
+    values: z.record(z.string(), knowledgeMetadataFormValueSchema),
+  })
 
 export type KnowledgeDocumentMetadataFormInput = z.input<typeof knowledgeDocumentMetadataFormSchema>
 
@@ -189,22 +189,20 @@ export function createKnowledgeDocumentMetadataSchema(fields: KnowledgeMetadataF
         }
       })
     })
-    .transform(
-      ({ values }): KnowledgeDocumentMetadataInput => ({
-        values: Object.fromEntries(
-          Object.entries(values).map(([fieldId, value]) => {
-            const field = fieldsById.get(fieldId)
-            if (field?.type === 'number') {
-              return [fieldId, typeof value === 'number' ? value : Number(value.trim())]
-            }
-            if (field?.type === 'time' && typeof value === 'string') {
-              return [fieldId, new Date(value).toISOString()]
-            }
-            return [fieldId, typeof value === 'string' ? value.trim() : value]
-          }),
-        ),
-      }),
-    )
+    .transform(({ values }): KnowledgeDocumentMetadataInput => ({
+      values: Object.fromEntries(
+        Object.entries(values).map(([fieldId, value]) => {
+          const field = fieldsById.get(fieldId)
+          if (field?.type === 'number') {
+            return [fieldId, typeof value === 'number' ? value : Number(value.trim())]
+          }
+          if (field?.type === 'time' && typeof value === 'string') {
+            return [fieldId, new Date(value).toISOString()]
+          }
+          return [fieldId, typeof value === 'string' ? value.trim() : value]
+        }),
+      ),
+    }))
 }
 
 export const recallTestSchema = z.object({

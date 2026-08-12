@@ -64,22 +64,24 @@ export class PluginService {
     pluginLock: WorkflowPluginLock,
   ): Promise<PluginRuntimeCatalogVo> {
     const resolvedPlugins = await this.pluginCatalogService.resolveEditorVersions(
-      ownerId,
-      pluginLock,
-    )
-    const resolvedLock = resolvedPlugins.map((plugin) => ({
-      pluginId: plugin.pluginId,
-      version: plugin.version,
-      digest: plugin.artifactDigest,
-    }))
-    const catalog = createWorkflowNodeCatalog({
-      hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
-      nodes: [
-        ...Object.values(builtinNodeStrategies),
-        ...resolvedPlugins.flatMap((plugin) => createNodeTypesFromPluginManifest(plugin.manifest)),
-      ],
-      pluginLock: resolvedLock,
-    })
+        ownerId,
+        pluginLock,
+      ),
+      resolvedLock = resolvedPlugins.map((plugin) => ({
+        pluginId: plugin.pluginId,
+        version: plugin.version,
+        digest: plugin.artifactDigest,
+      })),
+      catalog = createWorkflowNodeCatalog({
+        hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+        nodes: [
+          ...Object.values(builtinNodeStrategies),
+          ...resolvedPlugins.flatMap((plugin) =>
+            createNodeTypesFromPluginManifest(plugin.manifest),
+          ),
+        ],
+        pluginLock: resolvedLock,
+      })
 
     return {
       fingerprint: catalog.fingerprint,
@@ -135,18 +137,18 @@ export class PluginService {
   }
 
   async list(ownerId: string, query: ListPluginsDto): Promise<PluginListVo> {
-    const cursor = query.cursor ? this.decodeCursor(query.cursor, query.sort) : undefined
-    const plugins = await this.pluginRepository.list({
-      ownerId,
-      limit: query.limit,
-      search: query.search || undefined,
-      scope: query.scope,
-      sort: query.sort,
-      cursor,
-    })
-    const hasMore = plugins.length > query.limit
-    const page = hasMore ? plugins.slice(0, query.limit) : plugins
-    const lastPlugin = page.at(-1)
+    const cursor = query.cursor ? this.decodeCursor(query.cursor, query.sort) : undefined,
+      plugins = await this.pluginRepository.list({
+        ownerId,
+        limit: query.limit,
+        search: query.search || undefined,
+        scope: query.scope,
+        sort: query.sort,
+        cursor,
+      }),
+      hasMore = plugins.length > query.limit,
+      page = hasMore ? plugins.slice(0, query.limit) : plugins,
+      lastPlugin = page.at(-1)
 
     return {
       items: page.map((plugin) => this.toListItemVo(plugin)),
@@ -169,13 +171,13 @@ export class PluginService {
     const plugin = await this.pluginRepository.findById(ownerId, pluginId)
     if (!plugin) throw new NotFoundException('未找到该插件')
 
-    const listItem = this.toListItemVo(plugin)
-    const latestVersion = plugin.latestVersion
+    const listItem = this.toListItemVo(plugin),
+      latestVersion = plugin.latestVersion
     if (!latestVersion) throw new NotFoundException('未找到该插件版本')
     const versions = [...plugin.versions].sort((left, right) =>
-      rcompare(left.version, right.version),
-    )
-    const usage = await this.pluginRepository.getUsageSummary(ownerId, pluginId)
+        rcompare(left.version, right.version),
+      ),
+      usage = await this.pluginRepository.getUsageSummary(ownerId, pluginId)
 
     return {
       ...listItem,
@@ -208,9 +210,9 @@ export class PluginService {
     if (!hasSamePermissions(requiredPermissions, dto.permissions)) {
       throw new BadRequestException('授权权限与插件版本要求不一致')
     }
-    const currentInstallation = version.plugin.installations[0]
-    const changingVersion =
-      currentInstallation !== undefined && currentInstallation.versionId !== version.id
+    const currentInstallation = version.plugin.installations[0],
+      changingVersion =
+        currentInstallation !== undefined && currentInstallation.versionId !== version.id
     if (changingVersion && dto.acknowledgeVersionChange !== true) {
       throw new BadRequestException('更改插件版本前必须确认对编辑中工作流的影响')
     }
@@ -277,10 +279,10 @@ export class PluginService {
       throw new BadRequestException('仅支持 .tgz 格式的插件包')
     }
 
-    const inspectedPackage = this.packageInspector.inspect(file.buffer)
-    const { packageName, displayName, description, version } = inspectedPackage.manifest.plugin
-    const firstNode = inspectedPackage.manifest.nodes[0]
-    const originalFileName = file.originalname.replaceAll('\\', '/').split('/').at(-1) ?? ''
+    const inspectedPackage = this.packageInspector.inspect(file.buffer),
+      { packageName, displayName, description, version } = inspectedPackage.manifest.plugin,
+      firstNode = inspectedPackage.manifest.nodes[0],
+      originalFileName = file.originalname.replaceAll('\\', '/').split('/').at(-1) ?? ''
     if (!originalFileName || originalFileName.length > 255) {
       throw new BadRequestException('插件包文件名不合法')
     }
@@ -357,15 +359,15 @@ export class PluginService {
       throw new Error(`已发布插件 ${plugin.packageName} 缺少版本`)
     }
     if (!plugin.publisher) throw new Error(`已发布插件 ${plugin.packageName} 缺少上传作者`)
-    const currentInstallation = plugin.installations[0]
-    const installation = currentInstallation
-      ? {
-          versionId: currentInstallation.versionId,
-          version: currentInstallation.version.version,
-          enabled: currentInstallation.enabled,
-          grantedPermissions: this.readGrantedPermissions(currentInstallation.grantedPermissions),
-        }
-      : null
+    const currentInstallation = plugin.installations[0],
+      installation = currentInstallation
+        ? {
+            versionId: currentInstallation.versionId,
+            version: currentInstallation.version.version,
+            enabled: currentInstallation.enabled,
+            grantedPermissions: this.readGrantedPermissions(currentInstallation.grantedPermissions),
+          }
+        : null
 
     return {
       id: plugin.id,

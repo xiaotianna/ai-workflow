@@ -61,8 +61,8 @@ function getDirectDownstreamNodes(
   nodes: readonly WorkflowCanvasNode[],
   edges: readonly WorkflowEdge[],
 ) {
-  const nodesById = new Map(nodes.map((node) => [node.id, node]))
-  const visitedNodeIds = new Set<string>()
+  const nodesById = new Map(nodes.map((node) => [node.id, node])),
+    visitedNodeIds = new Set<string>()
 
   return edges.flatMap((edge) => {
     if (
@@ -91,43 +91,43 @@ function WorkflowNextStepNode({
   onDisconnect,
   onSelect,
 }: WorkflowNextStepNodeProps) {
-  const { nodeRegistry } = useWorkflowCatalog()
-  const actionTriggerRef = useRef<HTMLButtonElement>(null)
-  const definition = nodeRegistry.get(node.type)?.definition
-  const label = node.data.label?.trim() || definition?.label || node.type
-  const actions: readonly ActionMenuAction[] = [
-    {
-      id: 'change',
-      label: '更改',
-      disabled: !canChange,
-      onSelect: () => {
-        const triggerBounds = actionTriggerRef.current?.getBoundingClientRect()
+  const { nodeRegistry } = useWorkflowCatalog(),
+    actionTriggerRef = useRef<HTMLButtonElement>(null),
+    definition = nodeRegistry.get(node.type)?.definition,
+    label = node.data.label?.trim() || definition?.label || node.type,
+    actions: readonly ActionMenuAction[] = [
+      {
+        id: 'change',
+        label: '更改',
+        disabled: !canChange,
+        onSelect: () => {
+          const triggerBounds = actionTriggerRef.current?.getBoundingClientRect()
 
-        onChange(
-          node.id,
-          triggerBounds
-            ? {
-                x: triggerBounds.right,
-                y: triggerBounds.top,
-              }
-            : undefined,
-          sourceHandle,
-        )
+          onChange(
+            node.id,
+            triggerBounds
+              ? {
+                  x: triggerBounds.right,
+                  y: triggerBounds.top,
+                }
+              : undefined,
+            sourceHandle,
+          )
+        },
       },
-    },
-    {
-      id: 'disconnect',
-      label: '断开连接',
-      onSelect: () => onDisconnect(node.id, sourceHandle),
-    },
-    {
-      id: 'delete',
-      label: '删除',
-      destructive: true,
-      disabled: !canDelete,
-      onSelect: () => onDelete(node.id),
-    },
-  ]
+      {
+        id: 'disconnect',
+        label: '断开连接',
+        onSelect: () => onDisconnect(node.id, sourceHandle),
+      },
+      {
+        id: 'delete',
+        label: '删除',
+        destructive: true,
+        disabled: !canDelete,
+        onSelect: () => onDelete(node.id),
+      },
+    ]
 
   return (
     <motion.div
@@ -222,32 +222,32 @@ export function WorkflowNextStep({
   onDisconnectNode,
   onSelectNode,
 }: WorkflowNextStepProps) {
-  const nodes = useNodes<WorkflowCanvasNode>()
-  const edges = useEdges<WorkflowEdge>()
-  const sourceNode = nodes.find((node) => node.id === nodeId)
-  const parsedConfig = sourceNode ? nodeType.schema.safeParse(sourceNode.data.config) : undefined
-  const outputPorts =
-    parsedConfig?.success === true ? getNodePorts(nodeType, parsedConfig.data).outputs : {}
-  const hasErrorHandlingField = Object.values(nodeType.form ?? {}).some(
-    (field) => field.ui === FIELD_UI_TYPES.ERROR_HANDLING,
-  )
-  const regularOutputPortIds = new Set(
-    Object.keys(outputPorts).filter((portId) => portId !== ERROR_HANDLING_PORT_ID),
-  )
-  const hasErrorBranch = hasErrorHandlingField && Boolean(outputPorts[ERROR_HANDLING_PORT_ID])
-  const nextNodes = getDirectDownstreamNodes(nodeId, regularOutputPortIds, nodes, edges)
-  const errorBranchNodes = hasErrorBranch
-    ? getDirectDownstreamNodes(nodeId, new Set([ERROR_HANDLING_PORT_ID]), nodes, edges)
-    : []
-  const definition = nodeType.definition
-  const hasNextNodes = nextNodes.length > 0
-  const actionLabel = hasNextNodes
-    ? '添加并行节点'
-    : disabled
-      ? '当前节点暂无可用输出端口'
-      : '选择下一个节点'
-  const hasErrorBranchNodes = errorBranchNodes.length > 0
-  const errorBranchActionLabel = hasErrorBranchNodes ? '添加并行节点' : '添加异常分支'
+  const nodes = useNodes<WorkflowCanvasNode>(),
+    edges = useEdges<WorkflowEdge>(),
+    sourceNode = nodes.find((node) => node.id === nodeId),
+    parsedConfig = sourceNode ? nodeType.schema.safeParse(sourceNode.data.config) : undefined,
+    outputPorts =
+      parsedConfig?.success === true ? getNodePorts(nodeType, parsedConfig.data).outputs : {},
+    hasErrorHandlingField = Object.values(nodeType.form ?? {}).some(
+      (field) => field.ui === FIELD_UI_TYPES.ERROR_HANDLING,
+    ),
+    regularOutputPortIds = new Set(
+      Object.keys(outputPorts).filter((portId) => portId !== ERROR_HANDLING_PORT_ID),
+    ),
+    hasErrorBranch = hasErrorHandlingField && Boolean(outputPorts[ERROR_HANDLING_PORT_ID]),
+    nextNodes = getDirectDownstreamNodes(nodeId, regularOutputPortIds, nodes, edges),
+    errorBranchNodes = hasErrorBranch
+      ? getDirectDownstreamNodes(nodeId, new Set([ERROR_HANDLING_PORT_ID]), nodes, edges)
+      : [],
+    definition = nodeType.definition,
+    hasNextNodes = nextNodes.length > 0,
+    actionLabel = hasNextNodes
+      ? '添加并行节点'
+      : disabled
+        ? '当前节点暂无可用输出端口'
+        : '选择下一个节点',
+    hasErrorBranchNodes = errorBranchNodes.length > 0,
+    errorBranchActionLabel = hasErrorBranchNodes ? '添加并行节点' : '添加异常分支'
 
   return (
     <div className={className}>

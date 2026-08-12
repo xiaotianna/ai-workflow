@@ -48,71 +48,69 @@ export interface WorkflowServerCatalog {
 }
 
 const BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS: readonly RuntimeNodeConfigProjectorRegistration[] = [
-  { nodeType: BuiltinNodeType.LLM, projector: projectLlmNodeConfig },
-  { nodeType: BuiltinNodeType.HTTP, projector: projectHttpNodeConfig },
-  {
-    nodeType: BuiltinNodeType.CONDITION,
-    projector: projectConditionNodeConfig,
-  },
-  { nodeType: BuiltinNodeType.RAG, projector: projectRagNodeConfig },
-  { nodeType: BuiltinNodeType.CODE, projector: projectStaticJsonNodeConfig },
-  {
-    nodeType: BuiltinNodeType.SUB_WORKFLOW,
-    projector: projectStaticJsonNodeConfig,
-  },
-]
-
-const BUILTIN_CONFIG_PROJECTORS = new RuntimeNodeConfigProjectorRegistry(
-  BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
-)
-
-const BUILTIN_EXECUTION_REGISTRATIONS: readonly WorkflowNodeExecutionRegistration[] = [
-  { nodeType: BuiltinNodeType.START, kind: 'runtime-control' },
-  { nodeType: BuiltinNodeType.END, kind: 'runtime-control' },
-  { nodeType: BuiltinNodeType.LOOP, kind: 'runtime-control' },
-  { nodeType: BuiltinNodeType.LOOP_START, kind: 'runtime-control' },
-  { nodeType: BuiltinNodeType.LOOP_EXIT, kind: 'runtime-control' },
-  {
-    nodeType: BuiltinNodeType.SUB_WORKFLOW,
-    kind: 'server-control',
-    handler: 'sub-workflow',
-    routingKey: 'server.execute.sub-workflow',
-  },
-  {
-    nodeType: BuiltinNodeType.CONDITION,
-    kind: 'executor',
-    executionClass: WORKFLOW_EXECUTION_CLASSES.TRUSTED_COMPUTE,
-    classifiedRoutingKey: WORKFLOW_COMPUTE_COMMAND_ROUTING_KEY,
-  },
-  {
-    nodeType: BuiltinNodeType.LLM,
-    kind: 'executor',
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
-    classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-  },
-  {
-    nodeType: BuiltinNodeType.RAG,
-    kind: 'executor',
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
-    classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-  },
-  {
-    nodeType: BuiltinNodeType.HTTP,
-    kind: 'executor',
-    executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_HTTP,
-    classifiedRoutingKey: WORKFLOW_HTTP_COMMAND_ROUTING_KEY,
-  },
-  {
-    nodeType: BuiltinNodeType.CODE,
-    kind: 'executor',
-    executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
-    classifiedRoutingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
-  },
-]
+    { nodeType: BuiltinNodeType.LLM, projector: projectLlmNodeConfig },
+    { nodeType: BuiltinNodeType.HTTP, projector: projectHttpNodeConfig },
+    {
+      nodeType: BuiltinNodeType.CONDITION,
+      projector: projectConditionNodeConfig,
+    },
+    { nodeType: BuiltinNodeType.RAG, projector: projectRagNodeConfig },
+    { nodeType: BuiltinNodeType.CODE, projector: projectStaticJsonNodeConfig },
+    {
+      nodeType: BuiltinNodeType.SUB_WORKFLOW,
+      projector: projectStaticJsonNodeConfig,
+    },
+  ],
+  BUILTIN_CONFIG_PROJECTORS = new RuntimeNodeConfigProjectorRegistry(
+    BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
+  ),
+  BUILTIN_EXECUTION_REGISTRATIONS: readonly WorkflowNodeExecutionRegistration[] = [
+    { nodeType: BuiltinNodeType.START, kind: 'runtime-control' },
+    { nodeType: BuiltinNodeType.END, kind: 'runtime-control' },
+    { nodeType: BuiltinNodeType.LOOP, kind: 'runtime-control' },
+    { nodeType: BuiltinNodeType.LOOP_START, kind: 'runtime-control' },
+    { nodeType: BuiltinNodeType.LOOP_EXIT, kind: 'runtime-control' },
+    {
+      nodeType: BuiltinNodeType.SUB_WORKFLOW,
+      kind: 'server-control',
+      handler: 'sub-workflow',
+      routingKey: 'server.execute.sub-workflow',
+    },
+    {
+      nodeType: BuiltinNodeType.CONDITION,
+      kind: 'executor',
+      executionClass: WORKFLOW_EXECUTION_CLASSES.TRUSTED_COMPUTE,
+      classifiedRoutingKey: WORKFLOW_COMPUTE_COMMAND_ROUTING_KEY,
+    },
+    {
+      nodeType: BuiltinNodeType.LLM,
+      kind: 'executor',
+      executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
+      classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
+    },
+    {
+      nodeType: BuiltinNodeType.RAG,
+      kind: 'executor',
+      executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
+      classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
+    },
+    {
+      nodeType: BuiltinNodeType.HTTP,
+      kind: 'executor',
+      executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_HTTP,
+      classifiedRoutingKey: WORKFLOW_HTTP_COMMAND_ROUTING_KEY,
+    },
+    {
+      nodeType: BuiltinNodeType.CODE,
+      kind: 'executor',
+      executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
+      classifiedRoutingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
+    },
+  ]
 
 export function createBuiltinWorkflowServerCatalog(): WorkflowServerCatalog {
-  const coreCatalog = createBuiltinWorkflowNodeCatalog()
-  const executionRegistry = new WorkflowExecutionRegistry(BUILTIN_EXECUTION_REGISTRATIONS)
+  const coreCatalog = createBuiltinWorkflowNodeCatalog(),
+    executionRegistry = new WorkflowExecutionRegistry(BUILTIN_EXECUTION_REGISTRATIONS)
 
   assertCatalogCompatible(coreCatalog.nodeRegistry, BUILTIN_CONFIG_PROJECTORS, executionRegistry)
 
@@ -166,92 +164,92 @@ export class WorkflowCatalogResolver {
     if (workflow.plugins.length === 0) return this.builtinCatalog
 
     const resolvedPlugins = await this.pluginCatalogService.resolveWorkflowVersions(
-      ownerId,
-      workflow.plugins,
-    )
-    const pluginNodeTypes = resolvedPlugins.flatMap((plugin) =>
-      createNodeTypesFromPluginManifest(plugin.manifest),
-    )
-    const coreCatalog = createWorkflowNodeCatalog({
-      hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
-      nodes: [...Object.values(builtinNodeStrategies), ...pluginNodeTypes],
-      pluginLock: workflow.plugins,
-    })
-    const pluginExecutionByNodeType = new Map(
-      resolvedPlugins.flatMap((plugin) =>
-        plugin.manifest.nodes.map((node) => [node.type, node.execution] as const),
+        ownerId,
+        workflow.plugins,
       ),
-    )
-    const pluginProjectors = pluginNodeTypes.map((nodeType) => ({
-      nodeType: nodeType.definition.type,
-      projector:
-        pluginExecutionByNodeType.get(nodeType.definition.type)?.kind === 'host-llm'
-          ? projectLlmNodeConfig
-          : projectStaticJsonNodeConfig,
-    }))
-    const configProjectors = new RuntimeNodeConfigProjectorRegistry([
-      ...BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
-      ...pluginProjectors,
-    ])
-    const executionRegistry = new WorkflowExecutionRegistry([
-      ...BUILTIN_EXECUTION_REGISTRATIONS,
-      ...resolvedPlugins.flatMap((plugin) =>
-        plugin.manifest.nodes.map((node): WorkflowNodeExecutionRegistration => {
-          if (node.execution.kind === 'host-llm') {
+      pluginNodeTypes = resolvedPlugins.flatMap((plugin) =>
+        createNodeTypesFromPluginManifest(plugin.manifest),
+      ),
+      coreCatalog = createWorkflowNodeCatalog({
+        hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+        nodes: [...Object.values(builtinNodeStrategies), ...pluginNodeTypes],
+        pluginLock: workflow.plugins,
+      }),
+      pluginExecutionByNodeType = new Map(
+        resolvedPlugins.flatMap((plugin) =>
+          plugin.manifest.nodes.map((node) => [node.type, node.execution] as const),
+        ),
+      ),
+      pluginProjectors = pluginNodeTypes.map((nodeType) => ({
+        nodeType: nodeType.definition.type,
+        projector:
+          pluginExecutionByNodeType.get(nodeType.definition.type)?.kind === 'host-llm'
+            ? projectLlmNodeConfig
+            : projectStaticJsonNodeConfig,
+      })),
+      configProjectors = new RuntimeNodeConfigProjectorRegistry([
+        ...BUILTIN_CONFIG_PROJECTOR_REGISTRATIONS,
+        ...pluginProjectors,
+      ]),
+      executionRegistry = new WorkflowExecutionRegistry([
+        ...BUILTIN_EXECUTION_REGISTRATIONS,
+        ...resolvedPlugins.flatMap((plugin) =>
+          plugin.manifest.nodes.map((node): WorkflowNodeExecutionRegistration => {
+            if (node.execution.kind === 'host-llm') {
+              return {
+                nodeType: node.type,
+                kind: 'executor',
+                executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
+                classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
+                executorType: BuiltinNodeType.LLM,
+              }
+            }
+            if (node.execution.kind !== 'sandbox-js') {
+              return {
+                nodeType: node.type,
+                kind: 'unsupported',
+                reason: `插件节点 ${node.label} 未声明服务端执行能力`,
+              }
+            }
+            const missingPermissions = plugin.manifest.permissions.filter(
+              (permission) => !plugin.grantedPermissions.includes(permission),
+            )
+            if (missingPermissions.length > 0) {
+              return {
+                nodeType: node.type,
+                kind: 'unsupported',
+                reason: `插件节点 ${node.label} 缺少执行授权：${missingPermissions.join('、')}`,
+              }
+            }
+            if (plugin.manifest.permissions.includes('secrets:read')) {
+              return {
+                nodeType: node.type,
+                kind: 'unsupported',
+                reason: `插件节点 ${node.label} 的密钥代理尚未配置`,
+              }
+            }
+            const requestsPublicNetwork = plugin.manifest.permissions.includes('network:public')
             return {
               nodeType: node.type,
               kind: 'executor',
-              executionClass: WORKFLOW_EXECUTION_CLASSES.CONTROLLED_MODEL,
-              classifiedRoutingKey: WORKFLOW_MODEL_COMMAND_ROUTING_KEY,
-              executorType: BuiltinNodeType.LLM,
+              executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
+              classifiedRoutingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
+              executorType: 'plugin-sandbox-js',
+              sandboxArtifact: {
+                pluginVersionId: plugin.versionId,
+                artifactDigest: plugin.artifactDigest,
+                artifactPath: node.execution.artifact,
+                networkPolicy: requestsPublicNetwork ? 'public' : 'none',
+                ...(getPluginErrorHandlingFieldName(node.form)
+                  ? {
+                      errorHandlingField: getPluginErrorHandlingFieldName(node.form),
+                    }
+                  : {}),
+              },
             }
-          }
-          if (node.execution.kind !== 'sandbox-js') {
-            return {
-              nodeType: node.type,
-              kind: 'unsupported',
-              reason: `插件节点 ${node.label} 未声明服务端执行能力`,
-            }
-          }
-          const missingPermissions = plugin.manifest.permissions.filter(
-            (permission) => !plugin.grantedPermissions.includes(permission),
-          )
-          if (missingPermissions.length > 0) {
-            return {
-              nodeType: node.type,
-              kind: 'unsupported',
-              reason: `插件节点 ${node.label} 缺少执行授权：${missingPermissions.join('、')}`,
-            }
-          }
-          if (plugin.manifest.permissions.includes('secrets:read')) {
-            return {
-              nodeType: node.type,
-              kind: 'unsupported',
-              reason: `插件节点 ${node.label} 的密钥代理尚未配置`,
-            }
-          }
-          const requestsPublicNetwork = plugin.manifest.permissions.includes('network:public')
-          return {
-            nodeType: node.type,
-            kind: 'executor',
-            executionClass: WORKFLOW_EXECUTION_CLASSES.UNTRUSTED_SANDBOX,
-            classifiedRoutingKey: WORKFLOW_SANDBOX_COMMAND_ROUTING_KEY,
-            executorType: 'plugin-sandbox-js',
-            sandboxArtifact: {
-              pluginVersionId: plugin.versionId,
-              artifactDigest: plugin.artifactDigest,
-              artifactPath: node.execution.artifact,
-              networkPolicy: requestsPublicNetwork ? 'public' : 'none',
-              ...(getPluginErrorHandlingFieldName(node.form)
-                ? {
-                    errorHandlingField: getPluginErrorHandlingFieldName(node.form),
-                  }
-                : {}),
-            },
-          }
-        }),
-      ),
-    ])
+          }),
+        ),
+      ])
 
     assertCatalogCompatible(coreCatalog.nodeRegistry, configProjectors, executionRegistry)
 

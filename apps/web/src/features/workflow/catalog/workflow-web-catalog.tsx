@@ -73,24 +73,24 @@ export function createResolvedWorkflowWebCatalog(
   runtimeCatalog: PluginRuntimeCatalogDto,
 ): WorkflowWebCatalog {
   const manifests = runtimeCatalog.plugins.map((plugin) => ({
-    plugin,
-    manifest: pluginManifestSchema.parse(plugin.manifest),
-  }))
-  const coreCatalog = createWorkflowNodeCatalog({
-    hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
-    nodes: [
-      ...Object.values(builtinNodeStrategies),
-      ...manifests.flatMap(({ manifest }) => createNodeTypesFromPluginManifest(manifest)),
-    ],
-    pluginLock: runtimeCatalog.pluginLock,
-  })
+      plugin,
+      manifest: pluginManifestSchema.parse(plugin.manifest),
+    })),
+    coreCatalog = createWorkflowNodeCatalog({
+      hostVersion: BUILTIN_WORKFLOW_NODE_CATALOG_VERSION,
+      nodes: [
+        ...Object.values(builtinNodeStrategies),
+        ...manifests.flatMap(({ manifest }) => createNodeTypesFromPluginManifest(manifest)),
+      ],
+      pluginLock: runtimeCatalog.pluginLock,
+    })
   if (coreCatalog.fingerprint !== runtimeCatalog.fingerprint) {
     throw new Error('插件目录指纹不一致，请刷新后重试')
   }
 
-  const pluginLockById = new Map(coreCatalog.pluginLock.map((lock) => [lock.pluginId, lock]))
-  const pluginLockByNodeType = new Map<string, WorkflowPluginLockItem>()
-  const pluginGroupLabelByNodeType = new Map<string, string>()
+  const pluginLockById = new Map(coreCatalog.pluginLock.map((lock) => [lock.pluginId, lock])),
+    pluginLockByNodeType = new Map<string, WorkflowPluginLockItem>(),
+    pluginGroupLabelByNodeType = new Map<string, string>()
   for (const { plugin, manifest } of manifests) {
     const lock = pluginLockById.get(plugin.pluginId)
     if (!lock) throw new Error(`插件目录缺少版本锁：${plugin.pluginId}`)

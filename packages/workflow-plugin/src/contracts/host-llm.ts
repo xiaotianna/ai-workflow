@@ -29,8 +29,8 @@ interface HostLlmContractInput {
 export function getHostLlmContractIssues(
   input: HostLlmContractInput,
 ): readonly HostLlmContractIssue[] {
-  const issues: HostLlmContractIssue[] = []
-  const configResult = llmNodeSchema.safeParse(input.initialConfig)
+  const issues: HostLlmContractIssue[] = [],
+    configResult = llmNodeSchema.safeParse(input.initialConfig)
   if (!configResult.success) {
     for (const issue of configResult.error.issues) {
       issues.push({

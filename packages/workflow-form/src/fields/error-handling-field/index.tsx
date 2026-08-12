@@ -41,10 +41,8 @@ export function ErrorHandlingField({
   disabled,
   onChange,
 }: FieldRendererProps<ErrorHandlingFieldSchema, ErrorHandling>) {
-  const resolvedValue = value ?? { mode: ERROR_HANDLING_MODES.NONE }
-  const selectedOption = ERROR_HANDLING_OPTIONS.find(
-    (option) => option.value === resolvedValue.mode,
-  )
+  const resolvedValue = value ?? { mode: ERROR_HANDLING_MODES.NONE },
+    selectedOption = ERROR_HANDLING_OPTIONS.find((option) => option.value === resolvedValue.mode)
 
   return (
     <Form.Field

@@ -27,8 +27,8 @@ export function NumberField({
         aria-label={field.label}
         aria-invalid={Boolean(error)}
         onChange={(event) => {
-          const rawValue = event.currentTarget.value
-          const numberValue = event.currentTarget.valueAsNumber
+          const rawValue = event.currentTarget.value,
+            numberValue = event.currentTarget.valueAsNumber
 
           onChange(rawValue === '' || Number.isNaN(numberValue) ? undefined : numberValue)
         }}

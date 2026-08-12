@@ -17,10 +17,9 @@ addFormats(ajv)
 ajv.addSchema(jsonValueSchema)
 
 const validateExecuteNodeCommand: ValidateFunction<ExecuteNodeCommand> =
-  ajv.compile<ExecuteNodeCommand>(executeNodeCommandSchema)
-
-const validateExecuteNodeResult: ValidateFunction<ExecuteNodeResult> =
-  ajv.compile<ExecuteNodeResult>(executeNodeResultSchema)
+    ajv.compile<ExecuteNodeCommand>(executeNodeCommandSchema),
+  validateExecuteNodeResult: ValidateFunction<ExecuteNodeResult> =
+    ajv.compile<ExecuteNodeResult>(executeNodeResultSchema)
 
 function parseWithValidator<T>(value: unknown, validator: ValidateFunction<T>, message: string): T {
   if (validator(value)) {

@@ -25,9 +25,9 @@ interface UsePluginHeroCollapseOptions {
 }
 
 /** Title block top margin: mt-8 (32px) → mt-4 (16px) */
-const TITLE_MARGIN_TOP = 32
-/** Top padding stays at 12px; only pb-6 → pb-4 collapses (8px). */
-const PADDING_COLLAPSE = 8
+const TITLE_MARGIN_TOP = 32,
+  /** Top padding stays at 12px; only pb-6 → pb-4 collapses (8px). */
+  PADDING_COLLAPSE = 8
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value))
@@ -44,13 +44,13 @@ export function usePluginHeroCollapse({
   titleRef,
   trackRef,
 }: UsePluginHeroCollapseOptions) {
-  const collapseDistanceRef = useRef(120)
-  const lastProgressRef = useRef(-1)
+  const collapseDistanceRef = useRef(120),
+    lastProgressRef = useRef(-1)
 
   useLayoutEffect(() => {
-    const title = titleRef.current
-    const hero = heroRef.current
-    const track = trackRef.current
+    const title = titleRef.current,
+      hero = heroRef.current,
+      track = trackRef.current
 
     if (!title || !hero || !track) return
 
@@ -76,9 +76,9 @@ export function usePluginHeroCollapse({
   }, [heroRef, titleRef, trackRef])
 
   useEffect(() => {
-    const hero = heroRef.current
-    const track = trackRef.current
-    const scrollParent = getScrollParent(hero)
+    const hero = heroRef.current,
+      track = trackRef.current,
+      scrollParent = getScrollParent(hero)
 
     if (!hero || !track || !scrollParent) return
 
@@ -88,10 +88,10 @@ export function usePluginHeroCollapse({
     function applyProgress() {
       if (!hero || !track || !scrollParent) return
 
-      const scrollParentTop = scrollParent.getBoundingClientRect().top
-      const trackTop = track.getBoundingClientRect().top
-      const scrolled = scrollParentTop - trackTop
-      const progress = clamp(scrolled / collapseDistanceRef.current, 0, 1)
+      const scrollParentTop = scrollParent.getBoundingClientRect().top,
+        trackTop = track.getBoundingClientRect().top,
+        scrolled = scrollParentTop - trackTop,
+        progress = clamp(scrolled / collapseDistanceRef.current, 0, 1)
 
       if (Math.abs(progress - lastProgressRef.current) < 0.001) return
       lastProgressRef.current = progress

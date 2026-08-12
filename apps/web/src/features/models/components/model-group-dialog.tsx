@@ -45,8 +45,8 @@ import {
 } from '../schema'
 import { ModelProviderConfiguration } from './model-provider-configuration'
 
-const CONNECTION_TEST_TIMEOUT_MS = 10_000
-const MODEL_TEST_TIMEOUT_MS = 35_000
+const CONNECTION_TEST_TIMEOUT_MS = 10_000,
+  MODEL_TEST_TIMEOUT_MS = 35_000
 
 interface ModelGroupDialogProps {
   group?: ModelGroup
@@ -64,22 +64,22 @@ export function ModelGroupDialog({
   onSave,
 }: ModelGroupDialogProps) {
   const { form, setForm, updateForm, updateFormField, resetForm } =
-    useFormData<ModelGroupFormInput>(createEmptyModelGroupForm())
-  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
-  const [submitted, setSubmitted] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isTestingConnection, setIsTestingConnection] = useState(false)
-  const [testingModelIndex, setTestingModelIndex] = useState<number | null>(null)
-  const connectionTestControllerRef = useRef<AbortController | null>(null)
-  const modelTestControllerRef = useRef<AbortController | null>(null)
-  const validationResult = validateFormByZod(modelGroupFormSchema, form)
-  const connectionValidationResult = validateFormByZod(modelConnectionFormSchema, {
-    providerType: form.providerType,
-    baseUrl: form.baseUrl,
-    apiKey: form.apiKey,
-  })
-  const formErrors = validationResult.errors
-  const providerStrategy = getModelProviderStrategy(form.providerType)
+      useFormData<ModelGroupFormInput>(createEmptyModelGroupForm()),
+    [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({}),
+    [submitted, setSubmitted] = useState(false),
+    [isSaving, setIsSaving] = useState(false),
+    [isTestingConnection, setIsTestingConnection] = useState(false),
+    [testingModelIndex, setTestingModelIndex] = useState<number | null>(null),
+    connectionTestControllerRef = useRef<AbortController | null>(null),
+    modelTestControllerRef = useRef<AbortController | null>(null),
+    validationResult = validateFormByZod(modelGroupFormSchema, form),
+    connectionValidationResult = validateFormByZod(modelConnectionFormSchema, {
+      providerType: form.providerType,
+      baseUrl: form.baseUrl,
+      apiKey: form.apiKey,
+    }),
+    formErrors = validationResult.errors,
+    providerStrategy = getModelProviderStrategy(form.providerType)
 
   useEffect(() => {
     if (!open) return
@@ -379,16 +379,16 @@ export function ModelGroupDialog({
             >
               <div className="space-y-2">
                 {form.models.map((model, index) => {
-                  const modelIdPath = `models.${index}.modelId`
-                  const displayNamePath = `models.${index}.displayName`
-                  const modelIdError = getFieldError(modelIdPath)
-                  const displayNameError = getFieldError(displayNamePath)
-                  const modelTestValidationResult = validateFormByZod(modelTestFormSchema, {
-                    providerType: form.providerType,
-                    baseUrl: form.baseUrl,
-                    apiKey: form.apiKey,
-                    modelId: model.modelId,
-                  })
+                  const modelIdPath = `models.${index}.modelId`,
+                    displayNamePath = `models.${index}.displayName`,
+                    modelIdError = getFieldError(modelIdPath),
+                    displayNameError = getFieldError(displayNamePath),
+                    modelTestValidationResult = validateFormByZod(modelTestFormSchema, {
+                      providerType: form.providerType,
+                      baseUrl: form.baseUrl,
+                      apiKey: form.apiKey,
+                      modelId: model.modelId,
+                    })
 
                   return (
                     <div

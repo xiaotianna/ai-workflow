@@ -51,25 +51,25 @@ export class ModelGroupService {
     this.assertCredentialSupported(provider.supportsApiKey, dto.apiKey)
     this.assertValidModels(dto.models)
 
-    const groupId = randomUUID()
-    const credential = dto.apiKey ? this.credentialService.encrypt(dto.apiKey, groupId) : undefined
-    const group = await this.repository.create({
-      id: groupId,
-      ownerId,
-      modelType: toPrismaModelType(dto.modelType),
-      name: dto.name,
-      providerType: dto.providerType,
-      baseUrl: dto.baseUrl || undefined,
-      credential,
-      models: toModelWrites(dto.models),
-    })
+    const groupId = randomUUID(),
+      credential = dto.apiKey ? this.credentialService.encrypt(dto.apiKey, groupId) : undefined,
+      group = await this.repository.create({
+        id: groupId,
+        ownerId,
+        modelType: toPrismaModelType(dto.modelType),
+        name: dto.name,
+        providerType: dto.providerType,
+        baseUrl: dto.baseUrl || undefined,
+        credential,
+        models: toModelWrites(dto.models),
+      })
 
     return this.toVo(group)
   }
 
   async update(ownerId: string, groupId: string, dto: UpdateModelGroupDto): Promise<ModelGroupVo> {
-    const existingGroup = await this.getOwnedGroup(ownerId, groupId)
-    const provider = this.providerRegistry.get(dto.providerType)
+    const existingGroup = await this.getOwnedGroup(ownerId, groupId),
+      provider = this.providerRegistry.get(dto.providerType)
     this.assertCredentialSupported(provider.supportsApiKey, dto.apiKey)
     this.assertValidModels(dto.models)
     this.assertOwnedModelIds(existingGroup, dto.models)
@@ -158,8 +158,8 @@ export class ModelGroupService {
   }
 
   private assertValidModels(models: readonly ModelWriteValue[]): void {
-    const normalizedModelIds = new Set<string>()
-    const configuredModelIds = new Set<string>()
+    const normalizedModelIds = new Set<string>(),
+      configuredModelIds = new Set<string>()
 
     for (const model of models) {
       const normalizedModelId = normalizeModelId(model.modelId)
@@ -200,8 +200,10 @@ export class ModelGroupService {
       throw new ConflictException('模型组正在被知识库使用，无法修改供应商类型')
     }
 
-    const nextModels = new Map(dto.models.flatMap((model) => (model.id ? [[model.id, model]] : [])))
-    const changedModelIds: string[] = []
+    const nextModels = new Map(
+        dto.models.flatMap((model) => (model.id ? [[model.id, model]] : [])),
+      ),
+      changedModelIds: string[] = []
 
     for (const currentModel of group.models) {
       if (!referencedModelIds.has(currentModel.id)) continue

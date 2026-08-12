@@ -48,16 +48,15 @@ import {
 } from '../schema'
 
 const metadataTypeLabels: Record<KnowledgeMetadataFieldType, string> = {
-  string: 'String',
-  number: 'Number',
-  time: 'Time',
-}
-
-const metadataTypeIcons = {
-  string: TextCursorInput,
-  number: Hash,
-  time: CalendarClock,
-} satisfies Record<KnowledgeMetadataFieldType, typeof TextCursorInput>
+    string: 'String',
+    number: 'Number',
+    time: 'Time',
+  },
+  metadataTypeIcons = {
+    string: TextCursorInput,
+    number: Hash,
+    time: CalendarClock,
+  } satisfies Record<KnowledgeMetadataFieldType, typeof TextCursorInput>
 
 function toLocalDateTimeInput(value: string): string {
   const date = new Date(value)
@@ -97,11 +96,13 @@ function MetadataFieldForm({
   onSave: (values: KnowledgeMetadataFieldFormInput) => Promise<void>
 }) {
   const { form, setForm, updateFormField } = useFormData<KnowledgeMetadataFieldFormInput>(
-    field ? { name: field.name, type: field.type } : { ...KNOWLEDGE_METADATA_FIELD_INITIAL_VALUES },
-  )
-  const [touched, setTouched] = useState(false)
-  const validation = validateFormByZod(knowledgeMetadataFieldSchema, form)
-  const nameError = validation.success ? undefined : validation.errors.name
+      field
+        ? { name: field.name, type: field.type }
+        : { ...KNOWLEDGE_METADATA_FIELD_INITIAL_VALUES },
+    ),
+    [touched, setTouched] = useState(false),
+    validation = validateFormByZod(knowledgeMetadataFieldSchema, form),
+    nameError = validation.success ? undefined : validation.errors.name
 
   useEffect(() => {
     setForm(
@@ -192,27 +193,27 @@ export function KnowledgeDocumentMetadataPanel({
   onDocumentChange: (document: KnowledgeDocumentDto) => void
 }) {
   const { form, setForm, updateFormField } = useFormData<KnowledgeDocumentMetadataFormInput>({
-    values: {},
-  })
-  const [annotating, setAnnotating] = useState(false)
-  const [fields, setFields] = useState<KnowledgeMetadataFieldDto[]>([])
-  const [fieldsLoaded, setFieldsLoaded] = useState(false)
-  const [loadingFields, setLoadingFields] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [popoverOpen, setPopoverOpen] = useState(false)
-  const [popoverMode, setPopoverMode] = useState<'list' | 'create' | 'edit'>('list')
-  const [editingField, setEditingField] = useState<KnowledgeMetadataFieldDto>()
-  const [deletingField, setDeletingField] = useState<KnowledgeMetadataFieldDto>()
-  const [mutatingField, setMutatingField] = useState(false)
-  const [search, setSearch] = useState('')
-  const metadataSchema = createKnowledgeDocumentMetadataSchema(fields)
-  const validation = validateFormByZod(metadataSchema, form)
-  const documentMetadataEntries = Object.entries(document?.metadata ?? {})
-  const hasDocumentMetadata = documentMetadataEntries.length > 0
-  const selectedFields = fields.filter((field) => field.id in form.values)
-  const filteredFields = fields.filter((field) =>
-    field.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
-  )
+      values: {},
+    }),
+    [annotating, setAnnotating] = useState(false),
+    [fields, setFields] = useState<KnowledgeMetadataFieldDto[]>([]),
+    [fieldsLoaded, setFieldsLoaded] = useState(false),
+    [loadingFields, setLoadingFields] = useState(false),
+    [saving, setSaving] = useState(false),
+    [popoverOpen, setPopoverOpen] = useState(false),
+    [popoverMode, setPopoverMode] = useState<'list' | 'create' | 'edit'>('list'),
+    [editingField, setEditingField] = useState<KnowledgeMetadataFieldDto>(),
+    [deletingField, setDeletingField] = useState<KnowledgeMetadataFieldDto>(),
+    [mutatingField, setMutatingField] = useState(false),
+    [search, setSearch] = useState(''),
+    metadataSchema = createKnowledgeDocumentMetadataSchema(fields),
+    validation = validateFormByZod(metadataSchema, form),
+    documentMetadataEntries = Object.entries(document?.metadata ?? {}),
+    hasDocumentMetadata = documentMetadataEntries.length > 0,
+    selectedFields = fields.filter((field) => field.id in form.values),
+    filteredFields = fields.filter((field) =>
+      field.name.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()),
+    )
 
   useEffect(() => {
     setAnnotating(false)
@@ -496,8 +497,8 @@ export function KnowledgeDocumentMetadataPanel({
                 <div className="max-h-44 overflow-auto px-1.5 pb-1.5">
                   {filteredFields.length ? (
                     filteredFields.map((field) => {
-                      const Icon = metadataTypeIcons[field.type]
-                      const selected = field.id in form.values
+                      const Icon = metadataTypeIcons[field.type],
+                        selected = field.id in form.values
                       return (
                         <div
                           key={field.id}
@@ -588,8 +589,10 @@ export function KnowledgeDocumentMetadataPanel({
         ) : selectedFields.length ? (
           <div className="border-border/60 mt-3 space-y-1.5 border-t pt-2.5">
             {selectedFields.map((field) => {
-              const error = validation.success ? undefined : validation.errors[`values.${field.id}`]
-              const value = form.values[field.id] ?? ''
+              const error = validation.success
+                  ? undefined
+                  : validation.errors[`values.${field.id}`],
+                value = form.values[field.id] ?? ''
               return (
                 <div
                   key={field.id}

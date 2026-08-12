@@ -95,8 +95,8 @@ function CheckListPanelContent({ issues, onIssueSelect }: CheckListPanelContentP
   return (
     <ul className="space-y-2 px-4 py-4">
       {[...issuesByNode.values()].map((nodeIssues) => {
-        const node = nodeIssues[0]!
-        const definition = nodeRegistry.get(node.nodeType)?.definition
+        const node = nodeIssues[0]!,
+          definition = nodeRegistry.get(node.nodeType)?.definition
 
         return (
           <li
@@ -217,11 +217,11 @@ export function WorkflowAuxiliaryPanel({
   onStartTestRun,
   onUpdateEnvironmentVariable,
 }: WorkflowAuxiliaryPanelProps) {
-  const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type]
-  const Content = definition.Content
-  const title =
-    type === 'check-list' ? `${definition.title}(${checkListIssues.length})` : definition.title
-  const titleId = `workflow-auxiliary-panel-${type}-title`
+  const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type],
+    Content = definition.Content,
+    title =
+      type === 'check-list' ? `${definition.title}(${checkListIssues.length})` : definition.title,
+    titleId = `workflow-auxiliary-panel-${type}-title`
 
   return (
     <aside

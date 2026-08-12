@@ -15,14 +15,15 @@ export class HttpAllException implements ExceptionFilter {
   private readonly logger = new Logger(HttpAllException.name)
 
   catch(exception: any, host: ArgumentsHost): void {
-    const context = host.switchToHttp()
-    const request = context.getRequest<ExpressRequest>()
-    const response = context.getResponse<ExpressResponse>()
-
-    const status =
-      exception instanceof HttpException ? exception.getStatus() : HttpStatus.INTERNAL_SERVER_ERROR // 500
-    const message = this.resolveMessage(exception)
-    const logMessage = `${request.method} ${request.originalUrl} ${status} ${message}`
+    const context = host.switchToHttp(),
+      request = context.getRequest<ExpressRequest>(),
+      response = context.getResponse<ExpressResponse>(),
+      status =
+        exception instanceof HttpException
+          ? exception.getStatus()
+          : HttpStatus.INTERNAL_SERVER_ERROR, // 500
+      message = this.resolveMessage(exception),
+      logMessage = `${request.method} ${request.originalUrl} ${status} ${message}`
     if (exception instanceof Error) {
       this.logger.error(logMessage, exception.stack)
     } else {

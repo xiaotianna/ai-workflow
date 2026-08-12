@@ -70,9 +70,9 @@ export const pluginConfigSchema = z
   })
   .strict()
   .superRefine((config, context) => {
-    const nodeKeys = new Set<string>()
-    const requiredHostFields = new Set(config.requires.hostFields)
-    const hasWebExecutePermission = config.permissions.includes('web:execute')
+    const nodeKeys = new Set<string>(),
+      requiredHostFields = new Set(config.requires.hostFields),
+      hasWebExecutePermission = config.permissions.includes('web:execute')
 
     config.nodes.forEach((node, index) => {
       if (nodeKeys.has(node.key)) {

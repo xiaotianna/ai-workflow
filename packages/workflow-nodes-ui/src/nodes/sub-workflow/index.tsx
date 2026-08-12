@@ -6,9 +6,9 @@ import { WorkflowReferenceIcon } from '../../components/workflow-reference-icon'
 import type { NodeContentProps } from '../../contracts/node-content'
 
 export function SubWorkflowNodeContent({ node }: NodeContentProps<SubWorkflowNodeConfig>) {
-  const workflow = node.config.workflow
-  const workflowField = subWorkflowNode.form.workflow
-  const hasWorkflowReference = Boolean(workflow.id || workflow.appId)
+  const workflow = node.config.workflow,
+    workflowField = subWorkflowNode.form.workflow,
+    hasWorkflowReference = Boolean(workflow.id || workflow.appId)
 
   if (!hasWorkflowReference) {
     return (

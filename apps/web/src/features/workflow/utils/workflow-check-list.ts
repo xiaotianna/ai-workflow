@@ -26,23 +26,23 @@ export function appendWorkflowNodeDraftValidationIssues(
   if (!node || messages.length === 0) return issues
 
   const existingMessages = new Set(
-    issues.filter((issue) => issue.nodeId === node.id).map((issue) => issue.message),
-  )
-  const nodeLabel = node.label?.trim() || nodeRegistry.get(node.type)?.definition.label || node.type
-  const draftIssues = messages.flatMap((message, index) => {
-    if (existingMessages.has(message)) return []
+      issues.filter((issue) => issue.nodeId === node.id).map((issue) => issue.message),
+    ),
+    nodeLabel = node.label?.trim() || nodeRegistry.get(node.type)?.definition.label || node.type,
+    draftIssues = messages.flatMap((message, index) => {
+      if (existingMessages.has(message)) return []
 
-    existingMessages.add(message)
-    return [
-      {
-        id: `${node.id}-draft-${index}`,
-        message,
-        nodeId: node.id,
-        nodeLabel,
-        nodeType: node.type,
-      },
-    ]
-  })
+      existingMessages.add(message)
+      return [
+        {
+          id: `${node.id}-draft-${index}`,
+          message,
+          nodeId: node.id,
+          nodeLabel,
+          nodeType: node.type,
+        },
+      ]
+    })
 
   return [...issues, ...draftIssues]
 }
@@ -85,9 +85,9 @@ function getConfigIssueMessage(
   issue: { message: string; path: PropertyKey[] },
   nodeRegistry: NodeRegistryReader,
 ) {
-  const nodeType = nodeRegistry.get(node.type)
-  const fieldName = typeof issue.path[0] === 'string' ? issue.path[0] : undefined
-  const fieldLabel = fieldName ? nodeType?.form?.[fieldName]?.label : undefined
+  const nodeType = nodeRegistry.get(node.type),
+    fieldName = typeof issue.path[0] === 'string' ? issue.path[0] : undefined,
+    fieldLabel = fieldName ? nodeType?.form?.[fieldName]?.label : undefined
 
   if (!fieldLabel || issue.message.includes(fieldLabel)) return issue.message
   return `${fieldLabel}：${issue.message}`
@@ -121,8 +121,8 @@ function collectNodeConfigIssues(node: WorkflowNode, nodeRegistry: NodeRegistryR
   const nodeType = nodeRegistry.get(node.type)
   if (!nodeType) return []
 
-  const issues: string[] = []
-  const emptyRequiredFieldNames = new Set<string>()
+  const issues: string[] = [],
+    emptyRequiredFieldNames = new Set<string>()
 
   for (const [fieldName, field] of Object.entries(nodeType.form ?? {})) {
     const value = node.config[fieldName]
@@ -170,9 +170,9 @@ export function createWorkflowCheckListIssues(
   workflow: Workflow,
   nodeRegistry: NodeRegistryReader,
 ): WorkflowCheckListIssue[] {
-  const nodeById = new Map(workflow.nodes.map((node) => [node.id, node]))
-  const pendingIssues: PendingCheckListIssue[] = []
-  const issueKeys = new Set<string>()
+  const nodeById = new Map(workflow.nodes.map((node) => [node.id, node])),
+    pendingIssues: PendingCheckListIssue[] = [],
+    issueKeys = new Set<string>()
 
   function appendIssue(node: WorkflowNode, message: string) {
     const issueKey = `${node.id}:${message}`
@@ -191,8 +191,8 @@ export function createWorkflowCheckListIssues(
   for (const issue of validateExecutorWorkflow(workflow, nodeRegistry)) {
     if (issue.scope === 'node' && issue.field === 'config') continue
 
-    const nodeId = getValidationIssueNodeId(issue, workflow)
-    const node = nodeId ? nodeById.get(nodeId) : undefined
+    const nodeId = getValidationIssueNodeId(issue, workflow),
+      node = nodeId ? nodeById.get(nodeId) : undefined
     if (!node) continue
 
     appendIssue(node, getValidationIssueMessage(issue, node, nodeRegistry))

@@ -20,23 +20,22 @@ import { useWorkflowEnvironmentVariables } from './workflow-environment-variable
 import { modelProviderStrategies } from '@/features/models'
 import { useWorkflowCatalog } from '@/features/workflow/catalog/workflow-web-catalog'
 
-const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map()
+const EMPTY_NODE_DISPLAY_LABELS: ReadonlyMap<string, string> = new Map(),
+  resolvePersistedModelReferenceDisplay: ModelReferenceDisplayResolver = (reference) => {
+    const modelName = reference.modelName?.trim() || reference.modelId?.trim()
+    if (!modelName) return undefined
 
-const resolvePersistedModelReferenceDisplay: ModelReferenceDisplayResolver = (reference) => {
-  const modelName = reference.modelName?.trim() || reference.modelId?.trim()
-  if (!modelName) return undefined
+    const providerStrategy = modelProviderStrategies.find(
+        (strategy) => strategy.type === reference.providerType,
+      ),
+      ProviderIcon = providerStrategy?.icon
 
-  const providerStrategy = modelProviderStrategies.find(
-    (strategy) => strategy.type === reference.providerType,
-  )
-  const ProviderIcon = providerStrategy?.icon
-
-  return {
-    groupName: reference.groupName?.trim() ?? '',
-    modelName,
-    providerIcon: ProviderIcon ? <ProviderIcon aria-hidden /> : null,
+    return {
+      groupName: reference.groupName?.trim() ?? '',
+      modelName,
+      providerIcon: ProviderIcon ? <ProviderIcon aria-hidden /> : null,
+    }
   }
-}
 
 function selectNodeDisplayLabels(
   state: ReactFlowState,
@@ -104,8 +103,8 @@ interface WorkflowNodeActionTriggerProps {
 function openNodeContextMenu(event: ReactMouseEvent<HTMLButtonElement>) {
   event.stopPropagation()
 
-  const nodeElement = event.currentTarget.closest('.react-flow__node')
-  const triggerBounds = event.currentTarget.getBoundingClientRect()
+  const nodeElement = event.currentTarget.closest('.react-flow__node'),
+    triggerBounds = event.currentTarget.getBoundingClientRect()
 
   nodeElement?.dispatchEvent(
     new MouseEvent('contextmenu', {
@@ -148,17 +147,17 @@ function WorkflowNodeActionTrigger({ selected }: WorkflowNodeActionTriggerProps)
 }
 
 const WorkflowNode = (props: NodeProps<WorkflowCanvasNode>) => {
-  const { data, id, parentId, selected, type } = props
-  const catalog = useWorkflowCatalog()
-  const { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext()
-  const environmentVariables = useWorkflowEnvironmentVariables()
-  const nodeDisplayLabels = useStore(
-    (state) =>
-      type === BuiltinNodeType.CONDITION
-        ? selectNodeDisplayLabels(state, catalog.nodeRegistry)
-        : EMPTY_NODE_DISPLAY_LABELS,
-    nodeDisplayLabelsEqual,
-  )
+  const { data, id, parentId, selected, type } = props,
+    catalog = useWorkflowCatalog(),
+    { addNodeToLoop, availableNodeTypes, disabled } = useWorkflowLoopEditorContext(),
+    environmentVariables = useWorkflowEnvironmentVariables(),
+    nodeDisplayLabels = useStore(
+      (state) =>
+        type === BuiltinNodeType.CONDITION
+          ? selectNodeDisplayLabels(state, catalog.nodeRegistry)
+          : EMPTY_NODE_DISPLAY_LABELS,
+      nodeDisplayLabelsEqual,
+    )
 
   return (
     <div

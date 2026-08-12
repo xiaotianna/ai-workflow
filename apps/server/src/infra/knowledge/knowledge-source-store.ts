@@ -46,9 +46,9 @@ export class KnowledgeSourceStore {
     )
     if (this.driver === 's3') {
       this.bucket = configService.getOrThrow<string>(KNOWLEDGE_S3_BUCKET)
-      const endpoint = configService.get<string>(KNOWLEDGE_S3_ENDPOINT) || undefined
-      const accessKeyId = configService.get<string>(KNOWLEDGE_S3_ACCESS_KEY_ID) || undefined
-      const secretAccessKey = configService.get<string>(KNOWLEDGE_S3_SECRET_ACCESS_KEY) || undefined
+      const endpoint = configService.get<string>(KNOWLEDGE_S3_ENDPOINT) || undefined,
+        accessKeyId = configService.get<string>(KNOWLEDGE_S3_ACCESS_KEY_ID) || undefined,
+        secretAccessKey = configService.get<string>(KNOWLEDGE_S3_SECRET_ACCESS_KEY) || undefined
       this.s3Client = new S3Client({
         region: configService.get<string>(KNOWLEDGE_S3_REGION) ?? 'us-east-1',
         ...(endpoint ? { endpoint } : {}),
@@ -66,8 +66,8 @@ export class KnowledgeSourceStore {
     content: Buffer,
     contentType?: string,
   ): Promise<string> {
-    const extension = extname(originalName).toLowerCase()
-    const storageKey = posix.join(knowledgeBaseId, `${randomUUID()}${extension}`)
+    const extension = extname(originalName).toLowerCase(),
+      storageKey = posix.join(knowledgeBaseId, `${randomUUID()}${extension}`)
     if (this.driver === 's3') {
       const { bucket, client } = this.requireS3()
       try {
@@ -158,25 +158,25 @@ export class KnowledgeSourceStore {
     limit: number
   }): Promise<KnowledgeSourceGcPage> {
     if (this.driver === 's3') {
-      const { bucket, client } = this.requireS3()
-      const result = await client.send(
-        new ListObjectsV2Command({
-          Bucket: bucket,
-          MaxKeys: options.limit,
-          ...(options.continuationToken ? { ContinuationToken: options.continuationToken } : {}),
-        }),
-      )
-      const items = (result.Contents ?? []).flatMap((object) => {
-        if (
-          !object.Key ||
-          !object.LastModified ||
-          !this.isManagedStorageKey(object.Key) ||
-          object.LastModified >= options.before
-        ) {
-          return []
-        }
-        return [{ storageKey: object.Key, lastModified: object.LastModified }]
-      })
+      const { bucket, client } = this.requireS3(),
+        result = await client.send(
+          new ListObjectsV2Command({
+            Bucket: bucket,
+            MaxKeys: options.limit,
+            ...(options.continuationToken ? { ContinuationToken: options.continuationToken } : {}),
+          }),
+        ),
+        items = (result.Contents ?? []).flatMap((object) => {
+          if (
+            !object.Key ||
+            !object.LastModified ||
+            !this.isManagedStorageKey(object.Key) ||
+            object.LastModified >= options.before
+          ) {
+            return []
+          }
+          return [{ storageKey: object.Key, lastModified: object.LastModified }]
+        })
       return {
         items,
         ...(result.NextContinuationToken
@@ -185,13 +185,13 @@ export class KnowledgeSourceStore {
       }
     }
 
-    const objects = await this.listLocalObjects(this.rootDirectory)
-    const start = options.continuationToken
-      ? objects.findIndex(({ storageKey }) => storageKey > options.continuationToken!)
-      : 0
-    const pageStart = start < 0 ? objects.length : start
-    const page = objects.slice(pageStart, pageStart + options.limit)
-    const hasMore = pageStart + page.length < objects.length
+    const objects = await this.listLocalObjects(this.rootDirectory),
+      start = options.continuationToken
+        ? objects.findIndex(({ storageKey }) => storageKey > options.continuationToken!)
+        : 0,
+      pageStart = start < 0 ? objects.length : start,
+      page = objects.slice(pageStart, pageStart + options.limit),
+      hasMore = pageStart + page.length < objects.length
     return {
       items: page.filter(
         ({ storageKey, lastModified }) =>
@@ -202,8 +202,8 @@ export class KnowledgeSourceStore {
   }
 
   private resolveStoragePath(storageKey: string): string {
-    const targetPath = resolve(this.rootDirectory, this.validateStorageKey(storageKey))
-    const relativePath = relative(this.rootDirectory, targetPath)
+    const targetPath = resolve(this.rootDirectory, this.validateStorageKey(storageKey)),
+      relativePath = relative(this.rootDirectory, targetPath)
 
     if (!relativePath || relativePath.startsWith('..') || relativePath.startsWith(sep)) {
       throw new InternalServerErrorException('知识库原文件存储路径不安全')
@@ -244,16 +244,16 @@ export class KnowledgeSourceStore {
     }
 
     const nestedItems = await Promise.all(
-      entries.map(async (entry): Promise<KnowledgeSourceGcCandidate[]> => {
-        const storageKey = posix.join(relativeDirectory, entry.name)
-        const fullPath = resolve(directory, entry.name)
-        if (entry.isDirectory()) return this.listLocalObjects(fullPath, storageKey)
-        if (!entry.isFile()) return []
-        const fileStat = await stat(fullPath)
-        return [{ storageKey, lastModified: fileStat.mtime }]
-      }),
-    )
-    const items = nestedItems.flat()
+        entries.map(async (entry): Promise<KnowledgeSourceGcCandidate[]> => {
+          const storageKey = posix.join(relativeDirectory, entry.name),
+            fullPath = resolve(directory, entry.name)
+          if (entry.isDirectory()) return this.listLocalObjects(fullPath, storageKey)
+          if (!entry.isFile()) return []
+          const fileStat = await stat(fullPath)
+          return [{ storageKey, lastModified: fileStat.mtime }]
+        }),
+      ),
+      items = nestedItems.flat()
     return items.sort((left, right) => left.storageKey.localeCompare(right.storageKey))
   }
 

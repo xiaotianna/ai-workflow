@@ -2,8 +2,8 @@ import type { PortMap } from '@ai-workflow/core'
 import type { NodePortRender } from '../../contracts/node-content'
 import { cn } from '@ai-workflow/ui/lib/utils'
 
-const STACKED_PORT_TOP_OFFSET = 20
-const STACKED_PORT_GAP = 28
+const STACKED_PORT_TOP_OFFSET = 20,
+  STACKED_PORT_GAP = 28
 
 export interface NodePortsRenderProps {
   nodeId: string

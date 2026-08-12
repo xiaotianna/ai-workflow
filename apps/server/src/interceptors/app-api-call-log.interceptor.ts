@@ -19,9 +19,9 @@ export class AppApiCallLogInterceptor implements NestInterceptor {
   constructor(private readonly appApiRepository: AppApiRepository) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
-    const request = context.switchToHttp().getRequest<AppApiAuthenticatedRequest>()
-    const response = context.switchToHttp().getResponse<Response>()
-    const startedAt = Date.now()
+    const request = context.switchToHttp().getRequest<AppApiAuthenticatedRequest>(),
+      response = context.switchToHttp().getResponse<Response>(),
+      startedAt = Date.now()
     let recorded = false
 
     const record = (statusCode: number, error?: unknown) => {

@@ -20,8 +20,8 @@ export default function FullShellRenderer({
   dragHandleClassName,
   executionStatus,
 }: PluginNodeRendererProps<FullShellConfig>) {
-  const { banner, mode, highlight } = node.config
-  const isExpanded = mode === 'expanded'
+  const { banner, mode, highlight } = node.config,
+    isExpanded = mode === 'expanded'
 
   return (
     <div

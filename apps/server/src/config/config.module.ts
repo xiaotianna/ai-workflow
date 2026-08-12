@@ -2,19 +2,18 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import * as Joi from 'joi'
 
-const nodeEnv = process.env.NODE_ENV ?? 'development'
+const nodeEnv = process.env.NODE_ENV ?? 'development',
+  modelCredentialKeySchema = Joi.string().custom((value: string, helpers) => {
+    const decodedKey = Buffer.from(value, 'base64')
 
-const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) => {
-  const decodedKey = Buffer.from(value, 'base64')
+    if (decodedKey.length !== 32 || decodedKey.toString('base64') !== value) {
+      return helpers.message({
+        custom: 'MODEL_CREDENTIAL_ENCRYPTION_KEY 必须是 32 字节 Base64 字符串',
+      })
+    }
 
-  if (decodedKey.length !== 32 || decodedKey.toString('base64') !== value) {
-    return helpers.message({
-      custom: 'MODEL_CREDENTIAL_ENCRYPTION_KEY 必须是 32 字节 Base64 字符串',
-    })
-  }
-
-  return value
-})
+    return value
+  })
 
 @Module({
   imports: [
@@ -79,15 +78,15 @@ const modelCredentialKeySchema = Joi.string().custom((value: string, helpers) =>
             custom: 'S3 存储必须配置 KNOWLEDGE_S3_BUCKET',
           })
         }
-        const hasAccessKey = Boolean(value.KNOWLEDGE_S3_ACCESS_KEY_ID)
-        const hasSecretKey = Boolean(value.KNOWLEDGE_S3_SECRET_ACCESS_KEY)
+        const hasAccessKey = Boolean(value.KNOWLEDGE_S3_ACCESS_KEY_ID),
+          hasSecretKey = Boolean(value.KNOWLEDGE_S3_SECRET_ACCESS_KEY)
         if (hasAccessKey !== hasSecretKey) {
           return helpers.message({
             custom: 'S3 静态凭证必须同时配置 Access Key 和 Secret Key',
           })
         }
-        const hasOpenSearchUsername = Boolean(value.OPENSEARCH_USERNAME)
-        const hasOpenSearchPassword = Boolean(value.OPENSEARCH_PASSWORD)
+        const hasOpenSearchUsername = Boolean(value.OPENSEARCH_USERNAME),
+          hasOpenSearchPassword = Boolean(value.OPENSEARCH_PASSWORD)
         if (hasOpenSearchUsername !== hasOpenSearchPassword) {
           return helpers.message({
             custom: 'OpenSearch 用户名和密码必须成对配置',

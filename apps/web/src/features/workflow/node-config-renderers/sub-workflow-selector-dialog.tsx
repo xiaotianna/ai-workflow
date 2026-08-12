@@ -54,32 +54,32 @@ export function SubWorkflowSelectorDialog({
   saving = false,
   value,
 }: SubWorkflowSelectorDialogProps) {
-  const selectableApps = apps.filter((app) => app.id !== excludeAppId)
-  const { form, updateFormField } = useFormData<SubWorkflowSelectionForm>({
-    appId: value.appId || '',
-  })
-  const validationResult = validateFormByZod(subWorkflowSelectionSchema, form)
-  const selectedAppId = form.appId?.trim() ?? ''
-  const unavailableOption =
-    value.appId &&
-    !selectableApps.some((app) => app.id === value.appId) &&
-    value.appId !== excludeAppId
-      ? {
-          id: value.appId,
-          title: value.name ?? `不可用的工作流（${value.appId}）`,
-          ...(value.icon ? { icon: value.icon } : {}),
-          description: '当前不可用，请重新选择',
-        }
-      : undefined
-  const options: SubWorkflowOption[] = [
-    ...(unavailableOption ? [unavailableOption] : []),
-    ...selectableApps.map((app) => ({
-      id: app.id,
-      title: app.title,
-      ...(app.icon ? { icon: app.icon } : {}),
-      ...(app.description ? { description: app.description } : {}),
-    })),
-  ]
+  const selectableApps = apps.filter((app) => app.id !== excludeAppId),
+    { form, updateFormField } = useFormData<SubWorkflowSelectionForm>({
+      appId: value.appId || '',
+    }),
+    validationResult = validateFormByZod(subWorkflowSelectionSchema, form),
+    selectedAppId = form.appId?.trim() ?? '',
+    unavailableOption =
+      value.appId &&
+      !selectableApps.some((app) => app.id === value.appId) &&
+      value.appId !== excludeAppId
+        ? {
+            id: value.appId,
+            title: value.name ?? `不可用的工作流（${value.appId}）`,
+            ...(value.icon ? { icon: value.icon } : {}),
+            description: '当前不可用，请重新选择',
+          }
+        : undefined,
+    options: SubWorkflowOption[] = [
+      ...(unavailableOption ? [unavailableOption] : []),
+      ...selectableApps.map((app) => ({
+        id: app.id,
+        title: app.title,
+        ...(app.icon ? { icon: app.icon } : {}),
+        ...(app.description ? { description: app.description } : {}),
+      })),
+    ]
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

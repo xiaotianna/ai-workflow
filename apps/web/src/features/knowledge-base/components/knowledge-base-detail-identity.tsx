@@ -14,11 +14,11 @@ export function KnowledgeBaseDetailIdentity({
   knowledgeBase,
   onKnowledgeBaseAction,
 }: KnowledgeBaseDetailIdentityProps) {
-  const title = knowledgeBase?.title ?? '未命名知识库'
-  const kindLabel = knowledgeBase
-    ? knowledgeSegmentationModeLabels[knowledgeBase.segmentationMode]
-    : '知识库'
-  const actions = knowledgeBase ? getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction) : []
+  const title = knowledgeBase?.title ?? '未命名知识库',
+    kindLabel = knowledgeBase
+      ? knowledgeSegmentationModeLabels[knowledgeBase.segmentationMode]
+      : '知识库',
+    actions = knowledgeBase ? getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction) : []
 
   return (
     <ResourceIdentity

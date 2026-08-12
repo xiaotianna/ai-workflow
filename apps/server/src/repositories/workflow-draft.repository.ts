@@ -61,27 +61,27 @@ export class WorkflowDraftRepository {
   saveOwned(options: SaveWorkflowDraftOptions): Promise<SaveWorkflowDraftResult> {
     return this.prisma.$transaction(async (transaction) => {
       const app = await transaction.app.findFirst({
-        where: {
-          id: options.appId,
-          ownerId: options.ownerId,
-          deletedAt: null,
-        },
-        select: {
-          workflow: {
-            select: {
-              id: true,
-              draft: {
-                select: {
-                  id: true,
-                  revision: true,
+          where: {
+            id: options.appId,
+            ownerId: options.ownerId,
+            deletedAt: null,
+          },
+          select: {
+            workflow: {
+              select: {
+                id: true,
+                draft: {
+                  select: {
+                    id: true,
+                    revision: true,
+                  },
                 },
               },
             },
           },
-        },
-      })
-      const workflow = app?.workflow
-      const draft = workflow?.draft
+        }),
+        workflow = app?.workflow,
+        draft = workflow?.draft
 
       if (!workflow || !draft) return { status: 'not-found' }
       if (workflow.id !== options.workflowId) return { status: 'workflow-mismatch' }

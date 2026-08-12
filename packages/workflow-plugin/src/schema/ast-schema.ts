@@ -4,57 +4,54 @@ import { z } from 'zod'
 import { compilePluginSchemaToZod } from './compiler'
 import type { PluginSchemaAst } from './types'
 
-const nonNegativeIntegerSchema = z.number().int().nonnegative()
-
-const stringSchemaAstSchema = z
-  .object({
-    kind: z.literal('string'),
-    minLength: nonNegativeIntegerSchema.optional(),
-    maxLength: nonNegativeIntegerSchema.optional(),
-    pattern: z.string().optional(),
-  })
-  .strict()
-  .superRefine((schema, context) => {
-    if (
-      schema.minLength !== undefined &&
-      schema.maxLength !== undefined &&
-      schema.minLength > schema.maxLength
-    ) {
-      context.addIssue({
-        code: 'custom',
-        path: ['maxLength'],
-        message: 'maxLength 不能小于 minLength',
-      })
-    }
-
-    if (schema.pattern !== undefined) {
-      try {
-        new RegExp(schema.pattern)
-      } catch {
+const nonNegativeIntegerSchema = z.number().int().nonnegative(),
+  stringSchemaAstSchema = z
+    .object({
+      kind: z.literal('string'),
+      minLength: nonNegativeIntegerSchema.optional(),
+      maxLength: nonNegativeIntegerSchema.optional(),
+      pattern: z.string().optional(),
+    })
+    .strict()
+    .superRefine((schema, context) => {
+      if (
+        schema.minLength !== undefined &&
+        schema.maxLength !== undefined &&
+        schema.minLength > schema.maxLength
+      ) {
         context.addIssue({
           code: 'custom',
-          path: ['pattern'],
-          message: 'pattern 不是有效的正则表达式',
+          path: ['maxLength'],
+          message: 'maxLength 不能小于 minLength',
         })
       }
-    }
-  })
 
-const numberSchemaAstSchema = z
-  .object({
-    kind: z.literal('number'),
-    min: z.number().finite().optional(),
-    max: z.number().finite().optional(),
-  })
-  .strict()
-  .superRefine((schema, context) => {
-    if (schema.min !== undefined && schema.max !== undefined && schema.min > schema.max) {
-      context.addIssue({ code: 'custom', path: ['max'], message: 'max 不能小于 min' })
-    }
-  })
-
-const literalValueSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()])
-const enumValueSchema = z.union([z.string(), z.number().finite(), z.boolean()])
+      if (schema.pattern !== undefined) {
+        try {
+          new RegExp(schema.pattern)
+        } catch {
+          context.addIssue({
+            code: 'custom',
+            path: ['pattern'],
+            message: 'pattern 不是有效的正则表达式',
+          })
+        }
+      }
+    }),
+  numberSchemaAstSchema = z
+    .object({
+      kind: z.literal('number'),
+      min: z.number().finite().optional(),
+      max: z.number().finite().optional(),
+    })
+    .strict()
+    .superRefine((schema, context) => {
+      if (schema.min !== undefined && schema.max !== undefined && schema.min > schema.max) {
+        context.addIssue({ code: 'custom', path: ['max'], message: 'max 不能小于 min' })
+      }
+    }),
+  literalValueSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]),
+  enumValueSchema = z.union([z.string(), z.number().finite(), z.boolean()])
 
 export const pluginSchemaAstSchema: z.ZodType<PluginSchemaAst> = z
   .lazy(() =>

@@ -31,9 +31,9 @@ export const AddNode = ({
   onAddNode,
   operationLabel = '添加',
 }: AddNodeProps) => {
-  const triggerRef = useRef<HTMLButtonElement>(null)
-  const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
-  const open = controlledOpen ?? uncontrolledOpen
+  const triggerRef = useRef<HTMLButtonElement>(null),
+    [uncontrolledOpen, setUncontrolledOpen] = useState(false),
+    open = controlledOpen ?? uncontrolledOpen
 
   function handleOpenChange(nextOpen: boolean) {
     if (controlledOpen === undefined) setUncontrolledOpen(nextOpen)

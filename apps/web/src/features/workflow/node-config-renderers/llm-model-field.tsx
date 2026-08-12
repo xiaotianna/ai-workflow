@@ -84,17 +84,17 @@ function getAvailableModelGroups(groups: readonly ModelGroupDto[]): AvailableMod
 }
 
 export function LlmModelField({ field, value, error, disabled, onChange }: LlmModelFieldProps) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const { load, loaded, loadError, loading, modelGroups, reload } = useWorkflowModelCatalog()
-  const modelReference = getModelReference(value)
-  const availableModelGroups = getAvailableModelGroups(modelGroups)
-  const availableModels = availableModelGroups.flatMap((group) => group.models)
-  const selectedModel = availableModels.find(
-    (model) =>
-      model.groupId === modelReference.groupId &&
-      model.configuredModelId === modelReference.configuredModelId,
-  )
-  const hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
+  const [settingsOpen, setSettingsOpen] = useState(false),
+    { load, loaded, loadError, loading, modelGroups, reload } = useWorkflowModelCatalog(),
+    modelReference = getModelReference(value),
+    availableModelGroups = getAvailableModelGroups(modelGroups),
+    availableModels = availableModelGroups.flatMap((group) => group.models),
+    selectedModel = availableModels.find(
+      (model) =>
+        model.groupId === modelReference.groupId &&
+        model.configuredModelId === modelReference.configuredModelId,
+    ),
+    hasStoredModel = Boolean(modelReference.groupId || modelReference.configuredModelId)
 
   useEffect(() => {
     load()

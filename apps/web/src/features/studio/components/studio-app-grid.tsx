@@ -39,18 +39,18 @@ export function StudioAppGrid({
   onRetryLoadMore,
   onAppAction,
 }: StudioAppGridProps) {
-  const scrollElementRef = useRef<HTMLDivElement>(null)
-  const [columnCount, setColumnCount] = useState(getStudioColumnCount)
-  const rowCount = Math.ceil(apps.length / columnCount)
-  const footerRowCount = loadingMore || loadMoreError ? 1 : 0
-  const rowVirtualizer = useVirtualizer({
-    count: rowCount + footerRowCount,
-    getScrollElement: () => scrollElementRef.current,
-    estimateSize: () => 151,
-    overscan: 2,
-  })
-  const virtualRows = rowVirtualizer.getVirtualItems()
-  const lastVirtualRowIndex = virtualRows.at(-1)?.index
+  const scrollElementRef = useRef<HTMLDivElement>(null),
+    [columnCount, setColumnCount] = useState(getStudioColumnCount),
+    rowCount = Math.ceil(apps.length / columnCount),
+    footerRowCount = loadingMore || loadMoreError ? 1 : 0,
+    rowVirtualizer = useVirtualizer({
+      count: rowCount + footerRowCount,
+      getScrollElement: () => scrollElementRef.current,
+      estimateSize: () => 151,
+      overscan: 2,
+    }),
+    virtualRows = rowVirtualizer.getVirtualItems(),
+    lastVirtualRowIndex = virtualRows.at(-1)?.index
 
   useEffect(() => {
     function handleResize() {
@@ -117,10 +117,10 @@ export function StudioAppGrid({
     <div ref={scrollElementRef} className="relative -mx-4 h-full min-h-0 overflow-auto px-4 pt-4">
       <div className="relative w-full" style={{ height: rowVirtualizer.getTotalSize() + 16 }}>
         {virtualRows.map((virtualRow) => {
-          const isFooterRow = virtualRow.index >= rowCount
-          const rowApps = isFooterRow
-            ? []
-            : apps.slice(virtualRow.index * columnCount, (virtualRow.index + 1) * columnCount)
+          const isFooterRow = virtualRow.index >= rowCount,
+            rowApps = isFooterRow
+              ? []
+              : apps.slice(virtualRow.index * columnCount, (virtualRow.index + 1) * columnCount)
 
           return (
             <div
@@ -144,8 +144,8 @@ export function StudioAppGrid({
                 )
               ) : (
                 rowApps.map((app) => {
-                  const actions = getStudioAppActions(app, onAppAction)
-                  const timeDisplay = getStudioAppTimeDisplay(app, sort)
+                  const actions = getStudioAppActions(app, onAppAction),
+                    timeDisplay = getStudioAppTimeDisplay(app, sort)
 
                   return (
                     <ResourceCard

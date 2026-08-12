@@ -40,17 +40,19 @@ type WorkflowDraftState =
 
 function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   const [draftState, setDraftState] = useState<WorkflowDraftState>({
-    appId: app.id,
-    status: 'loading',
-  })
-  const [selectedVersionId, setSelectedVersionId] = useState<string>()
-  const revisionRef = useRef<number | undefined>(undefined)
-  const workflowPublish = useWorkflowPublish(app.id)
-  const testRun = useWorkflowTestRun(app.id)
-  const draft =
-    draftState.appId === app.id && draftState.status === 'success' ? draftState.draft : undefined
-  const catalog =
-    draftState.appId === app.id && draftState.status === 'success' ? draftState.catalog : undefined
+      appId: app.id,
+      status: 'loading',
+    }),
+    [selectedVersionId, setSelectedVersionId] = useState<string>(),
+    revisionRef = useRef<number | undefined>(undefined),
+    workflowPublish = useWorkflowPublish(app.id),
+    testRun = useWorkflowTestRun(app.id),
+    draft =
+      draftState.appId === app.id && draftState.status === 'success' ? draftState.draft : undefined,
+    catalog =
+      draftState.appId === app.id && draftState.status === 'success'
+        ? draftState.catalog
+        : undefined
 
   useWorkflowPluginRuntimeToasts(catalog)
 
@@ -66,10 +68,10 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
     void getStudioWorkflowDraft(app.id, controller.signal)
       .then(async (loadedDraft) => {
         const runtimeCatalog = await resolvePluginRuntimeCatalog(
-          loadedDraft.definition.plugins,
-          controller.signal,
-        )
-        const runtime = await createWorkflowPluginRuntime(runtimeCatalog, controller.signal)
+            loadedDraft.definition.plugins,
+            controller.signal,
+          ),
+          runtime = await createWorkflowPluginRuntime(runtimeCatalog, controller.signal)
         revisionRef.current = loadedDraft.revision
         setDraftState({
           appId: app.id,
@@ -109,9 +111,9 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   }
 
   async function handleRestoreVersion(versionId: string) {
-    const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId)
-    const runtimeCatalog = await resolvePluginRuntimeCatalog(restoredDraft.definition.plugins)
-    const runtime = await createWorkflowPluginRuntime(runtimeCatalog)
+    const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId),
+      runtimeCatalog = await resolvePluginRuntimeCatalog(restoredDraft.definition.plugins),
+      runtime = await createWorkflowPluginRuntime(runtimeCatalog)
     revisionRef.current = restoredDraft.revision
     setSelectedVersionId(versionId)
     setDraftState({

@@ -29,13 +29,13 @@ export function WorkflowVersionNameDialog({
   onOpenChange,
   onSubmit,
 }: WorkflowVersionNameDialogProps) {
-  const [submitting, setSubmitting] = useState(false)
-  const [touched, setTouched] = useState(false)
-  const { form, resetForm, updateFormField } = useFormData(
-    getWorkflowVersionNameFormInitialValues(version?.name),
-  )
-  const validation = validateFormByZod(workflowVersionNameFormSchema, form)
-  const fieldError = validation.success ? undefined : validation.errors.name
+  const [submitting, setSubmitting] = useState(false),
+    [touched, setTouched] = useState(false),
+    { form, resetForm, updateFormField } = useFormData(
+      getWorkflowVersionNameFormInitialValues(version?.name),
+    ),
+    validation = validateFormByZod(workflowVersionNameFormSchema, form),
+    fieldError = validation.success ? undefined : validation.errors.name
 
   useEffect(() => {
     if (!open) return

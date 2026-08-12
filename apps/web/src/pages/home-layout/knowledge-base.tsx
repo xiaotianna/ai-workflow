@@ -23,10 +23,10 @@ import {
 
 export default function KnowledgeBasePage() {
   const { error, knowledgeBases, loading, refresh, search, setSearch, setSort, sort } =
-    useKnowledgeBases()
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [editingKnowledgeBase, setEditingKnowledgeBase] = useState<KnowledgeBaseListItem>()
-  const [deletingKnowledgeBase, setDeletingKnowledgeBase] = useState<KnowledgeBaseListItem>()
+      useKnowledgeBases(),
+    [createDialogOpen, setCreateDialogOpen] = useState(false),
+    [editingKnowledgeBase, setEditingKnowledgeBase] = useState<KnowledgeBaseListItem>(),
+    [deletingKnowledgeBase, setDeletingKnowledgeBase] = useState<KnowledgeBaseListItem>()
 
   async function handleCreateKnowledgeBase(input: CreateKnowledgeBaseInput) {
     await createKnowledgeBase(input)

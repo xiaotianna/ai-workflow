@@ -29,8 +29,8 @@ export function WorkflowContextMenuContent({
     if (action.keepMenuOpenAfterSelect) {
       event.preventDefault()
 
-      const item = event.currentTarget
-      const itemBounds = item instanceof Element ? item.getBoundingClientRect() : undefined
+      const item = event.currentTarget,
+        itemBounds = item instanceof Element ? item.getBoundingClientRect() : undefined
       onAction(action, itemBounds ? { x: itemBounds.right, y: itemBounds.top } : undefined)
       return
     }
@@ -53,9 +53,9 @@ export function WorkflowContextMenuContent({
       >
         {actions.map((action, index) => {
           const shortcut = action.shortcutId
-            ? getWorkflowShortcutDefinition(action.shortcutId)
-            : undefined
-          const actionDisabled = context ? (action.isDisabled?.(context) ?? false) : true
+              ? getWorkflowShortcutDefinition(action.shortcutId)
+              : undefined,
+            actionDisabled = context ? (action.isDisabled?.(context) ?? false) : true
 
           return (
             <Fragment key={action.id}>

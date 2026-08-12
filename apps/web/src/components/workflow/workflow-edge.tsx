@@ -28,19 +28,19 @@ function WorkflowEdge({
   targetX,
   targetY,
 }: EdgeProps) {
-  const { disabled, openInsertNode } = useWorkflowAddNode()
-  const sourceNode = useInternalNode<WorkflowCanvasNode>(source)
-  const targetNode = useInternalNode<WorkflowCanvasNode>(target)
-  const insertable =
-    !sourceNode?.internals.userNode.parentId && !targetNode?.internals.userNode.parentId
-  const [edgePath, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-  })
+  const { disabled, openInsertNode } = useWorkflowAddNode(),
+    sourceNode = useInternalNode<WorkflowCanvasNode>(source),
+    targetNode = useInternalNode<WorkflowCanvasNode>(target),
+    insertable =
+      !sourceNode?.internals.userNode.parentId && !targetNode?.internals.userNode.parentId,
+    [edgePath, labelX, labelY] = getBezierPath({
+      sourceX,
+      sourceY,
+      sourcePosition,
+      targetX,
+      targetY,
+      targetPosition,
+    })
 
   function handleAddNode(event: MouseEvent<HTMLButtonElement>) {
     event.preventDefault()

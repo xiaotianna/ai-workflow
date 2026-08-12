@@ -24,10 +24,10 @@ const collectWorkflowValidationResult = (
   workflow: Workflow,
   registry: NodeRegistryReader,
 ): WorkflowValidationResult => {
-  const issues: WorkflowValidationIssue[] = []
-  const report: ReportValidationIssueFn = (issue) => issues.push(issue)
-  const nodes = validateNodes(workflow.nodes, registry, report)
-  const edges = validateEdges(workflow.edges, nodes, report)
+  const issues: WorkflowValidationIssue[] = [],
+    report: ReportValidationIssueFn = (issue) => issues.push(issue),
+    nodes = validateNodes(workflow.nodes, registry, report),
+    edges = validateEdges(workflow.edges, nodes, report)
 
   // 校验loop是否合法
   validateLoopStructure(workflow.nodes, workflow.edges, report)
@@ -53,10 +53,10 @@ export const validateExecutorWorkflow = (
   workflow: Workflow,
   registry: NodeRegistryReader,
 ): WorkflowValidationIssue[] => {
-  const result = collectWorkflowValidationResult(workflow, registry)
-  const report: ReportValidationIssueFn = (issue) => {
-    result.issues.push(issue)
-  }
+  const result = collectWorkflowValidationResult(workflow, registry),
+    report: ReportValidationIssueFn = (issue) => {
+      result.issues.push(issue)
+    }
 
   // 该校验只针对于运行时候执行
   validateRequiredNodeInputs(result.nodes, result.edges.inputConnectionCounts, report)

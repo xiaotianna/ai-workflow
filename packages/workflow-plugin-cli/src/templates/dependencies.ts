@@ -42,12 +42,12 @@ export async function resolveLocalTemplateDependencies(
   let currentDirectory = resolve(startDirectory)
 
   while (true) {
-    const sdkDirectory = join(currentDirectory, 'packages/workflow-plugin')
-    const cliDirectory = join(currentDirectory, 'packages/workflow-plugin-cli')
-    const [sdkName, cliName] = await Promise.all([
-      readPackageName(join(sdkDirectory, 'package.json')),
-      readPackageName(join(cliDirectory, 'package.json')),
-    ])
+    const sdkDirectory = join(currentDirectory, 'packages/workflow-plugin'),
+      cliDirectory = join(currentDirectory, 'packages/workflow-plugin-cli'),
+      [sdkName, cliName] = await Promise.all([
+        readPackageName(join(sdkDirectory, 'package.json')),
+        readPackageName(join(cliDirectory, 'package.json')),
+      ])
 
     if (sdkName === '@ai-workflow/plugin' && cliName === '@ai-workflow/plugin-cli') {
       return {

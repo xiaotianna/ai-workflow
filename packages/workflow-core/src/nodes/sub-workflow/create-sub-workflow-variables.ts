@@ -61,22 +61,20 @@ export function createSubWorkflowNodeVariables(
   inputs: NodeInputBindings
   outputs: NodeOutputDefinition[]
 } {
-  const startNode = target.nodes.find((node) => node.type === BuiltinNodeType.START)
-  const startOutputs = startNode?.outputs ?? []
-
-  const inputs = Object.fromEntries(
-    startOutputs.map((output) => [
-      output.key,
-      previousInputs[output.key] ?? createDefaultInputValue(output),
-    ]),
-  ) satisfies NodeInputBindings
-
-  const outputs = target.outputs.map((output) => ({
-    key: output.key,
-    label: output.label,
-    dataType: output.dataType,
-    ...(output.description ? { description: output.description } : {}),
-  }))
+  const startNode = target.nodes.find((node) => node.type === BuiltinNodeType.START),
+    startOutputs = startNode?.outputs ?? [],
+    inputs = Object.fromEntries(
+      startOutputs.map((output) => [
+        output.key,
+        previousInputs[output.key] ?? createDefaultInputValue(output),
+      ]),
+    ) satisfies NodeInputBindings,
+    outputs = target.outputs.map((output) => ({
+      key: output.key,
+      label: output.label,
+      dataType: output.dataType,
+      ...(output.description ? { description: output.description } : {}),
+    }))
 
   return { inputs, outputs }
 }

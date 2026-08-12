@@ -7,11 +7,11 @@ import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { useEffect, useRef, useState } from 'react'
 
 export function useWorkflowPublish(appId: string) {
-  const publishInFlightRef = useRef(false)
-  const [deployment, setDeployment] = useState<StudioWorkflowDeploymentDto | null>()
-  const [loadError, setLoadError] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [pending, setPending] = useState(false)
+  const publishInFlightRef = useRef(false),
+    [deployment, setDeployment] = useState<StudioWorkflowDeploymentDto | null>(),
+    [loadError, setLoadError] = useState(false),
+    [loading, setLoading] = useState(true),
+    [pending, setPending] = useState(false)
 
   useEffect(() => {
     const controller = new AbortController()

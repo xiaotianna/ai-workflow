@@ -21,10 +21,10 @@ export function KnowledgeChunkCreatePanel({
   onClose,
   onSave,
 }: KnowledgeChunkCreatePanelProps) {
-  const { form, updateFormField } = useFormData<KnowledgeChunkEditFormInput>({ content: '' })
-  const [touched, setTouched] = useState(false)
-  const validation = validateFormByZod(knowledgeChunkEditSchema, form)
-  const contentError = validation.success ? undefined : validation.errors.content
+  const { form, updateFormField } = useFormData<KnowledgeChunkEditFormInput>({ content: '' }),
+    [touched, setTouched] = useState(false),
+    validation = validateFormByZod(knowledgeChunkEditSchema, form),
+    contentError = validation.success ? undefined : validation.errors.content
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()

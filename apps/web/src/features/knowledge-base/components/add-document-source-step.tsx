@@ -27,10 +27,8 @@ function getFileExtension(fileName: string) {
 }
 
 function mergeFiles(currentFiles: readonly File[], incomingFiles: readonly File[]) {
-  const nextFiles = [...currentFiles]
-  const fileKeys = new Set(
-    currentFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`),
-  )
+  const nextFiles = [...currentFiles],
+    fileKeys = new Set(currentFiles.map((file) => `${file.name}:${file.size}:${file.lastModified}`))
 
   incomingFiles.forEach((file) => {
     const key = `${file.name}:${file.size}:${file.lastModified}`
@@ -51,9 +49,9 @@ export function AddDocumentSourceStep({
   onFilesChange,
   onNext,
 }: AddDocumentSourceStepProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const dragDepthRef = useRef(0)
-  const [dragging, setDragging] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null),
+    dragDepthRef = useRef(0),
+    [dragging, setDragging] = useState(false)
 
   function appendFiles(nextFiles: FileList | File[]) {
     onFilesChange(mergeFiles(files, Array.from(nextFiles)))

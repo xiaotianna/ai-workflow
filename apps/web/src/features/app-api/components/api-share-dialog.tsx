@@ -27,10 +27,10 @@ export function ApiShareDialog({
   onOpenChange,
   onSave,
 }: ApiShareDialogProps) {
-  const [enabled, setEnabled] = useState(false)
-  const shareUrl = overview?.shareToken
-    ? `${globalThis.location.origin}/share/api/${overview.shareToken}`
-    : undefined
+  const [enabled, setEnabled] = useState(false),
+    shareUrl = overview?.shareToken
+      ? `${globalThis.location.origin}/share/api/${overview.shareToken}`
+      : undefined
 
   useEffect(() => {
     if (open) setEnabled(overview?.shareEnabled ?? false)

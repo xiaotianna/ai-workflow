@@ -28,27 +28,27 @@ export const canConnect = (
   const { source, sourceHandle, target, targetHandle } = connection
   if (!sourceHandle || !targetHandle || source === target) return false
 
-  const sourceNode = nodes.find((node) => node.id === source)
-  const targetNode = nodes.find((node) => node.id === target)
+  const sourceNode = nodes.find((node) => node.id === source),
+    targetNode = nodes.find((node) => node.id === target)
   if (!sourceNode || !targetNode) return false
 
-  const sourceType = nodeRegistry.get(sourceNode.type)
-  const targetType = nodeRegistry.get(targetNode.type)
+  const sourceType = nodeRegistry.get(sourceNode.type),
+    targetType = nodeRegistry.get(targetNode.type)
 
   if (!sourceType || !sourceType.schema.safeParse(sourceNode.data.config).success) return false
   if (!targetType || !targetType.schema.safeParse(targetNode.data.config).success) return false
 
   // 构造一个临时边
   const candidateEdge: WorkflowEdge = {
-    id: CANDIDATE_EDGE_ID,
-    source,
-    sourceHandle,
-    target,
-    targetHandle,
-  }
-  // 将临时边添加到整个工作流数据中
-  const candidateWorkflow = toWorkflow(baseWorkflow, nodes, [...edges, candidateEdge])
-  const parsedWorkflow = workflowSchema.safeParse(candidateWorkflow)
+      id: CANDIDATE_EDGE_ID,
+      source,
+      sourceHandle,
+      target,
+      targetHandle,
+    },
+    // 将临时边添加到整个工作流数据中
+    candidateWorkflow = toWorkflow(baseWorkflow, nodes, [...edges, candidateEdge]),
+    parsedWorkflow = workflowSchema.safeParse(candidateWorkflow)
 
   if (!parsedWorkflow.success) return false
 

@@ -1,5 +1,5 @@
-const AUTH_TOKEN_STORAGE_KEY = 'ai-workflow.auth.token'
-const AUTH_USER_STORAGE_KEY = 'ai-workflow.auth.user'
+const AUTH_TOKEN_STORAGE_KEY = 'ai-workflow.auth.token',
+  AUTH_USER_STORAGE_KEY = 'ai-workflow.auth.user'
 
 export interface AuthUser {
   phone: string

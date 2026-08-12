@@ -18,10 +18,10 @@ export interface PluginCardProps {
 }
 
 export function PluginCard({ plugin, className, onInstalled }: PluginCardProps) {
-  const [installationOpen, setInstallationOpen] = useState(false)
-  const detailPath = getPluginDetailPath(plugin)
-  const installedLatest = plugin.installation !== null && !plugin.updateAvailable
-  const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
+  const [installationOpen, setInstallationOpen] = useState(false),
+    detailPath = getPluginDetailPath(plugin),
+    installedLatest = plugin.installation !== null && !plugin.updateAvailable,
+    actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
 
   return (
     <>

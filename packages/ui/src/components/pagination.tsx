@@ -43,12 +43,12 @@ function PageJump({
   pageCount: number
   onPageChange: (pageIndex: number) => void
 }) {
-  const [editing, setEditing] = React.useState(false)
-  const [draft, setDraft] = React.useState('')
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const ignoreBlurRef = React.useRef(false)
-  const currentPage = pageIndex + 1
-  const inputWidthCh = Math.max(String(currentPage).length + String(pageCount).length + 3, 4)
+  const [editing, setEditing] = React.useState(false),
+    [draft, setDraft] = React.useState(''),
+    inputRef = React.useRef<HTMLInputElement>(null),
+    ignoreBlurRef = React.useRef(false),
+    currentPage = pageIndex + 1,
+    inputWidthCh = Math.max(String(currentPage).length + String(pageCount).length + 3, 4)
 
   React.useEffect(() => {
     if (!editing) {
@@ -134,12 +134,12 @@ function Pagination({
   onPageSizeChange,
   className,
 }: PaginationProps) {
-  const safePageCount = Math.max(pageCount, 1)
-  const showPageSize =
-    pageSize !== undefined &&
-    pageSizeOptions !== undefined &&
-    pageSizeOptions.length > 0 &&
-    onPageSizeChange !== undefined
+  const safePageCount = Math.max(pageCount, 1),
+    showPageSize =
+      pageSize !== undefined &&
+      pageSizeOptions !== undefined &&
+      pageSizeOptions.length > 0 &&
+      onPageSizeChange !== undefined
 
   return (
     <div className={cn('flex items-center justify-between py-2', className)}>

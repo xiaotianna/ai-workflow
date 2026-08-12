@@ -7,10 +7,10 @@ import { JavaScriptSyntaxLine } from './javascript-syntax-line'
 const CODE_PREVIEW_LINE_COUNT = 3
 
 export function CodeNodeContent(props: NodeRendererProps<CodeNodeConfig>) {
-  const { node } = props
-  const codeLines = node.config.code.split(/\r?\n/)
-  const previewLines = codeLines.slice(0, CODE_PREVIEW_LINE_COUNT)
-  const remainingLineCount = codeLines.length - previewLines.length
+  const { node } = props,
+    codeLines = node.config.code.split(/\r?\n/),
+    previewLines = codeLines.slice(0, CODE_PREVIEW_LINE_COUNT),
+    remainingLineCount = codeLines.length - previewLines.length
 
   return (
     <ErrorHandlingNode {...props}>

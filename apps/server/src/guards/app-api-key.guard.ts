@@ -7,10 +7,10 @@ export class AppApiKeyGuard implements CanActivate {
   constructor(private readonly appApiService: AppApiService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AppApiAuthenticatedRequest>()
-    const authorization = request.headers.authorization
-    const match = typeof authorization === 'string' ? /^Bearer\s+(.+)$/i.exec(authorization) : null
-    const rawKey = match?.[1]?.trim()
+    const request = context.switchToHttp().getRequest<AppApiAuthenticatedRequest>(),
+      authorization = request.headers.authorization,
+      match = typeof authorization === 'string' ? /^Bearer\s+(.+)$/i.exec(authorization) : null,
+      rawKey = match?.[1]?.trim()
 
     if (!rawKey) throw new UnauthorizedException('请在 Authorization Header 中提供 API 密钥')
     request.appApiAuth = await this.appApiService.authenticate(rawKey)

@@ -27,20 +27,20 @@ interface AppLogsProps {
 }
 
 export function AppLogs({ appId, catalog = builtinWorkflowWebCatalog }: AppLogsProps) {
-  const [status, setStatus] = useState<AppLogStatusFilter>('all')
-  const [dateRange, setDateRange] = useState<AppLogDateRange>('7d')
-  const [search, setSearch] = useState('')
-  const selectedStatus = status === 'all' ? undefined : status
-  const logs = useAppLogs({
-    appId,
-    dateRange,
-    search,
-    ...(selectedStatus ? { status: selectedStatus } : {}),
-  })
-  const [selectedRun, setSelectedRun] = useState<StudioWorkflowRunListItemDto>()
-  const [detail, setDetail] = useState<StudioWorkflowRunDetailDto>()
-  const [loadingDetail, setLoadingDetail] = useState(false)
-  const testRun = useWorkflowTestRun(appId)
+  const [status, setStatus] = useState<AppLogStatusFilter>('all'),
+    [dateRange, setDateRange] = useState<AppLogDateRange>('7d'),
+    [search, setSearch] = useState(''),
+    selectedStatus = status === 'all' ? undefined : status,
+    logs = useAppLogs({
+      appId,
+      dateRange,
+      search,
+      ...(selectedStatus ? { status: selectedStatus } : {}),
+    }),
+    [selectedRun, setSelectedRun] = useState<StudioWorkflowRunListItemDto>(),
+    [detail, setDetail] = useState<StudioWorkflowRunDetailDto>(),
+    [loadingDetail, setLoadingDetail] = useState(false),
+    testRun = useWorkflowTestRun(appId)
 
   useEffect(() => {
     if (!selectedRun) return

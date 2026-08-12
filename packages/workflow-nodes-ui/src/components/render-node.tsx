@@ -84,21 +84,21 @@ export const RenderNode = ({
     )
   }
 
-  const config = nodeType.schema.parse(node.config)
-  // 合并解析成功后的config参数
-  const resolvedNode = {
-    ...node,
-    config,
-  }
-  const resolvedDefinition: NodeDefinition = {
-    ...nodeType.definition,
-    label: node.label?.trim() || nodeType.definition.label,
-    description: node.description ?? nodeType.definition.description,
-  }
-  const ports = getNodePorts(nodeType, node.config)
-  const registration = uiRegistry.get(node.type)
-  const selectNode = onSelect ? () => onSelect(node.id) : undefined
-  const deleteNode = onDelete ? () => onDelete(node.id) : undefined
+  const config = nodeType.schema.parse(node.config),
+    // 合并解析成功后的config参数
+    resolvedNode = {
+      ...node,
+      config,
+    },
+    resolvedDefinition: NodeDefinition = {
+      ...nodeType.definition,
+      label: node.label?.trim() || nodeType.definition.label,
+      description: node.description ?? nodeType.definition.description,
+    },
+    ports = getNodePorts(nodeType, node.config),
+    registration = uiRegistry.get(node.type),
+    selectNode = onSelect ? () => onSelect(node.id) : undefined,
+    deleteNode = onDelete ? () => onDelete(node.id) : undefined
 
   if (registration?.kind === 'renderer') {
     const Renderer = registration.component
@@ -123,24 +123,24 @@ export const RenderNode = ({
     )
   }
 
-  const Content = registration?.component
-  const body = Content ? (
-    <Content
-      node={resolvedNode}
-      definition={resolvedDefinition}
-      ports={ports}
-      resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
-      resolveModelReferenceDisplay={resolveModelReferenceDisplay}
-    />
-  ) : hasDefaultNodeContent(resolvedDefinition) ? (
-    <DefaultNodeContent
-      node={resolvedNode}
-      definition={resolvedDefinition}
-      ports={ports}
-      resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
-      resolveModelReferenceDisplay={resolveModelReferenceDisplay}
-    />
-  ) : null
+  const Content = registration?.component,
+    body = Content ? (
+      <Content
+        node={resolvedNode}
+        definition={resolvedDefinition}
+        ports={ports}
+        resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+        resolveModelReferenceDisplay={resolveModelReferenceDisplay}
+      />
+    ) : hasDefaultNodeContent(resolvedDefinition) ? (
+      <DefaultNodeContent
+        node={resolvedNode}
+        definition={resolvedDefinition}
+        ports={ports}
+        resolveVariableReferenceDisplay={resolveVariableReferenceDisplay}
+        resolveModelReferenceDisplay={resolveModelReferenceDisplay}
+      />
+    ) : null
 
   return (
     <BaseNode

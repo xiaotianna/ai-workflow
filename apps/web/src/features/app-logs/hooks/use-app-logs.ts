@@ -8,8 +8,8 @@ import { useEffect, useRef, useState } from 'react'
 
 import { getAppLogRangeStart, type AppLogDateRange } from '../data'
 
-const APP_LOG_PAGE_SIZE = 30
-const SEARCH_DEBOUNCE_MS = 300
+const APP_LOG_PAGE_SIZE = 30,
+  SEARCH_DEBOUNCE_MS = 300
 
 interface UseAppLogsOptions {
   appId: string
@@ -19,18 +19,18 @@ interface UseAppLogsOptions {
 }
 
 export function useAppLogs({ appId, dateRange, search, status }: UseAppLogsOptions) {
-  const [runs, setRuns] = useState<StudioWorkflowRunListItemDto[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [initialError, setInitialError] = useState(false)
-  const [loadMoreError, setLoadMoreError] = useState(false)
-  const [refreshRevision, setRefreshRevision] = useState(0)
-  const [debouncedSearch, setDebouncedSearch] = useState(search)
-  const queryVersionRef = useRef(0)
-  const loadingMoreRef = useRef(false)
-  const loadMoreControllerRef = useRef<AbortController | undefined>(undefined)
-  const queryParamsRef = useRef<ListStudioWorkflowRunsParams | undefined>(undefined)
+  const [runs, setRuns] = useState<StudioWorkflowRunListItemDto[]>([]),
+    [nextCursor, setNextCursor] = useState<string | null>(null),
+    [initialLoading, setInitialLoading] = useState(true),
+    [loadingMore, setLoadingMore] = useState(false),
+    [initialError, setInitialError] = useState(false),
+    [loadMoreError, setLoadMoreError] = useState(false),
+    [refreshRevision, setRefreshRevision] = useState(0),
+    [debouncedSearch, setDebouncedSearch] = useState(search),
+    queryVersionRef = useRef(0),
+    loadingMoreRef = useRef(false),
+    loadMoreControllerRef = useRef<AbortController | undefined>(undefined),
+    queryParamsRef = useRef<ListStudioWorkflowRunsParams | undefined>(undefined)
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(
@@ -48,16 +48,16 @@ export function useAppLogs({ appId, dateRange, search, status }: UseAppLogsOptio
   )
 
   useEffect(() => {
-    const queryVersion = queryVersionRef.current + 1
-    const controller = new AbortController()
-    const from = getAppLogRangeStart(dateRange)
-    const params: ListStudioWorkflowRunsParams = {
-      limit: APP_LOG_PAGE_SIZE,
-      scope: 'published_calls',
-      ...(status ? { status } : {}),
-      ...(from ? { from } : {}),
-      ...(debouncedSearch ? { search: debouncedSearch } : {}),
-    }
+    const queryVersion = queryVersionRef.current + 1,
+      controller = new AbortController(),
+      from = getAppLogRangeStart(dateRange),
+      params: ListStudioWorkflowRunsParams = {
+        limit: APP_LOG_PAGE_SIZE,
+        scope: 'published_calls',
+        ...(status ? { status } : {}),
+        ...(from ? { from } : {}),
+        ...(debouncedSearch ? { search: debouncedSearch } : {}),
+      }
 
     queryVersionRef.current = queryVersion
     queryParamsRef.current = params
@@ -90,8 +90,8 @@ export function useAppLogs({ appId, dateRange, search, status }: UseAppLogsOptio
   async function requestMore(cursor: string) {
     if (loadingMoreRef.current) return
 
-    const queryVersion = queryVersionRef.current
-    const params = queryParamsRef.current
+    const queryVersion = queryVersionRef.current,
+      params = queryParamsRef.current
     if (!params) return
 
     const controller = new AbortController()
@@ -151,8 +151,8 @@ function mergeAppLogRuns(
   currentRuns: StudioWorkflowRunListItemDto[],
   nextRuns: StudioWorkflowRunListItemDto[],
 ): StudioWorkflowRunListItemDto[] {
-  const mergedRuns = [...currentRuns]
-  const existingIds = new Set(currentRuns.map((run) => run.id))
+  const mergedRuns = [...currentRuns],
+    existingIds = new Set(currentRuns.map((run) => run.id))
 
   for (const run of nextRuns) {
     if (existingIds.has(run.id)) continue

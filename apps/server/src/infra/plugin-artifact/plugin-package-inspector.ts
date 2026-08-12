@@ -4,10 +4,10 @@ import { gunzipSync } from 'node:zlib'
 import { pluginManifestSchema, type PluginManifest } from '@ai-workflow/plugin'
 import { BadRequestException, Injectable } from '@nestjs/common'
 
-const TAR_BLOCK_SIZE = 512
-const MAX_UNPACKED_SIZE = 200 * 1024 * 1024
-const MAX_ARCHIVE_FILES = 2048
-const SHA256_PATTERN = /^[a-f0-9]{64}$/i
+const TAR_BLOCK_SIZE = 512,
+  MAX_UNPACKED_SIZE = 200 * 1024 * 1024,
+  MAX_ARCHIVE_FILES = 2048,
+  SHA256_PATTERN = /^[a-f0-9]{64}$/i
 
 interface ArchiveEntry {
   path: string
@@ -35,9 +35,9 @@ export interface InspectedPluginPackage {
 @Injectable()
 export class PluginPackageInspector {
   inspect(archive: Buffer): InspectedPluginPackage {
-    const entries = this.readArchive(archive)
-    const manifest = this.parseManifest(this.requireEntry(entries, 'plugin.manifest.json'))
-    const integrity = this.parseIntegrity(this.requireEntry(entries, 'integrity.json'))
+    const entries = this.readArchive(archive),
+      manifest = this.parseManifest(this.requireEntry(entries, 'plugin.manifest.json')),
+      integrity = this.parseIntegrity(this.requireEntry(entries, 'integrity.json'))
 
     this.verifyIntegrity(entries, integrity, manifest)
 
@@ -66,14 +66,14 @@ export class PluginPackageInspector {
 
       this.verifyTarChecksum(header)
 
-      const name = readTarString(header, 0, 100)
-      const prefix = readTarString(header, 345, 155)
-      const path = prefix ? `${prefix}/${name}` : name
-      const normalizedPath = validateArchivePath(path)
-      const type = String.fromCharCode(header[156] ?? 0)
-      const size = readTarOctal(header, 124, 12)
-      const contentStart = offset + TAR_BLOCK_SIZE
-      const contentEnd = contentStart + size
+      const name = readTarString(header, 0, 100),
+        prefix = readTarString(header, 345, 155),
+        path = prefix ? `${prefix}/${name}` : name,
+        normalizedPath = validateArchivePath(path),
+        type = String.fromCharCode(header[156] ?? 0),
+        size = readTarOctal(header, 124, 12),
+        contentStart = offset + TAR_BLOCK_SIZE,
+        contentEnd = contentStart + size
 
       if (contentEnd > tar.length) {
         throw new BadRequestException(`插件包内文件不完整：${normalizedPath}`)
@@ -107,8 +107,8 @@ export class PluginPackageInspector {
   }
 
   private verifyTarChecksum(header: Buffer): void {
-    const expectedChecksum = readTarOctal(header, 148, 8)
-    const checksumHeader = Buffer.from(header)
+    const expectedChecksum = readTarOctal(header, 148, 8),
+      checksumHeader = Buffer.from(header)
     checksumHeader.fill(0x20, 148, 156)
     const actualChecksum = checksumHeader.reduce((sum, byte) => sum + byte, 0)
 
@@ -124,8 +124,8 @@ export class PluginPackageInspector {
   }
 
   private parseManifest(content: Buffer): PluginManifest {
-    const rawManifest = parseJson(content, 'plugin.manifest.json')
-    const result = pluginManifestSchema.safeParse(rawManifest)
+    const rawManifest = parseJson(content, 'plugin.manifest.json'),
+      result = pluginManifestSchema.safeParse(rawManifest)
 
     if (!result.success) {
       throw new BadRequestException(`插件 Manifest 校验失败：${result.error.issues[0]?.message}`)
@@ -181,11 +181,11 @@ export class PluginPackageInspector {
     manifest: PluginManifest,
   ): void {
     const expectedPaths = [...archiveEntries.keys()]
-      .filter((path) => path !== 'integrity.json')
-      .sort((left, right) => left.localeCompare(right))
-    const integrityPaths = integrity.files
-      .map((entry) => entry.path)
-      .sort((left, right) => left.localeCompare(right))
+        .filter((path) => path !== 'integrity.json')
+        .sort((left, right) => left.localeCompare(right)),
+      integrityPaths = integrity.files
+        .map((entry) => entry.path)
+        .sort((left, right) => left.localeCompare(right))
 
     if (expectedPaths.join('\0') !== integrityPaths.join('\0')) {
       throw new BadRequestException('插件包文件与 integrity.json 清单不一致')
@@ -203,11 +203,11 @@ export class PluginPackageInspector {
     }
 
     const artifactEntries = integrity.files
-      .filter((entry) => entry.path !== 'plugin.manifest.json')
-      .sort((left, right) => left.path.localeCompare(right.path))
-    const artifactDigest = sha256(
-      artifactEntries.map((entry) => `${entry.path}\0${entry.size}\0${entry.sha256}\n`).join(''),
-    )
+        .filter((entry) => entry.path !== 'plugin.manifest.json')
+        .sort((left, right) => left.path.localeCompare(right.path)),
+      artifactDigest = sha256(
+        artifactEntries.map((entry) => `${entry.path}\0${entry.size}\0${entry.sha256}\n`).join(''),
+      )
 
     if (artifactDigest !== integrity.digest || artifactDigest !== manifest.integrity.digest) {
       throw new BadRequestException('插件包产物摘要与 Manifest 不一致')
@@ -216,8 +216,8 @@ export class PluginPackageInspector {
 }
 
 function readTarString(buffer: Buffer, offset: number, length: number): string {
-  const value = buffer.subarray(offset, offset + length)
-  const nullIndex = value.indexOf(0)
+  const value = buffer.subarray(offset, offset + length),
+    nullIndex = value.indexOf(0)
   return value.subarray(0, nullIndex === -1 ? value.length : nullIndex).toString('utf8')
 }
 

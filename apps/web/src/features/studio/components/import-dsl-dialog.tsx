@@ -33,18 +33,19 @@ export function ImportDslDialog({
   description = '上传 DSL 文件以导入当前工作流配置',
   title = '导入 DSL',
 }: ImportDslDialogProps) {
-  const { form, resetForm, updateForm } = useFormData<ImportDslFormInput>(IMPORT_DSL_INITIAL_VALUES)
-  const [reading, setReading] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
-  const fileReadRevision = useRef(0)
-  const validationResult = validateFormByZod(importDslSchema, form)
-  const fileError =
-    !reading && (submitted || form.file)
-      ? validationResult.success
-        ? undefined
-        : (validationResult.errors.file ?? validationResult.errors.content)
-      : undefined
+  const { form, resetForm, updateForm } =
+      useFormData<ImportDslFormInput>(IMPORT_DSL_INITIAL_VALUES),
+    [reading, setReading] = useState(false),
+    [importing, setImporting] = useState(false),
+    [submitted, setSubmitted] = useState(false),
+    fileReadRevision = useRef(0),
+    validationResult = validateFormByZod(importDslSchema, form),
+    fileError =
+      !reading && (submitted || form.file)
+        ? validationResult.success
+          ? undefined
+          : (validationResult.errors.file ?? validationResult.errors.content)
+        : undefined
 
   function resetDialog() {
     fileReadRevision.current += 1

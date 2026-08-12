@@ -31,24 +31,24 @@ export interface StudioPageProps {
 
 export default function StudioPage({ onAppAction }: StudioPageProps) {
   const {
-    apps,
-    hasMore,
-    initialError,
-    initialLoading,
-    loadMore,
-    loadMoreError,
-    loadingMore,
-    refresh,
-    retryLoadMore,
-    search,
-    setSearch,
-    setSort,
-    sort,
-  } = useStudioApps()
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const [importDialogOpen, setImportDialogOpen] = useState(false)
-  const [editingApp, setEditingApp] = useState<StudioAppListItem>()
-  const [deletingApp, setDeletingApp] = useState<StudioAppListItem>()
+      apps,
+      hasMore,
+      initialError,
+      initialLoading,
+      loadMore,
+      loadMoreError,
+      loadingMore,
+      refresh,
+      retryLoadMore,
+      search,
+      setSearch,
+      setSort,
+      sort,
+    } = useStudioApps(),
+    [createDialogOpen, setCreateDialogOpen] = useState(false),
+    [importDialogOpen, setImportDialogOpen] = useState(false),
+    [editingApp, setEditingApp] = useState<StudioAppListItem>(),
+    [deletingApp, setDeletingApp] = useState<StudioAppListItem>()
 
   async function handleCreateApp(input: CreateStudioAppInput) {
     await createStudioApp(input)

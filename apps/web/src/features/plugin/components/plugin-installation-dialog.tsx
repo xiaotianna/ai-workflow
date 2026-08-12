@@ -31,16 +31,16 @@ export function PluginInstallationDialog({
   onInstalled,
   version,
 }: PluginInstallationDialogProps) {
-  const [installing, setInstalling] = useState(false)
-  const [confirmingVersionChange, setConfirmingVersionChange] = useState(false)
-  const updating = plugin.installation !== null
-  const targetVersion = version ?? plugin.latestVersion
-  const switchingVersion =
-    plugin.installation !== null && plugin.installation.versionId !== targetVersion.id
-  const updatingToLatest = plugin.updateAvailable && targetVersion.id === plugin.latestVersion.id
-  const grantedPermissions = new Set(plugin.installation?.grantedPermissions)
-  const permissions = targetVersion.permissions
-  const actionLabel = updatingToLatest ? '更新' : switchingVersion ? '切换' : '安装'
+  const [installing, setInstalling] = useState(false),
+    [confirmingVersionChange, setConfirmingVersionChange] = useState(false),
+    updating = plugin.installation !== null,
+    targetVersion = version ?? plugin.latestVersion,
+    switchingVersion =
+      plugin.installation !== null && plugin.installation.versionId !== targetVersion.id,
+    updatingToLatest = plugin.updateAvailable && targetVersion.id === plugin.latestVersion.id,
+    grantedPermissions = new Set(plugin.installation?.grantedPermissions),
+    permissions = targetVersion.permissions,
+    actionLabel = updatingToLatest ? '更新' : switchingVersion ? '切换' : '安装'
 
   function handleOpenChange(nextOpen: boolean) {
     if (installing && !nextOpen) return
@@ -101,9 +101,9 @@ export function PluginInstallationDialog({
           <div className="space-y-2" aria-label="插件申请的权限">
             {permissions.length > 0 ? (
               permissions.map((permission) => {
-                const details = pluginPermissionDetails[permission]
-                const PermissionIcon = details.icon
-                const newlyRequested = updating && !grantedPermissions.has(permission)
+                const details = pluginPermissionDetails[permission],
+                  PermissionIcon = details.icon,
+                  newlyRequested = updating && !grantedPermissions.has(permission)
 
                 return (
                   <div

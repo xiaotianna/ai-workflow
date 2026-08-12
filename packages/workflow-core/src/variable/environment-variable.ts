@@ -51,8 +51,8 @@ export const workflowEnvironmentVariablesSchema = z
   .array(workflowEnvironmentVariableSchema)
   .default([])
   .superRefine((variables, context) => {
-    const variableIndexById = new Map<string, number>()
-    const variableIndexByName = new Map<string, number>()
+    const variableIndexById = new Map<string, number>(),
+      variableIndexByName = new Map<string, number>()
 
     variables.forEach((variable, index) => {
       if (variableIndexById.has(variable.id)) {

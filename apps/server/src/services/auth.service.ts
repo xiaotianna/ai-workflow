@@ -25,14 +25,13 @@ export class AuthService {
     const credential = await this.userRepository.findByPhone(dto.phone)
     // 用户不存在自动注册
     if (!credential) {
-      const password = await hash(dto.password)
-      const user = await this.userRepository.create({
-        phone: dto.phone,
-        password,
-        username: `用户${dto.phone.slice(-4)}`,
-      })
-
-      const token = await this.issueToken(user.id)
+      const password = await hash(dto.password),
+        user = await this.userRepository.create({
+          phone: dto.phone,
+          password,
+          username: `用户${dto.phone.slice(-4)}`,
+        }),
+        token = await this.issueToken(user.id)
 
       return {
         ...user,
@@ -91,8 +90,8 @@ export class AuthService {
         throw new BadRequestException('修改密码时必须同时填写旧密码和新密码')
       }
 
-      const credential = await this.userRepository.findPasswordById(userId)
-      const isOldPasswordValid = credential && (await verify(credential.password, dto.oldPassword))
+      const credential = await this.userRepository.findPasswordById(userId),
+        isOldPasswordValid = credential && (await verify(credential.password, dto.oldPassword))
 
       if (!isOldPasswordValid) {
         throw new BadRequestException('旧密码错误')
@@ -108,15 +107,13 @@ export class AuthService {
   }
 
   private async issueToken(userId: string): Promise<string> {
-    const jti = randomUUID()
-
-    const token = await this.jwtService.signAsync({
-      sub: userId,
-      jti,
-    })
-
-    // 从已经生成的 token 中获取真实过期时间，避免 Redis TTL 和 JWT 配置分别维护。
-    const payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(token)
+    const jti = randomUUID(),
+      token = await this.jwtService.signAsync({
+        sub: userId,
+        jti,
+      }),
+      // 从已经生成的 token 中获取真实过期时间，避免 Redis TTL 和 JWT 配置分别维护。
+      payload = this.jwtService.decode<Partial<AccessTokenPayload> | null>(token)
 
     if (!payload || typeof payload.exp !== 'number') {
       throw new InternalServerErrorException('JWT 未配置有效期')

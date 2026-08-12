@@ -46,13 +46,13 @@ function AccountMenuItem({
 }
 
 export function AccountMenu({ className }: { className?: string }) {
-  const navigate = useNavigate()
-  const [user, setUser] = useState<AuthUser | null>(() => getAuthUser())
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false)
-  const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const displayName = user?.username ?? '用户'
-  const phone = user?.phone ?? '正在获取用户信息…'
+  const navigate = useNavigate(),
+    [user, setUser] = useState<AuthUser | null>(() => getAuthUser()),
+    [isEditDialogOpen, setIsEditDialogOpen] = useState(false),
+    [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false),
+    [isLoggingOut, setIsLoggingOut] = useState(false),
+    displayName = user?.username ?? '用户',
+    phone = user?.phone ?? '正在获取用户信息…'
 
   useEffect(() => {
     const controller = new AbortController()

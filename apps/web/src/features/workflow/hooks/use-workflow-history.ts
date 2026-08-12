@@ -39,10 +39,10 @@ interface UseWorkflowHistoryOptions {
 function getNodeSize(node: WorkflowCanvasNode) {
   if (node.type !== BuiltinNodeType.LOOP) return undefined
 
-  const styleWidth = typeof node.style?.width === 'number' ? node.style.width : undefined
-  const styleHeight = typeof node.style?.height === 'number' ? node.style.height : undefined
-  const width = node.measured?.width ?? styleWidth
-  const height = node.measured?.height ?? styleHeight
+  const styleWidth = typeof node.style?.width === 'number' ? node.style.width : undefined,
+    styleHeight = typeof node.style?.height === 'number' ? node.style.height : undefined,
+    width = node.measured?.width ?? styleWidth,
+    height = node.measured?.height ?? styleHeight
 
   return width && height ? { width, height } : undefined
 }
@@ -87,17 +87,17 @@ export function useWorkflowHistory({
   setEnvironmentVariables,
   setNodes,
 }: UseWorkflowHistoryOptions) {
-  const nodesRef = useRef(nodes)
-  const edgesRef = useRef(edges)
-  const environmentVariablesRef = useRef(environmentVariables)
-  const pastRef = useRef<WorkflowHistorySnapshot[]>([])
-  const futureRef = useRef<WorkflowHistorySnapshot[]>([])
-  const transactionActiveRef = useRef(false)
-  const savedSignatureRef = useRef<string | undefined>(undefined)
-  const [status, setStatus] = useState<HistoryStatus>({
-    canUndo: false,
-    canRedo: false,
-  })
+  const nodesRef = useRef(nodes),
+    edgesRef = useRef(edges),
+    environmentVariablesRef = useRef(environmentVariables),
+    pastRef = useRef<WorkflowHistorySnapshot[]>([]),
+    futureRef = useRef<WorkflowHistorySnapshot[]>([]),
+    transactionActiveRef = useRef(false),
+    savedSignatureRef = useRef<string | undefined>(undefined),
+    [status, setStatus] = useState<HistoryStatus>({
+      canUndo: false,
+      canRedo: false,
+    })
 
   nodesRef.current = nodes
   edgesRef.current = edges
@@ -123,8 +123,8 @@ export function useWorkflowHistory({
   }
 
   function pushCurrentToPast() {
-    const snapshot = createSnapshot()
-    const lastSnapshot = pastRef.current.at(-1)
+    const snapshot = createSnapshot(),
+      lastSnapshot = pastRef.current.at(-1)
 
     if (lastSnapshot && getPersistentSignature(lastSnapshot) === getPersistentSignature(snapshot)) {
       futureRef.current = []

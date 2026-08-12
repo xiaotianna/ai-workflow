@@ -86,9 +86,9 @@ export function PluginMarketplaceHero({
   onFilterChange,
   onPublish,
 }: PluginMarketplaceHeroProps) {
-  const heroRef = useRef<HTMLDivElement>(null)
-  const titleRef = useRef<HTMLDivElement>(null)
-  const trackRef = useRef<HTMLDivElement>(null)
+  const heroRef = useRef<HTMLDivElement>(null),
+    titleRef = useRef<HTMLDivElement>(null),
+    trackRef = useRef<HTMLDivElement>(null)
 
   usePluginHeroCollapse({ heroRef, titleRef, trackRef })
 

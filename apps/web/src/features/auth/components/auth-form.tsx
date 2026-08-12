@@ -18,12 +18,10 @@ interface AuthFormProps {
 }
 
 export function AuthForm({ isSubmitting = false, onSubmit }: AuthFormProps) {
-  const { form, updateFormField } = useFormData<AuthFormInput>(AUTH_FORM_INITIAL_VALUES)
-  const [touchedFields, setTouchedFields] = useState<Partial<Record<keyof AuthFormInput, boolean>>>(
-    {},
-  )
-  const validationResult = validateFormByZod(authFormSchema, form)
-  const formErrors = validationResult.errors
+  const { form, updateFormField } = useFormData<AuthFormInput>(AUTH_FORM_INITIAL_VALUES),
+    [touchedFields, setTouchedFields] = useState<Partial<Record<keyof AuthFormInput, boolean>>>({}),
+    validationResult = validateFormByZod(authFormSchema, form),
+    formErrors = validationResult.errors
 
   function markFieldTouched(field: keyof AuthFormInput) {
     setTouchedFields((currentFields) => ({

@@ -55,15 +55,15 @@ export class KnowledgeSourceGcScanner implements OnApplicationBootstrap, OnModul
         limit: this.batchSize,
       })
       this.continuationToken = page.continuationToken
-      const storageKeys = page.items.map(({ storageKey }) => storageKey)
-      const referenced =
-        await this.knowledgeBaseRepository.findReferencedSourceStorageKeys(storageKeys)
-      const removed = await Promise.all(
-        storageKeys
-          .filter((storageKey) => !referenced.has(storageKey))
-          .map((storageKey) => this.knowledgeSourceStore.remove(storageKey)),
-      )
-      const removedCount = removed.filter(Boolean).length
+      const storageKeys = page.items.map(({ storageKey }) => storageKey),
+        referenced =
+          await this.knowledgeBaseRepository.findReferencedSourceStorageKeys(storageKeys),
+        removed = await Promise.all(
+          storageKeys
+            .filter((storageKey) => !referenced.has(storageKey))
+            .map((storageKey) => this.knowledgeSourceStore.remove(storageKey)),
+        ),
+        removedCount = removed.filter(Boolean).length
       if (removedCount) this.logger.log(`已清理 ${removedCount} 个知识库孤儿原文件`)
     } catch (error) {
       this.logger.error(`知识库孤儿原文件扫描失败：${getErrorMessage(error)}`)

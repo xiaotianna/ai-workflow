@@ -7,8 +7,8 @@ import { routes } from '@/router'
 import { useLocation } from 'react-router-dom'
 
 export default function DocsPage() {
-  const { pathname } = useLocation()
-  const activeProject = getDocsProjectFromPath(pathname)
+  const { pathname } = useLocation(),
+    activeProject = getDocsProjectFromPath(pathname)
 
   return (
     <DocsLayout

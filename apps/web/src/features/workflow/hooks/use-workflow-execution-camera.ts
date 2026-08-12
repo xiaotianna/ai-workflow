@@ -8,14 +8,14 @@ const FOCUS_DURATION_MS = 400
 
 /** 测试运行推进到屏外节点时，保持缩放并以动画居中；已在视口内则不打断当前视角。 */
 export function useWorkflowExecutionCamera(nodeExecutionStatuses: WorkflowNodeExecutionStatuses) {
-  const { getZoom, setCenter } = useReactFlow<WorkflowCanvasNode>()
-  const store = useStoreApi()
-  const previousStatusesRef = useRef<WorkflowNodeExecutionStatuses>({})
-  const focusedNodeIdsRef = useRef(new Set<string>())
+  const { getZoom, setCenter } = useReactFlow<WorkflowCanvasNode>(),
+    store = useStoreApi(),
+    previousStatusesRef = useRef<WorkflowNodeExecutionStatuses>({}),
+    focusedNodeIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
-    const previousStatuses = previousStatusesRef.current
-    const nodeIds = Object.keys(nodeExecutionStatuses)
+    const previousStatuses = previousStatusesRef.current,
+      nodeIds = Object.keys(nodeExecutionStatuses)
 
     if (nodeIds.length === 0) {
       previousStatusesRef.current = nodeExecutionStatuses
@@ -27,8 +27,8 @@ export function useWorkflowExecutionCamera(nodeExecutionStatuses: WorkflowNodeEx
     for (const nodeId of nodeIds) {
       if (focusedNodeIdsRef.current.has(nodeId)) continue
 
-      const status = nodeExecutionStatuses[nodeId]
-      const previousStatus = previousStatuses[nodeId]
+      const status = nodeExecutionStatuses[nodeId],
+        previousStatus = previousStatuses[nodeId]
       // 正常路径：首次进入 RUNNING
       if (status === 'RUNNING' && previousStatus !== 'RUNNING') {
         candidateNodeIds.push(nodeId)
@@ -44,8 +44,8 @@ export function useWorkflowExecutionCamera(nodeExecutionStatuses: WorkflowNodeEx
     if (candidateNodeIds.length === 0) return
 
     candidateNodeIds.sort((left, right) => {
-      const leftRank = nodeExecutionStatuses[left] === 'RUNNING' ? 0 : 1
-      const rightRank = nodeExecutionStatuses[right] === 'RUNNING' ? 0 : 1
+      const leftRank = nodeExecutionStatuses[left] === 'RUNNING' ? 0 : 1,
+        rightRank = nodeExecutionStatuses[right] === 'RUNNING' ? 0 : 1
       return leftRank - rightRank
     })
 
@@ -65,20 +65,20 @@ export function useWorkflowExecutionCamera(nodeExecutionStatuses: WorkflowNodeEx
           continue
         }
 
-        const { x, y } = internalNode.internals.positionAbsolute
-        const nodeWidth = internalNode.measured.width
-        const nodeHeight = internalNode.measured.height
+        const { x, y } = internalNode.internals.positionAbsolute,
+          nodeWidth = internalNode.measured.width,
+          nodeHeight = internalNode.measured.height
         if (!nodeWidth || !nodeHeight) {
           pendingMeasurement = true
           continue
         }
 
-        const screenLeft = x * zoom + viewportX
-        const screenTop = y * zoom + viewportY
-        const screenRight = screenLeft + nodeWidth * zoom
-        const screenBottom = screenTop + nodeHeight * zoom
-        const isOffScreen =
-          screenRight < 0 || screenBottom < 0 || screenLeft > width || screenTop > height
+        const screenLeft = x * zoom + viewportX,
+          screenTop = y * zoom + viewportY,
+          screenRight = screenLeft + nodeWidth * zoom,
+          screenBottom = screenTop + nodeHeight * zoom,
+          isOffScreen =
+            screenRight < 0 || screenBottom < 0 || screenLeft > width || screenTop > height
 
         focusedNodeIdsRef.current.add(nodeId)
         if (!isOffScreen) continue

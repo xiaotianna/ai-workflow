@@ -24,12 +24,11 @@ export function WorkflowPluginRuntimeProvider({
   onRuntimeReady,
 }: WorkflowPluginRuntimeProviderProps) {
   const [state, setState] = useState<
-    | { readonly status: 'loading' }
-    | { readonly status: 'ready'; readonly runtime: WorkflowPluginRuntime }
-    | { readonly status: 'error'; readonly error: Error }
-  >({ status: 'loading' })
-
-  const onRuntimeReadyRef = useRef(onRuntimeReady)
+      | { readonly status: 'loading' }
+      | { readonly status: 'ready'; readonly runtime: WorkflowPluginRuntime }
+      | { readonly status: 'error'; readonly error: Error }
+    >({ status: 'loading' }),
+    onRuntimeReadyRef = useRef(onRuntimeReady)
   onRuntimeReadyRef.current = onRuntimeReady
 
   useEffect(() => {

@@ -82,15 +82,15 @@ export class WorkflowDeploymentService {
     appId: string,
     dto: PublishWorkflowDto,
   ): Promise<WorkflowDeploymentVo> {
-    const submittedDefinition = parseWorkflowDefinition(dto.definition)
-    const layout = parseWorkflowLayout(dto.layout)
+    const submittedDefinition = parseWorkflowDefinition(dto.definition),
+      layout = parseWorkflowLayout(dto.layout)
     if (!submittedDefinition || !layout) {
       throw new BadRequestException('发布快照格式无效')
     }
 
-    const app = await this.workflowDraftRepository.findOwned(ownerId, appId)
-    const draft = app?.workflow?.draft
-    const persistedDefinition = parseWorkflowDefinition(draft?.definition)
+    const app = await this.workflowDraftRepository.findOwned(ownerId, appId),
+      draft = app?.workflow?.draft,
+      persistedDefinition = parseWorkflowDefinition(draft?.definition)
     if (!app?.workflow || !draft || !persistedDefinition) {
       throw new NotFoundException('工作流草稿不存在')
     }
@@ -99,16 +99,16 @@ export class WorkflowDeploymentService {
     }
 
     const restoredDefinition = restoreMaskedWorkflowDefinitionSecrets(
-      submittedDefinition,
-      persistedDefinition,
-    )
-    const parsed = workflowSchema.safeParse(restoredDefinition)
+        submittedDefinition,
+        persistedDefinition,
+      ),
+      parsed = workflowSchema.safeParse(restoredDefinition)
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues[0]?.message ?? '工作流定义格式无效')
     }
 
-    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, parsed.data)
-    const issues = validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, parsed.data),
+      issues = validateExecutorWorkflow(parsed.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法发布')
     }

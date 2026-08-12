@@ -19,9 +19,9 @@ export function LoopNode({
   executionStatus,
   executionProgress,
 }: NodeRendererProps<LoopNodeConfig>) {
-  const nodeCapabilities = editorCapabilities?.[node.type]
-  const addChildNodeAction = nodeCapabilities?.addChildNode
-  const resizeControl = nodeCapabilities?.resizeControl
+  const nodeCapabilities = editorCapabilities?.[node.type],
+    addChildNodeAction = nodeCapabilities?.addChildNode,
+    resizeControl = nodeCapabilities?.resizeControl
 
   return (
     <div className="group/loop relative size-full">

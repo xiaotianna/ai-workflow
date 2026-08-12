@@ -70,8 +70,8 @@ export function createWorkflowNodeCatalog({
   nodes,
   pluginLock = [],
 }: CreateWorkflowNodeCatalogOptions): WorkflowNodeCatalog {
-  const catalogNodes = [...nodes]
-  const immutablePluginLock = Object.freeze(pluginLock.map((item) => Object.freeze({ ...item })))
+  const catalogNodes = [...nodes],
+    immutablePluginLock = Object.freeze(pluginLock.map((item) => Object.freeze({ ...item })))
 
   return Object.freeze({
     fingerprint: createCatalogFingerprint(hostVersion, catalogNodes, immutablePluginLock),

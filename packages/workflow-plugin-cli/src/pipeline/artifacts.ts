@@ -13,9 +13,9 @@ function createImportStatement(module: PluginWebModulePlan, localName: string): 
 }
 
 function createWebRemoteSource(modules: readonly PluginWebModulePlan[]): string {
-  const imports: string[] = []
-  const exports: string[] = []
-  const nodeModules = new Map<string, string[]>()
+  const imports: string[] = [],
+    exports: string[] = [],
+    nodeModules = new Map<string, string[]>()
 
   modules.forEach((module, index) => {
     const localName = `pluginModule${index}`
@@ -41,11 +41,11 @@ async function copyStaticAssets(
 ): Promise<void> {
   for (const asset of plan.assets) {
     const sourcePath = await resolveExistingPackageFile(
-      checkedPlugin.package.rootDir,
-      asset.sourceEntry,
-      `节点 ${asset.nodeKey} 的 icon`,
-    )
-    const outputPath = join(stagingDirectory, asset.artifact)
+        checkedPlugin.package.rootDir,
+        asset.sourceEntry,
+        `节点 ${asset.nodeKey} 的 icon`,
+      ),
+      outputPath = join(stagingDirectory, asset.artifact)
     await mkdir(dirname(outputPath), { recursive: true })
     await copyFile(sourcePath, outputPath)
   }
@@ -111,11 +111,11 @@ async function buildExecutors(
 ): Promise<void> {
   for (const executor of plan.executors) {
     const entryPath = await resolveExistingPackageFile(
-      checkedPlugin.package.rootDir,
-      executor.sourceEntry,
-      `节点 ${executor.nodeKey} 的 Executor`,
-    )
-    const outputPath = join(stagingDirectory, executor.artifact)
+        checkedPlugin.package.rootDir,
+        executor.sourceEntry,
+        `节点 ${executor.nodeKey} 的 Executor`,
+      ),
+      outputPath = join(stagingDirectory, executor.artifact)
     await mkdir(dirname(outputPath), { recursive: true })
     await build({
       entryPoints: [entryPath],

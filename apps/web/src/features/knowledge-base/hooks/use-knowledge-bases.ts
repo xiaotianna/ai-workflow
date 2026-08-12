@@ -7,13 +7,13 @@ import type { KnowledgeBaseListItem } from '../types'
 const knowledgeBaseSearchDebounce = 300
 
 export function useKnowledgeBases() {
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseListItem[]>([])
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sort, setSort] = useState<KnowledgeBaseSort>('updated_desc')
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-  const [refreshRevision, setRefreshRevision] = useState(0)
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseListItem[]>([]),
+    [search, setSearch] = useState(''),
+    [debouncedSearch, setDebouncedSearch] = useState(''),
+    [sort, setSort] = useState<KnowledgeBaseSort>('updated_desc'),
+    [loading, setLoading] = useState(true),
+    [error, setError] = useState(false),
+    [refreshRevision, setRefreshRevision] = useState(0)
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(() => {

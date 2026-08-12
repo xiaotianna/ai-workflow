@@ -18,39 +18,37 @@ export function useFormData<T extends Record<PropertyKey, unknown>>(
   initialValues: T,
   { onChange }: UseFormDataOptions<T> = {},
 ) {
-  const [form, setForm] = useState<T>(initialValues)
-  const initialValuesRef = useRef(initialValues)
+  const [form, setForm] = useState<T>(initialValues),
+    initialValuesRef = useRef(initialValues)
   initialValuesRef.current = initialValues
 
   // 更新单个字段
   const updateFormField = useCallback(
-    <K extends KeysOfUnion<T>>(key: K, updater: Updater<ValueOfUnion<T, K>>) => {
+      <K extends KeysOfUnion<T>>(key: K, updater: Updater<ValueOfUnion<T, K>>) => {
+        setForm((prev) =>
+          produce(prev, (draft) => {
+            const next = draft as Record<PropertyKey, unknown>,
+              prevFieldValue = next[key] as ValueOfUnion<T, K>
+            next[key] =
+              typeof updater === 'function'
+                ? (updater as (prev: ValueOfUnion<T, K>) => ValueOfUnion<T, K>)(prevFieldValue)
+                : updater
+          }),
+        )
+      },
+      [],
+    ),
+    // 更新多个
+    updateForm = useCallback((values: Partial<T>) => {
       setForm((prev) =>
         produce(prev, (draft) => {
-          const next = draft as Record<PropertyKey, unknown>
-          const prevFieldValue = next[key] as ValueOfUnion<T, K>
-          next[key] =
-            typeof updater === 'function'
-              ? (updater as (prev: ValueOfUnion<T, K>) => ValueOfUnion<T, K>)(prevFieldValue)
-              : updater
+          Object.assign(draft, values)
         }),
       )
-    },
-    [],
-  )
-
-  // 更新多个
-  const updateForm = useCallback((values: Partial<T>) => {
-    setForm((prev) =>
-      produce(prev, (draft) => {
-        Object.assign(draft, values)
-      }),
-    )
-  }, [])
-
-  const resetForm = useCallback(() => {
-    setForm(initialValuesRef.current)
-  }, [])
+    }, []),
+    resetForm = useCallback(() => {
+      setForm(initialValuesRef.current)
+    }, [])
 
   useEffect(() => {
     onChange?.(form)

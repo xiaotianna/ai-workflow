@@ -38,11 +38,11 @@ export function KnowledgeRetrievalSettingsPanel({
   onSave,
 }: KnowledgeRetrievalSettingsPanelProps) {
   const { form, setForm, updateFormField } = useFormData<KnowledgeRetrievalSettingsFormInput>({
-    retrievalTopK,
-  })
-  const [touched, setTouched] = useState(false)
-  const validation = validateFormByZod(knowledgeRetrievalSettingsSchema, form)
-  const retrievalTopKError = validation.success ? undefined : validation.errors.retrievalTopK
+      retrievalTopK,
+    }),
+    [touched, setTouched] = useState(false),
+    validation = validateFormByZod(knowledgeRetrievalSettingsSchema, form),
+    retrievalTopKError = validation.success ? undefined : validation.errors.retrievalTopK
 
   useEffect(() => {
     if (!open) return

@@ -58,33 +58,31 @@ export const conditionRulesSchema = z.object(conditionRulesFields).superRefine((
 })
 
 const conditionItemFields = {
-  // 作为端口id
-  portId: z.string().min(1),
-  // 条件名称
-  conditionLabel: z.string().trim().min(1, '条件名称不能为空'),
-  // 兜底分支标记（else），为true表示走else
-  isFallback: z.boolean().default(false),
-} as const
-
-const structuredConditionItemSchema = z.object({
-  ...conditionItemFields,
-  ...conditionRulesFields,
-})
-
-const emptyLegacyConditionItemSchema = z
-  .object({
+    // 作为端口id
+    portId: z.string().min(1),
+    // 条件名称
+    conditionLabel: z.string().trim().min(1, '条件名称不能为空'),
+    // 兜底分支标记（else），为true表示走else
+    isFallback: z.boolean().default(false),
+  } as const,
+  structuredConditionItemSchema = z.object({
     ...conditionItemFields,
-    logicalOperator: conditionRulesFields.logicalOperator,
-    condition: z
-      .string()
-      .trim()
-      .max(0, '旧条件表达式无法自动迁移，请重新配置 Condition 节点')
-      .optional(),
-  })
-  .transform(({ condition: _condition, ...item }) => ({
-    ...item,
-    rules: [],
-  }))
+    ...conditionRulesFields,
+  }),
+  emptyLegacyConditionItemSchema = z
+    .object({
+      ...conditionItemFields,
+      logicalOperator: conditionRulesFields.logicalOperator,
+      condition: z
+        .string()
+        .trim()
+        .max(0, '旧条件表达式无法自动迁移，请重新配置 Condition 节点')
+        .optional(),
+    })
+    .transform(({ condition: _condition, ...item }) => ({
+      ...item,
+      rules: [],
+    }))
 
 export const conditionItemSchema = z
   .union([
@@ -107,9 +105,9 @@ export const conditionNodeSchema = z
     conditions: z.array(conditionItemSchema).min(2, '至少需要一个条件分支和一个 ELSE 分支'),
   })
   .superRefine((config, context) => {
-    const fallbackIndexes: number[] = []
-    const portIds = new Set<string>()
-    const ruleIds = new Set<string>()
+    const fallbackIndexes: number[] = [],
+      portIds = new Set<string>(),
+      ruleIds = new Set<string>()
 
     config.conditions.forEach((condition, conditionIndex) => {
       if (condition.isFallback) fallbackIndexes.push(conditionIndex)

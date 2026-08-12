@@ -211,8 +211,8 @@ export class ModelGroupRepository {
 
       if (!existingGroup) return null
 
-      const existingModelIds = new Set(existingGroup.models.map(({ id }) => id))
-      const retainedModelIds = input.models.flatMap(({ id }) => (id ? [id] : []))
+      const existingModelIds = new Set(existingGroup.models.map(({ id }) => id)),
+        retainedModelIds = input.models.flatMap(({ id }) => (id ? [id] : []))
 
       if (retainedModelIds.some((modelId) => !existingModelIds.has(modelId))) {
         throw new Error('模型配置不属于当前模型组')

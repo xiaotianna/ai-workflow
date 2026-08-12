@@ -7,9 +7,9 @@ export function useWorkflowNodeLastRun(
   enabled: boolean,
   refreshKey?: number,
 ) {
-  const [lastRun, setLastRun] = useState<StudioWorkflowNodeLastRunDto | null>()
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
+  const [lastRun, setLastRun] = useState<StudioWorkflowNodeLastRunDto | null>(),
+    [loading, setLoading] = useState(false),
+    [error, setError] = useState(false)
 
   useEffect(() => {
     if (!enabled || !appId || !nodeId) {

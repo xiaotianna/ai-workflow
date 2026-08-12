@@ -30,13 +30,12 @@ export function WorkflowVersionHistoryPanel({
   onRestore,
   onSelectCurrentDraft,
 }: WorkflowVersionHistoryPanelProps) {
-  const history = useWorkflowVersionHistory(appId, publishSync)
-  const [pendingVersionId, setPendingVersionId] = useState<string>()
-  const [namingVersion, setNamingVersion] = useState<StudioWorkflowVersionDto>()
-  const [deletingVersion, setDeletingVersion] = useState<StudioWorkflowVersionDto>()
-
-  const draftSelected = !selectedVersionId
-  const hasVersions = !history.loading && !history.loadError && history.versions.length > 0
+  const history = useWorkflowVersionHistory(appId, publishSync),
+    [pendingVersionId, setPendingVersionId] = useState<string>(),
+    [namingVersion, setNamingVersion] = useState<StudioWorkflowVersionDto>(),
+    [deletingVersion, setDeletingVersion] = useState<StudioWorkflowVersionDto>(),
+    draftSelected = !selectedVersionId,
+    hasVersions = !history.loading && !history.loadError && history.versions.length > 0
 
   async function handleRestore(version: StudioWorkflowVersionDto) {
     if (pendingVersionId) return
@@ -120,9 +119,9 @@ export function WorkflowVersionHistoryPanel({
             <li className="text-muted-foreground py-4 pl-[26px] text-xs leading-4">暂无历史版本</li>
           ) : (
             history.versions.map((version, index) => {
-              const selected = version.id === selectedVersionId
-              const pending = version.id === pendingVersionId
-              const publishing = isPublishingVersion(version.id)
+              const selected = version.id === selectedVersionId,
+                pending = version.id === pendingVersionId,
+                publishing = isPublishingVersion(version.id)
 
               return (
                 <li key={version.id}>

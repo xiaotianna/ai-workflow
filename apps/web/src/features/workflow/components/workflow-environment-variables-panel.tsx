@@ -30,21 +30,21 @@ export function WorkflowEnvironmentVariablesPanel({
   onDelete,
   onUpdate,
 }: WorkflowEnvironmentVariablesPanelProps) {
-  const addButtonRef = useRef<HTMLButtonElement>(null)
-  const [formOpen, setFormOpen] = useState(false)
-  const [formAlignOffset, setFormAlignOffset] = useState(0)
-  const [editingVariableId, setEditingVariableId] = useState<string>()
-  const [deletingVariableId, setDeletingVariableId] = useState<string>()
-  const editingVariable = variables.find((variable) => variable.id === editingVariableId)
-  const deletingVariable = variables.find((variable) => variable.id === deletingVariableId)
+  const addButtonRef = useRef<HTMLButtonElement>(null),
+    [formOpen, setFormOpen] = useState(false),
+    [formAlignOffset, setFormAlignOffset] = useState(0),
+    [editingVariableId, setEditingVariableId] = useState<string>(),
+    [deletingVariableId, setDeletingVariableId] = useState<string>(),
+    editingVariable = variables.find((variable) => variable.id === editingVariableId),
+    deletingVariable = variables.find((variable) => variable.id === deletingVariableId)
 
   function prepareAddForm() {
     setEditingVariableId(undefined)
   }
 
   function updateFormAlignOffset() {
-    const trigger = addButtonRef.current
-    const auxiliaryPanel = trigger?.closest('#workflow-auxiliary-panel')
+    const trigger = addButtonRef.current,
+      auxiliaryPanel = trigger?.closest('#workflow-auxiliary-panel')
 
     if (!trigger || !auxiliaryPanel) {
       setFormAlignOffset(0)

@@ -29,17 +29,17 @@ interface EditAccountDialogProps {
 
 export function EditAccountDialog({ open, user, onOpenChange, onUpdated }: EditAccountDialogProps) {
   const { form, setForm, updateFormField, resetForm } = useFormData<EditAccountFormInput>({
-    username: user.username,
-    oldPassword: '',
-    newPassword: '',
-  })
-  const [touchedFields, setTouchedFields] = useState<
-    Partial<Record<keyof EditAccountFormInput, boolean>>
-  >({})
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const validationResult = validateFormByZod(editAccountSchema, form)
-  const formErrors = validationResult.errors
-  const avatarUsername = form.username.trim() || user.username
+      username: user.username,
+      oldPassword: '',
+      newPassword: '',
+    }),
+    [touchedFields, setTouchedFields] = useState<
+      Partial<Record<keyof EditAccountFormInput, boolean>>
+    >({}),
+    [isSubmitting, setIsSubmitting] = useState(false),
+    validationResult = validateFormByZod(editAccountSchema, form),
+    formErrors = validationResult.errors,
+    avatarUsername = form.username.trim() || user.username
 
   useEffect(() => {
     if (!open) {

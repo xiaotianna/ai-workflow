@@ -39,20 +39,20 @@ export interface AppPageProps {
 }
 
 export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [resourceState, setResourceState] = useState<AppResourceState>({
-    routeId: id,
-    status: 'loading',
-  })
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const encodedAppId = encodeURIComponent(id ?? '')
-  const app =
-    resourceState.routeId === id && resourceState.status === 'success'
-      ? resourceState.app
-      : undefined
-  const isResourceAvailable = app !== undefined
+  const { id } = useParams<{ id: string }>(),
+    navigate = useNavigate(),
+    [resourceState, setResourceState] = useState<AppResourceState>({
+      routeId: id,
+      status: 'loading',
+    }),
+    [editDialogOpen, setEditDialogOpen] = useState(false),
+    [deleteDialogOpen, setDeleteDialogOpen] = useState(false),
+    encodedAppId = encodeURIComponent(id ?? ''),
+    app =
+      resourceState.routeId === id && resourceState.status === 'success'
+        ? resourceState.app
+        : undefined,
+    isResourceAvailable = app !== undefined
 
   useEffect(() => {
     if (!id) {

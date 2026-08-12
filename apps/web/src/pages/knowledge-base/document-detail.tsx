@@ -60,12 +60,11 @@ function formatBytes(value: string) {
 type ChunkStatusFilter = 'all' | 'disabled' | 'enabled'
 
 const chunkStatusFilterLabels: Record<ChunkStatusFilter, string> = {
-  all: '全部',
-  disabled: '已禁用',
-  enabled: '已启用',
-}
-
-const chunkSkeletonWidths = ['w-2/3', 'w-4/5', 'w-3/5', 'w-3/4', 'w-1/2', 'w-5/6']
+    all: '全部',
+    disabled: '已禁用',
+    enabled: '已启用',
+  },
+  chunkSkeletonWidths = ['w-2/3', 'w-4/5', 'w-3/5', 'w-3/4', 'w-1/2', 'w-5/6']
 
 function ChunkListSkeleton({ count = 6 }: { count?: number }) {
   return (
@@ -305,33 +304,33 @@ function ChunkItem({
 
 export default function KnowledgeDocumentDetailPage() {
   const { id: knowledgeBaseId = '', documentId = '' } = useParams<{
-    id: string
-    documentId: string
-  }>()
-  const navigate = useNavigate()
-  const { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const [document, setDocument] = useState<KnowledgeDocumentDto>()
-  const [chunks, setChunks] = useState<KnowledgeChunkDto[]>([])
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<ChunkStatusFilter>('all')
-  const [selectedChunkIds, setSelectedChunkIds] = useState<Set<string>>(() => new Set())
-  const [updatingChunkIds, setUpdatingChunkIds] = useState<Set<string>>(() => new Set())
-  const [batchUpdatingChunks, setBatchUpdatingChunks] = useState(false)
-  const [editingChunk, setEditingChunk] = useState<KnowledgeChunkDto>()
-  const [savingChunk, setSavingChunk] = useState(false)
-  const [creatingChunk, setCreatingChunk] = useState(false)
-  const [savingCreatedChunk, setSavingCreatedChunk] = useState(false)
-  const [pendingCreatedChunk, setPendingCreatedChunk] = useState<KnowledgeChunkDto>()
-  const [pendingCreatedChunkDocumentUpdatedAt, setPendingCreatedChunkDocumentUpdatedAt] =
-    useState<string>()
-  const [pendingCreatedChunkTargetCount, setPendingCreatedChunkTargetCount] = useState<number>()
-  const [pageIndex, setPageIndex] = useState(0)
-  const [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [reindexing, setReindexing] = useState(false)
-  const [updatingEnabled, setUpdatingEnabled] = useState(false)
-  const [reloadVersion, setReloadVersion] = useState(0)
+      id: string
+      documentId: string
+    }>(),
+    navigate = useNavigate(),
+    { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>(),
+    [document, setDocument] = useState<KnowledgeDocumentDto>(),
+    [chunks, setChunks] = useState<KnowledgeChunkDto[]>([]),
+    [search, setSearch] = useState(''),
+    [statusFilter, setStatusFilter] = useState<ChunkStatusFilter>('all'),
+    [selectedChunkIds, setSelectedChunkIds] = useState<Set<string>>(() => new Set()),
+    [updatingChunkIds, setUpdatingChunkIds] = useState<Set<string>>(() => new Set()),
+    [batchUpdatingChunks, setBatchUpdatingChunks] = useState(false),
+    [editingChunk, setEditingChunk] = useState<KnowledgeChunkDto>(),
+    [savingChunk, setSavingChunk] = useState(false),
+    [creatingChunk, setCreatingChunk] = useState(false),
+    [savingCreatedChunk, setSavingCreatedChunk] = useState(false),
+    [pendingCreatedChunk, setPendingCreatedChunk] = useState<KnowledgeChunkDto>(),
+    [pendingCreatedChunkDocumentUpdatedAt, setPendingCreatedChunkDocumentUpdatedAt] =
+      useState<string>(),
+    [pendingCreatedChunkTargetCount, setPendingCreatedChunkTargetCount] = useState<number>(),
+    [pageIndex, setPageIndex] = useState(0),
+    [pageSize, setPageSize] = useState<number>(documentPageSizeOptions[0]),
+    [total, setTotal] = useState(0),
+    [loading, setLoading] = useState(true),
+    [reindexing, setReindexing] = useState(false),
+    [updatingEnabled, setUpdatingEnabled] = useState(false),
+    [reloadVersion, setReloadVersion] = useState(0)
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId || !documentId) return
@@ -353,12 +352,12 @@ export default function KnowledgeDocumentDetailPage() {
           setDocument(result.document)
           setSelectedChunkIds(new Set())
           const updateCompleted =
-            pendingCreatedChunkTargetCount !== undefined &&
-            result.document.chunkCount >= pendingCreatedChunkTargetCount
-          const updateFailed =
-            pendingCreatedChunkTargetCount !== undefined &&
-            result.document.status === 'FAILED' &&
-            result.document.updatedAt !== pendingCreatedChunkDocumentUpdatedAt
+              pendingCreatedChunkTargetCount !== undefined &&
+              result.document.chunkCount >= pendingCreatedChunkTargetCount,
+            updateFailed =
+              pendingCreatedChunkTargetCount !== undefined &&
+              result.document.status === 'FAILED' &&
+              result.document.updatedAt !== pendingCreatedChunkDocumentUpdatedAt
 
           if (updateCompleted) {
             setChunks(result.items)
@@ -429,13 +428,13 @@ export default function KnowledgeDocumentDetailPage() {
   }, [pendingCreatedChunkTargetCount, reloadVersion])
 
   const selectedChunkCount = useMemo(
-    () => chunks.reduce((count, chunk) => count + Number(selectedChunkIds.has(chunk.id)), 0),
-    [chunks, selectedChunkIds],
-  )
-  const allPageChunksSelected = chunks.length > 0 && selectedChunkCount === chunks.length
-  const selectedChunksHavePendingUpdate = chunks.some(
-    (chunk) => selectedChunkIds.has(chunk.id) && updatingChunkIds.has(chunk.id),
-  )
+      () => chunks.reduce((count, chunk) => count + Number(selectedChunkIds.has(chunk.id)), 0),
+      [chunks, selectedChunkIds],
+    ),
+    allPageChunksSelected = chunks.length > 0 && selectedChunkCount === chunks.length,
+    selectedChunksHavePendingUpdate = chunks.some(
+      (chunk) => selectedChunkIds.has(chunk.id) && updatingChunkIds.has(chunk.id),
+    )
 
   async function handleReindex() {
     setReindexing(true)
@@ -513,16 +512,16 @@ export default function KnowledgeDocumentDetailPage() {
 
     try {
       const results = await Promise.allSettled(
-        selectedChunks.map((chunk) =>
-          updateKnowledgeChunk(knowledgeBaseId, documentId, chunk.id, {
-            enabled,
-          }),
+          selectedChunks.map((chunk) =>
+            updateKnowledgeChunk(knowledgeBaseId, documentId, chunk.id, {
+              enabled,
+            }),
+          ),
         ),
-      )
-      const updatedChunks = results.flatMap((result) =>
-        result.status === 'fulfilled' ? [result.value] : [],
-      )
-      const updatedChunksById = new Map(updatedChunks.map((chunk) => [chunk.id, chunk]))
+        updatedChunks = results.flatMap((result) =>
+          result.status === 'fulfilled' ? [result.value] : [],
+        ),
+        updatedChunksById = new Map(updatedChunks.map((chunk) => [chunk.id, chunk]))
 
       setChunks((currentChunks) =>
         currentChunks.map((chunk) => updatedChunksById.get(chunk.id) ?? chunk),

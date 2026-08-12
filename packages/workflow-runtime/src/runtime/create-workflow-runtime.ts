@@ -137,22 +137,22 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
       throw new RuntimeError(RUNTIME_ERROR_CODES.RUNTIME_IDENTITY_MISMATCH, 'runId 不能为空')
     }
 
-    const startNode = getRootStartNode(this.plan)
-    const systemVariables = parseSystemVariables(input.systemVariables, {
-      runId: input.runId,
-      workflowId: this.plan.workflow.id,
-    })
-    const startInput = normalizeDeclaredValues(input.input, startNode.outputs, {
-      boundary: 'startInput',
-      ownerId: startNode.id,
-      unknownValuePolicy: 'reject',
-    })
-    const state = createInitialRuntimeState(
-      this.plan.workflow,
-      { runId: input.runId, workflowVersionId: this.workflowVersionId },
-      startInput,
-      systemVariables,
-    )
+    const startNode = getRootStartNode(this.plan),
+      systemVariables = parseSystemVariables(input.systemVariables, {
+        runId: input.runId,
+        workflowId: this.plan.workflow.id,
+      }),
+      startInput = normalizeDeclaredValues(input.input, startNode.outputs, {
+        boundary: 'startInput',
+        ownerId: startNode.id,
+        unknownValuePolicy: 'reject',
+      }),
+      state = createInitialRuntimeState(
+        this.plan.workflow,
+        { runId: input.runId, workflowVersionId: this.workflowVersionId },
+        startInput,
+        systemVariables,
+      )
 
     recordControlNodeSuccess(state, startNode, startInput)
     settleOutgoingEdges(
@@ -192,8 +192,8 @@ class DefaultWorkflowRuntime implements WorkflowRuntime {
     }
 
     // 迟到、重复或错误 executionKey 是消息关联错误，应由 Server 拒绝，不能把有效 Run 改成失败。
-    const execution = getRunningExecution(restoredState, result.executionKey)
-    const node = this.plan.nodeById.get(execution.nodeId)
+    const execution = getRunningExecution(restoredState, result.executionKey),
+      node = this.plan.nodeById.get(execution.nodeId)
     if (!node) {
       throw new RuntimeError(
         RUNTIME_ERROR_CODES.RUNTIME_STATE_MISMATCH,

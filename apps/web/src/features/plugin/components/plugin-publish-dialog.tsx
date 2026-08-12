@@ -38,15 +38,15 @@ interface PluginPublishDialogProps {
 
 export function PluginPublishDialog({ open, onOpenChange, onPublish }: PluginPublishDialogProps) {
   const { form, resetForm, updateFormField } = useFormData<PluginPublishFormInput>(
-    PLUGIN_PUBLISH_INITIAL_VALUES,
-  )
-  const [submitted, setSubmitted] = useState(false)
-  const [changelogTouched, setChangelogTouched] = useState(false)
-  const [publishing, setPublishing] = useState(false)
-  const validationResult = validateFormByZod(pluginPublishSchema, form)
-  const formErrors = validationResult.errors
-  const fileError = submitted || form.file ? formErrors.file : undefined
-  const changelogError = submitted || changelogTouched ? formErrors.changelog : undefined
+      PLUGIN_PUBLISH_INITIAL_VALUES,
+    ),
+    [submitted, setSubmitted] = useState(false),
+    [changelogTouched, setChangelogTouched] = useState(false),
+    [publishing, setPublishing] = useState(false),
+    validationResult = validateFormByZod(pluginPublishSchema, form),
+    formErrors = validationResult.errors,
+    fileError = submitted || form.file ? formErrors.file : undefined,
+    changelogError = submitted || changelogTouched ? formErrors.changelog : undefined
 
   function resetDialog() {
     resetForm()

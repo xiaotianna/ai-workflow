@@ -59,8 +59,8 @@ async function inspectTargetDirectory(targetDirectory: string): Promise<TargetDi
 }
 
 function assertSafeTemplateFile(file: PluginTemplateFile): void {
-  const normalizedPath = file.path.replaceAll('\\', '/')
-  const segments = normalizedPath.split('/')
+  const normalizedPath = file.path.replaceAll('\\', '/'),
+    segments = normalizedPath.split('/')
   if (
     normalizedPath.length === 0 ||
     isAbsolute(file.path) ||
@@ -89,8 +89,8 @@ async function writeTemplateFiles(
     }
     writtenPaths.add(file.path)
 
-    const outputPath = join(stagingDirectory, file.path)
-    const relativePath = relative(stagingDirectory, outputPath)
+    const outputPath = join(stagingDirectory, file.path),
+      relativePath = relative(stagingDirectory, outputPath)
     if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
       throw new PluginCliError('模板文件越过临时目录', {
         code: 'INVALID_TEMPLATE_FILE_PATH',
@@ -158,20 +158,20 @@ export async function initPlugin(options: InitPluginOptions): Promise<InitPlugin
     })
   }
 
-  const targetDirectory = resolve(options.cwd ?? process.cwd(), options.targetDirectory)
-  const targetState = await inspectTargetDirectory(targetDirectory)
-  const packageName = parsePackageName(options.packageName ?? basename(targetDirectory))
-  const template = resolveTemplate(options.template)
-  const dependencies = options.localDependencies
-    ? await resolveLocalTemplateDependencies(options.cwd ?? process.cwd(), targetDirectory)
-    : REGISTRY_TEMPLATE_DEPENDENCIES
-  const context: PluginTemplateContext = {
-    packageName,
-    sdkDependency: dependencies.sdk,
-    cliDependency: dependencies.cli,
-    localDependencies: dependencies.local,
-  }
-  const files = pluginTemplateFactories[template](context)
+  const targetDirectory = resolve(options.cwd ?? process.cwd(), options.targetDirectory),
+    targetState = await inspectTargetDirectory(targetDirectory),
+    packageName = parsePackageName(options.packageName ?? basename(targetDirectory)),
+    template = resolveTemplate(options.template),
+    dependencies = options.localDependencies
+      ? await resolveLocalTemplateDependencies(options.cwd ?? process.cwd(), targetDirectory)
+      : REGISTRY_TEMPLATE_DEPENDENCIES,
+    context: PluginTemplateContext = {
+      packageName,
+      sdkDependency: dependencies.sdk,
+      cliDependency: dependencies.cli,
+      localDependencies: dependencies.local,
+    },
+    files = pluginTemplateFactories[template](context)
 
   await mkdir(dirname(targetDirectory), { recursive: true })
   const stagingDirectory = await mkdtemp(

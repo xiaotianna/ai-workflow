@@ -108,11 +108,11 @@ export async function findPluginPackage(
     }
 
     if (packageJsonContent !== undefined) {
-      const packageJson = parsePackageJson(packageJsonContent, packageJsonPath)
-      const name = parsePackageName(packageJson.name)
-      const version = parsePackageVersion(packageJson.version)
-      const rootExport = resolveRootExport(packageJson.exports)
-      const entryPath = await resolveExistingPackageFile(currentDirectory, rootExport, '插件根入口')
+      const packageJson = parsePackageJson(packageJsonContent, packageJsonPath),
+        name = parsePackageName(packageJson.name),
+        version = parsePackageVersion(packageJson.version),
+        rootExport = resolveRootExport(packageJson.exports),
+        entryPath = await resolveExistingPackageFile(currentDirectory, rootExport, '插件根入口')
 
       return {
         rootDir: currentDirectory,
@@ -229,8 +229,8 @@ export async function ensureSafePackageDirectory(
       await mkdir(currentDirectory)
     }
 
-    const realCurrentDirectory = await realpath(currentDirectory)
-    const realRootDir = await realpath(rootDir)
+    const realCurrentDirectory = await realpath(currentDirectory),
+      realRootDir = await realpath(rootDir)
     if (!isPathInside(realRootDir, realCurrentDirectory)) {
       throw new PluginCliError('输出目录通过符号链接越过了插件 package 根目录', {
         code: 'UNSAFE_OUTPUT_PATH',

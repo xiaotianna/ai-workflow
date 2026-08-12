@@ -95,10 +95,9 @@ export class ExecutorModelService {
     if (!isModelProviderType(group.providerType)) {
       throw new UnprocessableEntityException('模型供应商配置无效')
     }
-    const provider = this.providerRegistry.get(group.providerType)
-    const baseUrl = group.baseUrl || provider.defaultBaseUrl
-
-    const apiKey = this.credentialService.decrypt(group, group.id)
+    const provider = this.providerRegistry.get(group.providerType),
+      baseUrl = group.baseUrl || provider.defaultBaseUrl,
+      apiKey = this.credentialService.decrypt(group, group.id)
     if (provider.supportsApiKey && !apiKey) {
       throw new UnprocessableEntityException('模型组缺少 API Key')
     }

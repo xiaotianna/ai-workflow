@@ -7,8 +7,8 @@ import { login } from '@/api/auth'
 import { AuthForm, hasAuthSession, saveAuthSession, type AuthFormValues } from '@/features/auth'
 
 export default function AuthPage() {
-  const navigate = useNavigate()
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const navigate = useNavigate(),
+    [isSubmitting, setIsSubmitting] = useState(false)
 
   async function handleLogin(values: AuthFormValues) {
     if (isSubmitting) {

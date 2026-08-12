@@ -5,17 +5,15 @@ import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import { getLoopNodeSize } from '@/utils/workflow/editor-elements'
 
 const LAYOUT_ORIGIN = {
-  x: 120,
-  y: 120,
-}
-
-const DEFAULT_NODE_SIZE = {
-  width: 240,
-  height: 100,
-}
-
-const LAYER_GAP = 120
-const ROW_GAP = 64
+    x: 120,
+    y: 120,
+  },
+  DEFAULT_NODE_SIZE = {
+    width: 240,
+    height: 100,
+  },
+  LAYER_GAP = 120,
+  ROW_GAP = 64
 
 interface LayoutInsertedNodeOnEdgeOptions {
   edgeCenter: XYPosition
@@ -43,10 +41,10 @@ function getRootNodeRanks(
   nodes: readonly WorkflowCanvasNode[],
   edges: readonly WorkflowEdge[],
 ): Map<string, number> {
-  const rootNodeIds = new Set(nodes.map((node) => node.id))
-  const outgoingNodeIds = new Map<string, Set<string>>()
-  const incomingCount = new Map(nodes.map((node) => [node.id, 0]))
-  const ranks = new Map(nodes.map((node) => [node.id, 0]))
+  const rootNodeIds = new Set(nodes.map((node) => node.id)),
+    outgoingNodeIds = new Map<string, Set<string>>(),
+    incomingCount = new Map(nodes.map((node) => [node.id, 0])),
+    ranks = new Map(nodes.map((node) => [node.id, 0]))
 
   for (const edge of edges) {
     if (!rootNodeIds.has(edge.source) || !rootNodeIds.has(edge.target)) continue
@@ -60,9 +58,9 @@ function getRootNodeRanks(
   }
 
   const pendingNodeIds = nodes
-    .filter((node) => incomingCount.get(node.id) === 0)
-    .map((node) => node.id)
-  const visitedNodeIds = new Set<string>()
+      .filter((node) => incomingCount.get(node.id) === 0)
+      .map((node) => node.id),
+    visitedNodeIds = new Set<string>()
 
   while (pendingNodeIds.length > 0) {
     const nodeId = pendingNodeIds.shift()!
@@ -101,8 +99,8 @@ function collectDownstreamNodeIds(
     outgoingNodeIds.set(edge.source, outgoing)
   }
 
-  const downstreamNodeIds = new Set<string>()
-  const pendingNodeIds = [startNodeId]
+  const downstreamNodeIds = new Set<string>(),
+    pendingNodeIds = [startNodeId]
 
   while (pendingNodeIds.length > 0) {
     const nodeId = pendingNodeIds.shift()!
@@ -124,29 +122,29 @@ export function layoutInsertedNodeOnEdge(
   edges: readonly WorkflowEdge[],
   { edgeCenter, insertedNodeId, sourceNodeId, targetNodeId }: LayoutInsertedNodeOnEdgeOptions,
 ): WorkflowCanvasNode[] {
-  const sourceNode = nodes.find((node) => node.id === sourceNodeId && !node.parentId)
-  const targetNode = nodes.find((node) => node.id === targetNodeId && !node.parentId)
-  const insertedNode = nodes.find((node) => node.id === insertedNodeId && !node.parentId)
+  const sourceNode = nodes.find((node) => node.id === sourceNodeId && !node.parentId),
+    targetNode = nodes.find((node) => node.id === targetNodeId && !node.parentId),
+    insertedNode = nodes.find((node) => node.id === insertedNodeId && !node.parentId)
 
   if (!sourceNode || !targetNode || !insertedNode) return [...nodes]
 
-  const sourceSize = getNodeLayoutSize(sourceNode)
-  const insertedSize = getNodeLayoutSize(insertedNode)
-  const minimumInsertedX = sourceNode.position.x + sourceSize.width + LAYER_GAP
-  const maximumInsertedX = targetNode.position.x - insertedSize.width - LAYER_GAP
-  const centeredInsertedX = edgeCenter.x - insertedSize.width / 2
-  const insertedX =
-    maximumInsertedX >= minimumInsertedX
-      ? Math.min(Math.max(centeredInsertedX, minimumInsertedX), maximumInsertedX)
-      : minimumInsertedX
-  const insertedPosition = {
-    x: insertedX,
-    y: edgeCenter.y - insertedSize.height / 2,
-  }
-  const requiredTargetX = insertedX + insertedSize.width + LAYER_GAP
-  const downstreamOffsetX = Math.max(0, requiredTargetX - targetNode.position.x)
-  const downstreamNodeIds =
-    downstreamOffsetX > 0 ? collectDownstreamNodeIds(targetNodeId, edges) : new Set<string>()
+  const sourceSize = getNodeLayoutSize(sourceNode),
+    insertedSize = getNodeLayoutSize(insertedNode),
+    minimumInsertedX = sourceNode.position.x + sourceSize.width + LAYER_GAP,
+    maximumInsertedX = targetNode.position.x - insertedSize.width - LAYER_GAP,
+    centeredInsertedX = edgeCenter.x - insertedSize.width / 2,
+    insertedX =
+      maximumInsertedX >= minimumInsertedX
+        ? Math.min(Math.max(centeredInsertedX, minimumInsertedX), maximumInsertedX)
+        : minimumInsertedX,
+    insertedPosition = {
+      x: insertedX,
+      y: edgeCenter.y - insertedSize.height / 2,
+    },
+    requiredTargetX = insertedX + insertedSize.width + LAYER_GAP,
+    downstreamOffsetX = Math.max(0, requiredTargetX - targetNode.position.x),
+    downstreamNodeIds =
+      downstreamOffsetX > 0 ? collectDownstreamNodeIds(targetNodeId, edges) : new Set<string>()
 
   // 环形连线不能反向推动本次插入的上游节点或新增节点。
   downstreamNodeIds.delete(sourceNodeId)
@@ -176,12 +174,12 @@ export function autoLayoutRootNodes(
   const rootNodes = nodes.filter((node) => !node.parentId)
   if (rootNodes.length === 0) return [...nodes]
 
-  const ranks = getRootNodeRanks(rootNodes, edges)
-  const layers = new Map<number, WorkflowCanvasNode[]>()
+  const ranks = getRootNodeRanks(rootNodes, edges),
+    layers = new Map<number, WorkflowCanvasNode[]>()
 
   for (const node of rootNodes) {
-    const rank = ranks.get(node.id) ?? 0
-    const layer = layers.get(rank) ?? []
+    const rank = ranks.get(node.id) ?? 0,
+      layer = layers.get(rank) ?? []
     layer.push(node)
     layers.set(rank, layer)
   }
@@ -190,8 +188,8 @@ export function autoLayoutRootNodes(
   let currentX = LAYOUT_ORIGIN.x
 
   for (const [, layerNodes] of [...layers.entries()].sort(([left], [right]) => left - right)) {
-    let currentY = LAYOUT_ORIGIN.y
-    let layerWidth = 0
+    let currentY = LAYOUT_ORIGIN.y,
+      layerWidth = 0
 
     for (const node of layerNodes) {
       const size = getNodeLayoutSize(node)

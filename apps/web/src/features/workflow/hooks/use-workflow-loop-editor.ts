@@ -97,17 +97,17 @@ export function useWorkflowLoopEditor({
     requestedEdges: WorkflowEdge[],
   ) {
     const deletedNodeIds = collectDescendantNodeIds(
-      getDeletableRootIds(new Set(requestedNodes.map((node) => node.id))),
-      nodes,
-    )
-    const requestedEdgeIds = new Set(requestedEdges.map((edge) => edge.id))
-    const deletedNodes = nodes.filter((node) => deletedNodeIds.has(node.id))
-    const deletedEdges = edges.filter(
-      (edge) =>
-        requestedEdgeIds.has(edge.id) ||
-        deletedNodeIds.has(edge.source) ||
-        deletedNodeIds.has(edge.target),
-    )
+        getDeletableRootIds(new Set(requestedNodes.map((node) => node.id))),
+        nodes,
+      ),
+      requestedEdgeIds = new Set(requestedEdges.map((edge) => edge.id)),
+      deletedNodes = nodes.filter((node) => deletedNodeIds.has(node.id)),
+      deletedEdges = edges.filter(
+        (edge) =>
+          requestedEdgeIds.has(edge.id) ||
+          deletedNodeIds.has(edge.source) ||
+          deletedNodeIds.has(edge.target),
+      )
 
     if (deletedNodes.length === 0 && deletedEdges.length === 0) {
       return false

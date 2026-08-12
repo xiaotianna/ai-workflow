@@ -44,19 +44,18 @@ export function WorkflowEnvironmentVariablePopover({
   onOpenChange,
   onSubmit,
 }: WorkflowEnvironmentVariablePopoverProps) {
-  const initialValues = getEnvironmentVariableFormInitialValues(variable)
-  const { form, setForm, updateFormField } =
-    useFormData<EnvironmentVariableFormInput>(initialValues)
-  const [touchedFields, setTouchedFields] = useState<
-    Partial<Record<keyof EnvironmentVariableFormInput, boolean>>
-  >({})
-  const schema = createEnvironmentVariableFormSchema({
-    variables,
-    editingVariableId: variable?.id,
-  })
-  const validationResult = validateFormByZod(schema, form)
-  const formErrors = validationResult.errors
-  const title = variable ? '编辑环境变量' : '添加环境变量'
+  const initialValues = getEnvironmentVariableFormInitialValues(variable),
+    { form, setForm, updateFormField } = useFormData<EnvironmentVariableFormInput>(initialValues),
+    [touchedFields, setTouchedFields] = useState<
+      Partial<Record<keyof EnvironmentVariableFormInput, boolean>>
+    >({}),
+    schema = createEnvironmentVariableFormSchema({
+      variables,
+      editingVariableId: variable?.id,
+    }),
+    validationResult = validateFormByZod(schema, form),
+    formErrors = validationResult.errors,
+    title = variable ? '编辑环境变量' : '添加环境变量'
 
   useEffect(() => {
     if (!open) return

@@ -3,8 +3,8 @@ import { WorkflowRunRepository } from '@/repositories/workflow-run.repository'
 import { WorkflowRunService } from '@/services/workflow-run.service'
 import { Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from '@nestjs/common'
 
-const WORKFLOW_TIMEOUT_SCAN_INTERVAL_MS = 1000
-const WORKFLOW_TIMEOUT_SCAN_BATCH_SIZE = 100
+const WORKFLOW_TIMEOUT_SCAN_INTERVAL_MS = 1000,
+  WORKFLOW_TIMEOUT_SCAN_BATCH_SIZE = 100
 
 @Injectable()
 export class WorkflowRunTimeoutScanner implements OnApplicationBootstrap, OnModuleDestroy {

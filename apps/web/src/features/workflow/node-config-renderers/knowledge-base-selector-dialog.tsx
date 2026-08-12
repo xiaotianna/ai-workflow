@@ -59,31 +59,31 @@ export function KnowledgeBaseSelectorDialog({
   value,
 }: KnowledgeBaseSelectorDialogProps) {
   const { form, updateFormField } = useFormData<KnowledgeBaseSelectionForm>({
-    knowledgeBaseIds: value.map((knowledgeBase) => knowledgeBase.id),
-  })
-  const validationResult = validateFormByZod(knowledgeBaseSelectionSchema, form)
-  const knowledgeBaseIds = form.knowledgeBaseIds ?? []
-  const unavailableOptions = value.flatMap((reference) =>
-    knowledgeBases.some((knowledgeBase) => knowledgeBase.id === reference.id)
-      ? []
-      : [
-          {
-            id: reference.id,
-            segmentationMode: undefined,
-            title: reference.title ?? `不可用的知识库（${reference.id}）`,
-            ...(reference.icon ? { icon: reference.icon } : {}),
-          },
-        ],
-  )
-  const options: KnowledgeBaseOption[] = [
-    ...unavailableOptions,
-    ...knowledgeBases.map((knowledgeBase) => ({
-      id: knowledgeBase.id,
-      icon: knowledgeBase.icon,
-      segmentationMode: knowledgeBase.segmentationMode,
-      title: knowledgeBase.title,
-    })),
-  ]
+      knowledgeBaseIds: value.map((knowledgeBase) => knowledgeBase.id),
+    }),
+    validationResult = validateFormByZod(knowledgeBaseSelectionSchema, form),
+    knowledgeBaseIds = form.knowledgeBaseIds ?? [],
+    unavailableOptions = value.flatMap((reference) =>
+      knowledgeBases.some((knowledgeBase) => knowledgeBase.id === reference.id)
+        ? []
+        : [
+            {
+              id: reference.id,
+              segmentationMode: undefined,
+              title: reference.title ?? `不可用的知识库（${reference.id}）`,
+              ...(reference.icon ? { icon: reference.icon } : {}),
+            },
+          ],
+    ),
+    options: KnowledgeBaseOption[] = [
+      ...unavailableOptions,
+      ...knowledgeBases.map((knowledgeBase) => ({
+        id: knowledgeBase.id,
+        icon: knowledgeBase.icon,
+        segmentationMode: knowledgeBase.segmentationMode,
+        title: knowledgeBase.title,
+      })),
+    ]
 
   function toggleKnowledgeBase(knowledgeBaseId: string) {
     updateFormField('knowledgeBaseIds', (currentKnowledgeBaseIds = []) =>
@@ -99,17 +99,17 @@ export function KnowledgeBaseSelectorDialog({
     const result = validateFormByZod(knowledgeBaseSelectionSchema, form)
     if (!result.success) return
 
-    const optionById = new Map(options.map((knowledgeBase) => [knowledgeBase.id, knowledgeBase]))
-    const references = result.data.knowledgeBaseIds.map((knowledgeBaseId) => {
-      const knowledgeBase = optionById.get(knowledgeBaseId)
+    const optionById = new Map(options.map((knowledgeBase) => [knowledgeBase.id, knowledgeBase])),
+      references = result.data.knowledgeBaseIds.map((knowledgeBaseId) => {
+        const knowledgeBase = optionById.get(knowledgeBaseId)
 
-      return {
-        id: knowledgeBaseId,
-        ...(knowledgeBase?.title ? { title: knowledgeBase.title } : {}),
-        ...(knowledgeBase?.icon ? { icon: knowledgeBase.icon } : {}),
-      }
-    })
-    const parsedReferences = validateFormByZod(ragKnowledgeBaseReferencesSchema, references)
+        return {
+          id: knowledgeBaseId,
+          ...(knowledgeBase?.title ? { title: knowledgeBase.title } : {}),
+          ...(knowledgeBase?.icon ? { icon: knowledgeBase.icon } : {}),
+        }
+      }),
+      parsedReferences = validateFormByZod(ragKnowledgeBaseReferencesSchema, references)
     if (!parsedReferences.success) return
 
     onSave(parsedReferences.data)

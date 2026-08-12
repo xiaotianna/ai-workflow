@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from 'react'
 const workflowRunPageSize = 20
 
 export function useWorkflowRunHistory(appId: string, refreshKey?: string) {
-  const [runs, setRuns] = useState<StudioWorkflowRunListItemDto[]>([])
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [initialError, setInitialError] = useState(false)
-  const [loadMoreError, setLoadMoreError] = useState(false)
-  const [refreshRevision, setRefreshRevision] = useState(0)
-  const queryVersionRef = useRef(0)
-  const loadMoreControllerRef = useRef<AbortController | undefined>(undefined)
-  const loadingMoreRef = useRef(false)
+  const [runs, setRuns] = useState<StudioWorkflowRunListItemDto[]>([]),
+    [nextCursor, setNextCursor] = useState<string | null>(null),
+    [initialLoading, setInitialLoading] = useState(true),
+    [loadingMore, setLoadingMore] = useState(false),
+    [initialError, setInitialError] = useState(false),
+    [loadMoreError, setLoadMoreError] = useState(false),
+    [refreshRevision, setRefreshRevision] = useState(0),
+    queryVersionRef = useRef(0),
+    loadMoreControllerRef = useRef<AbortController | undefined>(undefined),
+    loadingMoreRef = useRef(false)
 
   useEffect(
     () => () => {
@@ -23,8 +23,8 @@ export function useWorkflowRunHistory(appId: string, refreshKey?: string) {
   )
 
   useEffect(() => {
-    const queryVersion = queryVersionRef.current + 1
-    const controller = new AbortController()
+    const queryVersion = queryVersionRef.current + 1,
+      controller = new AbortController()
 
     queryVersionRef.current = queryVersion
     loadMoreControllerRef.current?.abort()
@@ -56,8 +56,8 @@ export function useWorkflowRunHistory(appId: string, refreshKey?: string) {
   async function requestMore(cursor: string) {
     if (loadingMoreRef.current) return
 
-    const queryVersion = queryVersionRef.current
-    const controller = new AbortController()
+    const queryVersion = queryVersionRef.current,
+      controller = new AbortController()
     loadMoreControllerRef.current?.abort()
     loadMoreControllerRef.current = controller
     loadingMoreRef.current = true
@@ -118,8 +118,8 @@ function mergeWorkflowRuns(
   currentRuns: StudioWorkflowRunListItemDto[],
   nextRuns: StudioWorkflowRunListItemDto[],
 ): StudioWorkflowRunListItemDto[] {
-  const mergedRuns = [...currentRuns]
-  const existingIds = new Set(currentRuns.map((run) => run.id))
+  const mergedRuns = [...currentRuns],
+    existingIds = new Set(currentRuns.map((run) => run.id))
 
   for (const run of nextRuns) {
     if (existingIds.has(run.id)) continue

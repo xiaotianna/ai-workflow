@@ -1,63 +1,60 @@
 const JAVASCRIPT_KEYWORDS = new Set([
-  'async',
-  'await',
-  'break',
-  'case',
-  'catch',
-  'class',
-  'const',
-  'continue',
-  'default',
-  'delete',
-  'do',
-  'else',
-  'export',
-  'extends',
-  'finally',
-  'for',
-  'from',
-  'function',
-  'if',
-  'import',
-  'in',
-  'instanceof',
-  'let',
-  'new',
-  'of',
-  'return',
-  'switch',
-  'throw',
-  'try',
-  'typeof',
-  'var',
-  'void',
-  'while',
-  'with',
-  'yield',
-])
-
-const JAVASCRIPT_LITERALS = new Set(['false', 'Infinity', 'NaN', 'null', 'true', 'undefined'])
-
-const JAVASCRIPT_GLOBALS = new Set([
-  'Array',
-  'Boolean',
-  'Date',
-  'Error',
-  'JSON',
-  'Map',
-  'Math',
-  'Number',
-  'Object',
-  'Promise',
-  'RegExp',
-  'Set',
-  'String',
-  'Symbol',
-  'console',
-])
-
-const JAVASCRIPT_TOKEN_PATTERN =
-  /\/\/.*|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:0[xX][\dA-Fa-f]+|\d+(?:\.\d+)?)\b|[A-Za-z_$][\w$]*|\s+|./g
+    'async',
+    'await',
+    'break',
+    'case',
+    'catch',
+    'class',
+    'const',
+    'continue',
+    'default',
+    'delete',
+    'do',
+    'else',
+    'export',
+    'extends',
+    'finally',
+    'for',
+    'from',
+    'function',
+    'if',
+    'import',
+    'in',
+    'instanceof',
+    'let',
+    'new',
+    'of',
+    'return',
+    'switch',
+    'throw',
+    'try',
+    'typeof',
+    'var',
+    'void',
+    'while',
+    'with',
+    'yield',
+  ]),
+  JAVASCRIPT_LITERALS = new Set(['false', 'Infinity', 'NaN', 'null', 'true', 'undefined']),
+  JAVASCRIPT_GLOBALS = new Set([
+    'Array',
+    'Boolean',
+    'Date',
+    'Error',
+    'JSON',
+    'Map',
+    'Math',
+    'Number',
+    'Object',
+    'Promise',
+    'RegExp',
+    'Set',
+    'String',
+    'Symbol',
+    'console',
+  ]),
+  JAVASCRIPT_TOKEN_PATTERN =
+    /\/\/.*|\/\*.*?\*\/|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`|\b(?:0[xX][\dA-Fa-f]+|\d+(?:\.\d+)?)\b|[A-Za-z_$][\w$]*|\s+|./g
 
 interface JavaScriptToken {
   index: number
@@ -147,8 +144,8 @@ export function JavaScriptSyntaxLine({ line }: JavaScriptSyntaxLineProps) {
   }
 
   return tokens.map((token, tokenIndex) => {
-    const previousToken = findSignificantToken(tokens, tokenIndex, -1)
-    const nextToken = findSignificantToken(tokens, tokenIndex, 1)
+    const previousToken = findSignificantToken(tokens, tokenIndex, -1),
+      nextToken = findSignificantToken(tokens, tokenIndex, 1)
 
     return (
       <span key={token.index} className={getTokenClassName(token.value, previousToken, nextToken)}>

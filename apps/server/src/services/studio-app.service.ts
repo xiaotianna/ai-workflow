@@ -29,8 +29,8 @@ interface DecodedCursor {
   value: Date
 }
 
-const STUDIO_APP_TITLE_MAX_LENGTH = 40
-const DEFAULT_STUDIO_APP_ICON = '🤖'
+const STUDIO_APP_TITLE_MAX_LENGTH = 40,
+  DEFAULT_STUDIO_APP_ICON = '🤖'
 
 @Injectable()
 export class StudioAppService {
@@ -40,18 +40,18 @@ export class StudioAppService {
   ) {}
 
   async list(ownerId: string, query: ListStudioAppsDto): Promise<StudioAppListVo> {
-    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
-    const apps = await this.studioAppRepository.list({
-      ownerId,
-      limit: query.limit,
-      search: query.search || undefined,
-      sort: query.sort,
-      cursor,
-      publishedOnly: query.publishedOnly,
-    })
-    const hasMore = apps.length > query.limit
-    const page = hasMore ? apps.slice(0, query.limit) : apps
-    const lastApp = page.at(-1)
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined,
+      apps = await this.studioAppRepository.list({
+        ownerId,
+        limit: query.limit,
+        search: query.search || undefined,
+        sort: query.sort,
+        cursor,
+        publishedOnly: query.publishedOnly,
+      }),
+      hasMore = apps.length > query.limit,
+      page = hasMore ? apps.slice(0, query.limit) : apps,
+      lastApp = page.at(-1)
 
     return {
       items: page.map((app) => this.toVo(app)),
@@ -76,64 +76,64 @@ export class StudioAppService {
   }
 
   async create(ownerId: string, dto: CreateStudioAppDto): Promise<StudioAppVo> {
-    const appId = randomUUID()
-    const workflowId = randomUUID()
-    const rawDefinition = {
-      id: workflowId,
-      name: dto.title,
-      ...(dto.description ? { description: dto.description } : {}),
-      nodes: [],
-      edges: [],
-      outputs: [],
-      environmentVariables: [],
-      plugins: [],
-    }
-    const definition = await this.parseWorkflowDefinition(
-      ownerId,
-      rawDefinition,
-      '初始化工作流草稿结构无效',
-      true,
-    )
-    const app = await this.studioAppRepository.create({
-      appId,
-      workflowId,
-      ownerId,
-      title: dto.title,
-      description: dto.description || undefined,
-      icon: dto.icon,
-      definition: this.toJsonInput(definition),
-      layout: {
-        positions: {},
+    const appId = randomUUID(),
+      workflowId = randomUUID(),
+      rawDefinition = {
+        id: workflowId,
+        name: dto.title,
+        ...(dto.description ? { description: dto.description } : {}),
+        nodes: [],
+        edges: [],
+        outputs: [],
+        environmentVariables: [],
+        plugins: [],
       },
-    })
+      definition = await this.parseWorkflowDefinition(
+        ownerId,
+        rawDefinition,
+        '初始化工作流草稿结构无效',
+        true,
+      ),
+      app = await this.studioAppRepository.create({
+        appId,
+        workflowId,
+        ownerId,
+        title: dto.title,
+        description: dto.description || undefined,
+        icon: dto.icon,
+        definition: this.toJsonInput(definition),
+        layout: {
+          positions: {},
+        },
+      })
 
     return this.toVo(app)
   }
 
   async importDsl(ownerId: string, dto: ImportStudioAppDslDto): Promise<StudioAppVo> {
-    const appId = randomUUID()
-    const workflowId = randomUUID()
-    const importedDefinition = await this.parseWorkflowDefinition(
-      ownerId,
-      dto.workflow.definition,
-      'DSL 工作流定义格式无效',
-    )
-    const definition = {
-      ...importedDefinition,
-      id: workflowId,
-    }
-    const layout = this.parseWorkflowLayout(dto.workflow.layout)
-    const app = await this.studioAppRepository.create({
-      appId,
-      workflowId,
-      ownerId,
-      title: dto.app.title,
-      description: dto.app.description || undefined,
-      icon: dto.app.icon || DEFAULT_STUDIO_APP_ICON,
-      schemaVersion: dto.workflow.schemaVersion,
-      definition: this.toJsonInput(definition),
-      layout: this.toJsonInput(layout),
-    })
+    const appId = randomUUID(),
+      workflowId = randomUUID(),
+      importedDefinition = await this.parseWorkflowDefinition(
+        ownerId,
+        dto.workflow.definition,
+        'DSL 工作流定义格式无效',
+      ),
+      definition = {
+        ...importedDefinition,
+        id: workflowId,
+      },
+      layout = this.parseWorkflowLayout(dto.workflow.layout),
+      app = await this.studioAppRepository.create({
+        appId,
+        workflowId,
+        ownerId,
+        title: dto.app.title,
+        description: dto.app.description || undefined,
+        icon: dto.app.icon || DEFAULT_STUDIO_APP_ICON,
+        schemaVersion: dto.workflow.schemaVersion,
+        definition: this.toJsonInput(definition),
+        layout: this.toJsonInput(layout),
+      })
 
     return this.toVo(app)
   }
@@ -151,35 +151,35 @@ export class StudioAppService {
       throw new NotFoundException('应用还没有可复制的工作流草稿')
     }
 
-    const existingNames = await this.studioAppRepository.listNames(ownerId)
-    const duplicateTitle = this.createDuplicateTitle(
-      sourceApp.name,
-      new Set(existingNames.map(({ name }) => name)),
-    )
-    const workflowId = randomUUID()
-    const sourceDefinition = await this.parseWorkflowDefinition(
-      ownerId,
-      sourceDraft.definition,
-      '工作流草稿结构无效，无法复制',
-      true,
-    )
-    const definition = {
-      ...sourceDefinition,
-      id: workflowId,
-      name: duplicateTitle,
-    }
-    const layout = this.parseWorkflowLayout(sourceDraft.layout, true)
-    const app = await this.studioAppRepository.create({
-      appId: randomUUID(),
-      workflowId,
-      ownerId,
-      title: duplicateTitle,
-      description: sourceApp.description || undefined,
-      icon: sourceApp.icon || DEFAULT_STUDIO_APP_ICON,
-      schemaVersion: sourceDraft.schemaVersion,
-      definition: this.toJsonInput(definition),
-      layout: this.toJsonInput(layout),
-    })
+    const existingNames = await this.studioAppRepository.listNames(ownerId),
+      duplicateTitle = this.createDuplicateTitle(
+        sourceApp.name,
+        new Set(existingNames.map(({ name }) => name)),
+      ),
+      workflowId = randomUUID(),
+      sourceDefinition = await this.parseWorkflowDefinition(
+        ownerId,
+        sourceDraft.definition,
+        '工作流草稿结构无效，无法复制',
+        true,
+      ),
+      definition = {
+        ...sourceDefinition,
+        id: workflowId,
+        name: duplicateTitle,
+      },
+      layout = this.parseWorkflowLayout(sourceDraft.layout, true),
+      app = await this.studioAppRepository.create({
+        appId: randomUUID(),
+        workflowId,
+        ownerId,
+        title: duplicateTitle,
+        description: sourceApp.description || undefined,
+        icon: sourceApp.icon || DEFAULT_STUDIO_APP_ICON,
+        schemaVersion: sourceDraft.schemaVersion,
+        definition: this.toJsonInput(definition),
+        layout: this.toJsonInput(layout),
+      })
 
     return this.toVo(app)
   }
@@ -226,30 +226,30 @@ export class StudioAppService {
     }
 
     const definition = await this.parseWorkflowDefinition(
-      ownerId,
-      draft.definition,
-      '工作流草稿结构无效，无法导出',
-      true,
-    )
-    const content = JSON.stringify(
-      {
-        dslVersion: 1,
-        app: {
-          id: app.id,
-          title: app.name,
-          description: app.description,
-          icon: app.icon,
+        ownerId,
+        draft.definition,
+        '工作流草稿结构无效，无法导出',
+        true,
+      ),
+      content = JSON.stringify(
+        {
+          dslVersion: 1,
+          app: {
+            id: app.id,
+            title: app.name,
+            description: app.description,
+            icon: app.icon,
+          },
+          workflow: {
+            schemaVersion: draft.schemaVersion,
+            revision: draft.revision,
+            definition: redactWorkflowDefinitionSecrets(definition),
+            layout: draft.layout,
+          },
         },
-        workflow: {
-          schemaVersion: draft.schemaVersion,
-          revision: draft.revision,
-          definition: redactWorkflowDefinitionSecrets(definition),
-          layout: draft.layout,
-        },
-      },
-      null,
-      2,
-    )
+        null,
+        2,
+      )
 
     return {
       content: `${content}\n`,
@@ -264,9 +264,9 @@ export class StudioAppService {
     internalError = false,
   ): Promise<Workflow> {
     const definition =
-      parseWorkflowDefinition(rawDefinition) ?? this.throwInvalidDsl(errorMessage, internalError)
-    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, definition)
-    const issues = validateWorkflow(definition, catalog.nodeRegistry)
+        parseWorkflowDefinition(rawDefinition) ?? this.throwInvalidDsl(errorMessage, internalError),
+      catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, definition),
+      issues = validateWorkflow(definition, catalog.nodeRegistry)
     if (issues.length > 0) {
       this.throwInvalidDsl(issues[0]?.message ?? errorMessage, internalError)
     }
@@ -284,8 +284,8 @@ export class StudioAppService {
     const baseTitle = sourceTitle.replace(/-副本(?:\d+)?$/, '').trim() || '应用'
 
     for (let duplicateNumber = 1; ; duplicateNumber += 1) {
-      const suffix = duplicateNumber === 1 ? '-副本' : `-副本${duplicateNumber}`
-      const candidate = `${baseTitle.slice(0, STUDIO_APP_TITLE_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`
+      const suffix = duplicateNumber === 1 ? '-副本' : `-副本${duplicateNumber}`,
+        candidate = `${baseTitle.slice(0, STUDIO_APP_TITLE_MAX_LENGTH - suffix.length).trimEnd()}${suffix}`
 
       if (!existingTitles.has(candidate)) {
         return candidate
@@ -339,11 +339,11 @@ export class StudioAppService {
   private decodeCursor(cursor: string): DecodedCursor {
     try {
       const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
-        id?: unknown
-        value?: unknown
-      }
-      const value =
-        typeof parsed.value === 'string' && parsed.value ? new Date(parsed.value) : undefined
+          id?: unknown
+          value?: unknown
+        },
+        value =
+          typeof parsed.value === 'string' && parsed.value ? new Date(parsed.value) : undefined
 
       if (
         typeof parsed.id !== 'string' ||
@@ -364,14 +364,14 @@ export class StudioAppService {
   }
 
   private sanitizeFilename(name: string): string {
-    const invalidCharacters = String.raw`<>:"/\|?*`
-    const sanitized = [...name]
-      .map((character) => {
-        const codePoint = character.codePointAt(0) ?? 0
-        return codePoint < 32 || invalidCharacters.includes(character) ? '-' : character
-      })
-      .join('')
-      .trim()
+    const invalidCharacters = String.raw`<>:"/\|?*`,
+      sanitized = [...name]
+        .map((character) => {
+          const codePoint = character.codePointAt(0) ?? 0
+          return codePoint < 32 || invalidCharacters.includes(character) ? '-' : character
+        })
+        .join('')
+        .trim()
 
     return sanitized || 'workflow'
   }

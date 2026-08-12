@@ -40,8 +40,8 @@ async function replaceOutputDirectory(stagingDirectory: string, outDir: string):
 }
 
 export async function buildPlugin(options: BuildPluginOptions = {}): Promise<BuildPluginResult> {
-  const checkedPlugin = await checkPlugin(options)
-  const outDir = resolvePackageOutputDirectory(checkedPlugin.package.rootDir, options.outDir)
+  const checkedPlugin = await checkPlugin(options),
+    outDir = resolvePackageOutputDirectory(checkedPlugin.package.rootDir, options.outDir)
   await ensureSafePackageDirectory(checkedPlugin.package.rootDir, dirname(outDir))
   const stagingDirectory = await mkdtemp(join(dirname(outDir), `.${basename(outDir)}-stage-`))
 
@@ -49,18 +49,18 @@ export async function buildPlugin(options: BuildPluginOptions = {}): Promise<Bui
     const plan = createPluginBuildPlan(checkedPlugin)
     await buildPluginArtifacts(checkedPlugin, plan, stagingDirectory)
 
-    const artifactEntries = await createFileIntegrityEntries(stagingDirectory)
-    const artifactDigest = createIntegrityDigest(artifactEntries)
-    const manifest = finalizePluginManifest(plan, artifactDigest)
-    const manifestPath = join(stagingDirectory, 'plugin.manifest.json')
+    const artifactEntries = await createFileIntegrityEntries(stagingDirectory),
+      artifactDigest = createIntegrityDigest(artifactEntries),
+      manifest = finalizePluginManifest(plan, artifactDigest),
+      manifestPath = join(stagingDirectory, 'plugin.manifest.json')
     await writeJson(manifestPath, manifest)
 
-    const files = await createFileIntegrityEntries(stagingDirectory)
-    const integrity: IntegrityFile = {
-      algorithm: 'sha256',
-      digest: artifactDigest,
-      files,
-    }
+    const files = await createFileIntegrityEntries(stagingDirectory),
+      integrity: IntegrityFile = {
+        algorithm: 'sha256',
+        digest: artifactDigest,
+        files,
+      }
     await writeJson(join(stagingDirectory, 'integrity.json'), integrity)
     await replaceOutputDirectory(stagingDirectory, outDir)
 

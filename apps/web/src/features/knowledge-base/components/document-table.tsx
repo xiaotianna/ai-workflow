@@ -34,17 +34,13 @@ import { DocumentFileTypeIcon } from './document-file-type-icon'
 import { DocumentPagination } from './document-pagination'
 import { KnowledgeSelectionActions } from './knowledge-selection-actions'
 
-const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 88 + 168 + 88 + 72 + 48
-
-const documentTableRowCellClassName =
-  'group-hover/row:bg-input group-data-[state=selected]/row:bg-input group-has-[[data-state=open]]/row:bg-input'
-
-const stickyMenuColumnClassName = 'bg-background sticky right-0'
-
-const stickyEnabledColumnClassName = 'bg-background sticky right-[48px]'
-
-const stickyMenuBodySeparatorClassName =
-  'before:bg-border relative flex justify-center before:absolute before:top-1/2 before:left-0 before:h-3.5 before:w-px before:-translate-y-1/2'
+const documentTableMinWidth = 72 + 240 + 112 + 88 + 96 + 88 + 168 + 88 + 72 + 48,
+  documentTableRowCellClassName =
+    'group-hover/row:bg-input group-data-[state=selected]/row:bg-input group-has-[[data-state=open]]/row:bg-input',
+  stickyMenuColumnClassName = 'bg-background sticky right-0',
+  stickyEnabledColumnClassName = 'bg-background sticky right-[48px]',
+  stickyMenuBodySeparatorClassName =
+    'before:bg-border relative flex justify-center before:absolute before:top-1/2 before:left-0 before:h-3.5 before:w-px before:-translate-y-1/2'
 
 function getDocumentColumnStyle(
   columnId: string,
@@ -187,215 +183,212 @@ export function DocumentTable({
   onRowSelectionChange,
 }: DocumentTableProps) {
   const columns = useMemo<ColumnDef<KnowledgeBaseDocument>[]>(
-    () => [
-      {
-        id: 'selectIndex',
-        header: ({ table }) => (
-          <div className="flex items-center gap-3 whitespace-nowrap">
-            <Checkbox
-              aria-label="全选当前页文档"
-              disabled={loading || selectionBusy || documents.length === 0}
-              checked={
-                table.getIsAllPageRowsSelected()
-                  ? true
-                  : table.getIsSomePageRowsSelected()
-                    ? 'indeterminate'
-                    : false
-              }
-              onCheckedChange={(value) => table.toggleAllPageRowsSelected(Boolean(value))}
-            />
-            <span className="text-muted-foreground">#</span>
-          </div>
-        ),
-        cell: ({ row, table }) => {
-          const pagination = table.getState().pagination
-          const index = pagination.pageIndex * pagination.pageSize + row.index + 1
-
-          return (
-            <div className="flex items-center gap-3">
+      () => [
+        {
+          id: 'selectIndex',
+          header: ({ table }) => (
+            <div className="flex items-center gap-3 whitespace-nowrap">
               <Checkbox
-                aria-label={`选择 ${row.original.name}`}
-                checked={row.getIsSelected()}
-                disabled={selectionBusy}
-                onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+                aria-label="全选当前页文档"
+                disabled={loading || selectionBusy || documents.length === 0}
+                checked={
+                  table.getIsAllPageRowsSelected()
+                    ? true
+                    : table.getIsSomePageRowsSelected()
+                      ? 'indeterminate'
+                      : false
+                }
+                onCheckedChange={(value) => table.toggleAllPageRowsSelected(Boolean(value))}
               />
-              <span>{index}</span>
+              <span className="text-muted-foreground">#</span>
             </div>
-          )
+          ),
+          cell: ({ row, table }) => {
+            const pagination = table.getState().pagination,
+              index = pagination.pageIndex * pagination.pageSize + row.index + 1
+
+            return (
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  aria-label={`选择 ${row.original.name}`}
+                  checked={row.getIsSelected()}
+                  disabled={selectionBusy}
+                  onCheckedChange={(value) => row.toggleSelected(Boolean(value))}
+                />
+                <span>{index}</span>
+              </div>
+            )
+          },
+          enableSorting: false,
+          size: 72,
+          minSize: 72,
+          maxSize: 72,
         },
-        enableSorting: false,
-        size: 72,
-        minSize: 72,
-        maxSize: 72,
-      },
-      {
-        accessorKey: 'name',
-        header: '名称',
-        cell: ({ row }) => (
-          <div className="flex min-w-0 items-center gap-2">
-            <DocumentFileTypeIcon
-              fileName={row.original.name}
-              fileType={row.original.fileType}
-              className="size-5 shrink-0 object-contain"
-            />
-            <Link
-              to={`/knowledge-base/${encodeURIComponent(row.original.knowledgeBaseId)}/documents/${encodeURIComponent(row.original.id)}`}
-              className="hover:text-primary focus-visible:text-primary truncate rounded-sm transition-colors outline-none"
+        {
+          accessorKey: 'name',
+          header: '名称',
+          cell: ({ row }) => (
+            <div className="flex min-w-0 items-center gap-2">
+              <DocumentFileTypeIcon
+                fileName={row.original.name}
+                fileType={row.original.fileType}
+                className="size-5 shrink-0 object-contain"
+              />
+              <Link
+                to={`/knowledge-base/${encodeURIComponent(row.original.knowledgeBaseId)}/documents/${encodeURIComponent(row.original.id)}`}
+                className="hover:text-primary focus-visible:text-primary truncate rounded-sm transition-colors outline-none"
+              >
+                {row.original.name}
+              </Link>
+            </div>
+          ),
+          size: 240,
+          minSize: 160,
+          maxSize: 320,
+        },
+        {
+          accessorKey: 'segmentationMode',
+          header: '分段模式',
+          cell: ({ row }) => (
+            <Badge
+              variant="secondary"
+              className="bg-muted text-muted-foreground h-6 gap-1 rounded-full border-0 px-2 font-normal"
             >
-              {row.original.name}
-            </Link>
-          </div>
-        ),
-        size: 240,
-        minSize: 160,
-        maxSize: 320,
+              <Puzzle aria-hidden className="size-3" />
+              {getDocumentSegmentationModeOption(row.original.segmentationMode).label}
+            </Badge>
+          ),
+          enableSorting: false,
+          size: 112,
+          minSize: 112,
+          maxSize: 112,
+        },
+        {
+          accessorKey: 'characterCount',
+          header: '字符数',
+          cell: ({ row }) => formatDocumentCharacterCount(row.original.characterCount),
+          enableSorting: false,
+          size: 88,
+          minSize: 88,
+          maxSize: 88,
+        },
+        {
+          accessorKey: 'chunkCount',
+          header: '分段数',
+          cell: ({ row }) => row.original.chunkCount,
+          enableSorting: false,
+          size: 96,
+          minSize: 96,
+          maxSize: 96,
+        },
+        {
+          accessorKey: 'recallCount',
+          header: '召回次数',
+          cell: ({ row }) => row.original.recallCount,
+          enableSorting: false,
+          size: 88,
+          minSize: 88,
+          maxSize: 88,
+        },
+        {
+          accessorKey: 'uploadedAt',
+          header: '上传时间',
+          cell: ({ row }) => (
+            <span className="text-muted-foreground">{row.original.uploadedAtLabel}</span>
+          ),
+          enableSorting: false,
+          size: 168,
+          minSize: 168,
+          maxSize: 168,
+        },
+        {
+          accessorKey: 'statusLabel',
+          header: '状态',
+          cell: ({ row }) => (
+            <DocumentStatusBadge
+              status={row.original.status}
+              statusLabel={row.original.statusLabel}
+            />
+          ),
+          enableSorting: false,
+          size: 88,
+          minSize: 88,
+          maxSize: 88,
+        },
+        {
+          id: 'enabled',
+          header: '操作',
+          cell: ({ row }) => (
+            <Switch
+              aria-label={`${row.original.enabled ? '禁用' : '启用'} ${row.original.name}`}
+              checked={row.original.enabled}
+              disabled={selectionBusy}
+              onCheckedChange={(checked) =>
+                onDocumentEnabledChange(row.original.id, Boolean(checked))
+              }
+            />
+          ),
+          enableSorting: false,
+          size: 72,
+          minSize: 72,
+          maxSize: 72,
+        },
+        {
+          id: 'menu',
+          header: () => null,
+          cell: ({ row }) => (
+            <DocumentActionMenu
+              title={row.original.name}
+              actions={getDocumentActions(row.original, onDocumentAction)}
+              disabled={selectionBusy}
+            />
+          ),
+          enableSorting: false,
+          size: 48,
+          minSize: 48,
+          maxSize: 48,
+        },
+      ],
+      [documents.length, loading, onDocumentAction, onDocumentEnabledChange, selectionBusy],
+    ),
+    pagination = useMemo<PaginationState>(
+      () => ({
+        pageIndex,
+        pageSize,
+      }),
+      [pageIndex, pageSize],
+    ),
+    table = useReactTable({
+      data: documents,
+      columns,
+      state: {
+        pagination,
+        rowSelection,
       },
-      {
-        accessorKey: 'segmentationMode',
-        header: '分段模式',
-        cell: ({ row }) => (
-          <Badge
-            variant="secondary"
-            className="bg-muted text-muted-foreground h-6 gap-1 rounded-full border-0 px-2 font-normal"
-          >
-            <Puzzle aria-hidden className="size-3" />
-            {getDocumentSegmentationModeOption(row.original.segmentationMode).label}
-          </Badge>
-        ),
-        enableSorting: false,
-        size: 112,
-        minSize: 112,
-        maxSize: 112,
+      defaultColumn: {
+        size: 150,
+        minSize: 44,
+        maxSize: 9999,
       },
-      {
-        accessorKey: 'characterCount',
-        header: '字符数',
-        cell: ({ row }) => formatDocumentCharacterCount(row.original.characterCount),
-        enableSorting: false,
-        size: 88,
-        minSize: 88,
-        maxSize: 88,
+      enableRowSelection: true,
+      enableSorting: false,
+      manualPagination: true,
+      pageCount: Math.max(Math.ceil(total / pageSize), 1),
+      getCoreRowModel: getCoreRowModel(),
+      getPaginationRowModel: getPaginationRowModel(),
+      onPaginationChange: (updater) => {
+        const nextPagination = typeof updater === 'function' ? updater(pagination) : updater
+        if (nextPagination.pageIndex !== pageIndex) {
+          onPageChange(nextPagination.pageIndex)
+        }
+        if (nextPagination.pageSize !== pageSize) {
+          onPageSizeChange(nextPagination.pageSize)
+        }
       },
-      {
-        accessorKey: 'chunkCount',
-        header: '分段数',
-        cell: ({ row }) => row.original.chunkCount,
-        enableSorting: false,
-        size: 96,
-        minSize: 96,
-        maxSize: 96,
-      },
-      {
-        accessorKey: 'recallCount',
-        header: '召回次数',
-        cell: ({ row }) => row.original.recallCount,
-        enableSorting: false,
-        size: 88,
-        minSize: 88,
-        maxSize: 88,
-      },
-      {
-        accessorKey: 'uploadedAt',
-        header: '上传时间',
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">{row.original.uploadedAtLabel}</span>
-        ),
-        enableSorting: false,
-        size: 168,
-        minSize: 168,
-        maxSize: 168,
-      },
-      {
-        accessorKey: 'statusLabel',
-        header: '状态',
-        cell: ({ row }) => (
-          <DocumentStatusBadge
-            status={row.original.status}
-            statusLabel={row.original.statusLabel}
-          />
-        ),
-        enableSorting: false,
-        size: 88,
-        minSize: 88,
-        maxSize: 88,
-      },
-      {
-        id: 'enabled',
-        header: '操作',
-        cell: ({ row }) => (
-          <Switch
-            aria-label={`${row.original.enabled ? '禁用' : '启用'} ${row.original.name}`}
-            checked={row.original.enabled}
-            disabled={selectionBusy}
-            onCheckedChange={(checked) =>
-              onDocumentEnabledChange(row.original.id, Boolean(checked))
-            }
-          />
-        ),
-        enableSorting: false,
-        size: 72,
-        minSize: 72,
-        maxSize: 72,
-      },
-      {
-        id: 'menu',
-        header: () => null,
-        cell: ({ row }) => (
-          <DocumentActionMenu
-            title={row.original.name}
-            actions={getDocumentActions(row.original, onDocumentAction)}
-            disabled={selectionBusy}
-          />
-        ),
-        enableSorting: false,
-        size: 48,
-        minSize: 48,
-        maxSize: 48,
-      },
-    ],
-    [documents.length, loading, onDocumentAction, onDocumentEnabledChange, selectionBusy],
-  )
-
-  const pagination = useMemo<PaginationState>(
-    () => ({
-      pageIndex,
-      pageSize,
+      onRowSelectionChange,
+      getRowId: (row) => row.id,
     }),
-    [pageIndex, pageSize],
-  )
-
-  const table = useReactTable({
-    data: documents,
-    columns,
-    state: {
-      pagination,
-      rowSelection,
-    },
-    defaultColumn: {
-      size: 150,
-      minSize: 44,
-      maxSize: 9999,
-    },
-    enableRowSelection: true,
-    enableSorting: false,
-    manualPagination: true,
-    pageCount: Math.max(Math.ceil(total / pageSize), 1),
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    onPaginationChange: (updater) => {
-      const nextPagination = typeof updater === 'function' ? updater(pagination) : updater
-      if (nextPagination.pageIndex !== pageIndex) {
-        onPageChange(nextPagination.pageIndex)
-      }
-      if (nextPagination.pageSize !== pageSize) {
-        onPageSizeChange(nextPagination.pageSize)
-      }
-    },
-    onRowSelectionChange,
-    getRowId: (row) => row.id,
-  })
-
-  const selectedDocumentCount = table.getSelectedRowModel().rows.length
+    selectedDocumentCount = table.getSelectedRowModel().rows.length
 
   return (
     <div className="relative flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-hidden">

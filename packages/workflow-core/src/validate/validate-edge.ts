@@ -33,8 +33,8 @@ export const validateExistingEdgeNodes = (
   nodes: NodeValidationResult,
   report: ReportValidationIssueFn,
 ): boolean => {
-  const sourceExists = nodes.nodeIds.has(edge.source)
-  const targetExists = nodes.nodeIds.has(edge.target)
+  const sourceExists = nodes.nodeIds.has(edge.source),
+    targetExists = nodes.nodeIds.has(edge.target)
   if (!sourceExists) {
     report({
       scope: 'edge',
@@ -60,27 +60,26 @@ export const validateExistingEdgeNodes = (
 // 生成不包含id参数的边连接标识，用于识别完全重复的线【辅助函数】
 // 因为线是node1->node2，即使id不同，但是source、target等完全一致也是重复的
 const getConnectionKey = (edge: WorkflowEdge): string => {
-  return JSON.stringify([edge.source, edge.sourceHandle, edge.target, edge.targetHandle])
-}
-
-// 校验源、目标及端口组成的连线是否重复
-const validateUniqueConnection = (
-  edge: WorkflowEdge,
-  connections: Set<string>,
-  report: ReportValidationIssueFn,
-): boolean => {
-  const key = getConnectionKey(edge)
-  if (connections.has(key)) {
-    report({
-      scope: 'edge',
-      edgeId: edge.id,
-      message: '存在完全重复的连线',
-    })
-    return false
+    return JSON.stringify([edge.source, edge.sourceHandle, edge.target, edge.targetHandle])
+  },
+  // 校验源、目标及端口组成的连线是否重复
+  validateUniqueConnection = (
+    edge: WorkflowEdge,
+    connections: Set<string>,
+    report: ReportValidationIssueFn,
+  ): boolean => {
+    const key = getConnectionKey(edge)
+    if (connections.has(key)) {
+      report({
+        scope: 'edge',
+        edgeId: edge.id,
+        message: '存在完全重复的连线',
+      })
+      return false
+    }
+    connections.add(key)
+    return true
   }
-  connections.add(key)
-  return true
-}
 
 // 解析边的端口
 interface ResolveEdgePorts {
@@ -94,125 +93,122 @@ interface ResolveEdgePorts {
  * 2、edge.targetHandle 是否存在于目标节点的 inputs 中
  */
 const resolveEdgePorts = (
-  edge: WorkflowEdge,
-  nodes: NodeValidationResult,
-  report: ReportValidationIssueFn,
-): ResolveEdgePorts | undefined => {
-  const sourcePorts = nodes.portsByNodeId.get(edge.source)
-  const targetPorts = nodes.portsByNodeId.get(edge.target)
-  if (!sourcePorts || !targetPorts) {
-    // 不进行问题上报，该校验错误已经在validateNodes上报过了，所以取不到值
-    return undefined
+    edge: WorkflowEdge,
+    nodes: NodeValidationResult,
+    report: ReportValidationIssueFn,
+  ): ResolveEdgePorts | undefined => {
+    const sourcePorts = nodes.portsByNodeId.get(edge.source),
+      targetPorts = nodes.portsByNodeId.get(edge.target)
+    if (!sourcePorts || !targetPorts) {
+      // 不进行问题上报，该校验错误已经在validateNodes上报过了，所以取不到值
+      return undefined
+    }
+
+    const output = sourcePorts.outputs[edge.sourceHandle],
+      input = targetPorts.inputs[edge.targetHandle]
+
+    if (!output) {
+      report({
+        scope: 'edge',
+        edgeId: edge.id,
+        field: 'sourceHandle',
+        nodeId: edge.source,
+        portId: edge.sourceHandle,
+        message: `源节点不存在输出端口：${edge.sourceHandle}`,
+      })
+    }
+
+    if (!input) {
+      report({
+        scope: 'edge',
+        edgeId: edge.id,
+        field: 'targetHandle',
+        nodeId: edge.target,
+        portId: edge.targetHandle,
+        message: `目标节点不存在输入端口：${edge.targetHandle}`,
+      })
+    }
+
+    return output && input ? { output, input } : undefined
+  },
+  // 将指定端点的连接数加一，并返回递增后的连接数【辅助函数】
+  addPortConnectionCount = (
+    counts: PortConnectionCounts,
+    nodeId: string,
+    portId: string,
+  ): number => {
+    let nodeCounts = counts.get(nodeId)
+    if (!nodeCounts) {
+      nodeCounts = new Map()
+      counts.set(nodeId, nodeCounts)
+    }
+    const count = (nodeCounts.get(portId) ?? 0) + 1
+    nodeCounts.set(portId, count)
+    return count
+  },
+  // 校验连接数，以及端口的multiple字段约束
+  validatePortConnectionLimits = (
+    edge: WorkflowEdge,
+    ports: ResolveEdgePorts,
+    inputCounts: PortConnectionCounts,
+    outputCounts: PortConnectionCounts,
+    report: ReportValidationIssueFn,
+  ): void => {
+    const outputCount = addPortConnectionCount(outputCounts, edge.source, edge.sourceHandle),
+      inputCount = addPortConnectionCount(inputCounts, edge.target, edge.targetHandle)
+
+    if (ports.output.multiple !== true && outputCount > 1) {
+      report({
+        scope: 'edge',
+        edgeId: edge.id,
+        field: 'sourceHandle',
+        nodeId: edge.source,
+        portId: edge.sourceHandle,
+        message: `输出端口不支持多条连线：${edge.sourceHandle}`,
+      })
+    }
+
+    if (ports.input.multiple !== true && inputCount > 1) {
+      report({
+        scope: 'edge',
+        edgeId: edge.id,
+        field: 'targetHandle',
+        nodeId: edge.target,
+        portId: edge.targetHandle,
+        message: `输入端口不支持多条连线：${edge.targetHandle}`,
+      })
+    }
+  },
+  // 校验一条边
+  validateEdge = (
+    edge: WorkflowEdge,
+    edgeIds: Set<string>,
+    nodes: NodeValidationResult,
+    connections: Set<string>,
+    inputConnectionCounts: PortConnectionCounts,
+    outputConnectionCounts: PortConnectionCounts,
+    report: ReportValidationIssueFn,
+  ): boolean => {
+    if (!validateUniqueEdgeId(edge, edgeIds, report)) {
+      return false
+    }
+
+    if (!validateExistingEdgeNodes(edge, nodes, report)) {
+      return false
+    }
+
+    if (!validateUniqueConnection(edge, connections, report)) {
+      return false
+    }
+
+    const ports = resolveEdgePorts(edge, nodes, report)
+    if (!ports) {
+      return false
+    }
+
+    validatePortConnectionLimits(edge, ports, inputConnectionCounts, outputConnectionCounts, report)
+    return true
   }
-
-  const output = sourcePorts.outputs[edge.sourceHandle]
-  const input = targetPorts.inputs[edge.targetHandle]
-
-  if (!output) {
-    report({
-      scope: 'edge',
-      edgeId: edge.id,
-      field: 'sourceHandle',
-      nodeId: edge.source,
-      portId: edge.sourceHandle,
-      message: `源节点不存在输出端口：${edge.sourceHandle}`,
-    })
-  }
-
-  if (!input) {
-    report({
-      scope: 'edge',
-      edgeId: edge.id,
-      field: 'targetHandle',
-      nodeId: edge.target,
-      portId: edge.targetHandle,
-      message: `目标节点不存在输入端口：${edge.targetHandle}`,
-    })
-  }
-
-  return output && input ? { output, input } : undefined
-}
-
-// 将指定端点的连接数加一，并返回递增后的连接数【辅助函数】
-const addPortConnectionCount = (
-  counts: PortConnectionCounts,
-  nodeId: string,
-  portId: string,
-): number => {
-  let nodeCounts = counts.get(nodeId)
-  if (!nodeCounts) {
-    nodeCounts = new Map()
-    counts.set(nodeId, nodeCounts)
-  }
-  const count = (nodeCounts.get(portId) ?? 0) + 1
-  nodeCounts.set(portId, count)
-  return count
-}
-
-// 校验连接数，以及端口的multiple字段约束
-const validatePortConnectionLimits = (
-  edge: WorkflowEdge,
-  ports: ResolveEdgePorts,
-  inputCounts: PortConnectionCounts,
-  outputCounts: PortConnectionCounts,
-  report: ReportValidationIssueFn,
-): void => {
-  const outputCount = addPortConnectionCount(outputCounts, edge.source, edge.sourceHandle)
-  const inputCount = addPortConnectionCount(inputCounts, edge.target, edge.targetHandle)
-
-  if (ports.output.multiple !== true && outputCount > 1) {
-    report({
-      scope: 'edge',
-      edgeId: edge.id,
-      field: 'sourceHandle',
-      nodeId: edge.source,
-      portId: edge.sourceHandle,
-      message: `输出端口不支持多条连线：${edge.sourceHandle}`,
-    })
-  }
-
-  if (ports.input.multiple !== true && inputCount > 1) {
-    report({
-      scope: 'edge',
-      edgeId: edge.id,
-      field: 'targetHandle',
-      nodeId: edge.target,
-      portId: edge.targetHandle,
-      message: `输入端口不支持多条连线：${edge.targetHandle}`,
-    })
-  }
-}
-
-// 校验一条边
-const validateEdge = (
-  edge: WorkflowEdge,
-  edgeIds: Set<string>,
-  nodes: NodeValidationResult,
-  connections: Set<string>,
-  inputConnectionCounts: PortConnectionCounts,
-  outputConnectionCounts: PortConnectionCounts,
-  report: ReportValidationIssueFn,
-): boolean => {
-  if (!validateUniqueEdgeId(edge, edgeIds, report)) {
-    return false
-  }
-
-  if (!validateExistingEdgeNodes(edge, nodes, report)) {
-    return false
-  }
-
-  if (!validateUniqueConnection(edge, connections, report)) {
-    return false
-  }
-
-  const ports = resolveEdgePorts(edge, nodes, report)
-  if (!ports) {
-    return false
-  }
-
-  validatePortConnectionLimits(edge, ports, inputConnectionCounts, outputConnectionCounts, report)
-  return true
-}
 
 // 校验所有边，并返回
 export const validateEdges = (
@@ -220,11 +216,11 @@ export const validateEdges = (
   nodes: NodeValidationResult,
   report: ReportValidationIssueFn,
 ): EdgeValidationResult => {
-  const edgeIds = new Set<string>()
-  const connections = new Set<string>()
-  const inputConnectionCounts: PortConnectionCounts = new Map()
-  const outputConnectionCounts: PortConnectionCounts = new Map()
-  const resolvedEdges: WorkflowEdge[] = []
+  const edgeIds = new Set<string>(),
+    connections = new Set<string>(),
+    inputConnectionCounts: PortConnectionCounts = new Map(),
+    outputConnectionCounts: PortConnectionCounts = new Map(),
+    resolvedEdges: WorkflowEdge[] = []
 
   for (const edge of workflowEdges) {
     const isResolved = validateEdge(

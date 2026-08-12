@@ -73,21 +73,21 @@ function SidebarMetric({
 
 export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSidebarSummaryProps) {
   const [statisticsState, setStatisticsState] = useState<StatisticsState>({
-    knowledgeBaseId,
-    status: 'loading',
-  })
-  const [apiAccessState, setApiAccessState] = useState<ApiAccessState>({
-    knowledgeBaseId,
-    status: 'loading',
-  })
-  const [updatingAccess, setUpdatingAccess] = useState(false)
-  const [keyDialogOpen, setKeyDialogOpen] = useState(false)
-  const [keysLoading, setKeysLoading] = useState(false)
-  const [keys, setKeys] = useState<KnowledgeApiKeyDto[]>([])
-  const [creatingKey, setCreatingKey] = useState(false)
-  const [createdKey, setCreatedKey] = useState<CreatedKnowledgeApiKeyDto>()
-  const [revokeTarget, setRevokeTarget] = useState<KnowledgeApiKeyDto>()
-  const [revokingKeyId, setRevokingKeyId] = useState<string>()
+      knowledgeBaseId,
+      status: 'loading',
+    }),
+    [apiAccessState, setApiAccessState] = useState<ApiAccessState>({
+      knowledgeBaseId,
+      status: 'loading',
+    }),
+    [updatingAccess, setUpdatingAccess] = useState(false),
+    [keyDialogOpen, setKeyDialogOpen] = useState(false),
+    [keysLoading, setKeysLoading] = useState(false),
+    [keys, setKeys] = useState<KnowledgeApiKeyDto[]>([]),
+    [creatingKey, setCreatingKey] = useState(false),
+    [createdKey, setCreatedKey] = useState<CreatedKnowledgeApiKeyDto>(),
+    [revokeTarget, setRevokeTarget] = useState<KnowledgeApiKeyDto>(),
+    [revokingKeyId, setRevokingKeyId] = useState<string>()
 
   useEffect(() => {
     if (!knowledgeBaseId) {
@@ -129,16 +129,16 @@ export function KnowledgeBaseSidebarSummary({ knowledgeBaseId }: KnowledgeBaseSi
     return () => controller.abort()
   }, [knowledgeBaseId])
 
-  const isCurrentStatistics = statisticsState.knowledgeBaseId === knowledgeBaseId
-  const statistics =
-    isCurrentStatistics && statisticsState.status === 'success'
-      ? statisticsState.statistics
-      : undefined
-  const loading = !isCurrentStatistics || statisticsState.status === 'loading'
-  const isCurrentAccess = apiAccessState.knowledgeBaseId === knowledgeBaseId
-  const apiEnabled =
-    isCurrentAccess && apiAccessState.status === 'success' ? apiAccessState.enabled : false
-  const apiAccessLoading = !isCurrentAccess || apiAccessState.status === 'loading'
+  const isCurrentStatistics = statisticsState.knowledgeBaseId === knowledgeBaseId,
+    statistics =
+      isCurrentStatistics && statisticsState.status === 'success'
+        ? statisticsState.statistics
+        : undefined,
+    loading = !isCurrentStatistics || statisticsState.status === 'loading',
+    isCurrentAccess = apiAccessState.knowledgeBaseId === knowledgeBaseId,
+    apiEnabled =
+      isCurrentAccess && apiAccessState.status === 'success' ? apiAccessState.enabled : false,
+    apiAccessLoading = !isCurrentAccess || apiAccessState.status === 'loading'
 
   async function toggleApiAccess(enabled: boolean) {
     if (!knowledgeBaseId || updatingAccess) return

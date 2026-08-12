@@ -76,8 +76,8 @@ export function NodeSelectorPopover({
   onOpenChange,
   onSelectNode,
 }: NodeSelectorPopoverProps) {
-  const virtualRef = useMemo(() => ({ current: anchor ?? fallbackAnchor }), [anchor])
-  const hasAnchor = Boolean(anchorPosition || anchor)
+  const virtualRef = useMemo(() => ({ current: anchor ?? fallbackAnchor }), [anchor]),
+    hasAnchor = Boolean(anchorPosition || anchor)
 
   function handleSelect(type: string) {
     if (disabledNodeTypes?.has(type)) return

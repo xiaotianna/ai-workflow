@@ -67,8 +67,8 @@ export function VariableTemplateEditor({
   endActions,
   onChange,
 }: VariableTemplateEditorProps) {
-  const editorRef = useRef<TiptapEditorHandle>(null)
-  const editorTokens = availableVariables.map(createEditorToken)
+  const editorRef = useRef<TiptapEditorHandle>(null),
+    editorTokens = availableVariables.map(createEditorToken)
 
   return (
     <div>

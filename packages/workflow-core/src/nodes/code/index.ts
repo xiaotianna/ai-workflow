@@ -43,8 +43,8 @@ export const codeNode = {
   createInitialInputs: createCodeNodeInitialInputs,
   createInitialOutputs: createCodeNodeInitialOutputs,
   createInitialConfig: (variables) => {
-    const inputs = variables?.inputs ?? createCodeNodeInitialInputs()
-    const outputs = variables?.outputs ?? createCodeNodeInitialOutputs()
+    const inputs = variables?.inputs ?? createCodeNodeInitialInputs(),
+      outputs = variables?.outputs ?? createCodeNodeInitialOutputs()
 
     return createInitialConfig(codeNodeSchema, {
       code: createCodeNodeInitialCode(

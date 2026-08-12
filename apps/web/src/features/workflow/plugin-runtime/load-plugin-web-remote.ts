@@ -85,8 +85,8 @@ function resolveApiUrl(url: string): string {
 }
 
 async function fetchPluginAssetText(assetUrl: string, signal?: AbortSignal): Promise<string> {
-  const token = getAuthToken()
-  const headers: HeadersInit = {}
+  const token = getAuthToken(),
+    headers: HeadersInit = {}
   if (token) headers.Authorization = `Bearer ${token}`
 
   const response = await fetch(resolveApiUrl(assetUrl), { headers, signal })
@@ -106,17 +106,17 @@ export async function loadPluginWebRemote(
   assetUrl: string,
   signal?: AbortSignal,
 ): Promise<PluginWebModule> {
-  const source = await fetchPluginAssetText(assetUrl, signal)
-  const rewrittenSource = rewriteRemoteEntrySource(source)
-  const blobUrl = URL.createObjectURL(new Blob([rewrittenSource], { type: 'text/javascript' }))
+  const source = await fetchPluginAssetText(assetUrl, signal),
+    rewrittenSource = rewriteRemoteEntrySource(source),
+    blobUrl = URL.createObjectURL(new Blob([rewrittenSource], { type: 'text/javascript' }))
 
   try {
-    const loadedModule: Record<string, unknown> = await import(/* @vite-ignore */ blobUrl)
-    const webModule = isPluginWebModule(loadedModule.default)
-      ? loadedModule.default
-      : isPluginWebModule(loadedModule.pluginWebModule)
-        ? loadedModule.pluginWebModule
-        : undefined
+    const loadedModule: Record<string, unknown> = await import(/* @vite-ignore */ blobUrl),
+      webModule = isPluginWebModule(loadedModule.default)
+        ? loadedModule.default
+        : isPluginWebModule(loadedModule.pluginWebModule)
+          ? loadedModule.pluginWebModule
+          : undefined
 
     if (!webModule) {
       throw new Error('插件 Web Remote 未导出 pluginWebModule')

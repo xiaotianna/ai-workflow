@@ -202,17 +202,17 @@ function TraceNodeItem({
   node: WorkflowNode
   run: StudioWorkflowTestRunDto
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const { nodeRegistry } = useWorkflowCatalog()
-  const status = execution.status
-  const definition = nodeRegistry.get(node.type)?.definition
-  const baseNodeLabel = node.label || definition?.label || node.type
-  const nodeLabel = execution.iteration
-    ? `${baseNodeLabel} · 第 ${execution.iteration} 次`
-    : baseNodeLabel
-  const contentId = `workflow-run-trace-${run.id}-${execution.sequence}`
-  const durationMs = execution.durationMs ?? 0
-  const inProgress = status === 'PENDING' || status === 'QUEUED' || status === 'RUNNING'
+  const [expanded, setExpanded] = useState(false),
+    { nodeRegistry } = useWorkflowCatalog(),
+    status = execution.status,
+    definition = nodeRegistry.get(node.type)?.definition,
+    baseNodeLabel = node.label || definition?.label || node.type,
+    nodeLabel = execution.iteration
+      ? `${baseNodeLabel} · 第 ${execution.iteration} 次`
+      : baseNodeLabel,
+    contentId = `workflow-run-trace-${run.id}-${execution.sequence}`,
+    durationMs = execution.durationMs ?? 0,
+    inProgress = status === 'PENDING' || status === 'QUEUED' || status === 'RUNNING'
 
   return (
     <section className="border-border/60 bg-background overflow-hidden rounded-lg border-[0.5px] shadow-xs transition-shadow duration-200 ease-out hover:shadow-md motion-reduce:transition-none">
@@ -276,8 +276,8 @@ function TraceNodeItem({
 }
 
 function RunStatusSummary({ run }: { run: StudioWorkflowTestRunDto }) {
-  const presentation = getStatusPresentation(run.status)
-  const Icon = presentation.icon
+  const presentation = getStatusPresentation(run.status),
+    Icon = presentation.icon
 
   return (
     <section
@@ -309,8 +309,8 @@ function RunStatusSummary({ run }: { run: StudioWorkflowTestRunDto }) {
 }
 
 export function WorkflowRunStatusIcon({ status }: { status: string }) {
-  const presentation = getStatusPresentation(status)
-  const Icon = presentation.icon
+  const presentation = getStatusPresentation(status),
+    Icon = presentation.icon
 
   if (status === 'SUCCEEDED') {
     return (
@@ -380,9 +380,11 @@ function resolveTraceExecutions(
   nodes: readonly WorkflowNode[],
   run: StudioWorkflowTestRunDto,
 ): Array<{ execution: StudioWorkflowTraceExecutionDto; node: WorkflowNode }> {
-  const nodeById = new Map(nodes.map((node) => [node.id, node]))
-  const executions =
-    run.traceExecutions.length > 0 ? run.traceExecutions : resolveLegacyTraceExecutions(nodes, run)
+  const nodeById = new Map(nodes.map((node) => [node.id, node])),
+    executions =
+      run.traceExecutions.length > 0
+        ? run.traceExecutions
+        : resolveLegacyTraceExecutions(nodes, run)
 
   return executions.flatMap((execution) => {
     const node = nodeById.get(execution.nodeId)
@@ -395,13 +397,13 @@ function resolveLegacyTraceExecutions(
   run: StudioWorkflowTestRunDto,
 ): StudioWorkflowTraceExecutionDto[] {
   const enteredNodeIds = new Set([
-    ...run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
-    ...run.nodeStates.map((nodeState) => nodeState.nodeId),
-  ])
-  const orderedNodeIds: string[] = []
-  const addNodeId = (nodeId: string) => {
-    if (!orderedNodeIds.includes(nodeId)) orderedNodeIds.push(nodeId)
-  }
+      ...run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
+      ...run.nodeStates.map((nodeState) => nodeState.nodeId),
+    ]),
+    orderedNodeIds: string[] = [],
+    addNodeId = (nodeId: string) => {
+      if (!orderedNodeIds.includes(nodeId)) orderedNodeIds.push(nodeId)
+    }
 
   if (run.mode === 'FULL') {
     for (const node of nodes) {

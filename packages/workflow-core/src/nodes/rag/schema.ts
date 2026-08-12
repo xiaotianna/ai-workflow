@@ -60,15 +60,15 @@ function migrateLegacyKnowledgeBaseReferences(value: unknown): unknown {
     return value
   }
 
-  const { knowledgeBaseId, knowledgeBaseIds, ...nextConfig } = config
-  const legacyKnowledgeBaseIds = Object.hasOwn(config, 'knowledgeBaseIds')
-    ? knowledgeBaseIds
-    : typeof knowledgeBaseId === 'string'
-      ? knowledgeBaseId.trim()
-        ? [knowledgeBaseId.trim()]
-        : []
-      : knowledgeBaseId
-  const parsedKnowledgeBaseIds = ragKnowledgeBaseIdsSchema.safeParse(legacyKnowledgeBaseIds)
+  const { knowledgeBaseId, knowledgeBaseIds, ...nextConfig } = config,
+    legacyKnowledgeBaseIds = Object.hasOwn(config, 'knowledgeBaseIds')
+      ? knowledgeBaseIds
+      : typeof knowledgeBaseId === 'string'
+        ? knowledgeBaseId.trim()
+          ? [knowledgeBaseId.trim()]
+          : []
+        : knowledgeBaseId,
+    parsedKnowledgeBaseIds = ragKnowledgeBaseIdsSchema.safeParse(legacyKnowledgeBaseIds)
 
   if (!parsedKnowledgeBaseIds.success) {
     return {

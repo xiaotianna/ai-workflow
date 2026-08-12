@@ -24,8 +24,8 @@ export function toPluginListItem(plugin: PluginListItemDto): PluginListItem {
 }
 
 export function toPluginDetail(plugin: PluginDetailDto): PluginDetail {
-  const listItem = toPluginListItem(plugin)
-  const [latestVersion, ...previousVersions] = plugin.versions
+  const listItem = toPluginListItem(plugin),
+    [latestVersion, ...previousVersions] = plugin.versions
   if (!latestVersion) throw new Error(`插件 ${plugin.id} 缺少版本`)
 
   return {

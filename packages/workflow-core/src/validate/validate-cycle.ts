@@ -4,8 +4,8 @@ import type { ReportValidationIssueFn } from './validate-types'
 // 判断给定拓扑中是否存在有向环
 // 使用迭代式 Kahn 拓扑排序，避免递归 DFS 在大型工作流中造成调用栈溢出
 const hasCycle = (nodeIds: Iterable<string>, edges: readonly WorkflowEdge[]): boolean => {
-  const graph = new Map<string, string[]>()
-  const indegrees = new Map<string, number>()
+  const graph = new Map<string, string[]>(),
+    indegrees = new Map<string, number>()
 
   for (const nodeId of nodeIds) {
     graph.set(nodeId, [])
@@ -18,8 +18,8 @@ const hasCycle = (nodeIds: Iterable<string>, edges: readonly WorkflowEdge[]): bo
   }
 
   const queue: string[] = []
-  let cursor = 0
-  let visitedCount = 0
+  let cursor = 0,
+    visitedCount = 0
 
   for (const [nodeId, indegree] of indegrees) {
     if (indegree === 0) {

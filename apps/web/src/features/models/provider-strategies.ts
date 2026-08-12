@@ -52,43 +52,41 @@ function createApiKeyField(placeholder: string): ModelProviderConfigurationField
 }
 
 const openAiStrategy: ModelProviderStrategy = {
-  type: 'openai',
-  label: 'OpenAI',
-  description: 'OpenAI 兼容接口',
-  defaultBaseUrl: 'https://api.openai.com/v1',
-  apiDocsUrl: 'https://developers.openai.com/api/reference/overview',
-  requiresApiKey: true,
-  configurationFields: [
-    createBaseUrlField('https://api.openai.com/v1'),
-    createApiKeyField('sk-...'),
-  ],
-  icon: OpenAIProviderIcon,
-}
-
-const deepSeekStrategy: ModelProviderStrategy = {
-  type: 'deepseek',
-  label: 'DeepSeek',
-  description: 'DeepSeek 官方接口',
-  defaultBaseUrl: 'https://api.deepseek.com',
-  apiDocsUrl: 'https://api-docs.deepseek.com/',
-  requiresApiKey: true,
-  configurationFields: [
-    createBaseUrlField('https://api.deepseek.com'),
-    createApiKeyField('sk-...'),
-  ],
-  icon: DeepSeekProviderIcon,
-}
-
-const ollamaStrategy: ModelProviderStrategy = {
-  type: 'ollama',
-  label: 'Ollama',
-  description: '本地 Ollama 服务',
-  defaultBaseUrl: 'http://localhost:11434',
-  apiDocsUrl: 'https://docs.ollama.com/api/introduction',
-  requiresApiKey: false,
-  configurationFields: [createBaseUrlField('http://localhost:11434')],
-  icon: OllamaProviderIcon,
-}
+    type: 'openai',
+    label: 'OpenAI',
+    description: 'OpenAI 兼容接口',
+    defaultBaseUrl: 'https://api.openai.com/v1',
+    apiDocsUrl: 'https://developers.openai.com/api/reference/overview',
+    requiresApiKey: true,
+    configurationFields: [
+      createBaseUrlField('https://api.openai.com/v1'),
+      createApiKeyField('sk-...'),
+    ],
+    icon: OpenAIProviderIcon,
+  },
+  deepSeekStrategy: ModelProviderStrategy = {
+    type: 'deepseek',
+    label: 'DeepSeek',
+    description: 'DeepSeek 官方接口',
+    defaultBaseUrl: 'https://api.deepseek.com',
+    apiDocsUrl: 'https://api-docs.deepseek.com/',
+    requiresApiKey: true,
+    configurationFields: [
+      createBaseUrlField('https://api.deepseek.com'),
+      createApiKeyField('sk-...'),
+    ],
+    icon: DeepSeekProviderIcon,
+  },
+  ollamaStrategy: ModelProviderStrategy = {
+    type: 'ollama',
+    label: 'Ollama',
+    description: '本地 Ollama 服务',
+    defaultBaseUrl: 'http://localhost:11434',
+    apiDocsUrl: 'https://docs.ollama.com/api/introduction',
+    requiresApiKey: false,
+    configurationFields: [createBaseUrlField('http://localhost:11434')],
+    icon: OllamaProviderIcon,
+  }
 
 export const modelProviderStrategies = [
   openAiStrategy,

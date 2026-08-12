@@ -26,8 +26,8 @@ export class WorkflowMqService implements OnModuleDestroy {
   }
 
   async createConsumerChannel(): Promise<Channel> {
-    const connection = await this.getConnection()
-    const channel = await connection.createChannel()
+    const connection = await this.getConnection(),
+      channel = await connection.createChannel()
     await assertWorkflowMqTopology(channel)
     return channel
   }
@@ -38,11 +38,11 @@ export class WorkflowMqService implements OnModuleDestroy {
     content: Buffer,
     options: Options.Publish = {},
   ): Promise<void> {
-    const channel = await this.getConfirmChannel()
-    const writable = channel.publish(exchange, routingKey, content, {
-      persistent: true,
-      ...options,
-    })
+    const channel = await this.getConfirmChannel(),
+      writable = channel.publish(exchange, routingKey, content, {
+        persistent: true,
+        ...options,
+      })
 
     if (!writable) await once(channel, 'drain')
     await channel.waitForConfirms()

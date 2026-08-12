@@ -30,13 +30,13 @@ export function RenameDocumentDialog({
   onRename,
 }: RenameDocumentDialogProps) {
   const { form, setForm, updateFormField } = useFormData<RenameDocumentFormInput>({
-    name: document.name,
-  })
-  const [touched, setTouched] = useState(false)
-  const [renaming, setRenaming] = useState(false)
-  const validation = validateFormByZod(renameDocumentSchema, form)
-  const fieldError = validation.success ? undefined : validation.errors.name
-  const isUnchanged = form.name.trim() === document.name
+      name: document.name,
+    }),
+    [touched, setTouched] = useState(false),
+    [renaming, setRenaming] = useState(false),
+    validation = validateFormByZod(renameDocumentSchema, form),
+    fieldError = validation.success ? undefined : validation.errors.name,
+    isUnchanged = form.name.trim() === document.name
 
   useEffect(() => {
     if (!open) return

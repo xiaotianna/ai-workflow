@@ -61,8 +61,8 @@ function ConditionBranchEditor({
   onChange: (condition: ConditionItem) => void
   onRemove: () => void
 }) {
-  const branchLabel = index === 0 ? 'IF' : 'ELIF'
-  const branchError = getFieldError(errors, `${path}.${index}`)
+  const branchLabel = index === 0 ? 'IF' : 'ELIF',
+    branchError = getFieldError(errors, `${path}.${index}`)
 
   return (
     <section className="border-border border-b-[0.5px] pb-4">
@@ -140,9 +140,9 @@ export function ConditionBranchesField({
     )
   }
 
-  const conditions = parsedConfig.data.conditions
-  const normalConditions = conditions.filter((condition) => !condition.isFallback)
-  const fallbackCondition = conditions.find((condition) => condition.isFallback)
+  const conditions = parsedConfig.data.conditions,
+    normalConditions = conditions.filter((condition) => !condition.isFallback),
+    fallbackCondition = conditions.find((condition) => condition.isFallback)
 
   function applyConditions(nextConditions: readonly ConditionItem[]) {
     onChange(normalizeConditionLabels(nextConditions))
@@ -189,14 +189,14 @@ export function ConditionBranchesField({
           disabled={disabled}
           onClick={() => {
             const nextCondition: ConditionItem = {
-              portId: generateUuid(),
-              conditionLabel: `CASE${normalConditions.length + 1}`,
-              logicalOperator: CONDITION_LOGICAL_OPERATOR_KINDS.AND,
-              rules: [],
-              isFallback: false,
-            }
-            const fallbackIndex = conditions.findIndex((condition) => condition.isFallback)
-            const nextConditions = [...conditions]
+                portId: generateUuid(),
+                conditionLabel: `CASE${normalConditions.length + 1}`,
+                logicalOperator: CONDITION_LOGICAL_OPERATOR_KINDS.AND,
+                rules: [],
+                isFallback: false,
+              },
+              fallbackIndex = conditions.findIndex((condition) => condition.isFallback),
+              nextConditions = [...conditions]
             nextConditions.splice(
               fallbackIndex === -1 ? nextConditions.length : fallbackIndex,
               0,

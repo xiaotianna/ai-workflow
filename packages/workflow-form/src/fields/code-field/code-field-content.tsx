@@ -27,9 +27,9 @@ export function CodeFieldContent({
   value,
   onChange,
 }: CodeFieldContentProps) {
-  const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [dialogValue, setDialogValue] = useState(value)
-  const languageLabel = language.toLocaleUpperCase()
+  const [isDialogOpen, setIsDialogOpen] = useState(false),
+    [dialogValue, setDialogValue] = useState(value),
+    languageLabel = language.toLocaleUpperCase()
 
   function handleDialogOpen() {
     setDialogValue(value)

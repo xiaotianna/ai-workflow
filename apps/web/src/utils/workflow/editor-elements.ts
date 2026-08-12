@@ -25,8 +25,8 @@ function getNodeLabelIndex(label: string, defaultLabel: string): number | undefi
     return undefined
   }
 
-  const suffix = label.slice(numberedLabelPrefix.length)
-  const index = Number(suffix)
+  const suffix = label.slice(numberedLabelPrefix.length),
+    index = Number(suffix)
 
   return Number.isSafeInteger(index) && index >= 2 && String(index) === suffix ? index : undefined
 }
@@ -56,14 +56,14 @@ export function getCanvasNodeDefaultLabel(
     return node.data.label ?? node.type
   }
 
-  const defaultLabel = nodeType.definition.label
-  const sameTypeNodes = nodes.filter((candidate) => candidate.type === node.type)
-  const ordinal = sameTypeNodes.findIndex((candidate) => candidate.id === nodeId) + 1
-  const storedLabelIndex = node.data.label
-    ? getNodeLabelIndex(node.data.label, defaultLabel)
-    : undefined
-  const defaultLabelIndex =
-    storedLabelIndex !== undefined && storedLabelIndex > 1 ? storedLabelIndex : ordinal
+  const defaultLabel = nodeType.definition.label,
+    sameTypeNodes = nodes.filter((candidate) => candidate.type === node.type),
+    ordinal = sameTypeNodes.findIndex((candidate) => candidate.id === nodeId) + 1,
+    storedLabelIndex = node.data.label
+      ? getNodeLabelIndex(node.data.label, defaultLabel)
+      : undefined,
+    defaultLabelIndex =
+      storedLabelIndex !== undefined && storedLabelIndex > 1 ? storedLabelIndex : ordinal
 
   return formatNodeDefaultLabel(defaultLabel, defaultLabelIndex)
 }
@@ -77,19 +77,19 @@ function getNextNodeLabel(
   existingNodes: readonly WorkflowCanvasNode[],
   nodeRegistry: NodeRegistryReader,
 ): string | undefined {
-  const defaultLabel = nodeRegistry.getOrThrow(type).definition.label
-  const sameTypeNodes = existingNodes.filter((node) => node.type === type)
+  const defaultLabel = nodeRegistry.getOrThrow(type).definition.label,
+    sameTypeNodes = existingNodes.filter((node) => node.type === type)
 
   if (sameTypeNodes.length === 0) {
     return undefined
   }
 
   const maxUsedIndex = sameTypeNodes.reduce((maxIndex, node) => {
-    const labelIndex = getNodeLabelIndex(node.data.label ?? defaultLabel, defaultLabel)
+      const labelIndex = getNodeLabelIndex(node.data.label ?? defaultLabel, defaultLabel)
 
-    return labelIndex === undefined ? maxIndex : Math.max(maxIndex, labelIndex)
-  }, 0)
-  const nextIndex = Math.max(sameTypeNodes.length + 1, maxUsedIndex + 1)
+      return labelIndex === undefined ? maxIndex : Math.max(maxIndex, labelIndex)
+    }, 0),
+    nextIndex = Math.max(sameTypeNodes.length + 1, maxUsedIndex + 1)
 
   return formatNodeDefaultLabel(defaultLabel, nextIndex)
 }
@@ -101,13 +101,10 @@ const createCanvasNode = (
   existingNodes: readonly WorkflowCanvasNode[],
   nodeRegistry: NodeRegistryReader,
 ): WorkflowCanvasNode => {
-  const nodeType = nodeRegistry.getOrThrow(type)
-  const label = getNextNodeLabel(type, existingNodes, nodeRegistry)
-  const inputs = nodeType.createInitialInputs?.() ?? {}
-  const outputs = normalizeNodeOutputs(
-    nodeType.createInitialOutputs?.() ?? [],
-    nodeType.fixedOutputs,
-  )
+  const nodeType = nodeRegistry.getOrThrow(type),
+    label = getNextNodeLabel(type, existingNodes, nodeRegistry),
+    inputs = nodeType.createInitialInputs?.() ?? {},
+    outputs = normalizeNodeOutputs(nodeType.createInitialOutputs?.() ?? [], nodeType.fixedOutputs)
 
   return {
     id: generateUuid(),
@@ -184,13 +181,12 @@ export const DEFAULT_LOOP_SIZE = {
 }
 
 const LOOP_CONTENT_INSET = {
-  top: 48,
-  right: 12,
-  bottom: 12,
-  left: 12,
-}
-
-const LOOP_CHILD_PADDING = 20
+    top: 48,
+    right: 12,
+    bottom: 12,
+    left: 12,
+  },
+  LOOP_CHILD_PADDING = 20
 
 // Loop 子节点只允许出现在点阵背景的安全边距内。
 export const getLoopChildExtent = ({
@@ -253,70 +249,67 @@ const createLoopCanvasNodes = ({
   existingNodes: readonly WorkflowCanvasNode[]
   nodeRegistry: NodeRegistryReader
 }): [WorkflowCanvasNode, WorkflowCanvasNode, WorkflowCanvasNode] => {
-  const loopId = generateUuid()
-  const loopChildExtent = getLoopChildExtent(DEFAULT_LOOP_SIZE)
-  const loopLabel = getNextNodeLabel(BuiltinNodeType.LOOP, existingNodes, nodeRegistry)
-  const loopStartLabel = getNextNodeLabel(BuiltinNodeType.LOOP_START, existingNodes, nodeRegistry)
-  const loopExitLabel = getNextNodeLabel(BuiltinNodeType.LOOP_EXIT, existingNodes, nodeRegistry)
-
-  // 创建loop节点
-  const loopNode: WorkflowCanvasNode = {
-    id: loopId,
-    type: BuiltinNodeType.LOOP,
-    position,
-    data: {
-      ...(loopLabel ? { label: loopLabel } : {}),
-      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
-      inputs: {},
-      outputs: [],
+  const loopId = generateUuid(),
+    loopChildExtent = getLoopChildExtent(DEFAULT_LOOP_SIZE),
+    loopLabel = getNextNodeLabel(BuiltinNodeType.LOOP, existingNodes, nodeRegistry),
+    loopStartLabel = getNextNodeLabel(BuiltinNodeType.LOOP_START, existingNodes, nodeRegistry),
+    loopExitLabel = getNextNodeLabel(BuiltinNodeType.LOOP_EXIT, existingNodes, nodeRegistry),
+    // 创建loop节点
+    loopNode: WorkflowCanvasNode = {
+      id: loopId,
+      type: BuiltinNodeType.LOOP,
+      position,
+      data: {
+        ...(loopLabel ? { label: loopLabel } : {}),
+        config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP).createInitialConfig(),
+        inputs: {},
+        outputs: [],
+      },
+      ...(parentId
+        ? {
+            parentId,
+            extent: getLoopChildExtent(parentSize ?? DEFAULT_LOOP_SIZE),
+          }
+        : {}),
+      style: DEFAULT_LOOP_SIZE,
+      dragHandle: '.drag-handle',
     },
-    ...(parentId
-      ? {
-          parentId,
-          extent: getLoopChildExtent(parentSize ?? DEFAULT_LOOP_SIZE),
-        }
-      : {}),
-    style: DEFAULT_LOOP_SIZE,
-    dragHandle: '.drag-handle',
-  }
-
-  // 创建loop的子开始节点
-  const loopStartNode: WorkflowCanvasNode = {
-    id: generateUuid(),
-    type: BuiltinNodeType.LOOP_START,
-    parentId: loopId,
-    extent: loopChildExtent,
-    deletable: false,
-    position: {
-      x: 32,
-      y: 96,
+    // 创建loop的子开始节点
+    loopStartNode: WorkflowCanvasNode = {
+      id: generateUuid(),
+      type: BuiltinNodeType.LOOP_START,
+      parentId: loopId,
+      extent: loopChildExtent,
+      deletable: false,
+      position: {
+        x: 32,
+        y: 96,
+      },
+      data: {
+        ...(loopStartLabel ? { label: loopStartLabel } : {}),
+        config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
+        inputs: {},
+        outputs: [],
+      },
     },
-    data: {
-      ...(loopStartLabel ? { label: loopStartLabel } : {}),
-      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_START).createInitialConfig(),
-      inputs: {},
-      outputs: [],
-    },
-  }
-
-  // 创建loop的子退出节点
-  const loopExitNode: WorkflowCanvasNode = {
-    id: generateUuid(),
-    type: BuiltinNodeType.LOOP_EXIT,
-    parentId: loopId,
-    extent: loopChildExtent,
-    deletable: false,
-    position: {
-      x: 260,
-      y: 96,
-    },
-    data: {
-      ...(loopExitLabel ? { label: loopExitLabel } : {}),
-      config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
-      inputs: {},
-      outputs: [],
-    },
-  }
+    // 创建loop的子退出节点
+    loopExitNode: WorkflowCanvasNode = {
+      id: generateUuid(),
+      type: BuiltinNodeType.LOOP_EXIT,
+      parentId: loopId,
+      extent: loopChildExtent,
+      deletable: false,
+      position: {
+        x: 260,
+        y: 96,
+      },
+      data: {
+        ...(loopExitLabel ? { label: loopExitLabel } : {}),
+        config: nodeRegistry.getOrThrow(BuiltinNodeType.LOOP_EXIT).createInitialConfig(),
+        inputs: {},
+        outputs: [],
+      },
+    }
 
   return [loopNode, loopStartNode, loopExitNode]
 }

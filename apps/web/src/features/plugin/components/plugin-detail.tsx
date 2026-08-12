@@ -33,14 +33,14 @@ interface PluginDetailProps {
 }
 
 export function PluginDetail({ plugin, onInstalled, onUninstalled }: PluginDetailProps) {
-  const [installationOpen, setInstallationOpen] = useState(false)
-  const [installationVersion, setInstallationVersion] = useState<PluginVersion>()
-  const [installationChanging, setInstallationChanging] = useState(false)
-  const [uninstallationOpen, setUninstallationOpen] = useState(false)
-  const [versionHistoryOpen, setVersionHistoryOpen] = useState(false)
-  const latestVersion = plugin.versions[0]
-  const installedLatest = plugin.installation !== null && !plugin.updateAvailable
-  const actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
+  const [installationOpen, setInstallationOpen] = useState(false),
+    [installationVersion, setInstallationVersion] = useState<PluginVersion>(),
+    [installationChanging, setInstallationChanging] = useState(false),
+    [uninstallationOpen, setUninstallationOpen] = useState(false),
+    [versionHistoryOpen, setVersionHistoryOpen] = useState(false),
+    latestVersion = plugin.versions[0],
+    installedLatest = plugin.installation !== null && !plugin.updateAvailable,
+    actionLabel = installedLatest ? '已安装' : plugin.updateAvailable ? '更新' : '安装'
 
   function openInstallation(version?: PluginVersion) {
     setInstallationVersion(version)
@@ -61,8 +61,8 @@ export function PluginDetail({ plugin, onInstalled, onUninstalled }: PluginDetai
 
     setInstallationChanging(true)
     try {
-      const enabled = action === 'enable'
-      const result = await updatePluginInstallation(plugin.id, enabled)
+      const enabled = action === 'enable',
+        result = await updatePluginInstallation(plugin.id, enabled)
       onInstalled(result)
       showToast('success', enabled ? '插件已启用' : '插件已禁用')
     } catch {

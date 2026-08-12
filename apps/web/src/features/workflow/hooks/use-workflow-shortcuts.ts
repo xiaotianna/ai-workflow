@@ -71,9 +71,9 @@ export function useWorkflowShortcuts({
       if (event.defaultPrevented) return
       if (interactionBlocked) return
 
-      const key = event.key.toLocaleLowerCase()
-      const modifierPressed = event.metaKey || event.ctrlKey
-      const arrowOffset = getArrowOffset(event.key)
+      const key = event.key.toLocaleLowerCase(),
+        modifierPressed = event.metaKey || event.ctrlKey,
+        arrowOffset = getArrowOffset(event.key)
 
       if (!arrowOffset) editor.finishNodeNudge()
 

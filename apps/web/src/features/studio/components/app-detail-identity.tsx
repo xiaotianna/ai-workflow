@@ -14,13 +14,13 @@ interface AppDetailIdentityProps {
 }
 
 export function AppDetailIdentity({ app, onAppAction, onImportDsl }: AppDetailIdentityProps) {
-  const [importDialogOpen, setImportDialogOpen] = useState(false)
-  const title = app?.title ?? '未命名应用'
-  const actions = app
-    ? getStudioAppActions(app, onAppAction, {
-        onImportDsl: () => setImportDialogOpen(true),
-      })
-    : []
+  const [importDialogOpen, setImportDialogOpen] = useState(false),
+    title = app?.title ?? '未命名应用',
+    actions = app
+      ? getStudioAppActions(app, onAppAction, {
+          onImportDsl: () => setImportDialogOpen(true),
+        })
+      : []
 
   function handleImportDsl(dsl: unknown) {
     if (!app) return

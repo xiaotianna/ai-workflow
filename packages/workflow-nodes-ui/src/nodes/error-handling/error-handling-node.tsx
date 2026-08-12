@@ -32,12 +32,12 @@ export function ErrorHandlingNode<TConfig extends ErrorHandlingNodeConfig>({
   children,
   executionStatus,
 }: ErrorHandlingNodeProps<TConfig>) {
-  const errorHandling = node.config.errorHandling
-  const errorPort = ports.outputs[ERROR_HANDLING_PORT_ID]
-  const regularOutputPorts = Object.fromEntries(
-    Object.entries(ports.outputs).filter(([portId]) => portId !== ERROR_HANDLING_PORT_ID),
-  )
-  const showErrorHandling = errorHandling.mode !== ERROR_HANDLING_MODES.NONE
+  const errorHandling = node.config.errorHandling,
+    errorPort = ports.outputs[ERROR_HANDLING_PORT_ID],
+    regularOutputPorts = Object.fromEntries(
+      Object.entries(ports.outputs).filter(([portId]) => portId !== ERROR_HANDLING_PORT_ID),
+    ),
+    showErrorHandling = errorHandling.mode !== ERROR_HANDLING_MODES.NONE
 
   return (
     <NodeWrapper

@@ -54,13 +54,12 @@ export interface ConditionRulesEditorProps {
 }
 
 const createDirectValue = () =>
-  ({
-    type: 'value',
-    value: '',
-  }) as const
-
-const CONDITION_VALUE_EDITOR_CLASS_NAME =
-  'rounded-none! bg-transparent [&_button]:rounded-none! [&_button]:border-transparent! [&_input]:rounded-none! [&_input]:border-transparent!'
+    ({
+      type: 'value',
+      value: '',
+    }) as const,
+  CONDITION_VALUE_EDITOR_CLASS_NAME =
+    'rounded-none! bg-transparent [&_button]:rounded-none! [&_button]:border-transparent! [&_input]:rounded-none! [&_input]:border-transparent!'
 
 function createConditionRule(): ConditionRule {
   return {
@@ -127,11 +126,11 @@ function ConditionLogicalOperatorToggle({
   onValueChange: (value: ConditionLogicalOperator) => void
 }) {
   const nextValue =
-    value === CONDITION_LOGICAL_OPERATOR_KINDS.AND
-      ? CONDITION_LOGICAL_OPERATOR_KINDS.OR
-      : CONDITION_LOGICAL_OPERATOR_KINDS.AND
-  const currentLabel = getConditionLogicalOperatorLabel(value)
-  const nextLabel = getConditionLogicalOperatorLabel(nextValue)
+      value === CONDITION_LOGICAL_OPERATOR_KINDS.AND
+        ? CONDITION_LOGICAL_OPERATOR_KINDS.OR
+        : CONDITION_LOGICAL_OPERATOR_KINDS.AND,
+    currentLabel = getConditionLogicalOperatorLabel(value),
+    nextLabel = getConditionLogicalOperatorLabel(nextValue)
 
   return (
     <Button
@@ -166,11 +165,11 @@ function ConditionRuleEditor({
   onChange: (rule: ConditionRule) => void
   onRemove: () => void
 }) {
-  const leftError = getFieldError(errors, `${path}.left`)
-  const rightError = getFieldError(errors, `${path}.right`)
-  const operatorError = getFieldError(errors, `${path}.operator`)
-  const requiresRightValue = conditionOperatorRequiresRightValue(rule.operator)
-  const hasError = Boolean(leftError || rightError || operatorError)
+  const leftError = getFieldError(errors, `${path}.left`),
+    rightError = getFieldError(errors, `${path}.right`),
+    operatorError = getFieldError(errors, `${path}.operator`),
+    requiresRightValue = conditionOperatorRequiresRightValue(rule.operator),
+    hasError = Boolean(leftError || rightError || operatorError)
 
   return (
     <div className="space-y-1.5">
@@ -367,8 +366,8 @@ export function ConditionRulesField({
   disabled,
   onChange,
 }: ConditionRulesFieldProps) {
-  const parsedValue = conditionRulesSchema.safeParse(value)
-  const hasRules = parsedValue.success && parsedValue.data.rules.length > 0
+  const parsedValue = conditionRulesSchema.safeParse(value),
+    hasRules = parsedValue.success && parsedValue.data.rules.length > 0
 
   return (
     <Form.Field

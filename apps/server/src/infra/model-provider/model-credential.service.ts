@@ -3,8 +3,8 @@ import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto'
 
-const CREDENTIAL_KEY_VERSION = 1
-const CREDENTIAL_ALGORITHM = 'aes-256-gcm'
+const CREDENTIAL_KEY_VERSION = 1,
+  CREDENTIAL_ALGORITHM = 'aes-256-gcm'
 
 export interface EncryptedModelCredential {
   ciphertext: Uint8Array<ArrayBuffer>
@@ -41,8 +41,8 @@ export class ModelCredentialService {
   }
 
   encrypt(apiKey: string, groupId: string): EncryptedModelCredential {
-    const iv = randomBytes(12)
-    const cipher = createCipheriv(CREDENTIAL_ALGORITHM, this.key, iv)
+    const iv = randomBytes(12),
+      cipher = createCipheriv(CREDENTIAL_ALGORITHM, this.key, iv)
     cipher.setAAD(Buffer.from(groupId))
     const ciphertext = Buffer.concat([cipher.update(apiKey, 'utf8'), cipher.final()])
 

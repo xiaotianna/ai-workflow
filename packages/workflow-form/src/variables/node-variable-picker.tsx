@@ -72,16 +72,16 @@ function groupVariableOptions(
   options: readonly AvailableVariableOption[],
   searchValue: string,
 ): VariableOptionGroup[] {
-  const normalizedSearch = searchValue.trim().toLocaleLowerCase()
-  const groups = new Map<string, VariableOptionGroup>()
+  const normalizedSearch = searchValue.trim().toLocaleLowerCase(),
+    groups = new Map<string, VariableOptionGroup>()
 
   for (const option of options) {
-    const dataTypeTag = getDataTypeTag(option.dataType)
-    const isMatch =
-      normalizedSearch.length === 0 ||
-      [option.sourceLabel, option.variableName, option.label, dataTypeTag].some((value) =>
-        value.toLocaleLowerCase().includes(normalizedSearch),
-      )
+    const dataTypeTag = getDataTypeTag(option.dataType),
+      isMatch =
+        normalizedSearch.length === 0 ||
+        [option.sourceLabel, option.variableName, option.label, dataTypeTag].some((value) =>
+          value.toLocaleLowerCase().includes(normalizedSearch),
+        )
 
     if (!isMatch) continue
 
@@ -110,11 +110,11 @@ function NodeVariablePicker({
   contentClassName,
   onValueChange,
 }: NodeVariablePickerProps) {
-  const [open, setOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState('')
-  const selectedOption = options.find((option) => option.id === value)
-  const groups = groupVariableOptions(options, searchValue)
-  const resultCount = groups.reduce((count, group) => count + group.options.length, 0)
+  const [open, setOpen] = useState(false),
+    [searchValue, setSearchValue] = useState(''),
+    selectedOption = options.find((option) => option.id === value),
+    groups = groupVariableOptions(options, searchValue),
+    resultCount = groups.reduce((count, group) => count + group.options.length, 0)
 
   function handleOpenChange(nextOpen: boolean) {
     if (disabled && nextOpen) return

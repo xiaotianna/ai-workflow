@@ -129,30 +129,30 @@ export class KnowledgeApiRepository {
   }
 
   async authenticateApiKey(keyHash: string) {
-    const now = new Date()
-    const apiKey = await this.prisma.knowledgeBaseApiKey.findFirst({
-      where: {
-        keyHash,
-        revokedAt: null,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        knowledgeBase: {
-          apiEnabled: true,
-          deletedAt: null,
-          lifecycleStatus: KnowledgeLifecycleStatus.ACTIVE,
-        },
-      },
-      select: {
-        id: true,
-        scopes: true,
-        knowledgeBase: {
-          select: {
-            id: true,
-            ownerId: true,
-            settings: { select: { retrievalTopK: true } },
+    const now = new Date(),
+      apiKey = await this.prisma.knowledgeBaseApiKey.findFirst({
+        where: {
+          keyHash,
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          knowledgeBase: {
+            apiEnabled: true,
+            deletedAt: null,
+            lifecycleStatus: KnowledgeLifecycleStatus.ACTIVE,
           },
         },
-      },
-    })
+        select: {
+          id: true,
+          scopes: true,
+          knowledgeBase: {
+            select: {
+              id: true,
+              ownerId: true,
+              settings: { select: { retrievalTopK: true } },
+            },
+          },
+        },
+      })
     if (!apiKey) return null
 
     const updated = await this.prisma.knowledgeBaseApiKey.updateMany({

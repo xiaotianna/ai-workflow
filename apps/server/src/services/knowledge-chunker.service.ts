@@ -5,13 +5,18 @@ import { BadRequestException, Injectable } from '@nestjs/common'
 import { OfficeParser, type SupportedFileType } from 'officeparser'
 import { PDFParse } from 'pdf-parse'
 
-const OFFICE_PARSER_FILE_TYPES = new Set<SupportedFileType>(['docx', 'pptx', 'xlsx', 'csv', 'html'])
-
-const OFFICE_PARSER_DECOMPRESSION_LIMITS = {
-  maxUncompressedBytes: 64 * 1024 * 1024,
-  maxZipEntries: 5000,
-  maxTableCells: 200_000,
-} as const
+const OFFICE_PARSER_FILE_TYPES = new Set<SupportedFileType>([
+    'docx',
+    'pptx',
+    'xlsx',
+    'csv',
+    'html',
+  ]),
+  OFFICE_PARSER_DECOMPRESSION_LIMITS = {
+    maxUncompressedBytes: 64 * 1024 * 1024,
+    maxZipEntries: 5000,
+    maxTableCells: 200_000,
+  } as const
 
 export interface KnowledgeChunkInput {
   content: string
@@ -73,22 +78,22 @@ export class KnowledgeChunkerService {
 
     try {
       const document = await OfficeParser.parseOffice(parserContent, {
-        fileType,
-        extractAttachments: false,
-        includeRawContent: false,
-        ignoreComments: true,
-        ignoreHeadersAndFooters: true,
-        ignoreSlideMasters: true,
-        ocr: false,
-        decompressionLimits: OFFICE_PARSER_DECOMPRESSION_LIMITS,
-      })
-      const result = await document.to('text', {
-        includeImages: false,
-        textConfig: {
-          preserveLayout: true,
-          renderNotes: true,
-        },
-      })
+          fileType,
+          extractAttachments: false,
+          includeRawContent: false,
+          ignoreComments: true,
+          ignoreHeadersAndFooters: true,
+          ignoreSlideMasters: true,
+          ocr: false,
+          decompressionLimits: OFFICE_PARSER_DECOMPRESSION_LIMITS,
+        }),
+        result = await document.to('text', {
+          includeImages: false,
+          textConfig: {
+            preserveLayout: true,
+            renderNotes: true,
+          },
+        })
       return result.value
     } catch (error) {
       if (error instanceof BadRequestException) throw error
@@ -154,10 +159,10 @@ export class KnowledgeChunkerService {
 
   private chunkGeneral(source: string, config: KnowledgeChunkConfig): string[] {
     const blocks = source
-      .split(/\n{2,}/)
-      .map((item) => item.trim())
-      .filter(Boolean)
-    const chunks: string[] = []
+        .split(/\n{2,}/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      chunks: string[] = []
     let current = ''
 
     const pushCurrent = () => {
@@ -196,23 +201,21 @@ export class KnowledgeChunkerService {
       .filter(Boolean)
     return blocks.flatMap((block, blockIndex) => {
       const lines = block
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-      const questionIndex = lines.findIndex((line) => /^(q|问|问题)\s*[:：]/i.test(line))
-      const answerIndex = lines.findIndex((line) => /^(a|答|答案)\s*[:：]/i.test(line))
-      const question =
-        questionIndex !== -1 ? lines[questionIndex].replace(/^[^:：]+[:：]\s*/, '') : ''
-      const answer =
-        answerIndex !== -1
-          ? lines
-              .slice(answerIndex)
-              .join('\n')
-              .replace(/^[^:：]+[:：]\s*/, '')
-          : block
-      const content = question ? `问题：${question}\n答案：${answer}` : answer
-
-      const metadata: Record<string, string | number> = { qaBlock: blockIndex + 1 }
+          .split('\n')
+          .map((line) => line.trim())
+          .filter(Boolean),
+        questionIndex = lines.findIndex((line) => /^(q|问|问题)\s*[:：]/i.test(line)),
+        answerIndex = lines.findIndex((line) => /^(a|答|答案)\s*[:：]/i.test(line)),
+        question = questionIndex !== -1 ? lines[questionIndex].replace(/^[^:：]+[:：]\s*/, '') : '',
+        answer =
+          answerIndex !== -1
+            ? lines
+                .slice(answerIndex)
+                .join('\n')
+                .replace(/^[^:：]+[:：]\s*/, '')
+            : block,
+        content = question ? `问题：${question}\n答案：${answer}` : answer,
+        metadata: Record<string, string | number> = { qaBlock: blockIndex + 1 }
       if (question) metadata.question = question
       return this.splitLongBlock(content, maxLength).map((piece) => ({ content: piece, metadata }))
     })
@@ -220,10 +223,10 @@ export class KnowledgeChunkerService {
 
   private chunkParentChild(source: string, config: KnowledgeChunkConfig): KnowledgeChunkInput[] {
     const parents = source
-      .split(/(?=^#{1,3}\s)|\n{3,}/m)
-      .map((item) => item.trim())
-      .filter(Boolean)
-    const childLength = Math.max(100, Math.floor(config.maxSegmentLength / 2))
+        .split(/(?=^#{1,3}\s)|\n{3,}/m)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      childLength = Math.max(100, Math.floor(config.maxSegmentLength / 2))
     return addHeadingMetadata(
       parents.flatMap((parent, parentIndex) =>
         this.chunkGeneral(parent, {
@@ -247,13 +250,13 @@ export class KnowledgeChunkerService {
     const pieces: string[] = []
     let remaining = block
     while (remaining.length > maxLength) {
-      const window = remaining.slice(0, maxLength + 1)
-      const boundary = Math.max(
-        window.lastIndexOf('\n'),
-        window.lastIndexOf('。'),
-        window.lastIndexOf('；'),
-      )
-      const cut = boundary >= Math.floor(maxLength * 0.5) ? boundary + 1 : maxLength
+      const window = remaining.slice(0, maxLength + 1),
+        boundary = Math.max(
+          window.lastIndexOf('\n'),
+          window.lastIndexOf('。'),
+          window.lastIndexOf('；'),
+        ),
+        cut = boundary >= Math.floor(maxLength * 0.5) ? boundary + 1 : maxLength
       pieces.push(remaining.slice(0, cut).trim())
       remaining = remaining.slice(cut).trimStart()
     }

@@ -35,8 +35,8 @@ export class WorkflowVersionService {
     })
     if (result.status === 'not-found') throw new NotFoundException('工作流版本不存在')
 
-    const definition = parseWorkflowDefinition(result.draft.definition)
-    const layout = parseWorkflowLayout(result.draft.layout)
+    const definition = parseWorkflowDefinition(result.draft.definition),
+      layout = parseWorkflowLayout(result.draft.layout)
     if (!definition || !layout) {
       throw new InternalServerErrorException('工作流版本快照结构无效')
     }

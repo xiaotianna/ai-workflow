@@ -19,11 +19,11 @@ export const PLUGIN_HOST_VERSION = '1.0.0'
 export function createNodeTypesFromPluginManifest(manifest: PluginManifest): readonly NodeType[] {
   return manifest.nodes.map((node) => {
     const schema =
-      node.execution.kind === 'host-llm'
-        ? llmNodeSchema
-        : compilePluginSchemaToZod(node.configSchema)
-    const initialConfig = schema.parse(node.initialConfig)
-    const errorHandlingFieldName = getPluginErrorHandlingFieldName(node.form)
+        node.execution.kind === 'host-llm'
+          ? llmNodeSchema
+          : compilePluginSchemaToZod(node.configSchema),
+      initialConfig = schema.parse(node.initialConfig),
+      errorHandlingFieldName = getPluginErrorHandlingFieldName(node.form)
 
     return {
       schema,

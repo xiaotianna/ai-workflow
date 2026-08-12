@@ -10,8 +10,8 @@ import { useEffect, useRef, useState } from 'react'
 import { knowledgeSegmentationModeLabels } from '../constants'
 import { DocumentFileTypeIcon } from './document-file-type-icon'
 
-const documentOptionPageSize = 50
-const documentOptionRowHeight = 32
+const documentOptionPageSize = 50,
+  documentOptionRowHeight = 32
 
 interface KnowledgeDocumentSwitcherProps {
   document?: KnowledgeDocumentDto
@@ -24,27 +24,27 @@ export function KnowledgeDocumentSwitcher({
   knowledgeBaseId,
   onDocumentChange,
 }: KnowledgeDocumentSwitcherProps) {
-  const [documentOptions, setDocumentOptions] = useState<KnowledgeDocumentDto[]>([])
-  const [search, setSearch] = useState('')
-  const [open, setOpen] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [loadError, setLoadError] = useState(false)
-  const [page, setPage] = useState(1)
-  const [requestVersion, setRequestVersion] = useState(0)
-  const [total, setTotal] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const hasMore = documentOptions.length < total
-  const showStatusRow = hasMore || loading || loadError || page > 1
-  const virtualizer = useVirtualizer({
-    count: documentOptions.length + (showStatusRow ? 1 : 0),
-    enabled: open,
-    estimateSize: () => documentOptionRowHeight,
-    getItemKey: (index) => documentOptions[index]?.id ?? `document-option-status-${index}`,
-    getScrollElement: () => scrollRef.current,
-    overscan: 5,
-  })
-  const virtualRows = virtualizer.getVirtualItems()
-  const lastVirtualRowIndex = virtualRows.at(-1)?.index
+  const [documentOptions, setDocumentOptions] = useState<KnowledgeDocumentDto[]>([]),
+    [search, setSearch] = useState(''),
+    [open, setOpen] = useState(false),
+    [loading, setLoading] = useState(false),
+    [loadError, setLoadError] = useState(false),
+    [page, setPage] = useState(1),
+    [requestVersion, setRequestVersion] = useState(0),
+    [total, setTotal] = useState(0),
+    scrollRef = useRef<HTMLDivElement>(null),
+    hasMore = documentOptions.length < total,
+    showStatusRow = hasMore || loading || loadError || page > 1,
+    virtualizer = useVirtualizer({
+      count: documentOptions.length + (showStatusRow ? 1 : 0),
+      enabled: open,
+      estimateSize: () => documentOptionRowHeight,
+      getItemKey: (index) => documentOptions[index]?.id ?? `document-option-status-${index}`,
+      getScrollElement: () => scrollRef.current,
+      overscan: 5,
+    }),
+    virtualRows = virtualizer.getVirtualItems(),
+    lastVirtualRowIndex = virtualRows.at(-1)?.index
 
   useEffect(() => {
     if (!open || !knowledgeBaseId) return

@@ -7,8 +7,8 @@ function collectReachableNodeIds(
   startIds: readonly string[],
   adjacency: ReadonlyMap<string, string[]>,
 ) {
-  const reachable = new Set<string>()
-  const queue = [...startIds]
+  const reachable = new Set<string>(),
+    queue = [...startIds]
 
   for (const nodeId of queue) {
     if (reachable.has(nodeId)) continue
@@ -24,9 +24,9 @@ function createAdjacency(edges: readonly WorkflowEdge[], reverse = false) {
   const adjacency = new Map<string, string[]>()
 
   for (const edge of edges) {
-    const source = reverse ? edge.target : edge.source
-    const target = reverse ? edge.source : edge.target
-    const targets = adjacency.get(source)
+    const source = reverse ? edge.target : edge.source,
+      target = reverse ? edge.source : edge.target,
+      targets = adjacency.get(source)
 
     if (targets) {
       targets.push(target)
@@ -47,13 +47,13 @@ export function validateRootExecution(
   edges: readonly WorkflowEdge[],
   report: ReportValidationIssueFn,
 ): void {
-  const rootNodes = nodes.filter((node) => node.parentId === undefined)
-  const rootNodeIds = new Set(rootNodes.map((node) => node.id))
-  const rootEdges = edges.filter(
-    (edge) => rootNodeIds.has(edge.source) && rootNodeIds.has(edge.target),
-  )
-  const startNodes = rootNodes.filter((node) => node.type === BuiltinNodeType.START)
-  const endNodes = rootNodes.filter((node) => node.type === BuiltinNodeType.END)
+  const rootNodes = nodes.filter((node) => node.parentId === undefined),
+    rootNodeIds = new Set(rootNodes.map((node) => node.id)),
+    rootEdges = edges.filter(
+      (edge) => rootNodeIds.has(edge.source) && rootNodeIds.has(edge.target),
+    ),
+    startNodes = rootNodes.filter((node) => node.type === BuiltinNodeType.START),
+    endNodes = rootNodes.filter((node) => node.type === BuiltinNodeType.END)
 
   if (startNodes.length !== 1) {
     report({
@@ -72,13 +72,13 @@ export function validateRootExecution(
   if (startNodes.length !== 1 || endNodes.length === 0) return
 
   const reachableFromStart = collectReachableNodeIds(
-    [startNodes[0]!.id],
-    createAdjacency(rootEdges),
-  )
-  const canReachEnd = collectReachableNodeIds(
-    endNodes.map((node) => node.id),
-    createAdjacency(rootEdges, true),
-  )
+      [startNodes[0]!.id],
+      createAdjacency(rootEdges),
+    ),
+    canReachEnd = collectReachableNodeIds(
+      endNodes.map((node) => node.id),
+      createAdjacency(rootEdges, true),
+    )
 
   for (const node of rootNodes) {
     if (!reachableFromStart.has(node.id)) {

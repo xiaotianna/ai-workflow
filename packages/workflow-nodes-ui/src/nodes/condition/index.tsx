@@ -36,8 +36,8 @@ function formatVariableValue(
     }
   }
 
-  const { reference } = value
-  const display = resolveVariableReferenceDisplay?.(reference)
+  const { reference } = value,
+    display = resolveVariableReferenceDisplay?.(reference)
 
   if (display) {
     return `${display.sourceLabel} / ${display.variableName}`
@@ -60,8 +60,8 @@ function formatConditionRule(
   rule: ConditionRule,
   resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver,
 ) {
-  const left = formatVariableValue(rule.left, resolveVariableReferenceDisplay)
-  const operator = getConditionOperatorLabel(rule.operator)
+  const left = formatVariableValue(rule.left, resolveVariableReferenceDisplay),
+    operator = getConditionOperatorLabel(rule.operator)
 
   return rule.right
     ? `${left} ${operator} ${formatVariableValue(rule.right, resolveVariableReferenceDisplay)}`
@@ -123,8 +123,8 @@ function ConditionRuleSummary({
   rule: ConditionRule
   resolveVariableReferenceDisplay?: VariableReferenceDisplayResolver
 }) {
-  const operator = getConditionOperatorLabel(rule.operator)
-  const summary = formatConditionRule(rule, resolveVariableReferenceDisplay)
+  const operator = getConditionOperatorLabel(rule.operator),
+    summary = formatConditionRule(rule, resolveVariableReferenceDisplay)
 
   return (
     <div
@@ -179,8 +179,8 @@ export function ConditionNode({
 
       <NodeContentList>
         {conditions.map((condition, conditionIndex) => {
-          const outputPort = ports.outputs[condition.portId]
-          const branchType = condition.isFallback ? 'ELSE' : conditionIndex === 0 ? 'IF' : 'ELIF'
+          const outputPort = ports.outputs[condition.portId],
+            branchType = condition.isFallback ? 'ELSE' : conditionIndex === 0 ? 'IF' : 'ELIF'
 
           return (
             <div key={condition.portId} className="min-w-0">

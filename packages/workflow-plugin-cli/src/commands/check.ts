@@ -4,8 +4,8 @@ import type { CheckedPlugin, CheckPluginOptions } from '../shared/types'
 import { validatePluginSourceReferences } from '../validation/source-references'
 
 export async function checkPlugin(options: CheckPluginOptions = {}): Promise<CheckedPlugin> {
-  const packageContext = await findPluginPackage(options.cwd)
-  const config = await loadPluginConfig(packageContext)
+  const packageContext = await findPluginPackage(options.cwd),
+    config = await loadPluginConfig(packageContext)
   await validatePluginSourceReferences(packageContext, config)
   return { package: packageContext, config }
 }

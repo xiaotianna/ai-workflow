@@ -28,11 +28,11 @@ export class PluginArtifactStore {
 
   async storeArchive(options: StorePluginArchiveOptions): Promise<StoredPluginArchive> {
     const storageKey = join(
-      options.packageName.replace(/^@/, '').replaceAll('/', '--'),
-      options.version,
-      `${randomUUID()}.tgz`,
-    )
-    const targetPath = this.resolveStoragePath(storageKey)
+        options.packageName.replace(/^@/, '').replaceAll('/', '--'),
+        options.version,
+        `${randomUUID()}.tgz`,
+      ),
+      targetPath = this.resolveStoragePath(storageKey)
 
     try {
       await mkdir(dirname(targetPath), { recursive: true })
@@ -53,8 +53,8 @@ export class PluginArtifactStore {
   }
 
   resolveStoragePath(storageKey: string): string {
-    const targetPath = resolve(this.rootDirectory, storageKey)
-    const relativePath = relative(this.rootDirectory, targetPath)
+    const targetPath = resolve(this.rootDirectory, storageKey),
+      relativePath = relative(this.rootDirectory, targetPath)
 
     if (!relativePath || relativePath.startsWith('..') || relativePath.startsWith(sep)) {
       throw new InternalServerErrorException('插件产物存储路径不安全')

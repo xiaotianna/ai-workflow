@@ -12,8 +12,8 @@ import type { PluginPackageContext } from '../shared/types'
 export async function loadPluginConfig(
   packageContext: PluginPackageContext,
 ): Promise<ParsedPluginConfig> {
-  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'ai-workflow-plugin-config-'))
-  const temporaryEntry = join(temporaryDirectory, 'config.mjs')
+  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'ai-workflow-plugin-config-')),
+    temporaryEntry = join(temporaryDirectory, 'config.mjs')
 
   try {
     await build({
@@ -29,8 +29,8 @@ export async function loadPluginConfig(
       logLevel: 'silent',
     })
 
-    const moduleUrl = `${pathToFileURL(temporaryEntry).href}?loaded=${Date.now()}`
-    const loadedModule: Readonly<Record<string, unknown>> = await import(moduleUrl)
+    const moduleUrl = `${pathToFileURL(temporaryEntry).href}?loaded=${Date.now()}`,
+      loadedModule: Readonly<Record<string, unknown>> = await import(moduleUrl)
 
     if (!('default' in loadedModule)) {
       throw new PluginCliError('插件根入口缺少默认导出', {

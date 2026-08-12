@@ -4,8 +4,8 @@ import type { WorkflowRunStreamEvent, WorkflowTestRunVo } from '@/vo/workflow-ru
 import { Injectable } from '@nestjs/common'
 import type { Response } from 'express'
 
-const SSE_HEARTBEAT_INTERVAL_MS = 15_000
-const NOOP = () => undefined
+const SSE_HEARTBEAT_INTERVAL_MS = 15_000,
+  NOOP = () => undefined
 
 interface StreamWorkflowRunOptions {
   response: Response
@@ -29,8 +29,8 @@ export class WorkflowRunSseService {
     })
     response.flushHeaders()
 
-    let closed = false
-    let initialized = false
+    let closed = false,
+      initialized = false
     const bufferedEvents: WorkflowRunStreamEvent[] = []
     let unsubscribe: () => void = NOOP
     const heartbeat = setInterval(() => {
@@ -39,18 +39,17 @@ export class WorkflowRunSseService {
     heartbeat.unref()
 
     const close = () => {
-      if (closed) return
-      closed = true
-      clearInterval(heartbeat)
-      unsubscribe()
-      if (!response.writableEnded) response.end()
-    }
-
-    const sendEvent = (event: WorkflowRunStreamEvent) => {
-      if (closed) return
-      writeSseEvent(response, event)
-      if (event.event === 'workflow_finished') close()
-    }
+        if (closed) return
+        closed = true
+        clearInterval(heartbeat)
+        unsubscribe()
+        if (!response.writableEnded) response.end()
+      },
+      sendEvent = (event: WorkflowRunStreamEvent) => {
+        if (closed) return
+        writeSseEvent(response, event)
+        if (event.event === 'workflow_finished') close()
+      }
 
     response.on('close', () => {
       if (closed) return

@@ -153,11 +153,11 @@ export function KeyValueTableField({
   valueHeader,
   valuePlaceholder,
 }: KeyValueTableFieldProps) {
-  const entries = Array.isArray(value) ? value : []
-  const entryErrors = entries.map((_, index) => ({
-    key: getFieldError(errors, `${name}.${index}.key`),
-    value: getFieldError(errors, `${name}.${index}.value`),
-  }))
+  const entries = Array.isArray(value) ? value : [],
+    entryErrors = entries.map((_, index) => ({
+      key: getFieldError(errors, `${name}.${index}.key`),
+      value: getFieldError(errors, `${name}.${index}.value`),
+    }))
 
   return (
     <Form.Field

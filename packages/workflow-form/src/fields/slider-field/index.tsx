@@ -16,10 +16,10 @@ export function SliderField({
   disabled,
   onChange,
 }: FieldRendererProps<SliderFieldSchema, number>) {
-  const min = field.min ?? 0
-  const max = field.max ?? 100
-  const numericValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined
-  const sliderValue = clamp(numericValue ?? min, min, max)
+  const min = field.min ?? 0,
+    max = field.max ?? 100,
+    numericValue = typeof value === 'number' && Number.isFinite(value) ? value : undefined,
+    sliderValue = clamp(numericValue ?? min, min, max)
 
   return (
     <Form.Field
@@ -53,8 +53,8 @@ export function SliderField({
           aria-invalid={Boolean(error)}
           className="w-20 shrink-0"
           onChange={(event) => {
-            const rawValue = event.currentTarget.value
-            const numberValue = event.currentTarget.valueAsNumber
+            const rawValue = event.currentTarget.value,
+              numberValue = event.currentTarget.valueAsNumber
 
             onChange(rawValue === '' || Number.isNaN(numberValue) ? undefined : numberValue)
           }}

@@ -9,8 +9,8 @@ function toArtifactPath(value: string): string {
 }
 
 async function listFiles(directory: string, currentDirectory = directory): Promise<string[]> {
-  const entries = await readdir(currentDirectory, { withFileTypes: true })
-  const files: string[] = []
+  const entries = await readdir(currentDirectory, { withFileTypes: true }),
+    files: string[] = []
 
   for (const entry of entries) {
     const entryPath = join(currentDirectory, entry.name)
@@ -28,15 +28,15 @@ export async function createFileIntegrityEntries(
   directory: string,
   excludedPaths: readonly string[] = [],
 ): Promise<IntegrityFileEntry[]> {
-  const excluded = new Set(excludedPaths)
-  const files = await listFiles(directory)
-  const entries: IntegrityFileEntry[] = []
+  const excluded = new Set(excludedPaths),
+    files = await listFiles(directory),
+    entries: IntegrityFileEntry[] = []
 
   for (const filePath of files) {
     const artifactPath = toArtifactPath(relative(directory, filePath))
     if (excluded.has(artifactPath)) continue
-    const content = await readFile(filePath)
-    const fileStats = await stat(filePath)
+    const content = await readFile(filePath),
+      fileStats = await stat(filePath)
     entries.push({
       path: artifactPath,
       size: fileStats.size,

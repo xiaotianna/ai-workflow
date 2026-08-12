@@ -25,21 +25,17 @@ export function getDocsNavigationGroupsFromRoute(
   routeId: string,
   basePath: string,
 ): DocsNavigationGroup[] {
-  const route = findRouteById(routeObjects, routeId)
-  const groups = new Map<string, DocsNavigationItem[]>()
+  const route = findRouteById(routeObjects, routeId),
+    groups = new Map<string, DocsNavigationItem[]>()
 
   for (const childRoute of route?.children ?? []) {
-    const meta = childRoute.handle?.meta as DocsRouteMeta | undefined
-    const to = childRoute.index
-      ? basePath
-      : childRoute.path
-        ? `${basePath}/${childRoute.path}`
-        : null
+    const meta = childRoute.handle?.meta as DocsRouteMeta | undefined,
+      to = childRoute.index ? basePath : childRoute.path ? `${basePath}/${childRoute.path}` : null
 
     if (!to || !meta?.title || !meta.icon) continue
 
-    const groupLabel = meta.navigationGroup ?? '文档'
-    const groupItems = groups.get(groupLabel) ?? []
+    const groupLabel = meta.navigationGroup ?? '文档',
+      groupItems = groups.get(groupLabel) ?? []
     groupItems.push({
       to,
       label: meta.title,

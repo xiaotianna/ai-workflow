@@ -28,18 +28,18 @@ export function useWorkflowContextMenu({
   operations,
   disabled = false,
 }: UseWorkflowContextMenuOptions) {
-  const { getViewport, screenToFlowPosition } = useReactFlow()
-  const [open, setOpen] = useState(false)
-  const [instanceKey, setInstanceKey] = useState(0)
-  const [viewportBeforeRemount, setViewportBeforeRemount] = useState<Viewport>()
-  const [target, setTarget] = useState<
-    | {
-        scope: 'canvas'
-        position: { x: number; y: number }
-        screenPosition: { x: number; y: number }
-      }
-    | { scope: 'node'; nodeId: string; screenPosition: { x: number; y: number } }
-  >()
+  const { getViewport, screenToFlowPosition } = useReactFlow(),
+    [open, setOpen] = useState(false),
+    [instanceKey, setInstanceKey] = useState(0),
+    [viewportBeforeRemount, setViewportBeforeRemount] = useState<Viewport>(),
+    [target, setTarget] = useState<
+      | {
+          scope: 'canvas'
+          position: { x: number; y: number }
+          screenPosition: { x: number; y: number }
+        }
+      | { scope: 'node'; nodeId: string; screenPosition: { x: number; y: number } }
+    >()
 
   useSyncExternalStore(
     workflowContextMenuActionRegistry.subscribe,
@@ -47,44 +47,41 @@ export function useWorkflowContextMenu({
     workflowContextMenuActionRegistry.getSnapshot,
   )
 
-  const context = target ? { target, editor, nodePicker, operations } : undefined
-  const actions =
-    context === undefined
-      ? []
-      : workflowContextMenuActionRegistry.resolve(context.target.scope, context)
+  const context = target ? { target, editor, nodePicker, operations } : undefined,
+    actions =
+      context === undefined
+        ? []
+        : workflowContextMenuActionRegistry.resolve(context.target.scope, context),
+    handlePaneContextMenu: NonNullable<
+      ReactFlowProps<WorkflowCanvasNode, WorkflowEdge>['onPaneContextMenu']
+    > = (event) => {
+      if (disabled) return
 
-  const handlePaneContextMenu: NonNullable<
-    ReactFlowProps<WorkflowCanvasNode, WorkflowEdge>['onPaneContextMenu']
-  > = (event) => {
-    if (disabled) return
+      setTarget({
+        scope: 'canvas',
+        position: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        screenPosition: { x: event.clientX, y: event.clientY },
+      })
+    },
+    handleEdgeContextMenu: EdgeMouseHandler<WorkflowEdge> = (event) => {
+      if (disabled) return
 
-    setTarget({
-      scope: 'canvas',
-      position: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      screenPosition: { x: event.clientX, y: event.clientY },
-    })
-  }
+      setTarget({
+        scope: 'canvas',
+        position: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
+        screenPosition: { x: event.clientX, y: event.clientY },
+      })
+    },
+    handleNodeContextMenu: NodeMouseHandler<WorkflowCanvasNode> = (event, node) => {
+      if (disabled) return
 
-  const handleEdgeContextMenu: EdgeMouseHandler<WorkflowEdge> = (event) => {
-    if (disabled) return
-
-    setTarget({
-      scope: 'canvas',
-      position: screenToFlowPosition({ x: event.clientX, y: event.clientY }),
-      screenPosition: { x: event.clientX, y: event.clientY },
-    })
-  }
-
-  const handleNodeContextMenu: NodeMouseHandler<WorkflowCanvasNode> = (event, node) => {
-    if (disabled) return
-
-    editor.selectNodeForContextMenu(node.id)
-    setTarget({
-      scope: 'node',
-      nodeId: node.id,
-      screenPosition: { x: event.clientX, y: event.clientY },
-    })
-  }
+      editor.selectNodeForContextMenu(node.id)
+      setTarget({
+        scope: 'node',
+        nodeId: node.id,
+        screenPosition: { x: event.clientX, y: event.clientY },
+      })
+    }
 
   function executeAction(
     action: WorkflowContextMenuActionStrategy,

@@ -44,8 +44,8 @@ import { Link, useOutletContext } from 'react-router-dom'
 
 import type { KnowledgeBaseDetailOutletContext } from '.'
 
-const MAX_QUERY_LENGTH = 200
-const padTimePart = (value: number) => String(value).padStart(2, '0')
+const MAX_QUERY_LENGTH = 200,
+  padTimePart = (value: number) => String(value).padStart(2, '0')
 
 interface RecallTestRecord {
   id: string
@@ -59,18 +59,18 @@ interface RecallTestRecord {
 
 export default function KnowledgeBaseRecallTestPage() {
   const { knowledgeBase, isResourceAvailable } =
-    useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const { form, resetForm, updateFormField } = useFormData<RecallTestFormInput>(
-    RECALL_TEST_INITIAL_VALUES,
-  )
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(false)
-  const [settings, setSettings] = useState<KnowledgeBaseSettingsDto>()
-  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
-  const [savingSettings, setSavingSettings] = useState(false)
-  const [records, setRecords] = useState<RecallTestRecord[]>([])
-  const [activeRecordId, setActiveRecordId] = useState<string>()
-  const knowledgeBaseId = knowledgeBase?.id
+      useOutletContext<KnowledgeBaseDetailOutletContext>(),
+    { form, resetForm, updateFormField } = useFormData<RecallTestFormInput>(
+      RECALL_TEST_INITIAL_VALUES,
+    ),
+    [errors, setErrors] = useState<Record<string, string>>({}),
+    [loading, setLoading] = useState(false),
+    [settings, setSettings] = useState<KnowledgeBaseSettingsDto>(),
+    [settingsPanelOpen, setSettingsPanelOpen] = useState(false),
+    [savingSettings, setSavingSettings] = useState(false),
+    [records, setRecords] = useState<RecallTestRecord[]>([]),
+    [activeRecordId, setActiveRecordId] = useState<string>(),
+    knowledgeBaseId = knowledgeBase?.id
 
   useEffect(() => {
     if (!knowledgeBaseId) return
@@ -89,13 +89,13 @@ export default function KnowledgeBaseRecallTestPage() {
     return () => controller.abort()
   }, [knowledgeBaseId, resetForm])
 
-  const validation = validateFormByZod(recallTestSchema, form)
-  const activeRecord = records.find((record) => record.id === activeRecordId)
-  const retrievalTopK = settings?.retrievalTopK ?? 8
-  const embeddingModelMissing = Boolean(
-    settings && (!settings.embeddingModelGroupId || !settings.embeddingConfiguredModelId),
-  )
-  const canRetrieve = isResourceAvailable && Boolean(settings) && !embeddingModelMissing
+  const validation = validateFormByZod(recallTestSchema, form),
+    activeRecord = records.find((record) => record.id === activeRecordId),
+    retrievalTopK = settings?.retrievalTopK ?? 8,
+    embeddingModelMissing = Boolean(
+      settings && (!settings.embeddingModelGroupId || !settings.embeddingConfiguredModelId),
+    ),
+    canRetrieve = isResourceAvailable && Boolean(settings) && !embeddingModelMissing
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -111,19 +111,19 @@ export default function KnowledgeBaseRecallTestPage() {
     setLoading(true)
     try {
       const retrieval = await retrieveKnowledgeBase(knowledgeBase.id, {
-        query: result.data.query,
-        topK: retrievalTopK,
-      })
-      const createdAt = new Date()
-      const record: RecallTestRecord = {
-        id: `${createdAt.getTime()}-${result.data.query}`,
-        query: result.data.query,
-        createdAt,
-        profile: retrieval.profile,
-        profileVersion: retrieval.profileVersion,
-        scoreType: retrieval.scoreType,
-        documents: retrieval.documents,
-      }
+          query: result.data.query,
+          topK: retrievalTopK,
+        }),
+        createdAt = new Date(),
+        record: RecallTestRecord = {
+          id: `${createdAt.getTime()}-${result.data.query}`,
+          query: result.data.query,
+          createdAt,
+          profile: retrieval.profile,
+          profileVersion: retrieval.profileVersion,
+          scoreType: retrieval.scoreType,
+          documents: retrieval.documents,
+        }
       setRecords((current) => [record, ...current])
       setActiveRecordId(record.id)
     } finally {
@@ -475,11 +475,11 @@ interface RecallResultCardProps {
 }
 
 function RecallResultCard({ document, index, scoreType, knowledgeBaseId }: RecallResultCardProps) {
-  const [expanded, setExpanded] = useState(true)
-  const collapsible = document.content.length > 520 || document.content.split('\n').length > 8
-  const documentPath = knowledgeBaseId
-    ? `/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(document.documentId)}`
-    : undefined
+  const [expanded, setExpanded] = useState(true),
+    collapsible = document.content.length > 520 || document.content.split('\n').length > 8,
+    documentPath = knowledgeBaseId
+      ? `/knowledge-base/${encodeURIComponent(knowledgeBaseId)}/documents/${encodeURIComponent(document.documentId)}`
+      : undefined
 
   return (
     <article className="border-border/60 bg-background overflow-hidden rounded-xl border-[0.5px] shadow-xs">

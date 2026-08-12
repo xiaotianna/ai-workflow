@@ -9,8 +9,8 @@ import { z } from 'zod'
 const jsonValueInputSchema = z.object({
   value: z.string().transform((value, context): JsonValue => {
     try {
-      const parsedValue = JSON.parse(value) as unknown
-      const result = jsonValueSchema.safeParse(parsedValue)
+      const parsedValue = JSON.parse(value) as unknown,
+        result = jsonValueSchema.safeParse(parsedValue)
 
       if (result.success) return result.data
     } catch {
@@ -37,11 +37,11 @@ function formatJsonValue(value: JsonValue) {
 }
 
 export function JsonValueInput({ name, value, disabled, onChange }: JsonValueInputProps) {
-  const serializedValue = formatJsonValue(value)
-  const pendingSerializedValueRef = useRef<string>(undefined)
-  const { form, setForm, updateFormField } = useFormData({ value: serializedValue })
-  const validation = validateFormByZod(jsonValueInputSchema, form)
-  const error = validation.success ? undefined : validation.errors.value
+  const serializedValue = formatJsonValue(value),
+    pendingSerializedValueRef = useRef<string>(undefined),
+    { form, setForm, updateFormField } = useFormData({ value: serializedValue }),
+    validation = validateFormByZod(jsonValueInputSchema, form),
+    error = validation.success ? undefined : validation.errors.value
 
   useEffect(() => {
     if (pendingSerializedValueRef.current === serializedValue) {

@@ -1,9 +1,9 @@
 import type { PluginTemplate, InitPluginResult } from '../shared/types'
 import type { PluginTemplateContext, PluginTemplateFile } from './types'
 
-const TYPESCRIPT_VERSION = '~6.0.2'
-const REACT_VERSION = '^19.2.4'
-const REACT_TYPES_VERSION = '^19.2.14'
+const TYPESCRIPT_VERSION = '~6.0.2',
+  REACT_VERSION = '^19.2.4',
+  REACT_TYPES_VERSION = '^19.2.14'
 
 interface CommonTemplateOptions {
   readonly template: PluginTemplate
@@ -66,12 +66,12 @@ function createTsConfig(): string {
 
 function createReadme(context: PluginTemplateContext, options: CommonTemplateOptions): string {
   const executorNotice =
-    options.template === 'executor'
-      ? '\n> Executor 产物由本地 Go Executor 的独立 Node.js 子进程运行，不提供不可信多租户安全隔离。\n'
+      options.template === 'executor'
+        ? '\n> Executor 产物由本地 Go Executor 的独立 Node.js 子进程运行，不提供不可信多租户安全隔离。\n'
+        : '',
+    dependencyNotice = context.localDependencies
+      ? '\n> 当前项目通过 `link:` 使用 AI Workflow 仓库中的本地 SDK 与 CLI，移动项目或仓库后需要重新生成链接路径。\n'
       : ''
-  const dependencyNotice = context.localDependencies
-    ? '\n> 当前项目通过 `link:` 使用 AI Workflow 仓库中的本地 SDK 与 CLI，移动项目或仓库后需要重新生成链接路径。\n'
-    : ''
 
   return `# ${context.packageName}
 
@@ -123,14 +123,14 @@ export function createPluginIndex(
   options: { readonly permissions?: readonly string[] },
 ): string {
   const displayName = context.packageName
-    .split('/')
-    .at(-1)!
-    .split('-')
-    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
-    .join(' ')
-  const permissions = options.permissions
-    ? `\n  permissions: ${JSON.stringify(options.permissions)},`
-    : ''
+      .split('/')
+      .at(-1)!
+      .split('-')
+      .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+      .join(' '),
+    permissions = options.permissions
+      ? `\n  permissions: ${JSON.stringify(options.permissions)},`
+      : ''
 
   return `import { defineConfig } from '@ai-workflow/plugin'
 

@@ -110,35 +110,35 @@ export class WorkflowDeploymentRepository {
       )
 
       const latestVersion = await transaction.workflowVersion.aggregate({
-        where: { workflowId: options.workflowId },
-        _max: { version: true },
-      })
-      const version = await transaction.workflowVersion.create({
-        data: {
-          workflowId: options.workflowId,
-          version: (latestVersion._max.version ?? 0) + 1,
-          source: WorkflowVersionSource.PUBLISH,
-          schemaVersion: options.schemaVersion,
-          definition: options.definition,
-          layout: options.layout,
-          note: null,
-          createdById: options.ownerId,
-          pluginDependencies: {
-            create: options.pluginDependencies.map((dependency) => ({
-              pluginVersionId: dependency.pluginVersionId,
-              manifest: toJsonInput(dependency.manifest),
-              artifactReference: dependency.artifactReference,
-              artifactDigest: dependency.artifactDigest,
-              artifactSize: dependency.artifactSize,
-            })),
+          where: { workflowId: options.workflowId },
+          _max: { version: true },
+        }),
+        version = await transaction.workflowVersion.create({
+          data: {
+            workflowId: options.workflowId,
+            version: (latestVersion._max.version ?? 0) + 1,
+            source: WorkflowVersionSource.PUBLISH,
+            schemaVersion: options.schemaVersion,
+            definition: options.definition,
+            layout: options.layout,
+            note: null,
+            createdById: options.ownerId,
+            pluginDependencies: {
+              create: options.pluginDependencies.map((dependency) => ({
+                pluginVersionId: dependency.pluginVersionId,
+                manifest: toJsonInput(dependency.manifest),
+                artifactReference: dependency.artifactReference,
+                artifactDigest: dependency.artifactDigest,
+                artifactSize: dependency.artifactSize,
+              })),
+            },
           },
-        },
-        select: {
-          id: true,
-          version: true,
-          createdAt: true,
-        },
-      })
+          select: {
+            id: true,
+            version: true,
+            createdAt: true,
+          },
+        })
 
       await transaction.workflowDeployment.upsert({
         where: { workflowId: options.workflowId },

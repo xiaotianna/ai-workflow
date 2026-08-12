@@ -17,9 +17,9 @@ export function NodeIconBadge({ type, icon, className }: NodeIconBadgeProps) {
     setImageFailed(false)
   }, [icon])
 
-  const kind = resolveNodeIconKind(icon)
-  const showPluginIcon = kind === 'plugin' && !imageFailed
-  const showUnknownIcon = kind === 'unknown' || imageFailed
+  const kind = resolveNodeIconKind(icon),
+    showPluginIcon = kind === 'plugin' && !imageFailed,
+    showUnknownIcon = kind === 'unknown' || imageFailed
 
   return (
     <span

@@ -19,8 +19,8 @@ export class ExecutorPluginArtifactService {
   ) {}
 
   async resolve(dto: ResolveExecutorPluginArtifactDto): Promise<ExecutorPluginArtifactVo> {
-    const context = await this.repository.findResolutionContext(dto)
-    const dependency = context?.run.version.pluginDependencies[0]
+    const context = await this.repository.findResolutionContext(dto),
+      dependency = context?.run.version.pluginDependencies[0]
     if (!context || !dependency) {
       throw new NotFoundException('插件运行上下文不存在、租约已失效或制品版本不匹配')
     }
@@ -40,11 +40,11 @@ export class ExecutorPluginArtifactService {
       throw new NotFoundException('插件节点没有绑定请求的 Executor 制品')
     }
     const artifact = await this.artifactReader.readVerifiedAsset(
-      dependency.artifactReference,
-      dependency.artifactDigest,
-      dto.artifactPath,
-    )
-    const source = artifact.content.toString('utf8')
+        dependency.artifactReference,
+        dependency.artifactDigest,
+        dto.artifactPath,
+      ),
+      source = artifact.content.toString('utf8')
     if (!Buffer.from(source, 'utf8').equals(artifact.content)) {
       throw new UnprocessableEntityException('插件 Executor 不是有效的 UTF-8 ESM')
     }

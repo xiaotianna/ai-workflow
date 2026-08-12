@@ -67,14 +67,14 @@ export function LlmModelParametersDialog({
   providerType,
   value,
 }: LlmModelParametersDialogProps) {
-  const { form, setForm, updateFormField } = useFormData<LlmModelParametersInput>(value)
-  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({})
-  const [submitted, setSubmitted] = useState(false)
-  const validationResult = validateFormByZod(llmModelParametersSchema, form)
-  const definitions = getModelParameterDefinitions(providerType, {
-    modelId,
-    parameters: form,
-  })
+  const { form, setForm, updateFormField } = useFormData<LlmModelParametersInput>(value),
+    [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({}),
+    [submitted, setSubmitted] = useState(false),
+    validationResult = validateFormByZod(llmModelParametersSchema, form),
+    definitions = getModelParameterDefinitions(providerType, {
+      modelId,
+      parameters: form,
+    })
 
   function updateParameter(key: keyof LlmModelParametersInput, nextValue: ModelParameterValue) {
     updateFormField(key, nextValue)
@@ -121,8 +121,8 @@ export function LlmModelParametersDialog({
         <Form className="flex min-h-0 flex-1 flex-col gap-4 space-y-0" onSubmit={handleSubmit}>
           <div className="-mx-1 min-h-0 flex-1 space-y-4 overflow-y-auto px-1 py-0.5">
             {definitions.map((definition) => {
-              const parameterValue = form[definition.key]
-              const ParameterControl = parameterControlRenderers[definition.control]
+              const parameterValue = form[definition.key],
+                ParameterControl = parameterControlRenderers[definition.control]
 
               return (
                 <Form.Field
@@ -177,8 +177,8 @@ function NumberParameterControl({
   onChange,
   value,
 }: ParameterControlProps) {
-  const numericValue = typeof value === 'number' ? value : 0
-  const error = getError()
+  const numericValue = typeof value === 'number' ? value : 0,
+    error = getError()
 
   return (
     <Input
@@ -244,8 +244,8 @@ function SliderParameterControl({
   onChange,
   value,
 }: ParameterControlProps) {
-  const numericValue = typeof value === 'number' ? value : 0
-  const error = getError()
+  const numericValue = typeof value === 'number' ? value : 0,
+    error = getError()
 
   return (
     <div className="flex w-full items-center gap-3">
@@ -282,8 +282,8 @@ function StringListParameterControl({
   onChange,
   value,
 }: ParameterControlProps) {
-  const values = Array.isArray(value) ? value : []
-  const canAdd = values.length < (definition.maxItems ?? Number.POSITIVE_INFINITY)
+  const values = Array.isArray(value) ? value : [],
+    canAdd = values.length < (definition.maxItems ?? Number.POSITIVE_INFINITY)
 
   function updateItem(index: number, nextValue: string) {
     onChange(values.map((item, itemIndex) => (itemIndex === index ? nextValue : item)))

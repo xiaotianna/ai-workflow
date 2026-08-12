@@ -65,8 +65,8 @@ export function HostField<TValue = unknown>({
   disabled,
   onChange,
 }: HostFieldProps<TValue>) {
-  const registry = useContext(HostFieldRegistryContext)
-  const Renderer = registry?.get(type)
+  const registry = useContext(HostFieldRegistryContext),
+    Renderer = registry?.get(type)
 
   if (!Renderer) {
     return (

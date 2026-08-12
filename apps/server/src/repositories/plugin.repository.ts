@@ -49,9 +49,7 @@ export interface PluginUsageSummary {
 }
 
 export type RemovePluginInstallationResult =
-  | { status: 'not-found' }
-  | { status: 'in-use'; usage: PluginUsageSummary }
-  | { status: 'removed' }
+  { status: 'not-found' } | { status: 'in-use'; usage: PluginUsageSummary } | { status: 'removed' }
 
 const pluginBaseSelect = {
   id: true,
@@ -200,13 +198,13 @@ export class PluginRepository {
   }
 
   list(options: ListPluginsOptions) {
-    const direction = options.sort === 'name_asc' ? 'asc' : 'desc'
-    const sortField =
-      options.sort === 'name_asc'
-        ? 'name'
-        : options.sort === 'created_desc'
-          ? 'createdAt'
-          : 'updatedAt'
+    const direction = options.sort === 'name_asc' ? 'asc' : 'desc',
+      sortField =
+        options.sort === 'name_asc'
+          ? 'name'
+          : options.sort === 'created_desc'
+            ? 'createdAt'
+            : 'updatedAt'
 
     return this.prisma.plugin.findMany({
       where: {
@@ -394,27 +392,27 @@ export class PluginRepository {
     pluginId: string,
   ): Promise<PluginUsageSummary> {
     const [draftDependencies, versionDependencies] = await Promise.all([
-      client.workflowDraftPluginDependency.findMany({
-        where: {
-          pluginVersion: { pluginId },
-          workflowDraft: { workflow: { app: { ownerId, deletedAt: null } } },
-        },
-        select: { workflowDraft: { select: { workflowId: true } } },
-      }),
-      client.workflowVersionPluginDependency.findMany({
-        where: {
-          pluginVersion: { pluginId },
-          workflowVersion: { workflow: { app: { ownerId, deletedAt: null } } },
-        },
-        select: { workflowVersion: { select: { workflowId: true } } },
-      }),
-    ])
-    const draftWorkflowIds = new Set(
-      draftDependencies.map((dependency) => dependency.workflowDraft.workflowId),
-    )
-    const versionWorkflowIds = new Set(
-      versionDependencies.map((dependency) => dependency.workflowVersion.workflowId),
-    )
+        client.workflowDraftPluginDependency.findMany({
+          where: {
+            pluginVersion: { pluginId },
+            workflowDraft: { workflow: { app: { ownerId, deletedAt: null } } },
+          },
+          select: { workflowDraft: { select: { workflowId: true } } },
+        }),
+        client.workflowVersionPluginDependency.findMany({
+          where: {
+            pluginVersion: { pluginId },
+            workflowVersion: { workflow: { app: { ownerId, deletedAt: null } } },
+          },
+          select: { workflowVersion: { select: { workflowId: true } } },
+        }),
+      ]),
+      draftWorkflowIds = new Set(
+        draftDependencies.map((dependency) => dependency.workflowDraft.workflowId),
+      ),
+      versionWorkflowIds = new Set(
+        versionDependencies.map((dependency) => dependency.workflowVersion.workflowId),
+      )
 
     return {
       workflowCount: new Set([...draftWorkflowIds, ...versionWorkflowIds]).size,
@@ -427,24 +425,24 @@ export class PluginRepository {
     try {
       return await this.prisma.$transaction(async (transaction) => {
         const author = await transaction.user.findUniqueOrThrow({
-          where: { id: options.ownerId },
-          select: { username: true },
-        })
-        const identity = await transaction.plugin.upsert({
-          where: { packageName: options.packageName },
-          create: {
-            publisherId: options.ownerId,
-            packageName: options.packageName,
-            name: options.name,
-            description: options.description,
-            icon: options.icon,
-            category: 'other',
-            visibility: options.visibility as PluginVisibility,
-            status: PluginStatus.PUBLISHED,
-          },
-          update: {},
-          select: { id: true },
-        })
+            where: { id: options.ownerId },
+            select: { username: true },
+          }),
+          identity = await transaction.plugin.upsert({
+            where: { packageName: options.packageName },
+            create: {
+              publisherId: options.ownerId,
+              packageName: options.packageName,
+              name: options.name,
+              description: options.description,
+              icon: options.icon,
+              category: 'other',
+              visibility: options.visibility as PluginVisibility,
+              status: PluginStatus.PUBLISHED,
+            },
+            update: {},
+            select: { id: true },
+          })
 
         await transaction.$queryRaw(
           Prisma.sql`SELECT "id" FROM "plugins" WHERE "id" = ${identity.id}::uuid FOR UPDATE`,
@@ -576,8 +574,8 @@ export class PluginRepository {
       }
     }
 
-    const field = sort === 'created_desc' ? 'createdAt' : 'updatedAt'
-    const value = cursor.value as Date
+    const field = sort === 'created_desc' ? 'createdAt' : 'updatedAt',
+      value = cursor.value as Date
     return {
       OR: [{ [field]: { lt: value } }, { [field]: value, id: { lt: cursor.id } }],
     }

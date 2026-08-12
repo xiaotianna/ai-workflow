@@ -58,14 +58,14 @@ function getContextMessagesFieldError(errors: ContextMessagesFieldProps['errors'
   const directError = errors?.[name]
   if (directError) return directError
 
-  const fieldPrefix = `${name}.`
-  const matchingEntry = Object.entries(errors ?? {}).find(([errorPath]) => {
-    if (!errorPath.startsWith(fieldPrefix)) return false
+  const fieldPrefix = `${name}.`,
+    matchingEntry = Object.entries(errors ?? {}).find(([errorPath]) => {
+      if (!errorPath.startsWith(fieldPrefix)) return false
 
-    const [, nestedField] = errorPath.slice(fieldPrefix.length).split('.')
+      const [, nestedField] = errorPath.slice(fieldPrefix.length).split('.')
 
-    return nestedField !== 'content'
-  })
+      return nestedField !== 'content'
+    })
 
   return matchingEntry?.[1]
 }
@@ -79,8 +79,8 @@ export function ContextMessagesField({
   disabled = false,
   onChange,
 }: ContextMessagesFieldProps) {
-  const messages = getContextMessages(value)
-  const fieldError = getContextMessagesFieldError(errors, name)
+  const messages = getContextMessages(value),
+    fieldError = getContextMessagesFieldError(errors, name)
 
   function updateMessage(index: number, nextMessage: LlmContextMessageInput) {
     onChange(
@@ -121,8 +121,8 @@ export function ContextMessagesField({
         <div className="space-y-2">
           <AnimatePresence initial={false}>
             {messages.map((message, index) => {
-              const contentError = getFieldError(errors, `${name}.${index}.content`)
-              const messageLabel = `第 ${index + 1} 条${field.label}`
+              const contentError = getFieldError(errors, `${name}.${index}.content`),
+                messageLabel = `第 ${index + 1} 条${field.label}`
 
               return (
                 <motion.div

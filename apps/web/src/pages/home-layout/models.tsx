@@ -43,19 +43,18 @@ function isModelTab(value: string | null): value is ModelType {
 }
 
 export default function ModelsPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
-  const tabParam = searchParams.get('tab')
-  const activeTab = isModelTab(tabParam) ? tabParam : 'chat'
-  const [modelGroups, setModelGroups] = useState<ModelGroupDto[]>([])
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [initialError, setInitialError] = useState(false)
-  const [reloadRevision, setReloadRevision] = useState(0)
-  const [modelGroupDialogOpen, setModelGroupDialogOpen] = useState(false)
-  const [editingGroupId, setEditingGroupId] = useState<string>()
-  const [deletingGroupId, setDeletingGroupId] = useState<string>()
-
-  const editingGroup = modelGroups.find((group) => group.id === editingGroupId)
-  const deletingGroup = modelGroups.find((group) => group.id === deletingGroupId)
+  const [searchParams, setSearchParams] = useSearchParams(),
+    tabParam = searchParams.get('tab'),
+    activeTab = isModelTab(tabParam) ? tabParam : 'chat',
+    [modelGroups, setModelGroups] = useState<ModelGroupDto[]>([]),
+    [initialLoading, setInitialLoading] = useState(true),
+    [initialError, setInitialError] = useState(false),
+    [reloadRevision, setReloadRevision] = useState(0),
+    [modelGroupDialogOpen, setModelGroupDialogOpen] = useState(false),
+    [editingGroupId, setEditingGroupId] = useState<string>(),
+    [deletingGroupId, setDeletingGroupId] = useState<string>(),
+    editingGroup = modelGroups.find((group) => group.id === editingGroupId),
+    deletingGroup = modelGroups.find((group) => group.id === deletingGroupId)
 
   useEffect(() => {
     if (isModelTab(tabParam)) return

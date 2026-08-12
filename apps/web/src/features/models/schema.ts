@@ -5,45 +5,42 @@ import type { ModelGroupDto } from '@/api/models'
 export const MODEL_PROVIDER_TYPES = ['openai', 'deepseek', 'ollama'] as const
 
 const baseUrlSchema = z
-  .string()
-  .trim()
-  .max(300, 'Base URL 不能超过 300 个字符')
-  .refine((value) => {
-    if (value === '' || !URL.canParse(value)) return value === ''
-
-    const url = new URL(value)
-    return (
-      (url.protocol === 'http:' || url.protocol === 'https:') &&
-      !url.username &&
-      !url.password &&
-      !url.search &&
-      !url.hash
-    )
-  }, 'Base URL 需要使用 HTTP/HTTPS，且不能包含凭证、查询参数或片段')
-  .transform((value) => value || undefined)
-
-const modelIdSchema = z
-  .string()
-  .trim()
-  .min(1, '模型 ID 不能为空')
-  .max(100, '模型 ID 不能超过 100 个字符')
-
-const modelItemFormSchema = z.object({
-  id: z.uuid().optional(),
-  modelId: modelIdSchema,
-  displayName: z
     .string()
     .trim()
-    .max(100, '显示名称不能超过 100 个字符')
-    .transform((value) => value || undefined),
-  enabled: z.boolean(),
-})
+    .max(300, 'Base URL 不能超过 300 个字符')
+    .refine((value) => {
+      if (value === '' || !URL.canParse(value)) return value === ''
 
-const apiKeySchema = z
-  .string()
-  .trim()
-  .max(300, 'Key 不能超过 300 个字符')
-  .transform((value) => value || undefined)
+      const url = new URL(value)
+      return (
+        (url.protocol === 'http:' || url.protocol === 'https:') &&
+        !url.username &&
+        !url.password &&
+        !url.search &&
+        !url.hash
+      )
+    }, 'Base URL 需要使用 HTTP/HTTPS，且不能包含凭证、查询参数或片段')
+    .transform((value) => value || undefined),
+  modelIdSchema = z
+    .string()
+    .trim()
+    .min(1, '模型 ID 不能为空')
+    .max(100, '模型 ID 不能超过 100 个字符'),
+  modelItemFormSchema = z.object({
+    id: z.uuid().optional(),
+    modelId: modelIdSchema,
+    displayName: z
+      .string()
+      .trim()
+      .max(100, '显示名称不能超过 100 个字符')
+      .transform((value) => value || undefined),
+    enabled: z.boolean(),
+  }),
+  apiKeySchema = z
+    .string()
+    .trim()
+    .max(300, 'Key 不能超过 300 个字符')
+    .transform((value) => value || undefined)
 
 export const modelConnectionFormSchema = z.object({
   providerType: z.enum(MODEL_PROVIDER_TYPES),
@@ -64,8 +61,8 @@ export const modelGroupFormSchema = modelConnectionFormSchema
     const modelIdIndexes = new Map<string, number>()
 
     value.models.forEach((model, index) => {
-      const normalizedModelId = model.modelId.trim().toLowerCase()
-      const existingIndex = modelIdIndexes.get(normalizedModelId)
+      const normalizedModelId = model.modelId.trim().toLowerCase(),
+        existingIndex = modelIdIndexes.get(normalizedModelId)
 
       if (existingIndex !== undefined) {
         context.addIssue({

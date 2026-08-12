@@ -6,8 +6,8 @@ import { NodeContentItem } from '../../components/node-content-item'
 import type { NodeContentProps } from '../../contracts/node-content'
 
 export function RagNodeContent({ node }: NodeContentProps<RagNodeConfig>) {
-  const knowledgeBases = node.config.knowledgeBases
-  const knowledgeBaseField = ragNode.form.knowledgeBases
+  const knowledgeBases = node.config.knowledgeBases,
+    knowledgeBaseField = ragNode.form.knowledgeBases
 
   if (knowledgeBases.length === 0) {
     return (

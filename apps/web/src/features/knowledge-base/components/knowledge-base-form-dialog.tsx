@@ -46,13 +46,13 @@ export function KnowledgeBaseFormDialog({
   onSubmit,
 }: KnowledgeBaseFormDialogProps) {
   const { form, setForm, updateFormField, resetForm } =
-    useFormData<CreateKnowledgeBaseFormInput>(initialValues)
-  const [touchedFields, setTouchedFields] = useState<
-    Partial<Record<keyof CreateKnowledgeBaseFormInput, boolean>>
-  >({})
-  const [submitting, setSubmitting] = useState(false)
-  const validationResult = validateFormByZod(createKnowledgeBaseSchema, form)
-  const formErrors = validationResult.errors
+      useFormData<CreateKnowledgeBaseFormInput>(initialValues),
+    [touchedFields, setTouchedFields] = useState<
+      Partial<Record<keyof CreateKnowledgeBaseFormInput, boolean>>
+    >({}),
+    [submitting, setSubmitting] = useState(false),
+    validationResult = validateFormByZod(createKnowledgeBaseSchema, form),
+    formErrors = validationResult.errors
 
   useEffect(() => {
     if (!open) return

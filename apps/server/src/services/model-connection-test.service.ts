@@ -15,10 +15,10 @@ import type {
 } from '@/vo/model.vo'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
-const CONNECTION_TIMEOUT_MS = 8000
-const MODEL_STREAM_TIMEOUT_MS = 30_000
-const MAX_RESPONSE_BYTES = 1_048_576
-const MODEL_TEST_PROMPT = 'Reply with OK.'
+const CONNECTION_TIMEOUT_MS = 8000,
+  MODEL_STREAM_TIMEOUT_MS = 30_000,
+  MAX_RESPONSE_BYTES = 1_048_576,
+  MODEL_TEST_PROMPT = 'Reply with OK.'
 
 interface CredentialTestInput {
   providerType: ModelProviderTypeValue
@@ -40,29 +40,27 @@ export class ModelConnectionTestService {
   ) {}
 
   async test(ownerId: string, dto: TestModelConnectionDto): Promise<ModelConnectionTestVo> {
-    const provider = this.providerRegistry.get(dto.providerType)
-    const apiKey = await this.resolveApiKey(ownerId, dto, provider)
-
-    const probeUrl = provider.createProbeUrl(dto.baseUrl)
-
-    const startedAt = Date.now()
+    const provider = this.providerRegistry.get(dto.providerType),
+      apiKey = await this.resolveApiKey(ownerId, dto, provider),
+      probeUrl = provider.createProbeUrl(dto.baseUrl),
+      startedAt = Date.now()
 
     try {
       const response = await fetch(probeUrl, {
-        method: 'GET',
-        headers: {
-          Accept: 'application/json',
-          ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-        },
-        redirect: 'manual',
-        signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS),
-      })
-      const latencyMs = Date.now() - startedAt
-      const authentication = getAuthenticationResult(
-        response.status,
-        Boolean(apiKey),
-        provider.supportsApiKey,
-      )
+          method: 'GET',
+          headers: {
+            Accept: 'application/json',
+            ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+          },
+          redirect: 'manual',
+          signal: AbortSignal.timeout(CONNECTION_TIMEOUT_MS),
+        }),
+        latencyMs = Date.now() - startedAt,
+        authentication = getAuthenticationResult(
+          response.status,
+          Boolean(apiKey),
+          provider.supportsApiKey,
+        )
 
       if (response.status === 401 || response.status === 403) {
         await response.body?.cancel()
@@ -91,8 +89,8 @@ export class ModelConnectionTestService {
         }
       }
 
-      const responseBody = await readJsonBody(response)
-      const responseValid = provider.isValidResponse(responseBody)
+      const responseBody = await readJsonBody(response),
+        responseValid = provider.isValidResponse(responseBody)
 
       return {
         reachable: true,
@@ -110,8 +108,8 @@ export class ModelConnectionTestService {
           : '模型服务可达，但模型列表响应结构无效',
       }
     } catch (error) {
-      const latencyMs = Date.now() - startedAt
-      const errorType = classifyConnectionError(error)
+      const latencyMs = Date.now() - startedAt,
+        errorType = classifyConnectionError(error)
 
       return {
         reachable: false,
@@ -129,13 +127,12 @@ export class ModelConnectionTestService {
   }
 
   async testModel(ownerId: string, dto: TestModelDto): Promise<ModelTestVo> {
-    const provider = this.providerRegistry.get(dto.providerType)
-    const apiKey = await this.resolveApiKey(ownerId, dto, provider)
-    const probe = provider.createChatStreamProbe(dto.modelId, MODEL_TEST_PROMPT, dto.baseUrl)
-
-    const startedAt = Date.now()
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), MODEL_STREAM_TIMEOUT_MS)
+    const provider = this.providerRegistry.get(dto.providerType),
+      apiKey = await this.resolveApiKey(ownerId, dto, provider),
+      probe = provider.createChatStreamProbe(dto.modelId, MODEL_TEST_PROMPT, dto.baseUrl),
+      startedAt = Date.now(),
+      controller = new AbortController(),
+      timeoutId = setTimeout(() => controller.abort(), MODEL_STREAM_TIMEOUT_MS)
 
     try {
       const response = await fetch(probe.url, {
@@ -240,8 +237,8 @@ async function readFirstModelMessage(
   if (!reader) return { messageReceived: false }
 
   const decoder = new TextDecoder()
-  let buffer = ''
-  let totalBytes = 0
+  let buffer = '',
+    totalBytes = 0
   const activeReader = reader
 
   async function readNextChunk(): Promise<StreamReadResult> {
@@ -323,14 +320,14 @@ async function readUpstreamErrorMessage(response: Response): Promise<string | un
   const body = await readLimitedText(response)
   if (!body) return undefined
 
-  const parsedBody = parseJson(body)
-  const bodyMessage = parsedBody === undefined ? undefined : extractCoreMessage(parsedBody)
+  const parsedBody = parseJson(body),
+    bodyMessage = parsedBody === undefined ? undefined : extractCoreMessage(parsedBody)
   if (bodyMessage) return bodyMessage
 
   for (const line of body.split(/\r?\n/)) {
-    const payload = line.trim().replace(/^data:\s*/, '')
-    const value = parseJson(payload)
-    const lineMessage = value === undefined ? undefined : extractCoreMessage(value)
+    const payload = line.trim().replace(/^data:\s*/, ''),
+      value = parseJson(payload),
+      lineMessage = value === undefined ? undefined : extractCoreMessage(value)
     if (lineMessage) return lineMessage
   }
 
@@ -343,8 +340,8 @@ async function readLimitedText(response: Response): Promise<string | undefined> 
   if (!reader) return undefined
 
   const decoder = new TextDecoder()
-  let result = ''
-  let totalBytes = 0
+  let result = '',
+    totalBytes = 0
   const activeReader = reader
 
   async function readNextChunk(): Promise<string> {
@@ -419,9 +416,8 @@ async function readJsonBody(response: Response): Promise<unknown> {
 
   const reader = response.body?.getReader()
   if (!reader) return undefined
-  const activeReader = reader
-
-  const chunks: Uint8Array[] = []
+  const activeReader = reader,
+    chunks: Uint8Array[] = []
   let totalBytes = 0
 
   async function readNextChunk(): Promise<boolean> {

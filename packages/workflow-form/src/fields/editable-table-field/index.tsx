@@ -60,9 +60,9 @@ export function EditableTableField<TRow>({
   tableClassName,
   onAddRow,
 }: EditableTableFieldProps<TRow>) {
-  const [isAddRowHovered, setIsAddRowHovered] = useState(false)
-  const [isAddRowFocusVisible, setIsAddRowFocusVisible] = useState(false)
-  const isAddRowActive = isAddRowHovered || isAddRowFocusVisible
+  const [isAddRowHovered, setIsAddRowHovered] = useState(false),
+    [isAddRowFocusVisible, setIsAddRowFocusVisible] = useState(false),
+    isAddRowActive = isAddRowHovered || isAddRowFocusVisible
 
   function handleAddRowFocus(event: FocusEvent<HTMLButtonElement>) {
     setIsAddRowFocusVisible(event.currentTarget.matches(':focus-visible'))

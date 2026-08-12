@@ -6,11 +6,11 @@ import { getPlugin, type InstalledPluginDto, type UninstalledPluginDto } from '@
 import { PluginDetail, PluginMarketplaceHeader, toPluginDetail } from '@/features/plugin'
 
 export default function PluginDetailPage() {
-  const { pluginId = '' } = useParams()
-  const navigate = useNavigate()
-  const [search, setSearch] = useState('')
-  const [plugin, setPlugin] = useState<ReturnType<typeof toPluginDetail>>()
-  const [loading, setLoading] = useState(true)
+  const { pluginId = '' } = useParams(),
+    navigate = useNavigate(),
+    [search, setSearch] = useState(''),
+    [plugin, setPlugin] = useState<ReturnType<typeof toPluginDetail>>(),
+    [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const controller = new AbortController()

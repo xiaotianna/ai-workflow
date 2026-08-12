@@ -23,12 +23,12 @@ export function KnowledgeChunkEditPanel({
   onSave,
 }: KnowledgeChunkEditPanelProps) {
   const { form, setForm, updateFormField } = useFormData<KnowledgeChunkEditFormInput>({
-    content: chunk.content,
-  })
-  const [touched, setTouched] = useState(false)
-  const validation = validateFormByZod(knowledgeChunkEditSchema, form)
-  const contentError = validation.success ? undefined : validation.errors.content
-  const isUnchanged = form.content === chunk.content
+      content: chunk.content,
+    }),
+    [touched, setTouched] = useState(false),
+    validation = validateFormByZod(knowledgeChunkEditSchema, form),
+    contentError = validation.success ? undefined : validation.errors.content,
+    isUnchanged = form.content === chunk.content
 
   useEffect(() => {
     setForm({ content: chunk.content })

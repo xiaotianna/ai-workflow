@@ -53,8 +53,8 @@ export function useWorkflowOperations({
   testRunPending = false,
   catalog,
 }: UseWorkflowOperationsOptions) {
-  const { nodeRegistry } = catalog
-  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const { nodeRegistry } = catalog,
+    [importDialogOpen, setImportDialogOpen] = useState(false)
 
   function openSingleNodeTestRun(nodeId: string) {
     if (testRunPending) return
@@ -75,8 +75,8 @@ export function useWorkflowOperations({
   async function testRun(input: Record<string, unknown> = {}) {
     if (testRunPending) return
 
-    const snapshot = editor.createSnapshot()
-    const parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
+    const snapshot = editor.createSnapshot(),
+      parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
 
     if (!parsedWorkflow.success) {
       showToast('error', parsedWorkflow.error.issues[0]?.message ?? '工作流结构无效')
@@ -128,8 +128,8 @@ export function useWorkflowOperations({
       return
     }
 
-    const nodeType = nodeRegistry.get(canvasNode.type)
-    const parsedConfig = nodeType?.schema.safeParse(canvasNode.data.config)
+    const nodeType = nodeRegistry.get(canvasNode.type),
+      parsedConfig = nodeType?.schema.safeParse(canvasNode.data.config)
 
     if (!nodeType || !parsedConfig?.success) {
       showToast('error', '节点配置不完整，无法运行')
@@ -141,11 +141,11 @@ export function useWorkflowOperations({
       return
     }
 
-    const snapshot = editor.createSnapshot()
-    const node = {
-      ...toWorkflowNode(canvasNode),
-      config: parsedConfig.data,
-    }
+    const snapshot = editor.createSnapshot(),
+      node = {
+        ...toWorkflowNode(canvasNode),
+        config: parsedConfig.data,
+      }
 
     try {
       const result = await onTestRun({
@@ -185,8 +185,8 @@ export function useWorkflowOperations({
       return
     }
 
-    const snapshot = editor.createSnapshot()
-    const parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
+    const snapshot = editor.createSnapshot(),
+      parsedWorkflow = workflowSchema.safeParse(snapshot.workflow)
 
     if (!parsedWorkflow.success) {
       showToast('error', parsedWorkflow.error.issues[0]?.message ?? '工作流结构无效')
@@ -223,8 +223,8 @@ export function useWorkflowOperations({
 
   function importDsl(value: unknown) {
     try {
-      const snapshot = parseWorkflowApplicationDsl(value)
-      const issues = validateWorkflow(snapshot.workflow, nodeRegistry)
+      const snapshot = parseWorkflowApplicationDsl(value),
+        issues = validateWorkflow(snapshot.workflow, nodeRegistry)
 
       if (issues.length > 0) {
         throw new Error(issues[0]?.message ?? '应用 DSL 中的工作流无效')

@@ -6,10 +6,10 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PluginArtifactStore } from './plugin-artifact-store'
 import { PluginPackageInspector } from './plugin-package-inspector'
 
-const TAR_BLOCK_SIZE = 512
-const MAX_UNPACKED_SIZE = 200 * 1024 * 1024
-const MAX_ARCHIVE_FILES = 2048
-const MAX_ASSET_SIZE = 512 * 1024
+const TAR_BLOCK_SIZE = 512,
+  MAX_UNPACKED_SIZE = 200 * 1024 * 1024,
+  MAX_ARCHIVE_FILES = 2048,
+  MAX_ASSET_SIZE = 512 * 1024
 
 interface ArchiveEntry {
   path: string
@@ -29,8 +29,8 @@ export class PluginArtifactReader {
   ) {}
 
   async readAsset(artifactReference: string, assetPath: string): Promise<PluginArtifactAsset> {
-    const normalizedPath = validateAssetPath(assetPath)
-    const archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference))
+    const normalizedPath = validateAssetPath(assetPath),
+      archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference))
     return this.readAssetFromArchive(archive, normalizedPath)
   }
 
@@ -39,9 +39,9 @@ export class PluginArtifactReader {
     expectedArtifactDigest: string,
     assetPath: string,
   ): Promise<PluginArtifactAsset> {
-    const normalizedPath = validateAssetPath(assetPath)
-    const archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference))
-    const inspected = this.packageInspector.inspect(archive)
+    const normalizedPath = validateAssetPath(assetPath),
+      archive = await readFile(this.artifactStore.resolveStoragePath(artifactReference)),
+      inspected = this.packageInspector.inspect(archive)
     if (inspected.artifactDigest.toLowerCase() !== expectedArtifactDigest.toLowerCase()) {
       throw new BadRequestException('插件包产物摘要与运行版本不匹配')
     }
@@ -81,14 +81,14 @@ export class PluginArtifactReader {
       const header = tar.subarray(offset, offset + TAR_BLOCK_SIZE)
       if (header.every((byte) => byte === 0)) break
 
-      const name = readTarString(header, 0, 100)
-      const prefix = readTarString(header, 345, 155)
-      const path = prefix ? `${prefix}/${name}` : name
-      const normalizedPath = validateAssetPath(path)
-      const type = String.fromCharCode(header[156] ?? 0)
-      const size = readTarOctal(header, 124, 12)
-      const contentStart = offset + TAR_BLOCK_SIZE
-      const contentEnd = contentStart + size
+      const name = readTarString(header, 0, 100),
+        prefix = readTarString(header, 345, 155),
+        path = prefix ? `${prefix}/${name}` : name,
+        normalizedPath = validateAssetPath(path),
+        type = String.fromCharCode(header[156] ?? 0),
+        size = readTarOctal(header, 124, 12),
+        contentStart = offset + TAR_BLOCK_SIZE,
+        contentEnd = contentStart + size
 
       if (contentEnd > tar.length) {
         throw new BadRequestException(`插件包内文件不完整：${normalizedPath}`)
@@ -123,8 +123,8 @@ export class PluginArtifactReader {
 }
 
 function readTarString(buffer: Buffer, offset: number, length: number): string {
-  const value = buffer.subarray(offset, offset + length)
-  const nullIndex = value.indexOf(0)
+  const value = buffer.subarray(offset, offset + length),
+    nullIndex = value.indexOf(0)
   return value.subarray(0, nullIndex === -1 ? value.length : nullIndex).toString('utf8')
 }
 

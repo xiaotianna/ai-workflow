@@ -19,8 +19,8 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Braces, LoaderCircle, Network } from 'lucide-react'
 import { useEffect, useRef, type ReactNode } from 'react'
 
-const ROW_HEIGHT = 52
-const COLUMN_COUNT = 5
+const ROW_HEIGHT = 52,
+  COLUMN_COUNT = 5
 
 interface AppLogTableProps {
   runs: StudioWorkflowRunListItemDto[]
@@ -36,56 +36,55 @@ interface AppLogTableProps {
 }
 
 const RUN_STATUS_PRESENTATIONS: Record<
-  StudioWorkflowRunStatus,
-  { indicatorClassName: string; label: string; textClassName: string }
-> = {
-  QUEUED: {
-    label: 'Queued',
-    textClassName: 'text-warning',
-    indicatorClassName: 'border-warning/40 bg-warning/40',
+    StudioWorkflowRunStatus,
+    { indicatorClassName: string; label: string; textClassName: string }
+  > = {
+    QUEUED: {
+      label: 'Queued',
+      textClassName: 'text-warning',
+      indicatorClassName: 'border-warning/40 bg-warning/40',
+    },
+    RUNNING: {
+      label: 'Running',
+      textClassName: 'text-primary',
+      indicatorClassName: 'border-primary/40 bg-primary/40',
+    },
+    SUCCEEDED: {
+      label: 'Success',
+      textClassName: 'text-success',
+      indicatorClassName: 'border-success/40 bg-success/40',
+    },
+    FAILED: {
+      label: 'Failed',
+      textClassName: 'text-destructive',
+      indicatorClassName: 'border-destructive/40 bg-destructive/40',
+    },
+    CANCELLED: {
+      label: 'Cancelled',
+      textClassName: 'text-muted-foreground',
+      indicatorClassName: 'border-muted-foreground/40 bg-muted-foreground/30',
+    },
+    TIMED_OUT: {
+      label: 'Timed out',
+      textClassName: 'text-destructive',
+      indicatorClassName: 'border-destructive/40 bg-destructive/40',
+    },
   },
-  RUNNING: {
-    label: 'Running',
-    textClassName: 'text-primary',
-    indicatorClassName: 'border-primary/40 bg-primary/40',
-  },
-  SUCCEEDED: {
-    label: 'Success',
-    textClassName: 'text-success',
-    indicatorClassName: 'border-success/40 bg-success/40',
-  },
-  FAILED: {
-    label: 'Failed',
-    textClassName: 'text-destructive',
-    indicatorClassName: 'border-destructive/40 bg-destructive/40',
-  },
-  CANCELLED: {
-    label: 'Cancelled',
-    textClassName: 'text-muted-foreground',
-    indicatorClassName: 'border-muted-foreground/40 bg-muted-foreground/30',
-  },
-  TIMED_OUT: {
-    label: 'Timed out',
-    textClassName: 'text-destructive',
-    indicatorClassName: 'border-destructive/40 bg-destructive/40',
-  },
-}
-
-const RUN_TRIGGER_PRESENTATIONS: Record<
-  Extract<StudioWorkflowRunTrigger, 'API' | 'SUB_WORKFLOW'>,
-  { className: string; icon: typeof Braces; label: string }
-> = {
-  API: {
-    className: 'bg-primary/10 text-primary',
-    icon: Braces,
-    label: 'API 调用',
-  },
-  SUB_WORKFLOW: {
-    className: 'border-border/60 bg-primary/10 text-primary border-[0.5px] shadow-xs',
-    icon: Network,
-    label: '子工作流调用',
-  },
-}
+  RUN_TRIGGER_PRESENTATIONS: Record<
+    Extract<StudioWorkflowRunTrigger, 'API' | 'SUB_WORKFLOW'>,
+    { className: string; icon: typeof Braces; label: string }
+  > = {
+    API: {
+      className: 'bg-primary/10 text-primary',
+      icon: Braces,
+      label: 'API 调用',
+    },
+    SUB_WORKFLOW: {
+      className: 'border-border/60 bg-primary/10 text-primary border-[0.5px] shadow-xs',
+      icon: Network,
+      label: '子工作流调用',
+    },
+  }
 
 export function AppLogTable({
   runs,
@@ -99,15 +98,15 @@ export function AppLogTable({
   onRetryLoadMore,
   onSelectRun,
 }: AppLogTableProps) {
-  const scrollElementRef = useRef<HTMLDivElement>(null)
-  const rowVirtualizer = useVirtualizer({
-    count: runs.length,
-    getScrollElement: () => scrollElementRef.current,
-    estimateSize: () => ROW_HEIGHT,
-    overscan: 8,
-  })
-  const virtualRows = rowVirtualizer.getVirtualItems()
-  const lastVirtualRowIndex = virtualRows.at(-1)?.index
+  const scrollElementRef = useRef<HTMLDivElement>(null),
+    rowVirtualizer = useVirtualizer({
+      count: runs.length,
+      getScrollElement: () => scrollElementRef.current,
+      estimateSize: () => ROW_HEIGHT,
+      overscan: 8,
+    }),
+    virtualRows = rowVirtualizer.getVirtualItems(),
+    lastVirtualRowIndex = virtualRows.at(-1)?.index
 
   useEffect(() => {
     if (
@@ -124,10 +123,10 @@ export function AppLogTable({
     onLoadMore()
   }, [hasMore, lastVirtualRowIndex, loadMoreError, loadingMore, onLoadMore, runs.length])
 
-  const topSpacerHeight = virtualRows.at(0)?.start ?? 0
-  const bottomSpacerHeight = virtualRows.length
-    ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
-    : 0
+  const topSpacerHeight = virtualRows.at(0)?.start ?? 0,
+    bottomSpacerHeight = virtualRows.length
+      ? rowVirtualizer.getTotalSize() - (virtualRows.at(-1)?.end ?? 0)
+      : 0
 
   return (
     <div ref={scrollElementRef} className="min-h-0 flex-1 overflow-auto">
@@ -257,14 +256,14 @@ function RunStatus({ status }: { status: StudioWorkflowRunStatus }) {
 
 function RunTrigger({ trigger }: { trigger: StudioWorkflowRunTrigger }) {
   const presentation =
-    trigger === 'API' || trigger === 'SUB_WORKFLOW'
-      ? RUN_TRIGGER_PRESENTATIONS[trigger]
-      : {
-          className: 'bg-muted text-muted-foreground',
-          icon: Network,
-          label: trigger,
-        }
-  const Icon = presentation.icon
+      trigger === 'API' || trigger === 'SUB_WORKFLOW'
+        ? RUN_TRIGGER_PRESENTATIONS[trigger]
+        : {
+            className: 'bg-muted text-muted-foreground',
+            icon: Network,
+            label: trigger,
+          },
+    Icon = presentation.icon
 
   return (
     <span className="inline-flex items-center gap-2">

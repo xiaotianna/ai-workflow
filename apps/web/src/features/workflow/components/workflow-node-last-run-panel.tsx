@@ -97,8 +97,8 @@ export function WorkflowNodeLastRunPanel({
     )
   }
 
-  const presentation = getNodeRunStatusPresentation(lastRun.status)
-  const Icon = presentation.icon
+  const presentation = getNodeRunStatusPresentation(lastRun.status),
+    Icon = presentation.icon
 
   return (
     <div className="space-y-3 px-4 py-3">

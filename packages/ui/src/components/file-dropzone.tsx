@@ -36,9 +36,9 @@ function FileDropzone({
   onFileChange,
   ...props
 }: FileDropzoneProps) {
-  const inputRef = React.useRef<HTMLInputElement>(null)
-  const dragDepthRef = React.useRef(0)
-  const [isDragging, setIsDragging] = React.useState(false)
+  const inputRef = React.useRef<HTMLInputElement>(null),
+    dragDepthRef = React.useRef(0),
+    [isDragging, setIsDragging] = React.useState(false)
 
   function resetDragState() {
     dragDepthRef.current = 0

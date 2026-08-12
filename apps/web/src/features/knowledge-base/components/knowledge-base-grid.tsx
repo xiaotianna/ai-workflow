@@ -60,8 +60,8 @@ export function KnowledgeBaseGrid({
   return (
     <div className="2k:grid-cols-6 relative grid grow grid-cols-1 content-start gap-2.5 pt-4 sm:grid-cols-1 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-5">
       {knowledgeBases.map((knowledgeBase) => {
-        const actions = getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction)
-        const timeDisplay = getKnowledgeBaseTimeDisplay(knowledgeBase, sort)
+        const actions = getKnowledgeBaseActions(knowledgeBase, onKnowledgeBaseAction),
+          timeDisplay = getKnowledgeBaseTimeDisplay(knowledgeBase, sort)
 
         return (
           <ResourceCard

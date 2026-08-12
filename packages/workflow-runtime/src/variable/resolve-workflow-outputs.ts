@@ -13,8 +13,8 @@ export function resolveWorkflowOutputs(
     const outputs: Record<string, JsonValue> = {}
     for (const node of context.workflow.nodes) {
       if (node.type !== BuiltinNodeType.END || node.parentId) continue
-      const executionKey = context.state.nodeStates[node.id]?.latestExecutionKey
-      const execution = executionKey ? context.state.executions[executionKey] : undefined
+      const executionKey = context.state.nodeStates[node.id]?.latestExecutionKey,
+        execution = executionKey ? context.state.executions[executionKey] : undefined
       if (execution?.status !== 'SUCCEEDED' || !execution.outputs) continue
       Object.assign(outputs, execution.outputs)
     }

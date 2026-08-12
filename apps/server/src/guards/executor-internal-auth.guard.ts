@@ -19,12 +19,12 @@ export class ExecutorInternalAuthGuard implements CanActivate {
     if (!this.token) return true
 
     const request = context.switchToHttp().getRequest<{
-      headers: Record<string, string | string[] | undefined>
-    }>()
-    const authorization = request.headers.authorization
-    const value = Array.isArray(authorization) ? authorization[0] : authorization
-    const prefix = 'Bearer '
-    const provided = value?.startsWith(prefix) ? value.slice(prefix.length) : ''
+        headers: Record<string, string | string[] | undefined>
+      }>(),
+      authorization = request.headers.authorization,
+      value = Array.isArray(authorization) ? authorization[0] : authorization,
+      prefix = 'Bearer ',
+      provided = value?.startsWith(prefix) ? value.slice(prefix.length) : ''
 
     if (!safeEqual(provided, this.token)) {
       throw new UnauthorizedException('Executor 内部认证失败')
@@ -34,7 +34,7 @@ export class ExecutorInternalAuthGuard implements CanActivate {
 }
 
 function safeEqual(left: string, right: string): boolean {
-  const leftBuffer = Buffer.from(left)
-  const rightBuffer = Buffer.from(right)
+  const leftBuffer = Buffer.from(left),
+    rightBuffer = Buffer.from(right)
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }

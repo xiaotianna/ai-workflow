@@ -46,13 +46,13 @@ export function StudioAppFormDialog({
   onSubmit,
 }: StudioAppFormDialogProps) {
   const { form, setForm, updateFormField, resetForm } =
-    useFormData<CreateStudioAppFormInput>(initialValues)
-  const [touchedFields, setTouchedFields] = useState<
-    Partial<Record<keyof CreateStudioAppFormInput, boolean>>
-  >({})
-  const [submitting, setSubmitting] = useState(false)
-  const validationResult = validateFormByZod(createStudioAppSchema, form)
-  const formErrors = validationResult.errors
+      useFormData<CreateStudioAppFormInput>(initialValues),
+    [touchedFields, setTouchedFields] = useState<
+      Partial<Record<keyof CreateStudioAppFormInput, boolean>>
+    >({}),
+    [submitting, setSubmitting] = useState(false),
+    validationResult = validateFormByZod(createStudioAppSchema, form),
+    formErrors = validationResult.errors
 
   useEffect(() => {
     if (!open) return

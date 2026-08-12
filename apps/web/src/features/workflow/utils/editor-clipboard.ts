@@ -62,11 +62,11 @@ export function createWorkflowClipboardPayload(
   selectedNodeIds: ReadonlySet<string>,
 ): WorkflowClipboardPayload | undefined {
   const copyableSelectedNodeIds = new Set(
-    nodes
-      .filter((node) => selectedNodeIds.has(node.id) && !isLoopSystemNodeType(node.type))
-      .map((node) => node.id),
-  )
-  const rootNodeIds = getSelectionRootNodeIds(copyableSelectedNodeIds, nodes)
+      nodes
+        .filter((node) => selectedNodeIds.has(node.id) && !isLoopSystemNodeType(node.type))
+        .map((node) => node.id),
+    ),
+    rootNodeIds = getSelectionRootNodeIds(copyableSelectedNodeIds, nodes)
 
   if (rootNodeIds.size === 0) return undefined
 
@@ -92,9 +92,9 @@ export function pasteWorkflowClipboardPayload({
   disabledNodeTypes: ReadonlySet<string>
   offset: number | XYPosition
 }): PasteWorkflowClipboardResult | undefined {
-  const copiedNodeIds = new Set(payload.nodes.map((node) => node.id))
-  const currentNodeIds = new Set(currentNodes.map((node) => node.id))
-  const allowedSourceNodeIds = new Set<string>()
+  const copiedNodeIds = new Set(payload.nodes.map((node) => node.id)),
+    currentNodeIds = new Set(currentNodes.map((node) => node.id)),
+    allowedSourceNodeIds = new Set<string>()
   let changed = true
 
   while (changed) {
@@ -119,57 +119,57 @@ export function pasteWorkflowClipboardPayload({
   if (allowedSourceNodeIds.size === 0) return undefined
 
   const nodeIdMap = new Map(
-    [...allowedSourceNodeIds].map((sourceNodeId) => [sourceNodeId, generateUuid()]),
-  )
-  const rootNodes = payload.nodes.filter((node) => payload.rootNodeIds.includes(node.id))
-  const sourceAnchor = {
-    x: Math.min(...rootNodes.map((node) => node.position.x)),
-    y: Math.min(...rootNodes.map((node) => node.position.y)),
-  }
-  const translation =
-    typeof offset === 'number'
-      ? { x: offset, y: offset }
-      : { x: offset.x - sourceAnchor.x, y: offset.y - sourceAnchor.y }
-  const pastedNodes = payload.nodes.flatMap((node) => {
-    const nextNodeId = nodeIdMap.get(node.id)
-    if (!nextNodeId) return []
+      [...allowedSourceNodeIds].map((sourceNodeId) => [sourceNodeId, generateUuid()]),
+    ),
+    rootNodes = payload.nodes.filter((node) => payload.rootNodeIds.includes(node.id)),
+    sourceAnchor = {
+      x: Math.min(...rootNodes.map((node) => node.position.x)),
+      y: Math.min(...rootNodes.map((node) => node.position.y)),
+    },
+    translation =
+      typeof offset === 'number'
+        ? { x: offset, y: offset }
+        : { x: offset.x - sourceAnchor.x, y: offset.y - sourceAnchor.y },
+    pastedNodes = payload.nodes.flatMap((node) => {
+      const nextNodeId = nodeIdMap.get(node.id)
+      if (!nextNodeId) return []
 
-    const copiedParentId = node.parentId ? nodeIdMap.get(node.parentId) : undefined
-    const shouldOffsetPosition = !node.parentId || !copiedNodeIds.has(node.parentId)
+      const copiedParentId = node.parentId ? nodeIdMap.get(node.parentId) : undefined,
+        shouldOffsetPosition = !node.parentId || !copiedNodeIds.has(node.parentId)
 
-    return [
-      {
-        ...cloneClipboardNode(node),
-        id: nextNodeId,
-        position: shouldOffsetPosition
-          ? {
-              x: node.position.x + translation.x,
-              y: node.position.y + translation.y,
-            }
-          : { ...node.position },
-        parentId: copiedParentId ?? node.parentId,
-        data: {
-          ...structuredClone(node.data),
-          inputs: remapNodeInputReferences(node, nodeIdMap),
+      return [
+        {
+          ...cloneClipboardNode(node),
+          id: nextNodeId,
+          position: shouldOffsetPosition
+            ? {
+                x: node.position.x + translation.x,
+                y: node.position.y + translation.y,
+              }
+            : { ...node.position },
+          parentId: copiedParentId ?? node.parentId,
+          data: {
+            ...structuredClone(node.data),
+            inputs: remapNodeInputReferences(node, nodeIdMap),
+          },
         },
-      },
-    ]
-  })
-  const pastedEdges = payload.edges.flatMap((edge) => {
-    const source = nodeIdMap.get(edge.source)
-    const target = nodeIdMap.get(edge.target)
+      ]
+    }),
+    pastedEdges = payload.edges.flatMap((edge) => {
+      const source = nodeIdMap.get(edge.source),
+        target = nodeIdMap.get(edge.target)
 
-    if (!source || !target) return []
+      if (!source || !target) return []
 
-    return [
-      {
-        ...structuredClone(edge),
-        id: generateUuid(),
-        source,
-        target,
-      },
-    ]
-  })
+      return [
+        {
+          ...structuredClone(edge),
+          id: generateUuid(),
+          source,
+          target,
+        },
+      ]
+    })
 
   return {
     nodes: pastedNodes,

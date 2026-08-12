@@ -13,8 +13,8 @@ export default defineExecutor(({ config, inputs, workflowRunId, nodeRunId, attem
     throw new Error('模型配置格式无效')
   }
 
-  const groupId = requiredString(model.groupId, '请先选择模型组')
-  const configuredModelId = requiredString(model.configuredModelId, '请先选择模型')
+  const groupId = requiredString(model.groupId, '请先选择模型组'),
+    configuredModelId = requiredString(model.configuredModelId, '请先选择模型')
 
   return {
     outputs: {

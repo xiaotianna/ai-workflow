@@ -186,9 +186,9 @@ export class WorkflowRunRepository {
         },
       })
 
-      const now = new Date()
-      const status = toWorkflowRunStatus(options.terminal.status)
-      const terminal = status !== WorkflowRunStatus.RUNNING
+      const now = new Date(),
+        status = toWorkflowRunStatus(options.terminal.status),
+        terminal = status !== WorkflowRunStatus.RUNNING
 
       await transaction.workflowRun.create({
         data: {
@@ -237,9 +237,9 @@ export class WorkflowRunRepository {
       })
       if (!version) return 'not-found'
 
-      const now = new Date()
-      const status = toWorkflowRunStatus(options.terminal.status)
-      const terminal = status !== WorkflowRunStatus.RUNNING
+      const now = new Date(),
+        status = toWorkflowRunStatus(options.terminal.status),
+        terminal = status !== WorkflowRunStatus.RUNNING
       await transaction.workflowRun.create({
         data: {
           id: options.runId,
@@ -339,9 +339,9 @@ export class WorkflowRunRepository {
         return 'stale'
       }
 
-      const now = new Date()
-      const status = toWorkflowRunStatus(options.terminal.status)
-      const terminal = status !== WorkflowRunStatus.RUNNING
+      const now = new Date(),
+        status = toWorkflowRunStatus(options.terminal.status),
+        terminal = status !== WorkflowRunStatus.RUNNING
       await transaction.workflowRun.create({
         data: {
           id: options.childRunId,
@@ -526,17 +526,17 @@ export class WorkflowRunRepository {
       })
       if (!command) return
 
-      const now = new Date()
-      const runUpdated = await transaction.workflowRun.updateMany({
-        where: { id: command.runId, status: WorkflowRunStatus.RUNNING },
-        data: {
-          status: options.runStatus,
-          errorCode: options.errorCode,
-          errorMessage: options.errorMessage,
-          finishedAt: now,
-          durationMs: durationFrom(command.run.startedAt, now),
-        },
-      })
+      const now = new Date(),
+        runUpdated = await transaction.workflowRun.updateMany({
+          where: { id: command.runId, status: WorkflowRunStatus.RUNNING },
+          data: {
+            status: options.runStatus,
+            errorCode: options.errorCode,
+            errorMessage: options.errorMessage,
+            finishedAt: now,
+            durationMs: durationFrom(command.run.startedAt, now),
+          },
+        })
       if (runUpdated.count !== 1) return
 
       await cancelPendingDispatches(transaction, command.runId, now)
@@ -598,15 +598,15 @@ export class WorkflowRunRepository {
       })
       if (!run) return 'not-found'
 
-      const now = new Date()
-      const updated = await transaction.workflowRun.updateMany({
-        where: { id: runId, status: WorkflowRunStatus.RUNNING },
-        data: {
-          status: WorkflowRunStatus.CANCELLED,
-          finishedAt: now,
-          durationMs: durationFrom(run.startedAt, now),
-        },
-      })
+      const now = new Date(),
+        updated = await transaction.workflowRun.updateMany({
+          where: { id: runId, status: WorkflowRunStatus.RUNNING },
+          data: {
+            status: WorkflowRunStatus.CANCELLED,
+            finishedAt: now,
+            durationMs: durationFrom(run.startedAt, now),
+          },
+        })
       if (updated.count !== 1) return 'unchanged'
 
       const descendantRunIds = await cancelRunningDescendantRuns(transaction, runId, now)
@@ -846,13 +846,13 @@ export class WorkflowRunRepository {
   }
 
   listOwnedRuns(options: ListOwnedRunsOptions) {
-    const conditions: Prisma.WorkflowRunWhereInput[] = []
-    const publishedCallTriggers = options.trigger
-      ? options.trigger === WorkflowRunTrigger.API ||
-        options.trigger === WorkflowRunTrigger.SUB_WORKFLOW
-        ? [options.trigger]
-        : []
-      : PUBLISHED_CALL_TRIGGERS
+    const conditions: Prisma.WorkflowRunWhereInput[] = [],
+      publishedCallTriggers = options.trigger
+        ? options.trigger === WorkflowRunTrigger.API ||
+          options.trigger === WorkflowRunTrigger.SUB_WORKFLOW
+          ? [options.trigger]
+          : []
+        : PUBLISHED_CALL_TRIGGERS
 
     if (options.cursor) {
       conditions.push({
@@ -1037,75 +1037,73 @@ export class WorkflowRunRepository {
 }
 
 const workflowRunListItemSelect = {
-  id: true,
-  traceId: true,
-  trigger: true,
-  mode: true,
-  status: true,
-  queuedAt: true,
-  startedAt: true,
-  finishedAt: true,
-  durationMs: true,
-  triggeredBy: {
-    select: {
-      id: true,
-      username: true,
+    id: true,
+    traceId: true,
+    trigger: true,
+    mode: true,
+    status: true,
+    queuedAt: true,
+    startedAt: true,
+    finishedAt: true,
+    durationMs: true,
+    triggeredBy: {
+      select: {
+        id: true,
+        username: true,
+      },
     },
-  },
-} satisfies Prisma.WorkflowRunSelect
-
-const workflowRunSummarySelect = {
-  id: true,
-  traceId: true,
-  trigger: true,
-  mode: true,
-  targetNodeId: true,
-  status: true,
-  runtimeState: true,
-  input: true,
-  output: true,
-  errorCode: true,
-  errorMessage: true,
-  errorDetails: true,
-  queuedAt: true,
-  startedAt: true,
-  finishedAt: true,
-  durationMs: true,
-  triggeredBy: {
-    select: {
-      id: true,
-      username: true,
+  } satisfies Prisma.WorkflowRunSelect,
+  workflowRunSummarySelect = {
+    id: true,
+    traceId: true,
+    trigger: true,
+    mode: true,
+    targetNodeId: true,
+    status: true,
+    runtimeState: true,
+    input: true,
+    output: true,
+    errorCode: true,
+    errorMessage: true,
+    errorDetails: true,
+    queuedAt: true,
+    startedAt: true,
+    finishedAt: true,
+    durationMs: true,
+    triggeredBy: {
+      select: {
+        id: true,
+        username: true,
+      },
     },
-  },
-  nodeRuns: {
-    orderBy: [{ createdAt: 'asc' }, { attempt: 'asc' }],
-    select: {
-      id: true,
-      executionKey: true,
-      nodeId: true,
-      nodeType: true,
-      status: true,
-      input: true,
-      output: true,
-      errorCode: true,
-      errorMessage: true,
-      errorDetails: true,
-      startedAt: true,
-      finishedAt: true,
-      durationMs: true,
+    nodeRuns: {
+      orderBy: [{ createdAt: 'asc' }, { attempt: 'asc' }],
+      select: {
+        id: true,
+        executionKey: true,
+        nodeId: true,
+        nodeType: true,
+        status: true,
+        input: true,
+        output: true,
+        errorCode: true,
+        errorMessage: true,
+        errorDetails: true,
+        startedAt: true,
+        finishedAt: true,
+        durationMs: true,
+      },
     },
-  },
-} satisfies Prisma.WorkflowRunSelect
-
-const workflowRunDetailSelect = {
-  ...workflowRunSummarySelect,
-  version: {
-    select: {
-      definition: true,
-      layout: true,
+  } satisfies Prisma.WorkflowRunSelect,
+  workflowRunDetailSelect = {
+    ...workflowRunSummarySelect,
+    version: {
+      select: {
+        definition: true,
+        layout: true,
+      },
     },
-  },
-} satisfies Prisma.WorkflowRunSelect
+  } satisfies Prisma.WorkflowRunSelect
 
 async function createDispatchRecords(
   transaction: Prisma.TransactionClient,
@@ -1150,8 +1148,8 @@ function createRuntimeRunUpdate(
   startedAt: Date | null,
   now: Date,
 ) {
-  const status = toWorkflowRunStatus(transition.terminal.status)
-  const terminal = status !== WorkflowRunStatus.RUNNING
+  const status = toWorkflowRunStatus(transition.terminal.status),
+    terminal = status !== WorkflowRunStatus.RUNNING
 
   return {
     runtimeState: toJsonInput(transition.state),
@@ -1173,16 +1171,16 @@ async function cancelPendingDispatches(
   runIds: string | readonly string[],
   now: Date,
 ) {
-  const normalizedRunIds = typeof runIds === 'string' ? [runIds] : [...runIds]
-  const nodeRuns = await transaction.workflowNodeRun.findMany({
-    where: {
-      runId: { in: normalizedRunIds },
-      status: {
-        in: [WorkflowNodeRunStatus.PENDING, WorkflowNodeRunStatus.RUNNING],
+  const normalizedRunIds = typeof runIds === 'string' ? [runIds] : [...runIds],
+    nodeRuns = await transaction.workflowNodeRun.findMany({
+      where: {
+        runId: { in: normalizedRunIds },
+        status: {
+          in: [WorkflowNodeRunStatus.PENDING, WorkflowNodeRunStatus.RUNNING],
+        },
       },
-    },
-    select: { id: true, startedAt: true },
-  })
+      select: { id: true, startedAt: true },
+    })
   await Promise.all(
     nodeRuns.map((nodeRun) =>
       transaction.workflowNodeRun.update({

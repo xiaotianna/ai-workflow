@@ -12,80 +12,79 @@ import { Minus, Plus } from 'lucide-react'
 import type { WorkflowCanvasNode } from '@/components/workflow/types'
 import { useWorkflowCatalog } from '../../catalog/workflow-web-catalog'
 
-const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2]
+const zoomSelector = (state: { transform: [number, number, number] }) => state.transform[2],
+  WorkflowMiniMapNode = ({
+    className,
+    height,
+    id,
+    onClick,
+    selected,
+    width,
+    x,
+    y,
+  }: MiniMapNodeProps) => {
+    const { nodeRegistry } = useWorkflowCatalog(),
+      internalNode = useInternalNode<WorkflowCanvasNode>(id),
+      nodeType = internalNode?.internals.userNode.type,
+      icon = nodeType ? nodeRegistry.get(nodeType)?.definition.icon : undefined,
+      themeColor = getNodeThemeColor(nodeType),
+      radius = Math.min(width, height) * 0.18,
+      iconSize = Math.min(width, height) * 0.5,
+      iconX = x + (width - iconSize) / 2,
+      iconY = y + (height - iconSize) / 2,
+      pluginIcon = resolveNodeIconKind(icon) === 'plugin'
 
-const WorkflowMiniMapNode = ({
-  className,
-  height,
-  id,
-  onClick,
-  selected,
-  width,
-  x,
-  y,
-}: MiniMapNodeProps) => {
-  const { nodeRegistry } = useWorkflowCatalog()
-  const internalNode = useInternalNode<WorkflowCanvasNode>(id)
-  const nodeType = internalNode?.internals.userNode.type
-  const icon = nodeType ? nodeRegistry.get(nodeType)?.definition.icon : undefined
-  const themeColor = getNodeThemeColor(nodeType)
-  const radius = Math.min(width, height) * 0.18
-  const iconSize = Math.min(width, height) * 0.5
-  const iconX = x + (width - iconSize) / 2
-  const iconY = y + (height - iconSize) / 2
-  const pluginIcon = resolveNodeIconKind(icon) === 'plugin'
-
-  return (
-    <g className={className} onClick={onClick ? (event) => onClick(event, id) : undefined}>
-      <rect
-        x={x}
-        y={y}
-        width={width}
-        height={height}
-        rx={radius}
-        ry={radius}
-        fill={themeColor}
-        stroke={selected ? 'var(--primary-foreground)' : 'transparent'}
-        strokeWidth={selected ? 3 : 0}
-        shapeRendering="geometricPrecision"
-      />
-      {pluginIcon ? (
-        <image
-          href={icon}
-          x={iconX}
-          y={iconY}
-          width={iconSize}
-          height={iconSize}
-          preserveAspectRatio="xMidYMid meet"
-          pointerEvents="none"
-          aria-hidden
+    return (
+      <g className={className} onClick={onClick ? (event) => onClick(event, id) : undefined}>
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          rx={radius}
+          ry={radius}
+          fill={themeColor}
+          stroke={selected ? 'var(--primary-foreground)' : 'transparent'}
+          strokeWidth={selected ? 3 : 0}
+          shapeRendering="geometricPrecision"
         />
-      ) : (
-        <NodeIcon
-          icon={icon}
-          x={iconX}
-          y={iconY}
-          width={iconSize}
-          height={iconSize}
-          color="var(--primary-foreground)"
-          fill={icon === 'play' ? 'var(--primary-foreground)' : 'none'}
-          strokeWidth={2.25}
-          pointerEvents="none"
-          aria-hidden
-        />
-      )}
-    </g>
-  )
-}
+        {pluginIcon ? (
+          <image
+            href={icon}
+            x={iconX}
+            y={iconY}
+            width={iconSize}
+            height={iconSize}
+            preserveAspectRatio="xMidYMid meet"
+            pointerEvents="none"
+            aria-hidden
+          />
+        ) : (
+          <NodeIcon
+            icon={icon}
+            x={iconX}
+            y={iconY}
+            width={iconSize}
+            height={iconSize}
+            color="var(--primary-foreground)"
+            fill={icon === 'play' ? 'var(--primary-foreground)' : 'none'}
+            strokeWidth={2.25}
+            pointerEvents="none"
+            aria-hidden
+          />
+        )}
+      </g>
+    )
+  }
 
 interface WorkflowCanvasViewerProps {
   disabled?: boolean
 }
 
 export const WorkflowCanvasViewer = ({ disabled = false }: WorkflowCanvasViewerProps) => {
-  const { zoomIn, zoomOut } = useReactFlow()
-  const zoom = useStore(zoomSelector)
-  const zoomPercent = Math.round(zoom * 100)
+  const { zoomIn, zoomOut } = useReactFlow(),
+    zoom = useStore(zoomSelector),
+    zoomPercent = Math.round(zoom * 100)
 
   return (
     <fieldset

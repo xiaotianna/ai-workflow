@@ -22,12 +22,12 @@ interface WorkflowRunHistoryPanelProps {
 }
 
 export function WorkflowRunHistoryPanel({ appId, refreshKey }: WorkflowRunHistoryPanelProps) {
-  const history = useWorkflowRunHistory(appId, refreshKey)
-  const [selectedRun, setSelectedRun] = useState<StudioWorkflowRunListItemDto>()
-  const [detail, setDetail] = useState<StudioWorkflowRunDetailDto>()
-  const [detailLoading, setDetailLoading] = useState(false)
-  const [detailError, setDetailError] = useState(false)
-  const [detailRequestRevision, setDetailRequestRevision] = useState(0)
+  const history = useWorkflowRunHistory(appId, refreshKey),
+    [selectedRun, setSelectedRun] = useState<StudioWorkflowRunListItemDto>(),
+    [detail, setDetail] = useState<StudioWorkflowRunDetailDto>(),
+    [detailLoading, setDetailLoading] = useState(false),
+    [detailError, setDetailError] = useState(false),
+    [detailRequestRevision, setDetailRequestRevision] = useState(0)
 
   useEffect(() => {
     if (!selectedRun) return
@@ -208,8 +208,8 @@ function formatRelativeTime(value: string): string {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return value
 
-  const differenceMs = Math.max(0, Date.now() - date.getTime())
-  const differenceMinutes = Math.floor(differenceMs / 60_000)
+  const differenceMs = Math.max(0, Date.now() - date.getTime()),
+    differenceMinutes = Math.floor(differenceMs / 60_000)
   if (differenceMinutes < 1) return '刚刚'
   if (differenceMinutes < 60) return `${differenceMinutes} 分钟前`
 

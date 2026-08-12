@@ -71,8 +71,8 @@ function isVariableValueInput(value: unknown): value is VariableValueInput {
 function normalizeRequestBody(value: HttpRequestBodyInput | undefined): HttpRequestBodyInput {
   if (!value || typeof value !== 'object') return createHttpRequestBody('none')
 
-  const body = value as { entries?: unknown; type?: unknown; value?: unknown }
-  const bodyType = HTTP_BODY_TYPES.find((type) => type === body.type)
+  const body = value as { entries?: unknown; type?: unknown; value?: unknown },
+    bodyType = HTTP_BODY_TYPES.find((type) => type === body.type)
 
   if (bodyType === 'form-data' || bodyType === 'x-www-form-urlencoded') {
     const defaultBody = createHttpRequestBody(bodyType)
@@ -131,9 +131,9 @@ export function RequestBodyField({
   onChange,
   options = DEFAULT_REQUEST_BODY_TYPE_OPTIONS,
 }: RequestBodyFieldProps) {
-  const generatedName = useId()
-  const body = normalizeRequestBody(value)
-  const entriesPath = `${name}.entries`
+  const generatedName = useId(),
+    body = normalizeRequestBody(value),
+    entriesPath = `${name}.entries`
 
   function renderBodyContent() {
     if (body.type === 'none') return null

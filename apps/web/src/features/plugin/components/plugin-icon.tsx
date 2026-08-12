@@ -28,8 +28,8 @@ export function PluginIcon({
       return
     }
 
-    let cancelled = false
-    let objectUrl: string | undefined
+    let cancelled = false,
+      objectUrl: string | undefined
 
     void apiClient
       .getBlob(getPluginAssetUrl(pluginId, versionId, icon))

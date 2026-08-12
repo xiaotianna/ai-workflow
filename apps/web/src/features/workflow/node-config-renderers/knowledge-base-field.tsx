@@ -37,33 +37,33 @@ export function KnowledgeBaseField({
   disabled,
   onChange,
 }: KnowledgeBaseFieldProps) {
-  const [selectorOpen, setSelectorOpen] = useState(false)
-  const { knowledgeBases, load, loaded, loading, loadError, reload } =
-    useWorkflowKnowledgeBaseCatalog()
-  const knowledgeBaseReferences = normalizeKnowledgeBaseReferences(value)
-  const selectedKnowledgeBases = knowledgeBaseReferences.map((reference) => {
-    const knowledgeBase = knowledgeBases.find((item) => item.id === reference.id)
+  const [selectorOpen, setSelectorOpen] = useState(false),
+    { knowledgeBases, load, loaded, loading, loadError, reload } =
+      useWorkflowKnowledgeBaseCatalog(),
+    knowledgeBaseReferences = normalizeKnowledgeBaseReferences(value),
+    selectedKnowledgeBases = knowledgeBaseReferences.map((reference) => {
+      const knowledgeBase = knowledgeBases.find((item) => item.id === reference.id)
 
-    return {
-      id: reference.id,
-      icon: knowledgeBase?.icon ?? reference.icon,
-      title: knowledgeBase?.title ?? reference.title ?? `旧配置知识库（${reference.id}）`,
-      segmentationMode: knowledgeBase?.segmentationMode,
-    }
-  })
-  const unavailableKnowledgeBaseCount = loaded
-    ? selectedKnowledgeBases.filter(
-        (knowledgeBase) => !knowledgeBases.some((item) => item.id === knowledgeBase.id),
-      ).length
-    : 0
-  const canOpenSelector = !disabled && loaded
-  const description = getKnowledgeBaseFieldDescription({
-    hasKnowledgeBases: knowledgeBases.length > 0,
-    loaded,
-    loadError,
-    loading,
-    unavailableKnowledgeBaseCount,
-  })
+      return {
+        id: reference.id,
+        icon: knowledgeBase?.icon ?? reference.icon,
+        title: knowledgeBase?.title ?? reference.title ?? `旧配置知识库（${reference.id}）`,
+        segmentationMode: knowledgeBase?.segmentationMode,
+      }
+    }),
+    unavailableKnowledgeBaseCount = loaded
+      ? selectedKnowledgeBases.filter(
+          (knowledgeBase) => !knowledgeBases.some((item) => item.id === knowledgeBase.id),
+        ).length
+      : 0,
+    canOpenSelector = !disabled && loaded,
+    description = getKnowledgeBaseFieldDescription({
+      hasKnowledgeBases: knowledgeBases.length > 0,
+      loaded,
+      loadError,
+      loading,
+      unavailableKnowledgeBaseCount,
+    })
 
   useEffect(() => {
     load()

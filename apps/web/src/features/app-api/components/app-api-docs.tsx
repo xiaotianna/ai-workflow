@@ -30,30 +30,29 @@ import {
   type AppApiDocumentContract,
 } from '../openapi-schema'
 
-const AUTH_HEADER = 'Authorization: Bearer {API_KEY}'
-
-const overviewAnchorItems: ApiDocsAnchorItem[] = [
-  {
-    id: 'workflow-应用-api',
-    title: 'Workflow 应用 API',
-    description: 'Workflow 应用适用于自动化处理、内容生成与数据编排等场景。',
-  },
-  {
-    id: 'base-url',
-    title: 'Base URL',
-    description: '调用 Service API 时使用的服务器基础地址。',
-  },
-  {
-    id: 'authentication',
-    title: 'Authentication',
-    description: '使用 API-Key 鉴权，在 Authorization 请求头中携带密钥。',
-  },
-  {
-    id: 'published-versions',
-    title: '可用版本',
-    description: '查看指定版本执行接口可用的版本号和 versionId。',
-  },
-]
+const AUTH_HEADER = 'Authorization: Bearer {API_KEY}',
+  overviewAnchorItems: ApiDocsAnchorItem[] = [
+    {
+      id: 'workflow-应用-api',
+      title: 'Workflow 应用 API',
+      description: 'Workflow 应用适用于自动化处理、内容生成与数据编排等场景。',
+    },
+    {
+      id: 'base-url',
+      title: 'Base URL',
+      description: '调用 Service API 时使用的服务器基础地址。',
+    },
+    {
+      id: 'authentication',
+      title: 'Authentication',
+      description: '使用 API-Key 鉴权，在 Authorization 请求头中携带密钥。',
+    },
+    {
+      id: 'published-versions',
+      title: '可用版本',
+      description: '查看指定版本执行接口可用的版本号和 versionId。',
+    },
+  ]
 
 type WorkflowPath = keyof typeof workflowOpenApiDocument.paths
 
@@ -62,23 +61,21 @@ function getOperationMeta(path: string, method: string) {
   const pathItem = workflowOpenApiDocument.paths[path as WorkflowPath]
   if (!(method in pathItem)) return undefined
   return pathItem[method as keyof typeof pathItem] as
-    | { summary?: string; description?: string }
-    | undefined
+    { summary?: string; description?: string } | undefined
 }
 
 const operationAnchorItems: ApiDocsAnchorItem[] = workflowOpenApiOperations.map((item) => {
-  const operation = getOperationMeta(item.path, item.method)
-  const title = operation?.summary ?? item.path
-  const description = operation?.description ?? '查看该接口的请求与响应说明。'
+    const operation = getOperationMeta(item.path, item.method),
+      title = operation?.summary ?? item.path,
+      description = operation?.description ?? '查看该接口的请求与响应说明。'
 
-  return {
-    id: title,
-    title,
-    description,
-  }
-})
-
-const apiDocsAnchorItems: ApiDocsAnchorItem[] = [...overviewAnchorItems, ...operationAnchorItems]
+    return {
+      id: title,
+      title,
+      description,
+    }
+  }),
+  apiDocsAnchorItems: ApiDocsAnchorItem[] = [...overviewAnchorItems, ...operationAnchorItems]
 
 interface AppApiDocsProps {
   appId?: string
@@ -115,17 +112,17 @@ async function copyApiServerUrl() {
 }
 
 export function AppApiDocs({ appId, isResourceAvailable }: AppApiDocsProps) {
-  const [overview, setOverview] = useState<AppApiOverviewDto>()
-  const [keys, setKeys] = useState<AppApiKeyDto[]>([])
-  const [createdKey, setCreatedKey] = useState<CreatedAppApiKeyDto>()
-  const [keyPendingRevocationId, setKeyPendingRevocationId] = useState<string>()
-  const [keysOpen, setKeysOpen] = useState(false)
-  const [shareOpen, setShareOpen] = useState(false)
-  const [loadingOverview, setLoadingOverview] = useState(false)
-  const [loadingKeys, setLoadingKeys] = useState(false)
-  const [creatingKey, setCreatingKey] = useState(false)
-  const [revokingKeyId, setRevokingKeyId] = useState<string>()
-  const [savingShare, setSavingShare] = useState(false)
+  const [overview, setOverview] = useState<AppApiOverviewDto>(),
+    [keys, setKeys] = useState<AppApiKeyDto[]>([]),
+    [createdKey, setCreatedKey] = useState<CreatedAppApiKeyDto>(),
+    [keyPendingRevocationId, setKeyPendingRevocationId] = useState<string>(),
+    [keysOpen, setKeysOpen] = useState(false),
+    [shareOpen, setShareOpen] = useState(false),
+    [loadingOverview, setLoadingOverview] = useState(false),
+    [loadingKeys, setLoadingKeys] = useState(false),
+    [creatingKey, setCreatingKey] = useState(false),
+    [revokingKeyId, setRevokingKeyId] = useState<string>(),
+    [savingShare, setSavingShare] = useState(false)
 
   useEffect(() => {
     if (!appId || !isResourceAvailable) {
@@ -203,8 +200,8 @@ export function AppApiDocs({ appId, isResourceAvailable }: AppApiDocsProps) {
     }
   }
 
-  const controlsDisabled = !isResourceAvailable || !overview || loadingOverview
-  const keyPendingRevocation = keys.find((key) => key.id === keyPendingRevocationId)
+  const controlsDisabled = !isResourceAvailable || !overview || loadingOverview,
+    keyPendingRevocation = keys.find((key) => key.id === keyPendingRevocationId)
 
   return (
     <section className="min-h-full">

@@ -25,24 +25,24 @@ function ModelGroupAccordionItem({
   onGroupEnabledChange,
   onModelEnabledChange,
 }: ModelGroupAccordionItemProps) {
-  const [open, setOpen] = useState(false)
-  const strategy = getModelProviderStrategy(group.providerType)
-  const ProviderIcon = strategy.icon
-  const contentId = `model-group-${group.id}`
-  const actions: ActionMenuAction[] = [
-    {
-      id: 'edit',
-      label: '编辑',
-      onSelect: () => onEdit(group),
-    },
-    {
-      id: 'delete',
-      label: '删除',
-      destructive: true,
-      separatorBefore: true,
-      onSelect: () => onDelete(group),
-    },
-  ]
+  const [open, setOpen] = useState(false),
+    strategy = getModelProviderStrategy(group.providerType),
+    ProviderIcon = strategy.icon,
+    contentId = `model-group-${group.id}`,
+    actions: ActionMenuAction[] = [
+      {
+        id: 'edit',
+        label: '编辑',
+        onSelect: () => onEdit(group),
+      },
+      {
+        id: 'delete',
+        label: '删除',
+        destructive: true,
+        separatorBefore: true,
+        onSelect: () => onDelete(group),
+      },
+    ]
 
   return (
     <motion.article

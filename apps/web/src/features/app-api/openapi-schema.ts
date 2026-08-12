@@ -19,10 +19,10 @@ function resolveAppApiBaseUrl(): string {
 
 export const APP_API_BASE_URL = resolveAppApiBaseUrl()
 
-const apiKeySecurity = [{ ApiKeyAuth: [] }]
-const runIdExample = '6df6b566-0d9d-4e20-a339-b901a4b905ef'
-const runIdSourceDescription =
-  '从执行工作流接口返回的首个 `workflow_started` SSE 事件 `data.id` 获取；也可从 `GET /workflows/logs` 响应的 `data.items[].id` 获取。'
+const apiKeySecurity = [{ ApiKeyAuth: [] }],
+  runIdExample = '6df6b566-0d9d-4e20-a339-b901a4b905ef',
+  runIdSourceDescription =
+    '从执行工作流接口返回的首个 `workflow_started` SSE 事件 `data.id` 获取；也可从 `GET /workflows/logs` 响应的 `data.items[].id` 获取。'
 
 export const workflowOpenApiDocument = {
   openapi: '3.1.0',
@@ -470,38 +470,35 @@ export function createWorkflowOpenApiPageProps(
 }
 
 export function createWorkflowOpenApiDocument(contract?: AppApiDocumentContract): OpenApiDocument {
-  const versions = contract?.versions ?? []
-  const currentVersion = versions.find(
-    (version) => version.versionId === contract?.currentVersionId,
-  )
-  const currentRequestSchema = createInputSchema(
-    currentVersion?.inputVariables ?? [],
-    currentVersion ? getVersionTitle(currentVersion) : '当前发布版本输入',
-    currentVersion ? `当前发布版本 ID：${currentVersion.versionId}` : '当前没有已发布版本。',
-  )
-  const versionSchemaEntries = versions.map((version) => {
-    const schemaName = getVersionSchemaName(version.versionId)
-    return [
-      schemaName,
-      createInputSchema(
-        version.inputVariables,
-        getVersionTitle(version),
-        `发布版本 ID：${version.versionId}`,
-      ),
-    ] as const
-  })
-  const versionRequestSchema: OpenApiSchema =
-    versionSchemaEntries.length > 0
-      ? {
-          oneOf: versionSchemaEntries.map(([schemaName]) => ({
-            $ref: `#/components/schemas/${schemaName}`,
-          })),
-          description: '请求体必须匹配 URL 中 versionId 对应发布版本的 Start 输入定义。',
-        }
-      : createInputSchema([], '指定发布版本输入', '当前没有可用的发布版本。')
-
-  const currentOperation = workflowOpenApiDocument.paths['/workflows/run'].post
-  const versionOperation = workflowOpenApiDocument.paths['/workflows/versions/{versionId}/run'].post
+  const versions = contract?.versions ?? [],
+    currentVersion = versions.find((version) => version.versionId === contract?.currentVersionId),
+    currentRequestSchema = createInputSchema(
+      currentVersion?.inputVariables ?? [],
+      currentVersion ? getVersionTitle(currentVersion) : '当前发布版本输入',
+      currentVersion ? `当前发布版本 ID：${currentVersion.versionId}` : '当前没有已发布版本。',
+    ),
+    versionSchemaEntries = versions.map((version) => {
+      const schemaName = getVersionSchemaName(version.versionId)
+      return [
+        schemaName,
+        createInputSchema(
+          version.inputVariables,
+          getVersionTitle(version),
+          `发布版本 ID：${version.versionId}`,
+        ),
+      ] as const
+    }),
+    versionRequestSchema: OpenApiSchema =
+      versionSchemaEntries.length > 0
+        ? {
+            oneOf: versionSchemaEntries.map(([schemaName]) => ({
+              $ref: `#/components/schemas/${schemaName}`,
+            })),
+            description: '请求体必须匹配 URL 中 versionId 对应发布版本的 Start 输入定义。',
+          }
+        : createInputSchema([], '指定发布版本输入', '当前没有可用的发布版本。'),
+    currentOperation = workflowOpenApiDocument.paths['/workflows/run'].post,
+    versionOperation = workflowOpenApiDocument.paths['/workflows/versions/{versionId}/run'].post
 
   return {
     ...workflowOpenApiDocument,
@@ -577,13 +574,13 @@ function createInputSchema(
 
 function createInputProperty(variable: AppApiInputVariableDto): OpenApiSchema {
   const description = variable.description
-    ? `${variable.label}：${variable.description}`
-    : variable.label
-  const metadata = {
-    title: variable.dataType,
-    description,
-    ...(variable.defaultValue !== undefined ? { default: variable.defaultValue } : {}),
-  }
+      ? `${variable.label}：${variable.description}`
+      : variable.label,
+    metadata = {
+      title: variable.dataType,
+      description,
+      ...(variable.defaultValue !== undefined ? { default: variable.defaultValue } : {}),
+    }
 
   switch (variable.dataType) {
     case 'string': {

@@ -37,16 +37,15 @@ workerScope.MonacoEnvironment ??= {
 loader.config({ monaco })
 
 const CODE_EDITOR_THEMES = {
-  dark: 'ai-workflow-code-dark',
-  light: 'ai-workflow-code-light',
-} as const
-
-const transparentEditorColors = {
-  'editor.background': '#00000000',
-  'editorGutter.background': '#00000000',
-  'editorStickyScroll.background': '#00000000',
-  'editorStickyScrollGutter.background': '#00000000',
-}
+    dark: 'ai-workflow-code-dark',
+    light: 'ai-workflow-code-light',
+  } as const,
+  transparentEditorColors = {
+    'editor.background': '#00000000',
+    'editorGutter.background': '#00000000',
+    'editorStickyScroll.background': '#00000000',
+    'editorStickyScrollGutter.background': '#00000000',
+  }
 
 monaco.editor.defineTheme(CODE_EDITOR_THEMES.light, {
   base: 'vs',
@@ -119,13 +118,13 @@ const CodeEditor = React.forwardRef<HTMLDivElement, CodeEditorProps>(
     },
     ref,
   ) => {
-    const lineNumberLayoutSubscriptionRef = React.useRef<monaco.IDisposable>(null)
-    const [lineNumbersMinChars, setLineNumbersMinChars] = React.useState(3)
-    const colorScheme = React.useSyncExternalStore(
-      subscribeToColorScheme,
-      getColorScheme,
-      () => CODE_EDITOR_THEMES.light,
-    )
+    const lineNumberLayoutSubscriptionRef = React.useRef<monaco.IDisposable>(null),
+      [lineNumbersMinChars, setLineNumbersMinChars] = React.useState(3),
+      colorScheme = React.useSyncExternalStore(
+        subscribeToColorScheme,
+        getColorScheme,
+        () => CODE_EDITOR_THEMES.light,
+      )
 
     React.useEffect(
       () => () => {

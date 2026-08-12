@@ -45,9 +45,7 @@ type RenameWorkflowVersionResult =
     }
 
 type DeleteWorkflowVersionResult =
-  | { status: 'not-found' }
-  | { status: 'in-use' }
-  | { status: 'deleted' }
+  { status: 'not-found' } | { status: 'in-use' } | { status: 'deleted' }
 
 @Injectable()
 export class WorkflowVersionRepository {
@@ -88,24 +86,24 @@ export class WorkflowVersionRepository {
   restoreOwned(options: WorkflowVersionOwnerOptions): Promise<RestoreWorkflowVersionResult> {
     return this.prisma.$transaction(async (transaction) => {
       const app = await transaction.app.findFirst({
-        where: {
-          id: options.appId,
-          ownerId: options.ownerId,
-          deletedAt: null,
-        },
-        select: {
-          workflow: {
-            select: {
-              id: true,
-              draft: {
-                select: { id: true },
+          where: {
+            id: options.appId,
+            ownerId: options.ownerId,
+            deletedAt: null,
+          },
+          select: {
+            workflow: {
+              select: {
+                id: true,
+                draft: {
+                  select: { id: true },
+                },
               },
             },
           },
-        },
-      })
-      const workflow = app?.workflow
-      const draft = workflow?.draft
+        }),
+        workflow = app?.workflow,
+        draft = workflow?.draft
       if (!workflow || !draft) return { status: 'not-found' }
 
       const version = await transaction.workflowVersion.findFirst({

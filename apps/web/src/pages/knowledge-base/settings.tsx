@@ -52,54 +52,48 @@ import { getModelProviderStrategy } from '@/features/models'
 import type { KnowledgeBaseDetailOutletContext } from '.'
 
 const segmentationModeToApi = {
-  general: 'GENERAL',
-  qa: 'QA',
-  'parent-child': 'PARENT_CHILD',
-} as const
-
-const segmentationModeFromApi = {
-  GENERAL: 'general',
-  QA: 'qa',
-  PARENT_CHILD: 'parent-child',
-} as const
-
-const retrievalProfileToApi = {
-  'hybrid-accurate': 'HYBRID_ACCURATE',
-  'hybrid-fast': 'HYBRID_FAST',
-} as const
-
-const retrievalProfileFromApi = {
-  HYBRID_ACCURATE: 'hybrid-accurate',
-  HYBRID_FAST: 'hybrid-fast',
-} as const
-
-const NO_EMBEDDING_MODEL_VALUE = 'none'
-
-const segmentationModeIcons = {
-  general: AlignLeft,
-  qa: MessagesSquare,
-  'parent-child': Network,
-} satisfies Record<DocumentSegmentationMode, LucideIcon>
-
-const retrievalProfileOptions = [
-  {
-    value: 'hybrid-accurate',
-    label: '混合检索 · 高准确',
-    description: '融合关键词匹配与向量语义召回，优先保证检索准确度。',
-    icon: SearchCheck,
-  },
-  {
-    value: 'hybrid-fast',
-    label: '混合检索 · 低延迟',
-    description: '融合关键词匹配与向量语义召回，优先缩短检索响应时间。',
-    icon: Gauge,
-  },
-] as const satisfies readonly {
-  value: KnowledgeBaseSettingsFormInput['retrievalProfile']
-  label: string
-  description: string
-  icon: LucideIcon
-}[]
+    general: 'GENERAL',
+    qa: 'QA',
+    'parent-child': 'PARENT_CHILD',
+  } as const,
+  segmentationModeFromApi = {
+    GENERAL: 'general',
+    QA: 'qa',
+    PARENT_CHILD: 'parent-child',
+  } as const,
+  retrievalProfileToApi = {
+    'hybrid-accurate': 'HYBRID_ACCURATE',
+    'hybrid-fast': 'HYBRID_FAST',
+  } as const,
+  retrievalProfileFromApi = {
+    HYBRID_ACCURATE: 'hybrid-accurate',
+    HYBRID_FAST: 'hybrid-fast',
+  } as const,
+  NO_EMBEDDING_MODEL_VALUE = 'none',
+  segmentationModeIcons = {
+    general: AlignLeft,
+    qa: MessagesSquare,
+    'parent-child': Network,
+  } satisfies Record<DocumentSegmentationMode, LucideIcon>,
+  retrievalProfileOptions = [
+    {
+      value: 'hybrid-accurate',
+      label: '混合检索 · 高准确',
+      description: '融合关键词匹配与向量语义召回，优先保证检索准确度。',
+      icon: SearchCheck,
+    },
+    {
+      value: 'hybrid-fast',
+      label: '混合检索 · 低延迟',
+      description: '融合关键词匹配与向量语义召回，优先缩短检索响应时间。',
+      icon: Gauge,
+    },
+  ] as const satisfies readonly {
+    value: KnowledgeBaseSettingsFormInput['retrievalProfile']
+    label: string
+    description: string
+    icon: LucideIcon
+  }[]
 
 interface SettingsRowProps {
   children: ReactNode
@@ -175,17 +169,18 @@ function SelectionCard({
 }
 
 export default function KnowledgeBaseSettingsPage() {
-  const { id: knowledgeBaseId = '' } = useParams<{ id: string }>()
-  const { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>()
-  const { form, setForm, updateForm, updateFormField } =
-    useFormData<KnowledgeBaseSettingsFormInput>(KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES)
-  const [errors, setErrors] = useState<Record<string, string>>({})
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [rebuilding, setRebuilding] = useState(false)
-  const [staleDocumentCount, setStaleDocumentCount] = useState(0)
-  const [embeddingModelGroups, setEmbeddingModelGroups] = useState<ModelGroupDto[]>([])
-  const [latestIndex, setLatestIndex] = useState<KnowledgeBaseIndexDto>()
+  const { id: knowledgeBaseId = '' } = useParams<{ id: string }>(),
+    { isResourceAvailable } = useOutletContext<KnowledgeBaseDetailOutletContext>(),
+    { form, setForm, updateForm, updateFormField } = useFormData<KnowledgeBaseSettingsFormInput>(
+      KNOWLEDGE_BASE_SETTINGS_INITIAL_VALUES,
+    ),
+    [errors, setErrors] = useState<Record<string, string>>({}),
+    [loading, setLoading] = useState(true),
+    [saving, setSaving] = useState(false),
+    [rebuilding, setRebuilding] = useState(false),
+    [staleDocumentCount, setStaleDocumentCount] = useState(0),
+    [embeddingModelGroups, setEmbeddingModelGroups] = useState<ModelGroupDto[]>([]),
+    [latestIndex, setLatestIndex] = useState<KnowledgeBaseIndexDto>()
 
   useEffect(() => {
     if (!isResourceAvailable || !knowledgeBaseId) return
@@ -222,16 +217,16 @@ export default function KnowledgeBaseSettingsPage() {
   useEffect(() => {
     if (!knowledgeBaseId || latestIndex?.status !== 'BUILDING') return
 
-    const controller = new AbortController()
-    const intervalId = globalThis.setInterval(() => {
-      void listKnowledgeBaseIndexes(knowledgeBaseId, controller.signal)
-        .then((indexes) => {
-          const nextIndex = indexes.items[0]
-          setLatestIndex(nextIndex)
-          if (nextIndex?.status === 'READY') showToast('success', '知识库索引构建完成')
-        })
-        .catch(() => undefined)
-    }, 2000)
+    const controller = new AbortController(),
+      intervalId = globalThis.setInterval(() => {
+        void listKnowledgeBaseIndexes(knowledgeBaseId, controller.signal)
+          .then((indexes) => {
+            const nextIndex = indexes.items[0]
+            setLatestIndex(nextIndex)
+            if (nextIndex?.status === 'READY') showToast('success', '知识库索引构建完成')
+          })
+          .catch(() => undefined)
+      }, 2000)
 
     return () => {
       globalThis.clearInterval(intervalId)
@@ -252,16 +247,16 @@ export default function KnowledgeBaseSettingsPage() {
     setSaving(true)
     try {
       const settings = await updateKnowledgeBaseSettings(knowledgeBaseId, {
-        embeddingModelGroupId: result.data.embeddingModelGroupId,
-        embeddingConfiguredModelId: result.data.embeddingConfiguredModelId,
-        segmentationMode: segmentationModeToApi[result.data.segmentationMode],
-        maxSegmentLength: result.data.maxSegmentLength,
-        overlapLength: result.data.overlapLength,
-        normalizeWhitespace: result.data.replaceWhitespace,
-        retrievalProfile: retrievalProfileToApi[result.data.retrievalProfile],
-        retrievalTopK: result.data.retrievalTopK,
-      })
-      const indexes = await listKnowledgeBaseIndexes(knowledgeBaseId)
+          embeddingModelGroupId: result.data.embeddingModelGroupId,
+          embeddingConfiguredModelId: result.data.embeddingConfiguredModelId,
+          segmentationMode: segmentationModeToApi[result.data.segmentationMode],
+          maxSegmentLength: result.data.maxSegmentLength,
+          overlapLength: result.data.overlapLength,
+          normalizeWhitespace: result.data.replaceWhitespace,
+          retrievalProfile: retrievalProfileToApi[result.data.retrievalProfile],
+          retrievalTopK: result.data.retrievalTopK,
+        }),
+        indexes = await listKnowledgeBaseIndexes(knowledgeBaseId)
       setErrors({})
       setStaleDocumentCount(settings.staleDocumentCount)
       setLatestIndex(indexes.items[0])
@@ -290,19 +285,19 @@ export default function KnowledgeBaseSettingsPage() {
   }
 
   const availableEmbeddingModelGroups = embeddingModelGroups.flatMap((group) => {
-    if (!group.enabled) return []
-    const models = group.models.filter((model) => model.enabled)
-    return models.length > 0 ? [{ ...group, models }] : []
-  })
-  const selectedEmbeddingModel = embeddingModelGroups
-    .flatMap((group) => group.models.map((model) => ({ group, model })))
-    .find(({ model }) => model.id === form.embeddingConfiguredModelId)
-  const selectedEmbeddingModelAvailable = availableEmbeddingModelGroups.some((group) =>
-    group.models.some((model) => model.id === form.embeddingConfiguredModelId),
-  )
-  const SelectedEmbeddingProviderIcon = selectedEmbeddingModel
-    ? getModelProviderStrategy(selectedEmbeddingModel.group.providerType).icon
-    : null
+      if (!group.enabled) return []
+      const models = group.models.filter((model) => model.enabled)
+      return models.length > 0 ? [{ ...group, models }] : []
+    }),
+    selectedEmbeddingModel = embeddingModelGroups
+      .flatMap((group) => group.models.map((model) => ({ group, model })))
+      .find(({ model }) => model.id === form.embeddingConfiguredModelId),
+    selectedEmbeddingModelAvailable = availableEmbeddingModelGroups.some((group) =>
+      group.models.some((model) => model.id === form.embeddingConfiguredModelId),
+    ),
+    SelectedEmbeddingProviderIcon = selectedEmbeddingModel
+      ? getModelProviderStrategy(selectedEmbeddingModel.group.providerType).icon
+      : null
 
   return (
     <div className="min-h-full px-6 pt-4 pb-8">

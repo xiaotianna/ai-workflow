@@ -187,28 +187,28 @@ export class AppApiRepository {
   }
 
   async authenticateApiKey(keyHash: string) {
-    const now = new Date()
-    const apiKey = await this.prisma.apiKey.findFirst({
-      where: {
-        keyHash,
-        revokedAt: null,
-        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        app: {
-          deletedAt: null,
-          workflow: { isNot: null },
-        },
-      },
-      select: {
-        id: true,
-        app: {
-          select: {
-            id: true,
-            ownerId: true,
-            workflow: { select: { id: true } },
+    const now = new Date(),
+      apiKey = await this.prisma.apiKey.findFirst({
+        where: {
+          keyHash,
+          revokedAt: null,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+          app: {
+            deletedAt: null,
+            workflow: { isNot: null },
           },
         },
-      },
-    })
+        select: {
+          id: true,
+          app: {
+            select: {
+              id: true,
+              ownerId: true,
+              workflow: { select: { id: true } },
+            },
+          },
+        },
+      })
     if (!apiKey?.app.workflow) return null
 
     const updated = await this.prisma.apiKey.updateMany({

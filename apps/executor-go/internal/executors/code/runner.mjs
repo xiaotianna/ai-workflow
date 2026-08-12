@@ -41,8 +41,8 @@ function classifyFailure(error, stage) {
     }
   }
 
-  const text = errorText(error)
-  const stack = errorStack(error)
+  const text = errorText(error),
+    stack = errorStack(error)
 
   // 加载阶段负责识别导出 缺失依赖和 ESM 语法错误
   if (stage === 'load') {
@@ -93,8 +93,8 @@ export async function executeCodeModule(moduleUrl, inputs, maxOutputBytes) {
 
   try {
     // 动态导入让用户代码完整运行在 Node ESM 环境
-    const userModule = await import(moduleUrl)
-    const main = userModule[MAIN_EXPORT_NAME]
+    const userModule = await import(moduleUrl),
+      main = userModule[MAIN_EXPORT_NAME]
 
     if (typeof main !== 'function') {
       throw createFailure('CODE_MAIN_NOT_FOUND', 'JavaScript ESM 代码必须声明 main 函数')
@@ -140,22 +140,18 @@ export async function executeCodeModule(moduleUrl, inputs, maxOutputBytes) {
 
 async function runFromCommandLine() {
   // Go 通过固定位置参数传入用户模块 输入文件 结果文件和输出上限
-  const userModulePath = process.argv[2]
-  const inputsPath = process.argv[3]
-  const resultPath = process.argv[4]
-  const rawMaxOutputBytes = process.argv[5]
-  const maxOutputBytes = Number(rawMaxOutputBytes)
+  const userModulePath = process.argv[2],
+    inputsPath = process.argv[3],
+    resultPath = process.argv[4],
+    rawMaxOutputBytes = process.argv[5],
+    maxOutputBytes = Number(rawMaxOutputBytes)
 
   if (!userModulePath || !inputsPath || !resultPath || !Number.isSafeInteger(maxOutputBytes)) {
     throw new Error('Node Code Runner 启动参数无效')
   }
 
-  const inputs = JSON.parse(await readFile(inputsPath, 'utf8'))
-  const payload = await executeCodeModule(
-    pathToFileURL(userModulePath).href,
-    inputs,
-    maxOutputBytes,
-  )
+  const inputs = JSON.parse(await readFile(inputsPath, 'utf8')),
+    payload = await executeCodeModule(pathToFileURL(userModulePath).href, inputs, maxOutputBytes)
 
   // 结果文件只允许首次创建避免覆盖同一次执行的既有结果
   await writeFile(resultPath, payload, { encoding: 'utf8', flag: 'wx' })

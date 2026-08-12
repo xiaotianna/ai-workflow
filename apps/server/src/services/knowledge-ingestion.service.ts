@@ -33,14 +33,14 @@ export class KnowledgeIngestionService {
     if (!version) return 'stale'
 
     try {
-      const content = await this.knowledgeSourceStore.read(version.sourceObjectKey)
-      const text = await this.knowledgeChunkerService.parseText(content, version.sourceFileName)
-      const chunks = this.knowledgeChunkerService.chunk(text, {
-        segmentationMode: version.segmentationMode,
-        maxSegmentLength: version.maxSegmentLength,
-        overlapLength: version.overlapLength,
-        normalizeWhitespace: version.normalizeWhitespace,
-      })
+      const content = await this.knowledgeSourceStore.read(version.sourceObjectKey),
+        text = await this.knowledgeChunkerService.parseText(content, version.sourceFileName),
+        chunks = this.knowledgeChunkerService.chunk(text, {
+          segmentationMode: version.segmentationMode,
+          maxSegmentLength: version.maxSegmentLength,
+          overlapLength: version.overlapLength,
+          normalizeWhitespace: version.normalizeWhitespace,
+        })
       if (!chunks.length) throw new BadRequestException('原文中没有可用的分段内容')
 
       return this.knowledgeIngestionRepository.finishPreprocessing({

@@ -24,13 +24,13 @@ export function useWorkflowVersionHistory(
   appId: string,
   publishSync?: WorkflowVersionHistoryPublishSync,
 ) {
-  const [versions, setVersions] = useState<StudioWorkflowVersionDto[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState(false)
-  const [reloadKey, setReloadKey] = useState(0)
-  const publishSessionRef = useRef<{ active: boolean; baselineVersionId?: string }>({
-    active: false,
-  })
+  const [versions, setVersions] = useState<StudioWorkflowVersionDto[]>([]),
+    [loading, setLoading] = useState(true),
+    [loadError, setLoadError] = useState(false),
+    [reloadKey, setReloadKey] = useState(0),
+    publishSessionRef = useRef<{ active: boolean; baselineVersionId?: string }>({
+      active: false,
+    })
 
   useEffect(() => {
     const controller = new AbortController()
@@ -52,10 +52,10 @@ export function useWorkflowVersionHistory(
   }, [appId, reloadKey])
 
   useEffect(() => {
-    const pending = publishSync?.pending ?? false
-    const versionId = publishSync?.versionId
-    const version = publishSync?.version
-    const publishedAt = publishSync?.publishedAt
+    const pending = publishSync?.pending ?? false,
+      versionId = publishSync?.versionId,
+      version = publishSync?.version,
+      publishedAt = publishSync?.publishedAt
 
     if (pending) {
       if (!publishSessionRef.current.active) {

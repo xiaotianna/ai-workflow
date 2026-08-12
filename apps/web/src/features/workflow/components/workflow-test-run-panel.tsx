@@ -40,10 +40,10 @@ export function WorkflowTestRunPanelContent({
   onPause,
   onRun,
 }: WorkflowTestRunPanelContentProps) {
-  const [activeTab, setActiveTab] = useState<WorkflowRunPanelTab>('input')
-  const wasPendingRef = useRef(false)
-  const startNode = nodes.find((node) => node.type === BuiltinNodeType.START)
-  const inputDefinitions = startNode?.outputs ?? []
+  const [activeTab, setActiveTab] = useState<WorkflowRunPanelTab>('input'),
+    wasPendingRef = useRef(false),
+    startNode = nodes.find((node) => node.type === BuiltinNodeType.START),
+    inputDefinitions = startNode?.outputs ?? []
 
   useEffect(() => {
     const wasPending = wasPendingRef.current
@@ -93,10 +93,10 @@ function TestRunInputForm({
   onPause,
   onRun,
 }: TestRunInputFormProps) {
-  const initialValues = useMemo(() => createInitialInputValues(definitions), [definitions])
-  const inputSchema = useMemo(() => createTestRunInputSchema(definitions), [definitions])
-  const [errors, setErrors] = useState<ZodFormErrors>({})
-  const { form, updateFormField } = useFormData<TestRunInputForm>(initialValues)
+  const initialValues = useMemo(() => createInitialInputValues(definitions), [definitions]),
+    inputSchema = useMemo(() => createTestRunInputSchema(definitions), [definitions]),
+    [errors, setErrors] = useState<ZodFormErrors>({}),
+    { form, updateFormField } = useFormData<TestRunInputForm>(initialValues)
 
   function updateField(key: string, value: unknown) {
     updateFormField(key, value)
@@ -171,11 +171,11 @@ function TestRunInputField({
   value,
   onChange,
 }: TestRunInputFieldProps) {
-  const label = definition.label || definition.key
-  const commonProps = {
-    'aria-invalid': Boolean(error),
-    disabled,
-  }
+  const label = definition.label || definition.key,
+    commonProps = {
+      'aria-invalid': Boolean(error),
+      disabled,
+    }
 
   return (
     <Form.Field
@@ -252,8 +252,8 @@ function createTestRunInputSchema(definitions: readonly NodeOutputDefinition[]) 
     .record(z.string(), z.unknown())
     .superRefine((values, context) => {
       for (const definition of definitions) {
-        const value = values[definition.key]
-        const empty = value === undefined || value === null || value === ''
+        const value = values[definition.key],
+          empty = value === undefined || value === null || value === ''
 
         if (definition.required === true && empty) {
           context.addIssue({

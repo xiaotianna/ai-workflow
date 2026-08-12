@@ -19,18 +19,17 @@ function ToastStatusIcon({ className, icon: Icon }: ToastStatusIconProps) {
 }
 
 const TOAST_ICON_MAP = {
-  success: <ToastStatusIcon className="text-success" icon={CircleCheck} />,
-  error: <ToastStatusIcon className="text-destructive" icon={CircleX} />,
-  warning: <ToastStatusIcon className="text-warning" icon={CircleAlert} />,
-  info: <ToastStatusIcon className="text-info" icon={InfoIcon} />,
-} satisfies Record<ToastType, ReactNode>
-
-const TOAST_COLOR_CLASS_MAP = {
-  success: 'toast-status-gradient toast-success-gradient',
-  error: 'toast-status-gradient toast-error-gradient',
-  warning: 'toast-status-gradient toast-warning-gradient',
-  info: 'toast-status-gradient toast-info-gradient',
-} satisfies Record<ToastType, string>
+    success: <ToastStatusIcon className="text-success" icon={CircleCheck} />,
+    error: <ToastStatusIcon className="text-destructive" icon={CircleX} />,
+    warning: <ToastStatusIcon className="text-warning" icon={CircleAlert} />,
+    info: <ToastStatusIcon className="text-info" icon={InfoIcon} />,
+  } satisfies Record<ToastType, ReactNode>,
+  TOAST_COLOR_CLASS_MAP = {
+    success: 'toast-status-gradient toast-success-gradient',
+    error: 'toast-status-gradient toast-error-gradient',
+    warning: 'toast-status-gradient toast-warning-gradient',
+    info: 'toast-status-gradient toast-info-gradient',
+  } satisfies Record<ToastType, string>
 
 function Toaster(props: ToasterProps) {
   return (

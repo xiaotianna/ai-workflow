@@ -37,11 +37,11 @@ export function WorkflowSingleNodeTestRunOverlay({
   onPause,
   onRun,
 }: WorkflowSingleNodeTestRunOverlayProps) {
-  const definitions = useMemo(() => createSingleNodeTestRunInputDefinitions(node), [node])
-  const initialValues = useMemo(() => createInitialInputValues(definitions), [definitions])
-  const inputSchema = useMemo(() => createSingleNodeInputSchema(definitions), [definitions])
-  const [errors, setErrors] = useState<ZodFormErrors>({})
-  const { form, updateFormField } = useFormData<SingleNodeTestRunForm>(initialValues)
+  const definitions = useMemo(() => createSingleNodeTestRunInputDefinitions(node), [node]),
+    initialValues = useMemo(() => createInitialInputValues(definitions), [definitions]),
+    inputSchema = useMemo(() => createSingleNodeInputSchema(definitions), [definitions]),
+    [errors, setErrors] = useState<ZodFormErrors>({}),
+    { form, updateFormField } = useFormData<SingleNodeTestRunForm>(initialValues)
 
   function updateField(key: string, value: unknown) {
     updateFormField(key, value)
@@ -145,11 +145,11 @@ function SingleNodeInputField({
   value,
   onChange,
 }: SingleNodeInputFieldProps) {
-  const label = definition.label || definition.key
-  const commonProps = {
-    'aria-invalid': Boolean(error),
-    disabled,
-  }
+  const label = definition.label || definition.key,
+    commonProps = {
+      'aria-invalid': Boolean(error),
+      disabled,
+    }
 
   return (
     <Form.Field label={label} required error={error}>
@@ -223,8 +223,8 @@ function createSingleNodeInputSchema(definitions: readonly NodeOutputDefinition[
     .record(z.string(), z.unknown())
     .superRefine((values, context) => {
       for (const definition of definitions) {
-        const value = values[definition.key]
-        const empty = value === undefined || value === null || value === ''
+        const value = values[definition.key],
+          empty = value === undefined || value === null || value === ''
 
         if (empty) {
           context.addIssue({

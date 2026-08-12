@@ -33,13 +33,13 @@ export function getPluginErrorHandlingContractIssues({
   outputPortIds,
   outputPortsPath,
 }: PluginErrorHandlingContractInput): readonly PluginErrorHandlingContractIssue[] {
-  const issues: PluginErrorHandlingContractIssue[] = []
-  const schemaFieldNames = Object.entries(configProperties)
-    .filter(([, schema]) => schema.kind === 'error-handling')
-    .map(([fieldName]) => fieldName)
-  const formFieldNames = Object.entries(form)
-    .filter(([, field]) => field.ui === PLUGIN_FIELD_UI_TYPES.ERROR_HANDLING)
-    .map(([fieldName]) => fieldName)
+  const issues: PluginErrorHandlingContractIssue[] = [],
+    schemaFieldNames = Object.entries(configProperties)
+      .filter(([, schema]) => schema.kind === 'error-handling')
+      .map(([fieldName]) => fieldName),
+    formFieldNames = Object.entries(form)
+      .filter(([, field]) => field.ui === PLUGIN_FIELD_UI_TYPES.ERROR_HANDLING)
+      .map(([fieldName]) => fieldName)
 
   if (schemaFieldNames.length > 1) {
     issues.push({

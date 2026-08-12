@@ -32,28 +32,27 @@ export function UserAvatar({ username, className }: UserAvatarProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
-    const canvas = canvasRef.current
-    const context = canvas?.getContext('2d')
+    const canvas = canvasRef.current,
+      context = canvas?.getContext('2d')
 
     if (!context) return
 
-    const hash = hashUsername(username || 'user')
-    const random = createSeededRandom(hash)
-    const hue = hash % 360
-    const saturation = 68 + ((hash >>> 8) % 13)
-    const bottomLightness = 28 + ((hash >>> 16) % 8)
-    const topLightness = bottomLightness + 28
+    const hash = hashUsername(username || 'user'),
+      random = createSeededRandom(hash),
+      hue = hash % 360,
+      saturation = 68 + ((hash >>> 8) % 13),
+      bottomLightness = 28 + ((hash >>> 16) % 8),
+      topLightness = bottomLightness + 28
 
     context.clearRect(0, 0, AVATAR_SIZE, AVATAR_SIZE)
 
     for (let y = 0; y < AVATAR_SIZE; y += 1) {
-      const gradientProgress = 1 - y / (AVATAR_SIZE - 1)
-      const gradientLightness =
-        bottomLightness + (topLightness - bottomLightness) * gradientProgress
+      const gradientProgress = 1 - y / (AVATAR_SIZE - 1),
+        gradientLightness = bottomLightness + (topLightness - bottomLightness) * gradientProgress
 
       for (let x = 0; x < AVATAR_SIZE; x += 1) {
-        const grain = (random() - 0.5) * 18
-        const lightness = Math.max(18, Math.min(72, gradientLightness + grain))
+        const grain = (random() - 0.5) * 18,
+          lightness = Math.max(18, Math.min(72, gradientLightness + grain))
 
         context.fillStyle = `hsl(${hue} ${saturation}% ${Math.round(lightness)}%)`
         context.fillRect(x, y, 1, 1)

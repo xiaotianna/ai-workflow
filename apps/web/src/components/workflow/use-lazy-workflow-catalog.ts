@@ -9,12 +9,12 @@ export function useLazyWorkflowCatalog<TItem>(
   loadItems: (signal: AbortSignal) => Promise<readonly TItem[]>,
   enabled = true,
 ) {
-  const [requested, setRequested] = useState(false)
-  const [reloadRevision, setReloadRevision] = useState(0)
-  const [state, setState] = useState<CatalogState<TItem>>({
-    items: [],
-    status: 'idle',
-  })
+  const [requested, setRequested] = useState(false),
+    [reloadRevision, setReloadRevision] = useState(0),
+    [state, setState] = useState<CatalogState<TItem>>({
+      items: [],
+      status: 'idle',
+    })
 
   useEffect(() => {
     if (!enabled || !requested) return
@@ -48,13 +48,12 @@ export function useLazyWorkflowCatalog<TItem>(
   }, [enabled, loadItems, reloadRevision, requested])
 
   const load = useCallback(() => {
-    setRequested(true)
-  }, [])
-
-  const reload = useCallback(() => {
-    setRequested(true)
-    setReloadRevision((revision) => revision + 1)
-  }, [])
+      setRequested(true)
+    }, []),
+    reload = useCallback(() => {
+      setRequested(true)
+      setReloadRevision((revision) => revision + 1)
+    }, [])
 
   return {
     items: state.items,

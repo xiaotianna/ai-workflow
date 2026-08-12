@@ -46,12 +46,10 @@ function dispatchBusinessNode(
   scopeKey: StaticScopeKey,
   configResolver: RuntimeNodeConfigResolver,
 ): DispatchNodeEffect {
-  const variableContext = createVariableContext(plan, state, scopeKey)
-  const inputs = resolveNodeInputs(node, variableContext)
-  const config = configResolver.resolve(node, (value) =>
-    resolveVariableValue(value, variableContext),
-  )
-  const { execution } = beginNodeExecution(state, node, inputs, config)
+  const variableContext = createVariableContext(plan, state, scopeKey),
+    inputs = resolveNodeInputs(node, variableContext),
+    config = configResolver.resolve(node, (value) => resolveVariableValue(value, variableContext)),
+    { execution } = beginNodeExecution(state, node, inputs, config)
 
   return {
     type: 'DISPATCH_NODE',
@@ -88,9 +86,9 @@ function startLoopIteration(
   state: RuntimeState,
   loopNode: WorkflowNode,
 ): void {
-  const loopState = state.loopStates[loopNode.id]!
-  const children = plan.childrenByScope.get(loopNode.id) ?? []
-  const edges = plan.edgesByScope.get(loopNode.id) ?? []
+  const loopState = state.loopStates[loopNode.id]!,
+    children = plan.childrenByScope.get(loopNode.id) ?? [],
+    edges = plan.edgesByScope.get(loopNode.id) ?? []
   resetScopeState(
     state,
     children,
@@ -98,13 +96,13 @@ function startLoopIteration(
   )
 
   const loopStart = children
-    .map((nodeId) => plan.nodeById.get(nodeId)!)
-    .find((node) => node.type === BuiltinNodeType.LOOP_START)!
-  const loopExecution = state.executions[loopState.executionKey]!
-  const outputs: Record<string, JsonValue> = {
-    input: loopExecution.inputs,
-    iteration: loopState.iteration,
-  }
+      .map((nodeId) => plan.nodeById.get(nodeId)!)
+      .find((node) => node.type === BuiltinNodeType.LOOP_START)!,
+    loopExecution = state.executions[loopState.executionKey]!,
+    outputs: Record<string, JsonValue> = {
+      input: loopExecution.inputs,
+      iteration: loopState.iteration,
+    }
   recordControlNodeSuccess(state, loopStart, outputs, loopNode.id)
   settleOutgoingEdges(plan, state, loopStart.id, activateAllHandles(plan, loopStart.id))
 }
@@ -115,12 +113,12 @@ function beginLoop(
   node: WorkflowNode,
   scopeKey: StaticScopeKey,
 ): void {
-  const context = createVariableContext(plan, state, scopeKey)
-  const config = loopNodeSchema.parse(node.config)
-  const inputs = resolveNodeInputs(node, context)
-  const { execution } = beginNodeExecution(state, node, inputs, {
-    maxIterations: config.maxIterations,
-  })
+  const context = createVariableContext(plan, state, scopeKey),
+    config = loopNodeSchema.parse(node.config),
+    inputs = resolveNodeInputs(node, context),
+    { execution } = beginNodeExecution(state, node, inputs, {
+      maxIterations: config.maxIterations,
+    })
   state.loopStates[node.id] = {
     loopNodeId: node.id,
     parentScopeKey: scopeKey,
@@ -136,16 +134,16 @@ function completeLoopIteration(
   state: RuntimeState,
   exitNode: WorkflowNode,
 ): boolean {
-  const loopNode = plan.nodeById.get(exitNode.parentId!)!
-  const loopState = state.loopStates[loopNode.id]!
-  const context = createVariableContext(plan, state, loopNode.id)
-  const exitInputs = resolveNodeInputs(exitNode, context)
+  const loopNode = plan.nodeById.get(exitNode.parentId!)!,
+    loopState = state.loopStates[loopNode.id]!,
+    context = createVariableContext(plan, state, loopNode.id),
+    exitInputs = resolveNodeInputs(exitNode, context)
   recordControlNodeSuccess(state, exitNode, exitInputs, loopNode.id)
 
-  const config = loopNodeSchema.parse(loopNode.config)
-  const shouldStop =
-    loopState.iteration >= loopState.maxIterations ||
-    evaluateConditionRules(config.terminationCondition, context)
+  const config = loopNodeSchema.parse(loopNode.config),
+    shouldStop =
+      loopState.iteration >= loopState.maxIterations ||
+      evaluateConditionRules(config.terminationCondition, context)
 
   if (!shouldStop) {
     loopState.iteration += 1
@@ -193,8 +191,8 @@ function drainScope(
   do {
     progressed = false
     for (const nodeId of nodeIds) {
-      const node = plan.nodeById.get(nodeId)!
-      const nodeState = state.nodeStates[nodeId]!
+      const node = plan.nodeById.get(nodeId)!,
+        nodeState = state.nodeStates[nodeId]!
       if (nodeState.status !== RUNTIME_NODE_STATUSES.WAITING) continue
       if (node.type === BuiltinNodeType.LOOP_START) continue
       if (!incomingEdgesSettled(plan, state, nodeId)) continue

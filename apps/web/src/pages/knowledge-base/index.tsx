@@ -34,20 +34,20 @@ export interface KnowledgeBaseDetailOutletContext {
 }
 
 export default function KnowledgeBaseDetailPage() {
-  const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [resourceState, setResourceState] = useState<KnowledgeBaseResourceState>({
-    routeId: id,
-    status: 'loading',
-  })
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const encodedKnowledgeBaseId = encodeURIComponent(id ?? '')
-  const knowledgeBase =
-    resourceState.routeId === id && resourceState.status === 'success'
-      ? resourceState.knowledgeBase
-      : undefined
-  const isResourceAvailable = knowledgeBase !== undefined
+  const { id } = useParams<{ id: string }>(),
+    navigate = useNavigate(),
+    [resourceState, setResourceState] = useState<KnowledgeBaseResourceState>({
+      routeId: id,
+      status: 'loading',
+    }),
+    [editDialogOpen, setEditDialogOpen] = useState(false),
+    [deleteDialogOpen, setDeleteDialogOpen] = useState(false),
+    encodedKnowledgeBaseId = encodeURIComponent(id ?? ''),
+    knowledgeBase =
+      resourceState.routeId === id && resourceState.status === 'success'
+        ? resourceState.knowledgeBase
+        : undefined,
+    isResourceAvailable = knowledgeBase !== undefined
 
   useEffect(() => {
     if (!id) {

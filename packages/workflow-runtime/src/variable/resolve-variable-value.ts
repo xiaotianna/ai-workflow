@@ -57,8 +57,8 @@ function resolveNodeValue(
   value: NodeVariableReference,
   context: VariableResolutionContext,
 ): JsonValue {
-  const nodeState = context.state.nodeStates[value.nodeId]
-  const executionKey = nodeState?.latestExecutionKey
+  const nodeState = context.state.nodeStates[value.nodeId],
+    executionKey = nodeState?.latestExecutionKey
   if (!executionKey) {
     throw new RuntimeError(
       RUNTIME_ERROR_CODES.VARIABLE_NOT_FOUND,
@@ -67,8 +67,8 @@ function resolveNodeValue(
     )
   }
 
-  const execution = context.state.executions[executionKey]
-  const referencedScopeKey = getNodeScopeKey(context, value.nodeId)
+  const execution = context.state.executions[executionKey],
+    referencedScopeKey = getNodeScopeKey(context, value.nodeId)
   if (
     !execution ||
     execution.nodeId !== value.nodeId ||

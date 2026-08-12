@@ -29,9 +29,9 @@ export function ModelProviderConfiguration({
     <>
       <div className="grid gap-3 sm:grid-cols-2">
         {strategy.configurationFields.map((field) => {
-          const error = getFieldError(field.name)
-          const isSavedApiKey =
-            field.name === 'apiKey' && Boolean(savedApiKey) && values.apiKey === savedApiKey
+          const error = getFieldError(field.name),
+            isSavedApiKey =
+              field.name === 'apiKey' && Boolean(savedApiKey) && values.apiKey === savedApiKey
 
           return (
             <Form.Field key={field.name} label={field.label} error={error}>

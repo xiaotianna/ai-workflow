@@ -27,9 +27,9 @@ export function PluginUninstallationDialog({
   onOpenChange,
   onUninstalled,
 }: PluginUninstallationDialogProps) {
-  const [uninstalling, setUninstalling] = useState(false)
-  const usage = plugin.usage
-  const blocked = Boolean(usage && usage.workflowCount > 0)
+  const [uninstalling, setUninstalling] = useState(false),
+    usage = plugin.usage,
+    blocked = Boolean(usage && usage.workflowCount > 0)
 
   function handleOpenChange(nextOpen: boolean) {
     if (!uninstalling) onOpenChange(nextOpen)

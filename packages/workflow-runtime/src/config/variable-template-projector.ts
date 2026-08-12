@@ -16,21 +16,20 @@ function parseVariableReference(
   token: string,
   invalidVariableMessage: string,
 ): VariableReference {
-  const segments = token.split('.')
-  const [namespace, key, ...path] = segments
-  const reference: unknown =
-    namespace === SYSTEM_VARIABLE_NAMESPACE
-      ? { scope: 'system', key, path }
-      : namespace === ENVIRONMENT_VARIABLE_NAMESPACE
-        ? { scope: ENVIRONMENT_VARIABLE_NAMESPACE, variableId: key, path }
-        : {
-            scope: 'node',
-            nodeId: namespace,
-            outputKey: key,
-            path,
-          }
-
-  const parsed = variableReferenceSchema.safeParse(reference)
+  const segments = token.split('.'),
+    [namespace, key, ...path] = segments,
+    reference: unknown =
+      namespace === SYSTEM_VARIABLE_NAMESPACE
+        ? { scope: 'system', key, path }
+        : namespace === ENVIRONMENT_VARIABLE_NAMESPACE
+          ? { scope: ENVIRONMENT_VARIABLE_NAMESPACE, variableId: key, path }
+          : {
+              scope: 'node',
+              nodeId: namespace,
+              outputKey: key,
+              path,
+            },
+    parsed = variableReferenceSchema.safeParse(reference)
   if (!parsed.success) {
     throw new RuntimeError(RUNTIME_ERROR_CODES.UNSUPPORTED_NODE_CONFIG, invalidVariableMessage, {
       nodeId,

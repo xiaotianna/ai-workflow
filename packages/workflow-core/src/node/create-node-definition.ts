@@ -18,47 +18,46 @@ type NormalizedPort = PortDefinition & { id: string }
 
 // 把端口的简写，统一成包含id和默认配置的端口对象
 const normalizePort = (
-  port: string | PortOptions | false | undefined,
-  defaultId: string,
-  defaultDefinition: PortDefinition,
-): false | NormalizedPort => {
-  // 不需要端口的情况
-  if (port === false) {
-    return false
-  }
+    port: string | PortOptions | false | undefined,
+    defaultId: string,
+    defaultDefinition: PortDefinition,
+  ): false | NormalizedPort => {
+    // 不需要端口的情况
+    if (port === false) {
+      return false
+    }
 
-  // 只传入了端口id
-  if (typeof port === 'string') {
+    // 只传入了端口id
+    if (typeof port === 'string') {
+      return {
+        id: port,
+        ...defaultDefinition,
+      }
+    }
+
+    // 传入了端口配置或者什么都没有传
     return {
-      id: port,
+      id: port?.id ?? defaultId,
       ...defaultDefinition,
+      ...port,
+    }
+  },
+  // 把normalizePort标准化的端口转为PortMap的格式
+  createPortMap = (port: false | NormalizedPort): PortMap => {
+    // 如果normalizePort返回的是false，没有端口的情况
+    if (port === false) {
+      return {}
+    }
+
+    // 有端口的情况
+    const { id, dataType, ...definition } = port
+    return {
+      [id]: {
+        dataType,
+        ...definition,
+      },
     }
   }
-
-  // 传入了端口配置或者什么都没有传
-  return {
-    id: port?.id ?? defaultId,
-    ...defaultDefinition,
-    ...port,
-  }
-}
-
-// 把normalizePort标准化的端口转为PortMap的格式
-const createPortMap = (port: false | NormalizedPort): PortMap => {
-  // 如果normalizePort返回的是false，没有端口的情况
-  if (port === false) {
-    return {}
-  }
-
-  // 有端口的情况
-  const { id, dataType, ...definition } = port
-  return {
-    [id]: {
-      dataType,
-      ...definition,
-    },
-  }
-}
 
 // createNodeDefinition的参数，去掉ports字段，然后新增了inputPort、outputPort
 interface CreateNodeDefinitionOptions extends Omit<NodeDefinition, 'ports'> {
@@ -81,9 +80,9 @@ interface CreateNodeDefinitionOptions extends Omit<NodeDefinition, 'ports'> {
   ⚠️注意：如果要使用resolvePorts，需要把inputPort/outputPort设置为false
  */
 export const createNodeDefinition = (options: CreateNodeDefinitionOptions): NodeDefinition => {
-  const { inputPort, outputPort, ...definition } = options
-  const normalizedInput = normalizePort(inputPort, DEFAULT_INPUT_PORT_ID, DEFAULT_INPUT_PORT)
-  const normalizedOutput = normalizePort(outputPort, DEFAULT_OUTPUT_PORT_ID, DEFAULT_OUTPUT_PORT)
+  const { inputPort, outputPort, ...definition } = options,
+    normalizedInput = normalizePort(inputPort, DEFAULT_INPUT_PORT_ID, DEFAULT_INPUT_PORT),
+    normalizedOutput = normalizePort(outputPort, DEFAULT_OUTPUT_PORT_ID, DEFAULT_OUTPUT_PORT)
 
   return {
     ...definition,

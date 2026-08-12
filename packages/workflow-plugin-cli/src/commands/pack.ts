@@ -25,9 +25,9 @@ function writeTarOctal(buffer: Buffer, offset: number, length: number, value: nu
 function splitTarPath(path: string): { readonly name: string; readonly prefix: string } {
   if (Buffer.byteLength(path) <= 100) return { name: path, prefix: '' }
 
-  const separatorIndex = path.lastIndexOf('/')
-  const prefix = path.slice(0, separatorIndex)
-  const name = path.slice(separatorIndex + 1)
+  const separatorIndex = path.lastIndexOf('/'),
+    prefix = path.slice(0, separatorIndex),
+    name = path.slice(separatorIndex + 1)
   if (separatorIndex < 1 || Buffer.byteLength(name) > 100 || Buffer.byteLength(prefix) > 155) {
     throw new Error(`Artifact 路径过长，无法写入 tar：${path}`)
   }
@@ -35,8 +35,8 @@ function splitTarPath(path: string): { readonly name: string; readonly prefix: s
 }
 
 function createTarHeader(file: ArchiveFile): Buffer {
-  const header = Buffer.alloc(TAR_BLOCK_SIZE)
-  const { name, prefix } = splitTarPath(file.path)
+  const header = Buffer.alloc(TAR_BLOCK_SIZE),
+    { name, prefix } = splitTarPath(file.path)
   writeTarString(header, 0, 100, name)
   writeTarOctal(header, 100, 8, 0o644)
   writeTarOctal(header, 108, 8, 0)
@@ -49,8 +49,8 @@ function createTarHeader(file: ArchiveFile): Buffer {
   writeTarString(header, 263, 2, '00')
   writeTarString(header, 345, 155, prefix)
 
-  const checksum = header.reduce((sum, byte) => sum + byte, 0)
-  const encodedChecksum = `${checksum.toString(8).padStart(6, '0')}\0 `
+  const checksum = header.reduce((sum, byte) => sum + byte, 0),
+    encodedChecksum = `${checksum.toString(8).padStart(6, '0')}\0 `
   writeTarString(header, 148, 8, encodedChecksum)
   return header
 }
@@ -59,8 +59,8 @@ async function collectArchiveFiles(
   rootDirectory: string,
   currentDirectory = rootDirectory,
 ): Promise<ArchiveFile[]> {
-  const entries = await readdir(currentDirectory, { withFileTypes: true })
-  const files: ArchiveFile[] = []
+  const entries = await readdir(currentDirectory, { withFileTypes: true }),
+    files: ArchiveFile[] = []
 
   for (const entry of entries) {
     const entryPath = join(currentDirectory, entry.name)
@@ -88,12 +88,12 @@ function createTar(files: readonly ArchiveFile[]): Buffer {
 }
 
 export async function packPlugin(options: BuildPluginOptions = {}): Promise<PackPluginResult> {
-  const buildResult = await buildPlugin(options)
-  const archivePackageName = buildResult.package.name.replace(/^@/, '').replaceAll('/', '-')
-  const archiveName = `${archivePackageName}-${buildResult.package.version}.tgz`
-  const archivePath = join(buildResult.outDir, archiveName)
-  const tar = createTar(await collectArchiveFiles(buildResult.outDir))
-  const archive = gzipSync(tar, { level: 9 })
+  const buildResult = await buildPlugin(options),
+    archivePackageName = buildResult.package.name.replace(/^@/, '').replaceAll('/', '-'),
+    archiveName = `${archivePackageName}-${buildResult.package.version}.tgz`,
+    archivePath = join(buildResult.outDir, archiveName),
+    tar = createTar(await collectArchiveFiles(buildResult.outDir)),
+    archive = gzipSync(tar, { level: 9 })
   archive[9] = 255
   await writeFile(archivePath, archive)
   const archiveDigest = createHash('sha256').update(archive).digest('hex')

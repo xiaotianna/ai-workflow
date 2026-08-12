@@ -15,8 +15,8 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>()
-    const authorization = request.headers.authorization
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>(),
+      authorization = request.headers.authorization
     if (!authorization) {
       throw new UnauthorizedException('请先登录')
     }

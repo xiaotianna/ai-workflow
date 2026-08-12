@@ -106,78 +106,78 @@ export function WorkflowEditor({
   testRunPending = false,
   nodeExecutionStatuses = EMPTY_NODE_EXECUTION_STATUSES,
 }: WorkflowEditorProps) {
-  const catalog = useWorkflowCatalog()
-  const canvasRef = useRef<HTMLDivElement>(null)
-  const addNodeButtonRef = useRef<HTMLButtonElement>(null)
-  const [hoveredNodeId, setHoveredNodeId] = useState<string>()
-  const [shortcutHelpOpen, setShortcutHelpOpen] = useState(false)
-  const [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>()
-  const [singleNodeTestRunOpen, setSingleNodeTestRunOpen] = useState(false)
-  const [singleNodeTestRunActive, setSingleNodeTestRunActive] = useState(false)
-  const [lastRunRefreshKey, setLastRunRefreshKey] = useState(0)
-  const [focusLastRunTabKey, setFocusLastRunTabKey] = useState(0)
-  const wasTestRunPendingRef = useRef(false)
-  const editor = useWorkflowEditor({ canvasRef, initialSnapshot, catalog })
-  const observedNodeTypesKey = [...new Set(editor.nodes.map((node) => node.type))].sort().join('\0')
-  const workflowNodeTypes = useMemo(
-    () =>
-      createWorkflowNodeTypes(
-        catalog.nodeRegistry,
-        observedNodeTypesKey ? observedNodeTypesKey.split('\0') : [],
-      ),
-    [catalog.fingerprint, observedNodeTypesKey],
-  )
-  const persistedCheckListIssues = useMemo(
-    () => createWorkflowCheckListIssues(editor.workflow, catalog.nodeRegistry),
-    [catalog.fingerprint, editor.workflow],
-  )
-  const checkListIssues = appendWorkflowNodeDraftValidationIssues(
-    persistedCheckListIssues,
-    editor.nodeDraftValidationIssues?.nodeId === editor.selectedNode?.id
-      ? editor.selectedNode
-      : undefined,
-    editor.nodeDraftValidationIssues?.messages ?? [],
-    catalog.nodeRegistry,
-  )
-  const save = useWorkflowSave({
-    dirty: editor.dirty,
-    initialSavedAt,
-    snapshot: editor.createSnapshot(),
-    onSave,
-    onSaved: editor.markSaved,
-    nodeRegistry: catalog.nodeRegistry,
-  })
-  const navigationGuard = useWorkflowNavigationGuard(save.hasPendingSave)
-  const nodePicker = useWorkflowNodePicker({
-    defaultAnchorRef: addNodeButtonRef,
-    editor,
-  })
-  const nodeSelectorTab = useWorkflowNodeSelectorTab(editor.workflow.id)
-  const operations = useWorkflowOperations({
-    applicationMetadata,
-    checkListIssues,
-    editor,
-    onCheckListRequired: () => setActiveAuxiliaryPanel('check-list'),
-    onOpenSingleNodeTestRun: (nodeId) => {
-      editor.openNodeConfig(nodeId)
-      setSingleNodeTestRunOpen(true)
-    },
-    onPauseTestRun,
-    onPublish,
-    onTestRun,
-    onTestRunStart: () => setActiveAuxiliaryPanel('test-run'),
-    publishPending,
-    testRunCanPause,
-    testRunPausing,
-    testRunPending,
-    catalog,
-  })
-  const contextMenu = useWorkflowContextMenu({
-    editor,
-    nodePicker,
-    operations,
-    disabled,
-  })
+  const catalog = useWorkflowCatalog(),
+    canvasRef = useRef<HTMLDivElement>(null),
+    addNodeButtonRef = useRef<HTMLButtonElement>(null),
+    [hoveredNodeId, setHoveredNodeId] = useState<string>(),
+    [shortcutHelpOpen, setShortcutHelpOpen] = useState(false),
+    [activeAuxiliaryPanel, setActiveAuxiliaryPanel] = useState<WorkflowAuxiliaryPanelType>(),
+    [singleNodeTestRunOpen, setSingleNodeTestRunOpen] = useState(false),
+    [singleNodeTestRunActive, setSingleNodeTestRunActive] = useState(false),
+    [lastRunRefreshKey, setLastRunRefreshKey] = useState(0),
+    [focusLastRunTabKey, setFocusLastRunTabKey] = useState(0),
+    wasTestRunPendingRef = useRef(false),
+    editor = useWorkflowEditor({ canvasRef, initialSnapshot, catalog }),
+    observedNodeTypesKey = [...new Set(editor.nodes.map((node) => node.type))].sort().join('\0'),
+    workflowNodeTypes = useMemo(
+      () =>
+        createWorkflowNodeTypes(
+          catalog.nodeRegistry,
+          observedNodeTypesKey ? observedNodeTypesKey.split('\0') : [],
+        ),
+      [catalog.fingerprint, observedNodeTypesKey],
+    ),
+    persistedCheckListIssues = useMemo(
+      () => createWorkflowCheckListIssues(editor.workflow, catalog.nodeRegistry),
+      [catalog.fingerprint, editor.workflow],
+    ),
+    checkListIssues = appendWorkflowNodeDraftValidationIssues(
+      persistedCheckListIssues,
+      editor.nodeDraftValidationIssues?.nodeId === editor.selectedNode?.id
+        ? editor.selectedNode
+        : undefined,
+      editor.nodeDraftValidationIssues?.messages ?? [],
+      catalog.nodeRegistry,
+    ),
+    save = useWorkflowSave({
+      dirty: editor.dirty,
+      initialSavedAt,
+      snapshot: editor.createSnapshot(),
+      onSave,
+      onSaved: editor.markSaved,
+      nodeRegistry: catalog.nodeRegistry,
+    }),
+    navigationGuard = useWorkflowNavigationGuard(save.hasPendingSave),
+    nodePicker = useWorkflowNodePicker({
+      defaultAnchorRef: addNodeButtonRef,
+      editor,
+    }),
+    nodeSelectorTab = useWorkflowNodeSelectorTab(editor.workflow.id),
+    operations = useWorkflowOperations({
+      applicationMetadata,
+      checkListIssues,
+      editor,
+      onCheckListRequired: () => setActiveAuxiliaryPanel('check-list'),
+      onOpenSingleNodeTestRun: (nodeId) => {
+        editor.openNodeConfig(nodeId)
+        setSingleNodeTestRunOpen(true)
+      },
+      onPauseTestRun,
+      onPublish,
+      onTestRun,
+      onTestRunStart: () => setActiveAuxiliaryPanel('test-run'),
+      publishPending,
+      testRunCanPause,
+      testRunPausing,
+      testRunPending,
+      catalog,
+    }),
+    contextMenu = useWorkflowContextMenu({
+      editor,
+      nodePicker,
+      operations,
+      disabled,
+    })
 
   function handleNodePickerOpenChange(nextOpen: boolean) {
     nodePicker.handleOpenChange(nextOpen)
@@ -282,55 +282,55 @@ export function WorkflowEditor({
     disabled,
   })
   const renderedEdges = useMemo(
-    () =>
-      editor.edges.map((edge) => {
-        const executionStatus = resolveWorkflowEdgeExecutionStatus(
-          nodeExecutionStatuses[edge.source],
-          nodeExecutionStatuses[edge.target],
-        )
-        const executionClassName =
-          singleNodeTestRunActive && executionStatus === 'RUNNING'
-            ? undefined
-            : getWorkflowEdgeExecutionClassName(executionStatus)
-        const hovered =
-          Boolean(hoveredNodeId) && (edge.source === hoveredNodeId || edge.target === hoveredNodeId)
-        const className =
-          executionClassName ?? (hovered ? 'workflow-edge--node-hovered' : undefined)
+      () =>
+        editor.edges.map((edge) => {
+          const executionStatus = resolveWorkflowEdgeExecutionStatus(
+              nodeExecutionStatuses[edge.source],
+              nodeExecutionStatuses[edge.target],
+            ),
+            executionClassName =
+              singleNodeTestRunActive && executionStatus === 'RUNNING'
+                ? undefined
+                : getWorkflowEdgeExecutionClassName(executionStatus),
+            hovered =
+              Boolean(hoveredNodeId) &&
+              (edge.source === hoveredNodeId || edge.target === hoveredNodeId),
+            className = executionClassName ?? (hovered ? 'workflow-edge--node-hovered' : undefined)
 
-        if (!className) return edge
+          if (!className) return edge
 
-        return {
-          ...edge,
-          className,
-        }
-      }),
-    [editor.edges, hoveredNodeId, nodeExecutionStatuses, singleNodeTestRunActive],
-  )
-  const renderedNodes = useMemo(
-    () =>
-      editor.nodes.map((node) => {
-        const executionStatus = nodeExecutionStatuses[node.id]
-        const loopIteration = testRunResult?.loopIterations[node.id]
-        if (!executionStatus && !loopIteration) return node
+          return {
+            ...edge,
+            className,
+          }
+        }),
+      [editor.edges, hoveredNodeId, nodeExecutionStatuses, singleNodeTestRunActive],
+    ),
+    renderedNodes = useMemo(
+      () =>
+        editor.nodes.map((node) => {
+          const executionStatus = nodeExecutionStatuses[node.id],
+            loopIteration = testRunResult?.loopIterations[node.id]
+          if (!executionStatus && !loopIteration) return node
 
-        return {
-          ...node,
-          data: {
-            ...node.data,
-            executionStatus,
-            ...(loopIteration
-              ? {
-                  executionProgress: {
-                    current: loopIteration.iteration,
-                    total: loopIteration.maxIterations,
-                  },
-                }
-              : {}),
-          },
-        }
-      }),
-    [editor.nodes, nodeExecutionStatuses, testRunResult?.loopIterations],
-  )
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              executionStatus,
+              ...(loopIteration
+                ? {
+                    executionProgress: {
+                      current: loopIteration.iteration,
+                      total: loopIteration.maxIterations,
+                    },
+                  }
+                : {}),
+            },
+          }
+        }),
+      [editor.nodes, nodeExecutionStatuses, testRunResult?.loopIterations],
+    )
   return (
     <>
       <WorkflowSavePendingDialog

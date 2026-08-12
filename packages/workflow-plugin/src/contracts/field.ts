@@ -180,13 +180,12 @@ export const field = {
 } as const
 
 const baseFieldShape = {
-  label: z.string().trim().min(1),
-  description: z.string().trim().optional(),
-  required: z.boolean().optional(),
-}
-
-const pluginFieldValueSchema = z.union([z.string(), z.number().finite(), z.boolean()])
-const pluginBuiltinFieldUITypes = new Set<string>(Object.values(PLUGIN_FIELD_UI_TYPES))
+    label: z.string().trim().min(1),
+    description: z.string().trim().optional(),
+    required: z.boolean().optional(),
+  },
+  pluginFieldValueSchema = z.union([z.string(), z.number().finite(), z.boolean()]),
+  pluginBuiltinFieldUITypes = new Set<string>(Object.values(PLUGIN_FIELD_UI_TYPES))
 
 export const pluginFieldSchema: z.ZodType<PluginFieldSchema> = z.union([
   z.object({ ui: z.literal('text'), ...baseFieldShape }).strict(),

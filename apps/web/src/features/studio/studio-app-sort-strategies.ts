@@ -7,22 +7,20 @@ interface StudioAppSortStrategy {
 }
 
 const updatedAtStrategy = {
-  optionLabel: '最近修改',
-  timeLabel: '编辑于',
-  timeField: 'updatedAt',
-} satisfies StudioAppSortStrategy
-
-const createdAtDescStrategy = {
-  optionLabel: '最近创建',
-  timeLabel: '创建于',
-  timeField: 'createdAt',
-} satisfies StudioAppSortStrategy
-
-const createdAtAscStrategy = {
-  optionLabel: '最早创建',
-  timeLabel: '创建于',
-  timeField: 'createdAt',
-} satisfies StudioAppSortStrategy
+    optionLabel: '最近修改',
+    timeLabel: '编辑于',
+    timeField: 'updatedAt',
+  } satisfies StudioAppSortStrategy,
+  createdAtDescStrategy = {
+    optionLabel: '最近创建',
+    timeLabel: '创建于',
+    timeField: 'createdAt',
+  } satisfies StudioAppSortStrategy,
+  createdAtAscStrategy = {
+    optionLabel: '最早创建',
+    timeLabel: '创建于',
+    timeField: 'createdAt',
+  } satisfies StudioAppSortStrategy
 
 export const studioAppSortStrategies = {
   updated_desc: updatedAtStrategy,
@@ -46,9 +44,9 @@ const studioAppTimeFormatter = new Intl.DateTimeFormat('zh-CN', {
 })
 
 export function getStudioAppTimeDisplay(app: StudioAppListItem, sort: StudioAppSort) {
-  const strategy = studioAppSortStrategies[sort]
-  const timestamp = app[strategy.timeField]
-  const date = new Date(timestamp)
+  const strategy = studioAppSortStrategies[sort],
+    timestamp = app[strategy.timeField],
+    date = new Date(timestamp)
 
   return {
     label: strategy.timeLabel,

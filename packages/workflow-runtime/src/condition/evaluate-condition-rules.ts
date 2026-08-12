@@ -29,8 +29,8 @@ function evaluateRule(
   rule: ConditionRules['rules'][number],
   context: VariableResolutionContext,
 ): boolean {
-  const left = resolveVariableValue(rule.left, context)
-  const right = rule.right ? resolveVariableValue(rule.right, context) : null
+  const left = resolveVariableValue(rule.left, context),
+    right = rule.right ? resolveVariableValue(rule.right, context) : null
 
   switch (rule.operator) {
     case CONDITION_OPERATOR_KINDS.CONTAINS: {

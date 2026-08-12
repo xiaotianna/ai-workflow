@@ -19,11 +19,10 @@ export function parseSystemVariables(
   rawVariables: Record<SystemVariableKey, JsonValue>,
   identity: SystemVariableIdentity,
 ): Record<SystemVariableKey, JsonValue> {
-  const expectedKeys = new Set(SYSTEM_VARIABLE_DEFINITIONS.map((definition) => definition.key))
-  const actualKeys = Object.keys(rawVariables)
-
-  const missingKeys = [...expectedKeys].filter((key) => !hasOwn(rawVariables, key))
-  const unknownKeys = actualKeys.filter((key) => !expectedKeys.has(key as SystemVariableKey))
+  const expectedKeys = new Set(SYSTEM_VARIABLE_DEFINITIONS.map((definition) => definition.key)),
+    actualKeys = Object.keys(rawVariables),
+    missingKeys = [...expectedKeys].filter((key) => !hasOwn(rawVariables, key)),
+    unknownKeys = actualKeys.filter((key) => !expectedKeys.has(key as SystemVariableKey))
 
   if (missingKeys.length > 0 || unknownKeys.length > 0) {
     throw new RuntimeError(RUNTIME_ERROR_CODES.INVALID_SYSTEM_VARIABLES, '系统变量键集合不完整', {

@@ -28,9 +28,9 @@ export function AddDocumentStepHeader({ currentStep, onBack }: AddDocumentStepHe
         className="absolute inset-x-0 hidden items-center justify-center px-32 md:flex"
       >
         {steps.map((label, index) => {
-          const step = (index + 1) as 1 | 2 | 3
-          const active = step === currentStep
-          const completed = step < currentStep
+          const step = (index + 1) as 1 | 2 | 3,
+            active = step === currentStep,
+            completed = step < currentStep
 
           return (
             <div key={label} className="flex items-center">

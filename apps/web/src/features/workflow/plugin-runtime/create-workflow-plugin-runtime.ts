@@ -40,12 +40,11 @@ export async function createWorkflowPluginRuntime(
   signal?: AbortSignal,
 ): Promise<WorkflowPluginRuntime> {
   const manifests = runtimeCatalog.plugins.map((plugin) => ({
-    plugin,
-    manifest: pluginManifestSchema.parse(plugin.manifest),
-  }))
-
-  const loadedWebModules: LoadedPluginWebModule[] = []
-  const pluginRemoteErrors = new Map<string, string>()
+      plugin,
+      manifest: pluginManifestSchema.parse(plugin.manifest),
+    })),
+    loadedWebModules: LoadedPluginWebModule[] = [],
+    pluginRemoteErrors = new Map<string, string>()
 
   await Promise.all(
     manifests.map(async ({ plugin, manifest }) => {
@@ -82,9 +81,9 @@ export async function createWorkflowPluginRuntime(
     throw new Error('插件目录指纹不一致，请刷新后重试')
   }
 
-  const pluginLockById = new Map(coreCatalog.pluginLock.map((lock) => [lock.pluginId, lock]))
-  const pluginLockByNodeType = new Map<string, WorkflowPluginLockItem>()
-  const pluginGroupLabelByNodeType = new Map<string, string>()
+  const pluginLockById = new Map(coreCatalog.pluginLock.map((lock) => [lock.pluginId, lock])),
+    pluginLockByNodeType = new Map<string, WorkflowPluginLockItem>(),
+    pluginGroupLabelByNodeType = new Map<string, string>()
 
   for (const { plugin, manifest } of manifests) {
     const lock = pluginLockById.get(plugin.pluginId)
@@ -97,8 +96,8 @@ export async function createWorkflowPluginRuntime(
     }
   }
 
-  const nodeUIRegistry = createBuiltinNodeUIRegistry(coreCatalog.nodeRegistry)
-  const mergedConfigRenderers = { ...builtinNodeConfigRenderers }
+  const nodeUIRegistry = createBuiltinNodeUIRegistry(coreCatalog.nodeRegistry),
+    mergedConfigRenderers = { ...builtinNodeConfigRenderers }
 
   for (const loaded of loadedWebModules) {
     try {
@@ -121,28 +120,26 @@ export async function createWorkflowPluginRuntime(
   }
 
   const loadedWebModuleByPluginId = new Map(
-    loadedWebModules.map((loaded) => [loaded.pluginId, loaded.webModule]),
-  )
+      loadedWebModules.map((loaded) => [loaded.pluginId, loaded.webModule]),
+    ),
+    hasUnresolvedRemoteUi = manifests.some(({ plugin, manifest }) => {
+      if (pluginRemoteErrors.has(plugin.pluginId)) {
+        return pluginManifestNeedsWebRemote(manifest)
+      }
 
-  const hasUnresolvedRemoteUi = manifests.some(({ plugin, manifest }) => {
-    if (pluginRemoteErrors.has(plugin.pluginId)) {
-      return pluginManifestNeedsWebRemote(manifest)
-    }
-
-    return manifestHasUnresolvedRemoteUi(manifest, loadedWebModuleByPluginId.get(plugin.pluginId))
-  })
-
-  const catalog = createWorkflowWebCatalog({
-    coreCatalog,
-    nodeUIRegistry,
-    fieldRenderers: {
-      ...builtinFields,
-      ...builtinWorkflowNodeConfigFieldRenderers,
-    },
-    configRenderers: mergedConfigRenderers,
-    pluginLockByNodeType,
-    pluginGroupLabelByNodeType,
-  })
+      return manifestHasUnresolvedRemoteUi(manifest, loadedWebModuleByPluginId.get(plugin.pluginId))
+    }),
+    catalog = createWorkflowWebCatalog({
+      coreCatalog,
+      nodeUIRegistry,
+      fieldRenderers: {
+        ...builtinFields,
+        ...builtinWorkflowNodeConfigFieldRenderers,
+      },
+      configRenderers: mergedConfigRenderers,
+      pluginLockByNodeType,
+      pluginGroupLabelByNodeType,
+    })
 
   return Object.freeze({
     ...catalog,

@@ -10,9 +10,9 @@ export function LlmNodeContent({
   resolveModelReferenceDisplay,
   ...props
 }: NodeRendererProps<LlmNodeConfig>) {
-  const modelReference = node.config.model
-  const hasModelReference = Boolean(modelReference.groupId || modelReference.configuredModelId)
-  const modelDisplay = resolveModelReferenceDisplay?.(modelReference)
+  const modelReference = node.config.model,
+    hasModelReference = Boolean(modelReference.groupId || modelReference.configuredModelId),
+    modelDisplay = resolveModelReferenceDisplay?.(modelReference)
 
   let content = <p className="text-xs leading-4">未选择模型</p>
 

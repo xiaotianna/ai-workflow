@@ -26,40 +26,40 @@ interface TooltipPosition {
  * 通用紧凑提示，通过 Portal 渲染以避免被父级滚动容器裁剪。
  */
 export function Tooltip({ children, content, side = 'top' }: TooltipProps) {
-  const tooltipId = useId()
-  const triggerRef = useRef<HTMLSpanElement>(null)
-  const tooltipRef = useRef<HTMLSpanElement>(null)
-  const [open, setOpen] = useState(false)
-  const [position, setPosition] = useState<TooltipPosition>()
-  const describedBy = [children.props['aria-describedby'], tooltipId].filter(Boolean).join(' ')
+  const tooltipId = useId(),
+    triggerRef = useRef<HTMLSpanElement>(null),
+    tooltipRef = useRef<HTMLSpanElement>(null),
+    [open, setOpen] = useState(false),
+    [position, setPosition] = useState<TooltipPosition>(),
+    describedBy = [children.props['aria-describedby'], tooltipId].filter(Boolean).join(' ')
 
   useLayoutEffect(() => {
     if (!open) return
 
     function updatePosition() {
-      const trigger = triggerRef.current
-      const tooltip = tooltipRef.current
+      const trigger = triggerRef.current,
+        tooltip = tooltipRef.current
       if (!trigger || !tooltip) return
 
-      const triggerRect = trigger.getBoundingClientRect()
-      const tooltipRect = tooltip.getBoundingClientRect()
-      const gap = 8
-      const viewportPadding = 8
-      const fitsTop = triggerRect.top - gap - tooltipRect.height >= viewportPadding
-      const fitsBottom =
-        triggerRect.bottom + gap + tooltipRect.height <= window.innerHeight - viewportPadding
-      const resolvedSide =
-        side === 'top'
-          ? fitsTop || !fitsBottom
-            ? 'top'
-            : 'bottom'
-          : fitsBottom || !fitsTop
-            ? 'bottom'
-            : 'top'
-      const halfWidth = tooltipRect.width / 2
-      const minLeft = viewportPadding + halfWidth
-      const maxLeft = window.innerWidth - viewportPadding - halfWidth
-      const triggerCenter = triggerRect.left + triggerRect.width / 2
+      const triggerRect = trigger.getBoundingClientRect(),
+        tooltipRect = tooltip.getBoundingClientRect(),
+        gap = 8,
+        viewportPadding = 8,
+        fitsTop = triggerRect.top - gap - tooltipRect.height >= viewportPadding,
+        fitsBottom =
+          triggerRect.bottom + gap + tooltipRect.height <= window.innerHeight - viewportPadding,
+        resolvedSide =
+          side === 'top'
+            ? fitsTop || !fitsBottom
+              ? 'top'
+              : 'bottom'
+            : fitsBottom || !fitsTop
+              ? 'bottom'
+              : 'top',
+        halfWidth = tooltipRect.width / 2,
+        minLeft = viewportPadding + halfWidth,
+        maxLeft = window.innerWidth - viewportPadding - halfWidth,
+        triggerCenter = triggerRect.left + triggerRect.width / 2
 
       setPosition({
         left: Math.min(Math.max(triggerCenter, minLeft), maxLeft),

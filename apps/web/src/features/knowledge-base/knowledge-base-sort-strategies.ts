@@ -43,9 +43,9 @@ export function getKnowledgeBaseTimeDisplay(
   knowledgeBase: KnowledgeBaseListItem,
   sort: KnowledgeBaseSort,
 ) {
-  const strategy = knowledgeBaseSortStrategies[sort]
-  const timestamp = knowledgeBase[strategy.timeField]
-  const date = new Date(timestamp)
+  const strategy = knowledgeBaseSortStrategies[sort],
+    timestamp = knowledgeBase[strategy.timeField],
+    date = new Date(timestamp)
 
   return {
     label: strategy.timeLabel,

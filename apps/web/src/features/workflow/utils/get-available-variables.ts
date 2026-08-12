@@ -12,24 +12,23 @@ import type { AvailableVariableOption } from '@ai-workflow/form/components/node-
 
 import { getWorkflowNodeDisplayLabel } from '@/utils/workflow/node-display'
 
-const SYSTEM_VARIABLE_SOURCE_ID = JSON.stringify(['system'])
-const ENVIRONMENT_VARIABLE_SOURCE_ID = JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE])
-
-const SYSTEM_VARIABLE_OPTIONS: readonly AvailableVariableOption[] = SYSTEM_VARIABLE_DEFINITIONS.map(
-  (variable) => ({
-    id: JSON.stringify(['system', variable.key]),
-    label: `${SYSTEM_VARIABLE_NAMESPACE} / ${variable.key}`,
-    sourceId: SYSTEM_VARIABLE_SOURCE_ID,
-    sourceLabel: SYSTEM_VARIABLE_NAMESPACE,
-    variableName: variable.key,
-    dataType: variable.dataType,
-    reference: {
-      scope: 'system',
-      key: variable.key,
-      path: [],
-    },
-  }),
-)
+const SYSTEM_VARIABLE_SOURCE_ID = JSON.stringify(['system']),
+  ENVIRONMENT_VARIABLE_SOURCE_ID = JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE]),
+  SYSTEM_VARIABLE_OPTIONS: readonly AvailableVariableOption[] = SYSTEM_VARIABLE_DEFINITIONS.map(
+    (variable) => ({
+      id: JSON.stringify(['system', variable.key]),
+      label: `${SYSTEM_VARIABLE_NAMESPACE} / ${variable.key}`,
+      sourceId: SYSTEM_VARIABLE_SOURCE_ID,
+      sourceLabel: SYSTEM_VARIABLE_NAMESPACE,
+      variableName: variable.key,
+      dataType: variable.dataType,
+      reference: {
+        scope: 'system',
+        key: variable.key,
+        path: [],
+      },
+    }),
+  )
 
 function collectUpstreamNodeIds(nodeId: string, edges: readonly WorkflowEdge[]) {
   const incomingNodeIds = new Map<string, string[]>()
@@ -40,8 +39,8 @@ function collectUpstreamNodeIds(nodeId: string, edges: readonly WorkflowEdge[]) 
     incomingNodeIds.set(edge.target, incoming)
   }
 
-  const upstreamNodeIds = new Set<string>()
-  const pendingNodeIds = [...(incomingNodeIds.get(nodeId) ?? [])]
+  const upstreamNodeIds = new Set<string>(),
+    pendingNodeIds = [...(incomingNodeIds.get(nodeId) ?? [])]
 
   while (pendingNodeIds.length > 0) {
     const upstreamNodeId = pendingNodeIds.pop()!
@@ -67,40 +66,40 @@ export function getAvailableVariables({
   environmentVariables: readonly WorkflowEnvironmentVariable[]
   nodeRegistry: NodeRegistryReader
 }): AvailableVariableOption[] {
-  const upstreamNodeIds = collectUpstreamNodeIds(nodeId, edges)
-  const environmentVariableOptions: AvailableVariableOption[] = environmentVariables.map(
-    (variable) => ({
-      id: JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE, variable.id]),
-      label: `${ENVIRONMENT_VARIABLE_NAMESPACE} / ${variable.name}`,
-      sourceId: ENVIRONMENT_VARIABLE_SOURCE_ID,
-      sourceLabel: ENVIRONMENT_VARIABLE_NAMESPACE,
-      variableName: variable.name,
-      dataType: getEnvironmentVariableDataType(variable.type),
-      reference: {
-        scope: ENVIRONMENT_VARIABLE_NAMESPACE,
-        variableId: variable.id,
-        path: [],
-      },
-    }),
-  )
-  const options: AvailableVariableOption[] = [
-    ...SYSTEM_VARIABLE_OPTIONS,
-    ...environmentVariableOptions,
-  ]
-  const optionIds = new Set(options.map((option) => option.id))
+  const upstreamNodeIds = collectUpstreamNodeIds(nodeId, edges),
+    environmentVariableOptions: AvailableVariableOption[] = environmentVariables.map(
+      (variable) => ({
+        id: JSON.stringify([ENVIRONMENT_VARIABLE_NAMESPACE, variable.id]),
+        label: `${ENVIRONMENT_VARIABLE_NAMESPACE} / ${variable.name}`,
+        sourceId: ENVIRONMENT_VARIABLE_SOURCE_ID,
+        sourceLabel: ENVIRONMENT_VARIABLE_NAMESPACE,
+        variableName: variable.name,
+        dataType: getEnvironmentVariableDataType(variable.type),
+        reference: {
+          scope: ENVIRONMENT_VARIABLE_NAMESPACE,
+          variableId: variable.id,
+          path: [],
+        },
+      }),
+    ),
+    options: AvailableVariableOption[] = [
+      ...SYSTEM_VARIABLE_OPTIONS,
+      ...environmentVariableOptions,
+    ],
+    optionIds = new Set(options.map((option) => option.id))
 
   for (const node of nodes) {
     if (!upstreamNodeIds.has(node.id)) continue
 
-    const nodeLabel = getWorkflowNodeDisplayLabel(node, nodeRegistry)
-    const outputs = new Map(
-      node.outputs.map((output) => [
-        output.key,
-        {
-          dataType: output.dataType,
-        },
-      ]),
-    )
+    const nodeLabel = getWorkflowNodeDisplayLabel(node, nodeRegistry),
+      outputs = new Map(
+        node.outputs.map((output) => [
+          output.key,
+          {
+            dataType: output.dataType,
+          },
+        ]),
+      )
     for (const [outputKey, output] of outputs) {
       const optionId = JSON.stringify(['node', node.id, outputKey])
       if (optionIds.has(optionId)) continue

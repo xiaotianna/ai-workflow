@@ -24,40 +24,40 @@ import {
 type SubWorkflowFieldProps = FieldRendererProps<SubWorkflowFieldSchema, SubWorkflowReference>
 
 export function SubWorkflowField({ name, field, value, error, disabled }: SubWorkflowFieldProps) {
-  const [selectorOpen, setSelectorOpen] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const { applySubWorkflowSelection } = useWorkflowNodeConfigActions()
-  const { apps, currentAppId, load, loaded, loading, loadError, reload } =
-    useWorkflowStudioAppCatalog()
-  const workflowReference = normalizeSubWorkflowReference(value)
-  const selectedApp =
-    apps.find((app) => app.id === workflowReference.appId) ??
-    (workflowReference.appId || workflowReference.id
-      ? {
-          id: workflowReference.appId || workflowReference.id,
-          title:
-            workflowReference.name ??
-            `旧配置工作流（${workflowReference.appId || workflowReference.id}）`,
-          author: '',
-          createdAt: '',
-          updatedAt: '',
-          ...(workflowReference.icon ? { icon: workflowReference.icon } : {}),
-        }
-      : undefined)
-  const hasSelection = Boolean(workflowReference.id || workflowReference.appId)
-  const unavailable =
-    loaded &&
-    hasSelection &&
-    Boolean(workflowReference.appId) &&
-    !apps.some((app) => app.id === workflowReference.appId)
-  const canOpenSelector = !disabled && loaded && !saving
-  const description = getSubWorkflowFieldDescription({
-    hasApps: apps.some((app) => app.id !== currentAppId),
-    loaded,
-    loadError,
-    loading,
-    unavailable,
-  })
+  const [selectorOpen, setSelectorOpen] = useState(false),
+    [saving, setSaving] = useState(false),
+    { applySubWorkflowSelection } = useWorkflowNodeConfigActions(),
+    { apps, currentAppId, load, loaded, loading, loadError, reload } =
+      useWorkflowStudioAppCatalog(),
+    workflowReference = normalizeSubWorkflowReference(value),
+    selectedApp =
+      apps.find((app) => app.id === workflowReference.appId) ??
+      (workflowReference.appId || workflowReference.id
+        ? {
+            id: workflowReference.appId || workflowReference.id,
+            title:
+              workflowReference.name ??
+              `旧配置工作流（${workflowReference.appId || workflowReference.id}）`,
+            author: '',
+            createdAt: '',
+            updatedAt: '',
+            ...(workflowReference.icon ? { icon: workflowReference.icon } : {}),
+          }
+        : undefined),
+    hasSelection = Boolean(workflowReference.id || workflowReference.appId),
+    unavailable =
+      loaded &&
+      hasSelection &&
+      Boolean(workflowReference.appId) &&
+      !apps.some((app) => app.id === workflowReference.appId),
+    canOpenSelector = !disabled && loaded && !saving,
+    description = getSubWorkflowFieldDescription({
+      hasApps: apps.some((app) => app.id !== currentAppId),
+      loaded,
+      loadError,
+      loading,
+      unavailable,
+    })
 
   useEffect(() => {
     load()
@@ -67,13 +67,13 @@ export function SubWorkflowField({ name, field, value, error, disabled }: SubWor
     setSaving(true)
 
     try {
-      const contract = await getStudioSubWorkflowContract(app.id)
-      const nextWorkflow: SubWorkflowReference = {
-        id: contract.workflowId,
-        appId: app.id,
-        name: app.title,
-        ...(app.icon ? { icon: app.icon } : {}),
-      }
+      const contract = await getStudioSubWorkflowContract(app.id),
+        nextWorkflow: SubWorkflowReference = {
+          id: contract.workflowId,
+          appId: app.id,
+          name: app.title,
+          ...(app.icon ? { icon: app.icon } : {}),
+        }
 
       // 通过配置面板 action 同步 config / inputs / outputs，避免字段 onChange 用旧 node 覆盖变量
       applySubWorkflowSelection({

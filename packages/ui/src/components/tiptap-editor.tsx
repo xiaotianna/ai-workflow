@@ -199,99 +199,101 @@ function getEditorClassName(disabled: boolean, editorClassName?: string) {
   )
 }
 
-export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(function TiptapEditor(
-  {
-    value,
-    tokens = [],
-    disabled = false,
-    editorClassName,
-    placeholder = '',
-    ariaLabel,
-    ariaInvalid = false,
-    className,
-    onChange,
-    ...props
-  },
-  ref,
-) {
-  const valueRef = useRef(value)
-  const onChangeRef = useRef(onChange)
-  const tokenSignature = JSON.stringify(tokens)
-  const syncedTokenSignatureRef = useRef(tokenSignature)
-
-  valueRef.current = value
-  onChangeRef.current = onChange
-
-  const editor = useEditor({
-    extensions: [StarterKit, Placeholder.configure({ placeholder }), InlineToken],
-    content: createEditorDocument(value, tokens),
-    editable: !disabled,
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        'aria-label': ariaLabel,
-        'aria-multiline': 'true',
-        role: 'textbox',
-        class: getEditorClassName(disabled, editorClassName),
-      },
+export const TiptapEditor = forwardRef<TiptapEditorHandle, TiptapEditorProps>(
+  (
+    {
+      value,
+      tokens = [],
+      disabled = false,
+      editorClassName,
+      placeholder = '',
+      ariaLabel,
+      ariaInvalid = false,
+      className,
+      onChange,
+      ...props
     },
-    onUpdate: ({ editor: nextEditor }) => {
-      const nextValue = getEditorValue(nextEditor)
-      if (nextValue !== valueRef.current) onChangeRef.current(nextValue)
-    },
-  })
-
-  useEffect(() => {
-    if (!editor) return
-
-    editor.setEditable(!disabled)
-    editor.view.dom.className = getEditorClassName(disabled, editorClassName)
-    editor.view.dom.setAttribute('aria-label', ariaLabel)
-    editor.view.dom.setAttribute('aria-invalid', String(ariaInvalid))
-    editor.view.dom.setAttribute('aria-disabled', String(disabled))
-  }, [ariaInvalid, ariaLabel, disabled, editor, editorClassName])
-
-  useEffect(() => {
-    if (!editor) return
-
-    const valueChanged = getEditorValue(editor) !== value
-    const tokensChanged = syncedTokenSignatureRef.current !== tokenSignature
-
-    if (valueChanged || tokensChanged) {
-      editor.commands.setContent(createEditorDocument(value, tokens), { emitUpdate: false })
-    }
-
-    syncedTokenSignatureRef.current = tokenSignature
-  }, [editor, tokenSignature, tokens, value])
-
-  useImperativeHandle(
     ref,
-    () => ({
-      focus: () => editor?.commands.focus(),
-      insertToken: (token) => {
-        editor
-          ?.chain()
-          .focus()
-          .insertContent([
-            {
-              type: InlineToken.name,
-              attrs: token,
-            },
-            { type: 'text', text: ' ' },
-          ])
-          .run()
-      },
-    }),
-    [editor],
-  )
+  ) => {
+    const valueRef = useRef(value),
+      onChangeRef = useRef(onChange),
+      tokenSignature = JSON.stringify(tokens),
+      syncedTokenSignatureRef = useRef(tokenSignature)
 
-  return (
-    <EditorContent
-      editor={editor}
-      data-slot="tiptap-editor"
-      data-disabled={disabled || undefined}
-      className={cn('min-w-0', className)}
-      {...props}
-    />
-  )
-})
+    valueRef.current = value
+    onChangeRef.current = onChange
+
+    const editor = useEditor({
+      extensions: [StarterKit, Placeholder.configure({ placeholder }), InlineToken],
+      content: createEditorDocument(value, tokens),
+      editable: !disabled,
+      immediatelyRender: false,
+      editorProps: {
+        attributes: {
+          'aria-label': ariaLabel,
+          'aria-multiline': 'true',
+          role: 'textbox',
+          class: getEditorClassName(disabled, editorClassName),
+        },
+      },
+      onUpdate: ({ editor: nextEditor }) => {
+        const nextValue = getEditorValue(nextEditor)
+        if (nextValue !== valueRef.current) onChangeRef.current(nextValue)
+      },
+    })
+
+    useEffect(() => {
+      if (!editor) return
+
+      editor.setEditable(!disabled)
+      editor.view.dom.className = getEditorClassName(disabled, editorClassName)
+      editor.view.dom.setAttribute('aria-label', ariaLabel)
+      editor.view.dom.setAttribute('aria-invalid', String(ariaInvalid))
+      editor.view.dom.setAttribute('aria-disabled', String(disabled))
+    }, [ariaInvalid, ariaLabel, disabled, editor, editorClassName])
+
+    useEffect(() => {
+      if (!editor) return
+
+      const valueChanged = getEditorValue(editor) !== value,
+        tokensChanged = syncedTokenSignatureRef.current !== tokenSignature
+
+      if (valueChanged || tokensChanged) {
+        editor.commands.setContent(createEditorDocument(value, tokens), { emitUpdate: false })
+      }
+
+      syncedTokenSignatureRef.current = tokenSignature
+    }, [editor, tokenSignature, tokens, value])
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        focus: () => editor?.commands.focus(),
+        insertToken: (token) => {
+          editor
+            ?.chain()
+            .focus()
+            .insertContent([
+              {
+                type: InlineToken.name,
+                attrs: token,
+              },
+              { type: 'text', text: ' ' },
+            ])
+            .run()
+        },
+      }),
+      [editor],
+    )
+
+    return (
+      <EditorContent
+        editor={editor}
+        data-slot="tiptap-editor"
+        data-disabled={disabled || undefined}
+        className={cn('min-w-0', className)}
+        {...props}
+      />
+    )
+  },
+)

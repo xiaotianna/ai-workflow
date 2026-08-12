@@ -25,8 +25,8 @@ export interface ResourceCardProps extends Omit<ComponentPropsWithoutRef<'articl
   badgeLabel?: string
 }
 
-const defaultIconBackground = 'rgb(255, 234, 213)'
-const defaultBadgeLabel = '工作流'
+const defaultIconBackground = 'rgb(255, 234, 213)',
+  defaultBadgeLabel = '工作流'
 
 export function ResourceCard({
   title,

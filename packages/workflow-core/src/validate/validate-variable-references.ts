@@ -8,8 +8,8 @@ const collectUpstreamNodeIds = (
   nodeId: string,
   incomingNodeIds: ReadonlyMap<string, readonly string[]>,
 ): Set<string> => {
-  const upstreamNodeIds = new Set<string>()
-  const pendingNodeIds = [...(incomingNodeIds.get(nodeId) ?? [])]
+  const upstreamNodeIds = new Set<string>(),
+    pendingNodeIds = [...(incomingNodeIds.get(nodeId) ?? [])]
 
   while (pendingNodeIds.length > 0) {
     const upstreamNodeId = pendingNodeIds.pop()!
@@ -29,9 +29,9 @@ export const validateVariableReferences = (
   resolvedEdges: readonly WorkflowEdge[],
   report: ReportValidationIssueFn,
 ): void => {
-  const nodeById = new Map(workflowNodes.map((node) => [node.id, node]))
-  const environmentVariableIds = new Set(environmentVariables.map((variable) => variable.id))
-  const incomingNodeIds = new Map<string, string[]>()
+  const nodeById = new Map(workflowNodes.map((node) => [node.id, node])),
+    environmentVariableIds = new Set(environmentVariables.map((variable) => variable.id)),
+    incomingNodeIds = new Map<string, string[]>()
 
   for (const edge of resolvedEdges) {
     const incoming = incomingNodeIds.get(edge.target) ?? []
@@ -40,27 +40,27 @@ export const validateVariableReferences = (
   }
 
   for (const node of workflowNodes) {
-    const upstreamNodeIds = collectUpstreamNodeIds(node.id, incomingNodeIds)
-    const variableReferences = [
-      ...Object.entries(node.inputs).map(([key, value]) => ({
-        field: 'inputs' as const,
-        key,
-        label: '输入变量',
-        value,
-      })),
-      ...node.outputs.flatMap((output) =>
-        output.value
-          ? [
-              {
-                field: 'outputs' as const,
-                key: output.key,
-                label: '输出变量',
-                value: output.value,
-              },
-            ]
-          : [],
-      ),
-    ]
+    const upstreamNodeIds = collectUpstreamNodeIds(node.id, incomingNodeIds),
+      variableReferences = [
+        ...Object.entries(node.inputs).map(([key, value]) => ({
+          field: 'inputs' as const,
+          key,
+          label: '输入变量',
+          value,
+        })),
+        ...node.outputs.flatMap((output) =>
+          output.value
+            ? [
+                {
+                  field: 'outputs' as const,
+                  key: output.key,
+                  label: '输出变量',
+                  value: output.value,
+                },
+              ]
+            : [],
+        ),
+      ]
 
     for (const variable of variableReferences) {
       if (variable.value.type !== 'reference') {
@@ -82,8 +82,8 @@ export const validateVariableReferences = (
 
       if (variable.value.reference.scope !== 'node') continue
 
-      const { nodeId: referencedNodeId, outputKey } = variable.value.reference
-      const referencedNode = nodeById.get(referencedNodeId)
+      const { nodeId: referencedNodeId, outputKey } = variable.value.reference,
+        referencedNode = nodeById.get(referencedNodeId)
 
       if (!referencedNode) {
         report({

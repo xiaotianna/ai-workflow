@@ -77,17 +77,15 @@ interface NodeDraftValidationIssues {
 }
 
 const DEFAULT_NODE_PLACEMENT_SIZE = {
-  width: 240,
-  height: 100,
-}
-
-const NEXT_NODE_HORIZONTAL_GAP = 120
-const NEXT_NODE_VERTICAL_GAP = 64
-
-// 无论画布内容如何都禁止添加的节点类型
-const ALWAYS_DISABLED_NODE_TYPES: ReadonlySet<string> = new Set()
-// 整个画布中只允许存在一个实例的节点类型
-const SINGLE_INSTANCE_NODE_TYPES: ReadonlySet<string> = new Set([BuiltinNodeType.START])
+    width: 240,
+    height: 100,
+  },
+  NEXT_NODE_HORIZONTAL_GAP = 120,
+  NEXT_NODE_VERTICAL_GAP = 64,
+  // 无论画布内容如何都禁止添加的节点类型
+  ALWAYS_DISABLED_NODE_TYPES: ReadonlySet<string> = new Set(),
+  // 整个画布中只允许存在一个实例的节点类型
+  SINGLE_INSTANCE_NODE_TYPES: ReadonlySet<string> = new Set([BuiltinNodeType.START])
 
 function canInsertNodeTypeOnEdge(nodeType: NodeType) {
   try {
@@ -206,10 +204,10 @@ function findReconnectedEdge(
 }
 
 function getDisabledNodeTypes(nodes: readonly WorkflowCanvasNode[]): ReadonlySet<string> {
-  const existingNodeTypes = new Set(nodes.map((node) => node.type))
-  const existingSingleInstanceNodeTypes = [...SINGLE_INSTANCE_NODE_TYPES].filter((type) =>
-    existingNodeTypes.has(type),
-  )
+  const existingNodeTypes = new Set(nodes.map((node) => node.type)),
+    existingSingleInstanceNodeTypes = [...SINGLE_INSTANCE_NODE_TYPES].filter((type) =>
+      existingNodeTypes.has(type),
+    )
 
   return new Set([...ALWAYS_DISABLED_NODE_TYPES, ...existingSingleInstanceNodeTypes])
 }
@@ -250,143 +248,139 @@ export function useWorkflowEditor({
   initialSnapshot,
   catalog,
 }: UseWorkflowEditorOptions) {
-  const { nodeRegistry } = catalog
-  const [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
-    toCanvasNodes(initialSnapshot, nodeRegistry),
-  )
-  const [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
-    ...initialSnapshot.workflow.edges,
-  ])
-  const [environmentVariables, setEnvironmentVariables] = useState<WorkflowEnvironmentVariable[]>([
-    ...initialSnapshot.workflow.environmentVariables,
-  ])
-  const [viewport, setWorkflowViewport] = useState<Viewport | undefined>(
-    initialSnapshot.layout.viewport,
-  )
-  const [selectedNodeIds, setSelectedNodeIds] = useState<ReadonlySet<string>>(new Set())
-  const [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(new Set())
-  // 当前打开配置面板的节点 ID；打开面板时同步收敛为画布唯一选中节点。
-  const [selectedNodeId, setSelectedNodeId] = useState<string>()
-  const [nodeDraftValidationIssues, setNodeDraftValidationIssuesState] =
-    useState<NodeDraftValidationIssues>()
-  // 是否有未保存的修改
-  const [dirty, setDirty] = useState(false)
-  const clipboardRef = useRef<WorkflowClipboardPayload | undefined>(undefined)
-  const clipboardPasteCountRef = useRef(0)
-  const nudgeActiveRef = useRef(false)
-  // 当节点的内部结构变了，需要它的端口位置和连线，就调用通知react flow更新
-  const updateNodeInternals = useUpdateNodeInternals()
-  const reactFlowStore = useStoreApi<WorkflowCanvasNode, WorkflowEdge>()
-  // 到屏幕中间
-  const {
-    fitView,
-    getViewport,
-    screenToFlowPosition,
-    setViewport: setReactFlowViewport,
-  } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>()
-
-  const history = useWorkflowHistory({
-    nodes,
-    edges,
-    environmentVariables,
-    setNodes,
-    setEdges,
-    setEnvironmentVariables,
-    onRestore: (snapshot, matchesSavedState) => {
-      const restoredNodeIds = new Set(snapshot.nodes.map((node) => node.id))
-      const restoredEdgeIds = new Set(snapshot.edges.map((edge) => edge.id))
-
-      setSelectedNodeIds(
-        (currentSelectedNodeIds) =>
-          new Set([...currentSelectedNodeIds].filter((nodeId) => restoredNodeIds.has(nodeId))),
-      )
-      setSelectedEdgeIds(
-        (currentSelectedEdgeIds) =>
-          new Set([...currentSelectedEdgeIds].filter((edgeId) => restoredEdgeIds.has(edgeId))),
-      )
-      setSelectedNodeId((currentSelectedNodeId) =>
-        currentSelectedNodeId && restoredNodeIds.has(currentSelectedNodeId)
-          ? currentSelectedNodeId
-          : undefined,
-      )
-      setNodeDraftValidationIssuesState(undefined)
-      setDirty(!matchesSavedState)
-      requestAnimationFrame(() => {
-        snapshot.nodes.forEach((node) => updateNodeInternals(node.id))
-      })
-    },
-  })
-
-  const workflow = useMemo<Workflow>(() => {
-    const usedPluginIds = new Set<string>()
-    for (const node of nodes) {
-      const lock = catalog.pluginLockByNodeType.get(node.type)
-      if (lock) usedPluginIds.add(lock.pluginId)
-    }
-
-    return {
-      ...toWorkflow(initialSnapshot.workflow, nodes, edges),
+  const { nodeRegistry } = catalog,
+    [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
+      toCanvasNodes(initialSnapshot, nodeRegistry),
+    ),
+    [edges, setEdges, applyEdgeChanges] = useEdgesState<WorkflowEdge>([
+      ...initialSnapshot.workflow.edges,
+    ]),
+    [environmentVariables, setEnvironmentVariables] = useState<WorkflowEnvironmentVariable[]>([
+      ...initialSnapshot.workflow.environmentVariables,
+    ]),
+    [viewport, setWorkflowViewport] = useState<Viewport | undefined>(
+      initialSnapshot.layout.viewport,
+    ),
+    [selectedNodeIds, setSelectedNodeIds] = useState<ReadonlySet<string>>(new Set()),
+    [selectedEdgeIds, setSelectedEdgeIds] = useState<ReadonlySet<string>>(new Set()),
+    // 当前打开配置面板的节点 ID；打开面板时同步收敛为画布唯一选中节点。
+    [selectedNodeId, setSelectedNodeId] = useState<string>(),
+    [nodeDraftValidationIssues, setNodeDraftValidationIssuesState] =
+      useState<NodeDraftValidationIssues>(),
+    // 是否有未保存的修改
+    [dirty, setDirty] = useState(false),
+    clipboardRef = useRef<WorkflowClipboardPayload | undefined>(undefined),
+    clipboardPasteCountRef = useRef(0),
+    nudgeActiveRef = useRef(false),
+    // 当节点的内部结构变了，需要它的端口位置和连线，就调用通知react flow更新
+    updateNodeInternals = useUpdateNodeInternals(),
+    reactFlowStore = useStoreApi<WorkflowCanvasNode, WorkflowEdge>(),
+    // 到屏幕中间
+    {
+      fitView,
+      getViewport,
+      screenToFlowPosition,
+      setViewport: setReactFlowViewport,
+    } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>(),
+    history = useWorkflowHistory({
+      nodes,
+      edges,
       environmentVariables,
-      plugins: catalog.pluginLock.filter((lock) => usedPluginIds.has(lock.pluginId)),
-    }
-  }, [catalog, edges, environmentVariables, initialSnapshot.workflow, nodes])
+      setNodes,
+      setEdges,
+      setEnvironmentVariables,
+      onRestore: (snapshot, matchesSavedState) => {
+        const restoredNodeIds = new Set(snapshot.nodes.map((node) => node.id)),
+          restoredEdgeIds = new Set(snapshot.edges.map((edge) => edge.id))
 
-  // 画布选中节点
-  const selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId)
-  // 选择态只用于画布交互，不写入 Core 工作流数据。
-  const renderedNodes = nodes.map((node) => {
-    const selected = selectedNodeIds.has(node.id)
+        setSelectedNodeIds(
+          (currentSelectedNodeIds) =>
+            new Set([...currentSelectedNodeIds].filter((nodeId) => restoredNodeIds.has(nodeId))),
+        )
+        setSelectedEdgeIds(
+          (currentSelectedEdgeIds) =>
+            new Set([...currentSelectedEdgeIds].filter((edgeId) => restoredEdgeIds.has(edgeId))),
+        )
+        setSelectedNodeId((currentSelectedNodeId) =>
+          currentSelectedNodeId && restoredNodeIds.has(currentSelectedNodeId)
+            ? currentSelectedNodeId
+            : undefined,
+        )
+        setNodeDraftValidationIssuesState(undefined)
+        setDirty(!matchesSavedState)
+        requestAnimationFrame(() => {
+          snapshot.nodes.forEach((node) => updateNodeInternals(node.id))
+        })
+      },
+    }),
+    workflow = useMemo<Workflow>(() => {
+      const usedPluginIds = new Set<string>()
+      for (const node of nodes) {
+        const lock = catalog.pluginLockByNodeType.get(node.type)
+        if (lock) usedPluginIds.add(lock.pluginId)
+      }
 
-    return Boolean(node.selected) === selected ? node : { ...node, selected }
-  })
-  const renderedEdges = edges.map((edge) => ({
-    ...edge,
-    selected: selectedEdgeIds.has(edge.id),
-  }))
-  // core中的节点数据
-  const selectedNode: WorkflowNode | undefined = selectedCanvasNode
-    ? toWorkflowNode(selectedCanvasNode)
-    : undefined
-  const selectedNodeDefaultLabel = selectedCanvasNode
-    ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes, nodeRegistry)
-    : undefined
-  const selectedNodeAvailableVariables = selectedNode
-    ? getAvailableVariables({
-        nodeId: selectedNode.id,
-        nodes: nodes.map(toWorkflowNode),
-        edges,
+      return {
+        ...toWorkflow(initialSnapshot.workflow, nodes, edges),
         environmentVariables,
-        nodeRegistry,
-      })
-    : []
-  const disabledNodeTypes = getDisabledNodeTypes(nodes)
-  const edgeInsertionUnavailableNodeTypes = useMemo(
-    () => getUnavailableNodeTypes(nodeRegistry, canInsertNodeTypeOnEdge),
-    [catalog.fingerprint, nodeRegistry],
-  )
-  const nextNodeUnavailableNodeTypes = useMemo(
-    () => getUnavailableNodeTypes(nodeRegistry, canReceiveConnection),
-    [catalog.fingerprint, nodeRegistry],
-  )
-  const edgeInsertionDisabledNodeTypes = new Set([
-    ...disabledNodeTypes,
-    ...edgeInsertionUnavailableNodeTypes,
-  ])
+        plugins: catalog.pluginLock.filter((lock) => usedPluginIds.has(lock.pluginId)),
+      }
+    }, [catalog, edges, environmentVariables, initialSnapshot.workflow, nodes]),
+    // 画布选中节点
+    selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId),
+    // 选择态只用于画布交互，不写入 Core 工作流数据。
+    renderedNodes = nodes.map((node) => {
+      const selected = selectedNodeIds.has(node.id)
 
-  const loopEditor = useWorkflowLoopEditor({
-    nodes,
-    edges,
-    setNodes,
-    checkpointHistory: history.checkpoint,
-    markDirty: () => setDirty(true),
-    updateNodeInternals,
-    nodeRegistry,
-  })
+      return Boolean(node.selected) === selected ? node : { ...node, selected }
+    }),
+    renderedEdges = edges.map((edge) => ({
+      ...edge,
+      selected: selectedEdgeIds.has(edge.id),
+    })),
+    // core中的节点数据
+    selectedNode: WorkflowNode | undefined = selectedCanvasNode
+      ? toWorkflowNode(selectedCanvasNode)
+      : undefined,
+    selectedNodeDefaultLabel = selectedCanvasNode
+      ? getCanvasNodeDefaultLabel(selectedCanvasNode.id, nodes, nodeRegistry)
+      : undefined,
+    selectedNodeAvailableVariables = selectedNode
+      ? getAvailableVariables({
+          nodeId: selectedNode.id,
+          nodes: nodes.map(toWorkflowNode),
+          edges,
+          environmentVariables,
+          nodeRegistry,
+        })
+      : [],
+    disabledNodeTypes = getDisabledNodeTypes(nodes),
+    edgeInsertionUnavailableNodeTypes = useMemo(
+      () => getUnavailableNodeTypes(nodeRegistry, canInsertNodeTypeOnEdge),
+      [catalog.fingerprint, nodeRegistry],
+    ),
+    nextNodeUnavailableNodeTypes = useMemo(
+      () => getUnavailableNodeTypes(nodeRegistry, canReceiveConnection),
+      [catalog.fingerprint, nodeRegistry],
+    ),
+    edgeInsertionDisabledNodeTypes = new Set([
+      ...disabledNodeTypes,
+      ...edgeInsertionUnavailableNodeTypes,
+    ]),
+    loopEditor = useWorkflowLoopEditor({
+      nodes,
+      edges,
+      setNodes,
+      checkpointHistory: history.checkpoint,
+      markDirty: () => setDirty(true),
+      updateNodeInternals,
+      nodeRegistry,
+    })
 
   /** 应用 React Flow 节点变更，并只对可持久化变化设置 dirty */
   function handleNodesChange(changes: NodeChange<WorkflowCanvasNode>[]) {
-    const selectionChanges = changes.filter((change) => change.type === 'select')
-    const nonSelectionChanges = changes.filter((change) => change.type !== 'select')
+    const selectionChanges = changes.filter((change) => change.type === 'select'),
+      nonSelectionChanges = changes.filter((change) => change.type !== 'select')
 
     if (selectionChanges.length > 0) {
       setSelectedNodeIds((currentSelectedNodeIds) => {
@@ -407,17 +401,17 @@ export function useWorkflowEditor({
     if (nonSelectionChanges.length > 0) {
       if (hasNodeMutation(nonSelectionChanges)) {
         const continuing = nonSelectionChanges.some(
-          (change) =>
-            (change.type === 'position' && change.dragging === true) ||
-            (change.type === 'dimensions' && change.resizing === true),
-        )
-        const completed =
-          !continuing &&
-          nonSelectionChanges.some(
             (change) =>
-              (change.type === 'position' && change.dragging === false) ||
-              (change.type === 'dimensions' && change.resizing === false),
-          )
+              (change.type === 'position' && change.dragging === true) ||
+              (change.type === 'dimensions' && change.resizing === true),
+          ),
+          completed =
+            !continuing &&
+            nonSelectionChanges.some(
+              (change) =>
+                (change.type === 'position' && change.dragging === false) ||
+                (change.type === 'dimensions' && change.resizing === false),
+            )
 
         history.checkpoint({ continuing, completed })
       }
@@ -429,8 +423,8 @@ export function useWorkflowEditor({
 
   // 边变化事件，忽略纯选择态等展示事件
   function handleEdgesChange(changes: EdgeChange<WorkflowEdge>[]) {
-    const selectionChanges = changes.filter((change) => change.type === 'select')
-    const nonSelectionChanges = changes.filter((change) => change.type !== 'select')
+    const selectionChanges = changes.filter((change) => change.type === 'select'),
+      nonSelectionChanges = changes.filter((change) => change.type !== 'select')
 
     if (selectionChanges.length > 0) {
       setSelectedEdgeIds((currentSelectedEdgeIds) => {
@@ -459,27 +453,27 @@ export function useWorkflowEditor({
       throw new Error('当前节点类型不可重复添加或已被禁用')
     }
 
-    const canvasBounds = canvasRef.current?.getBoundingClientRect()
-    const viewportCenter =
-      requestedCenter ??
-      (canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0
-        ? screenToFlowPosition({
-            x: canvasBounds.left + canvasBounds.width / 2,
-            y: canvasBounds.top + canvasBounds.height / 2,
-          })
-        : undefined)
-    const placementSize = getNodePlacementSize(type)
-    const createdNodes = createCanvasNodes({
-      type,
-      existingNodes: nodes,
-      nodeRegistry,
-      position: viewportCenter
-        ? {
-            x: viewportCenter.x - placementSize.width / 2,
-            y: viewportCenter.y - placementSize.height / 2,
-          }
-        : getDefaultNodePosition(nodes.length),
-    })
+    const canvasBounds = canvasRef.current?.getBoundingClientRect(),
+      viewportCenter =
+        requestedCenter ??
+        (canvasBounds && canvasBounds.width > 0 && canvasBounds.height > 0
+          ? screenToFlowPosition({
+              x: canvasBounds.left + canvasBounds.width / 2,
+              y: canvasBounds.top + canvasBounds.height / 2,
+            })
+          : undefined),
+      placementSize = getNodePlacementSize(type),
+      createdNodes = createCanvasNodes({
+        type,
+        existingNodes: nodes,
+        nodeRegistry,
+        position: viewportCenter
+          ? {
+              x: viewportCenter.x - placementSize.width / 2,
+              y: viewportCenter.y - placementSize.height / 2,
+            }
+          : getDefaultNodePosition(nodes.length),
+      })
 
     history.checkpoint()
     setNodes((currentNodes) => [...currentNodes, ...createdNodes])
@@ -528,64 +522,66 @@ export function useWorkflowEditor({
       throw new Error('所选节点无法连接到当前节点')
     }
 
-    const placementSize = getNodePlacementSize(type)
-    const parentLoop = sourceNode.parentId
-      ? nodes.find((node) => node.id === sourceNode.parentId && node.type === BuiltinNodeType.LOOP)
-      : undefined
+    const placementSize = getNodePlacementSize(type),
+      parentLoop = sourceNode.parentId
+        ? nodes.find(
+            (node) => node.id === sourceNode.parentId && node.type === BuiltinNodeType.LOOP,
+          )
+        : undefined
 
     if (sourceNode.parentId && !parentLoop) {
       throw new Error('当前节点所在的 Loop 已不存在')
     }
 
-    const sourceSize = getCanvasNodeSize(sourceNode)
-    const connectedTargetNodes = edges
-      .filter((edge) => edge.source === sourceNode.id)
-      .flatMap((edge) => {
-        const targetNode = nodes.find(
-          (node) => node.id === edge.target && node.parentId === sourceNode.parentId,
-        )
+    const sourceSize = getCanvasNodeSize(sourceNode),
+      connectedTargetNodes = edges
+        .filter((edge) => edge.source === sourceNode.id)
+        .flatMap((edge) => {
+          const targetNode = nodes.find(
+            (node) => node.id === edge.target && node.parentId === sourceNode.parentId,
+          )
 
-        return targetNode ? [targetNode] : []
-      })
-    const centeredY =
-      sourceNode.position.y + Math.max(0, (sourceSize.height - placementSize.height) / 2)
-    const nextRootY = connectedTargetNodes.reduce(
-      (nextY, targetNode) =>
-        Math.max(
-          nextY,
-          targetNode.position.y + getCanvasNodeSize(targetNode).height + NEXT_NODE_VERTICAL_GAP,
-        ),
-      centeredY,
-    )
-    const position = sourceNode.parentId
-      ? getNextLoopChildPosition(sourceNode.parentId, nodes)
-      : {
-          x: sourceNode.position.x + sourceSize.width + NEXT_NODE_HORIZONTAL_GAP,
-          y: nextRootY,
-        }
-    const createdNodes = createCanvasNodes({
-      type,
-      existingNodes: nodes,
-      nodeRegistry,
-      position,
-      ...(sourceNode.parentId
-        ? {
-            parentId: sourceNode.parentId,
-            parentSize: getLoopNodeSize(parentLoop!),
-          }
-        : {}),
-    })
-    const addedNode = createdNodes[0]
-    const addedNodeType = nodeRegistry.getOrThrow(addedNode.type)
-    const parsedAddedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
+          return targetNode ? [targetNode] : []
+        }),
+      centeredY =
+        sourceNode.position.y + Math.max(0, (sourceSize.height - placementSize.height) / 2),
+      nextRootY = connectedTargetNodes.reduce(
+        (nextY, targetNode) =>
+          Math.max(
+            nextY,
+            targetNode.position.y + getCanvasNodeSize(targetNode).height + NEXT_NODE_VERTICAL_GAP,
+          ),
+        centeredY,
+      ),
+      position = sourceNode.parentId
+        ? getNextLoopChildPosition(sourceNode.parentId, nodes)
+        : {
+            x: sourceNode.position.x + sourceSize.width + NEXT_NODE_HORIZONTAL_GAP,
+            y: nextRootY,
+          },
+      createdNodes = createCanvasNodes({
+        type,
+        existingNodes: nodes,
+        nodeRegistry,
+        position,
+        ...(sourceNode.parentId
+          ? {
+              parentId: sourceNode.parentId,
+              parentSize: getLoopNodeSize(parentLoop!),
+            }
+          : {}),
+      }),
+      addedNode = createdNodes[0],
+      addedNodeType = nodeRegistry.getOrThrow(addedNode.type),
+      parsedAddedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
 
     if (!parsedAddedConfig.success) {
       throw new Error('新增节点的配置无效')
     }
 
-    const inputPortIds = Object.keys(getNodePorts(addedNodeType, parsedAddedConfig.data).inputs)
-    const outputPortIds = getAvailableOutputPortIds(sourceNode, edges, nodeRegistry, sourceHandle)
-    const nextNodes = [...nodes, ...createdNodes]
+    const inputPortIds = Object.keys(getNodePorts(addedNodeType, parsedAddedConfig.data).inputs),
+      outputPortIds = getAvailableOutputPortIds(sourceNode, edges, nodeRegistry, sourceHandle),
+      nextNodes = [...nodes, ...createdNodes]
     let connection: Connection | undefined = undefined
 
     for (const outputPortId of outputPortIds) {
@@ -635,44 +631,44 @@ export function useWorkflowEditor({
       throw new Error('当前连线已不存在')
     }
 
-    const sourceNode = nodes.find((node) => node.id === replacedEdge.source)
-    const targetNode = nodes.find((node) => node.id === replacedEdge.target)
+    const sourceNode = nodes.find((node) => node.id === replacedEdge.source),
+      targetNode = nodes.find((node) => node.id === replacedEdge.target)
     if (!sourceNode || !targetNode || sourceNode.parentId || targetNode.parentId) {
       throw new Error('当前连线不支持插入节点')
     }
 
-    const placementSize = getNodePlacementSize(type)
-    const createdNodes = createCanvasNodes({
-      type,
-      existingNodes: nodes,
-      nodeRegistry,
-      position: {
-        x: requestedCenter.x - placementSize.width / 2,
-        y: requestedCenter.y - placementSize.height / 2,
-      },
-    })
-    const addedNode = createdNodes[0]
-    const addedNodeType = nodeRegistry.getOrThrow(addedNode.type)
-    const parsedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
+    const placementSize = getNodePlacementSize(type),
+      createdNodes = createCanvasNodes({
+        type,
+        existingNodes: nodes,
+        nodeRegistry,
+        position: {
+          x: requestedCenter.x - placementSize.width / 2,
+          y: requestedCenter.y - placementSize.height / 2,
+        },
+      }),
+      addedNode = createdNodes[0],
+      addedNodeType = nodeRegistry.getOrThrow(addedNode.type),
+      parsedConfig = addedNodeType.schema.safeParse(addedNode.data.config)
     if (!parsedConfig.success) {
       throw new Error('新增节点的配置无效')
     }
 
-    const addedNodePorts = getNodePorts(addedNodeType, parsedConfig.data)
-    const inputPortId = Object.keys(addedNodePorts.inputs)[0]
-    const outputPortId = Object.keys(addedNodePorts.outputs)[0]
+    const addedNodePorts = getNodePorts(addedNodeType, parsedConfig.data),
+      inputPortId = Object.keys(addedNodePorts.inputs)[0],
+      outputPortId = Object.keys(addedNodePorts.outputs)[0]
     if (!inputPortId || !outputPortId) {
       throw new Error('所选节点需要同时提供输入和输出端口')
     }
 
-    const nextNodes = [...nodes, ...createdNodes]
-    const remainingEdges = edges.filter((edge) => edge.id !== edgeId)
-    const incomingConnection: Connection = {
-      source: replacedEdge.source,
-      sourceHandle: replacedEdge.sourceHandle,
-      target: addedNode.id,
-      targetHandle: inputPortId,
-    }
+    const nextNodes = [...nodes, ...createdNodes],
+      remainingEdges = edges.filter((edge) => edge.id !== edgeId),
+      incomingConnection: Connection = {
+        source: replacedEdge.source,
+        sourceHandle: replacedEdge.sourceHandle,
+        target: addedNode.id,
+        targetHandle: inputPortId,
+      }
     if (
       !canConnect(
         incomingConnection,
@@ -713,13 +709,13 @@ export function useWorkflowEditor({
       throw new Error('无法创建新增节点的输出连线')
     }
 
-    const nextEdges = [...remainingEdges, incomingEdge, outgoingEdge]
-    const layoutedNodes = layoutInsertedNodeOnEdge(nextNodes, nextEdges, {
-      edgeCenter: requestedCenter,
-      insertedNodeId: addedNode.id,
-      sourceNodeId: replacedEdge.source,
-      targetNodeId: replacedEdge.target,
-    })
+    const nextEdges = [...remainingEdges, incomingEdge, outgoingEdge],
+      layoutedNodes = layoutInsertedNodeOnEdge(nextNodes, nextEdges, {
+        edgeCenter: requestedCenter,
+        insertedNodeId: addedNode.id,
+        sourceNodeId: replacedEdge.source,
+        targetNodeId: replacedEdge.target,
+      })
 
     history.checkpoint()
     setNodes(layoutedNodes)
@@ -750,12 +746,12 @@ export function useWorkflowEditor({
 
   // 删除节点后，同步清理引用这些节点的边和选择态
   function handleNodesDelete(deletedNodes: WorkflowCanvasNode[]) {
-    const deletedNodeIds = new Set(deletedNodes.map((node) => node.id))
-    const deletedEdgeIds = new Set(
-      edges
-        .filter((edge) => deletedNodeIds.has(edge.source) || deletedNodeIds.has(edge.target))
-        .map((edge) => edge.id),
-    )
+    const deletedNodeIds = new Set(deletedNodes.map((node) => node.id)),
+      deletedEdgeIds = new Set(
+        edges
+          .filter((edge) => deletedNodeIds.has(edge.source) || deletedNodeIds.has(edge.target))
+          .map((edge) => edge.id),
+      )
 
     setEdges((currentEdges) => removeEdgesConnectedToNodes(currentEdges, deletedNodeIds))
     setSelectedNodeIds(
@@ -779,18 +775,18 @@ export function useWorkflowEditor({
     requestedNodeIds: ReadonlySet<string>,
     requestedEdgeIds: ReadonlySet<string> = new Set(),
   ) {
-    const allowedRootIds = loopEditor.getDeletableRootIds(requestedNodeIds)
-    const deletedNodeIds = collectDescendantNodeIds(allowedRootIds, nodes)
-    const deletedEdgeIds = new Set(
-      edges
-        .filter(
-          (edge) =>
-            requestedEdgeIds.has(edge.id) ||
-            deletedNodeIds.has(edge.source) ||
-            deletedNodeIds.has(edge.target),
-        )
-        .map((edge) => edge.id),
-    )
+    const allowedRootIds = loopEditor.getDeletableRootIds(requestedNodeIds),
+      deletedNodeIds = collectDescendantNodeIds(allowedRootIds, nodes),
+      deletedEdgeIds = new Set(
+        edges
+          .filter(
+            (edge) =>
+              requestedEdgeIds.has(edge.id) ||
+              deletedNodeIds.has(edge.source) ||
+              deletedNodeIds.has(edge.target),
+          )
+          .map((edge) => edge.id),
+      )
 
     if (deletedNodeIds.size === 0 && deletedEdgeIds.size === 0) return false
 
@@ -833,9 +829,9 @@ export function useWorkflowEditor({
   }
 
   function cancelConnection() {
-    const state = reactFlowStore.getState()
-    const connectionInProgress =
-      state.connection.inProgress || state.connectionClickStartHandle !== null
+    const state = reactFlowStore.getState(),
+      connectionInProgress =
+        state.connection.inProgress || state.connectionClickStartHandle !== null
 
     if (!connectionInProgress) return false
 
@@ -927,10 +923,10 @@ export function useWorkflowEditor({
     const payload = clipboardRef.current
     if (!payload) return false
 
-    const nextPasteCount = clipboardPasteCountRef.current + 1
-    const pasted = pastePayload(payload, nextPasteCount * 32, {
-      notifyBlockedSingleInstance: true,
-    })
+    const nextPasteCount = clipboardPasteCountRef.current + 1,
+      pasted = pastePayload(payload, nextPasteCount * 32, {
+        notifyBlockedSingleInstance: true,
+      })
 
     if (pasted) clipboardPasteCountRef.current = nextPasteCount
     return pasted
@@ -1061,8 +1057,8 @@ export function useWorkflowEditor({
     const node = nodes.find((candidate) => candidate.id === nodeId)
     if (!node) return new Set()
 
-    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes)
-    const remainingNodes = nodes.filter((candidate) => !removedNodeIds.has(candidate.id))
+    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes),
+      remainingNodes = nodes.filter((candidate) => !removedNodeIds.has(candidate.id))
 
     return new Set([...getDisabledNodeTypes(remainingNodes), node.type])
   }
@@ -1108,11 +1104,11 @@ export function useWorkflowEditor({
     connectionSourceNodeId?: string,
     connectionSourceHandle?: string,
   ) {
-    const currentNode = nodes.find((node) => node.id === nodeId)
-    const availableTypes = getReplacementNodeTypes(nodeId)
-    const disabledTypes = connectionSourceNodeId
-      ? getConnectedReplacementDisabledNodeTypes(nodeId)
-      : getReplacementDisabledNodeTypes(nodeId)
+    const currentNode = nodes.find((node) => node.id === nodeId),
+      availableTypes = getReplacementNodeTypes(nodeId),
+      disabledTypes = connectionSourceNodeId
+        ? getConnectedReplacementDisabledNodeTypes(nodeId)
+        : getReplacementDisabledNodeTypes(nodeId)
 
     if (!currentNode || !availableTypes.some(({ definition }) => definition.type === type)) {
       throw new Error('当前节点不可更换为所选类型')
@@ -1122,33 +1118,33 @@ export function useWorkflowEditor({
       throw new Error('所选节点类型不可重复添加、已被禁用或与当前类型相同')
     }
 
-    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes)
-    const removedDescendantNodeIds = new Set(
-      [...removedNodeIds].filter((removedNodeId) => removedNodeId !== nodeId),
-    )
-    const remainingNodes = nodes.filter((node) => !removedNodeIds.has(node.id))
-    const parentNode = currentNode.parentId
-      ? remainingNodes.find((node) => node.id === currentNode.parentId)
-      : undefined
-    const createdNodes = createCanvasNodes({
-      type,
-      existingNodes: remainingNodes,
-      nodeRegistry,
-      position: currentNode.position,
-      ...(currentNode.parentId
-        ? {
-            parentId: currentNode.parentId,
-            ...(parentNode ? { parentSize: getCanvasNodeSize(parentNode) } : {}),
-          }
-        : {}),
-    })
-    const [createdRootNode, ...createdDescendants] = createdNodes
-    const nextRootNode: WorkflowCanvasNode = {
-      ...createdRootNode,
-      id: nodeId,
-      position: currentNode.position,
-    }
-    const nextDescendants: WorkflowCanvasNode[] = []
+    const removedNodeIds = collectDescendantNodeIds(new Set([nodeId]), nodes),
+      removedDescendantNodeIds = new Set(
+        [...removedNodeIds].filter((removedNodeId) => removedNodeId !== nodeId),
+      ),
+      remainingNodes = nodes.filter((node) => !removedNodeIds.has(node.id)),
+      parentNode = currentNode.parentId
+        ? remainingNodes.find((node) => node.id === currentNode.parentId)
+        : undefined,
+      createdNodes = createCanvasNodes({
+        type,
+        existingNodes: remainingNodes,
+        nodeRegistry,
+        position: currentNode.position,
+        ...(currentNode.parentId
+          ? {
+              parentId: currentNode.parentId,
+              ...(parentNode ? { parentSize: getCanvasNodeSize(parentNode) } : {}),
+            }
+          : {}),
+      }),
+      [createdRootNode, ...createdDescendants] = createdNodes,
+      nextRootNode: WorkflowCanvasNode = {
+        ...createdRootNode,
+        id: nodeId,
+        position: currentNode.position,
+      },
+      nextDescendants: WorkflowCanvasNode[] = []
 
     for (const node of createdDescendants) {
       nextDescendants.push(
@@ -1156,46 +1152,46 @@ export function useWorkflowEditor({
       )
     }
     const remainingEdges = edges.filter(
-      (edge) =>
-        !removedDescendantNodeIds.has(edge.source) && !removedDescendantNodeIds.has(edge.target),
-    )
-    const nextNodes = nodes.flatMap((node) =>
-      node.id === nodeId
-        ? [nextRootNode, ...nextDescendants]
-        : removedNodeIds.has(node.id)
-          ? []
-          : [node],
-    )
+        (edge) =>
+          !removedDescendantNodeIds.has(edge.source) && !removedDescendantNodeIds.has(edge.target),
+      ),
+      nextNodes = nodes.flatMap((node) =>
+        node.id === nodeId
+          ? [nextRootNode, ...nextDescendants]
+          : removedNodeIds.has(node.id)
+            ? []
+            : [node],
+      )
     let nextEdges = removeDanglingEdges(toWorkflowNode(nextRootNode), remainingEdges, nodeRegistry)
 
     if (connectionSourceNodeId) {
       const connectedEdges = remainingEdges.filter(
-        (edge) =>
-          edge.source === connectionSourceNodeId &&
-          edge.target === nodeId &&
-          (connectionSourceHandle === undefined || edge.sourceHandle === connectionSourceHandle),
-      )
-      const connectedEdge = connectedEdges[0]
+          (edge) =>
+            edge.source === connectionSourceNodeId &&
+            edge.target === nodeId &&
+            (connectionSourceHandle === undefined || edge.sourceHandle === connectionSourceHandle),
+        ),
+        connectedEdge = connectedEdges[0]
 
       if (!connectedEdge) {
         throw new Error('当前节点与待更改节点之间的连接已不存在')
       }
 
-      const connectedEdgeIds = new Set(connectedEdges.map((edge) => edge.id))
-      const disconnectedEdges = remainingEdges.filter((edge) => !connectedEdgeIds.has(edge.id))
-      const validDisconnectedEdges = removeDanglingEdges(
-        toWorkflowNode(nextRootNode),
-        disconnectedEdges,
-        nodeRegistry,
-      )
-      const reconnectedEdge = findReconnectedEdge(
-        connectedEdge,
-        nextRootNode,
-        nextNodes,
-        validDisconnectedEdges,
-        initialSnapshot.workflow,
-        nodeRegistry,
-      )
+      const connectedEdgeIds = new Set(connectedEdges.map((edge) => edge.id)),
+        disconnectedEdges = remainingEdges.filter((edge) => !connectedEdgeIds.has(edge.id)),
+        validDisconnectedEdges = removeDanglingEdges(
+          toWorkflowNode(nextRootNode),
+          disconnectedEdges,
+          nodeRegistry,
+        ),
+        reconnectedEdge = findReconnectedEdge(
+          connectedEdge,
+          nextRootNode,
+          nextNodes,
+          validDisconnectedEdges,
+          initialSnapshot.workflow,
+          nodeRegistry,
+        )
 
       if (!reconnectedEdge) {
         throw new Error('所选节点无法保持当前连接')
@@ -1210,8 +1206,8 @@ export function useWorkflowEditor({
       })
     }
 
-    const nextEdgeIds = new Set(nextEdges.map((edge) => edge.id))
-    const currentViewport = getViewport()
+    const nextEdgeIds = new Set(nextEdges.map((edge) => edge.id)),
+      currentViewport = getViewport()
 
     history.checkpoint()
     setNodes(nextNodes)
@@ -1274,16 +1270,16 @@ export function useWorkflowEditor({
 
   function replaceCanvas(snapshot: WorkflowEditorSnapshot) {
     const importedWorkflow = {
-      ...initialSnapshot.workflow,
-      nodes: snapshot.workflow.nodes,
-      edges: snapshot.workflow.edges,
-      environmentVariables: snapshot.workflow.environmentVariables,
-    }
-    const nextSnapshot = {
-      workflow: importedWorkflow,
-      layout: snapshot.layout,
-    }
-    const nextNodes = toCanvasNodes(nextSnapshot, nodeRegistry)
+        ...initialSnapshot.workflow,
+        nodes: snapshot.workflow.nodes,
+        edges: snapshot.workflow.edges,
+        environmentVariables: snapshot.workflow.environmentVariables,
+      },
+      nextSnapshot = {
+        workflow: importedWorkflow,
+        layout: snapshot.layout,
+      },
+      nextNodes = toCanvasNodes(nextSnapshot, nodeRegistry)
 
     history.checkpoint()
     setNodes(nextNodes)
@@ -1315,12 +1311,12 @@ export function useWorkflowEditor({
     for (const node of nodes) {
       if (!movedNodeIds.has(node.id)) continue
 
-      let x = node.position.x + offset.x
-      let y = node.position.y + offset.y
+      let x = node.position.x + offset.x,
+        y = node.position.y + offset.y
 
       if (Array.isArray(node.extent)) {
-        const [minimum, maximum] = node.extent
-        const size = getCanvasNodeSize(node)
+        const [minimum, maximum] = node.extent,
+          size = getCanvasNodeSize(node)
         x = Math.min(Math.max(x, minimum[0]), maximum[0] - size.width)
         y = Math.min(Math.max(y, minimum[1]), maximum[1] - size.height)
       }
@@ -1388,12 +1384,12 @@ export function useWorkflowEditor({
   }
 
   function autoLayout() {
-    const layoutedNodes = autoLayoutRootNodes(nodes, edges)
-    const layoutChanged = layoutedNodes.some(
-      (node, index) =>
-        node.position.x !== nodes[index]?.position.x ||
-        node.position.y !== nodes[index]?.position.y,
-    )
+    const layoutedNodes = autoLayoutRootNodes(nodes, edges),
+      layoutChanged = layoutedNodes.some(
+        (node, index) =>
+          node.position.x !== nodes[index]?.position.x ||
+          node.position.y !== nodes[index]?.position.y,
+      )
 
     if (!layoutChanged) return false
 
@@ -1411,14 +1407,13 @@ export function useWorkflowEditor({
    * 删除 Loop 时加入全部后代；单独删除 Loop Start/Exit 时拒绝该节点。
    */
   const handleBeforeDelete: OnBeforeDelete<WorkflowCanvasNode, WorkflowEdge> = async ({
-    nodes: requestedNodes,
-    edges: requestedEdges,
-  }) => loopEditor.resolveBeforeDelete(requestedNodes, requestedEdges)
-
-  // 外层画布（非loop内）展示的节点
-  const availableNodeTypes = nodeRegistry
-    .list()
-    .filter((nodeType) => !ROOT_HIDDEN_NODE_TYPES.has(nodeType.definition.type))
+      nodes: requestedNodes,
+      edges: requestedEdges,
+    }) => loopEditor.resolveBeforeDelete(requestedNodes, requestedEdges),
+    // 外层画布（非loop内）展示的节点
+    availableNodeTypes = nodeRegistry
+      .list()
+      .filter((nodeType) => !ROOT_HIDDEN_NODE_TYPES.has(nodeType.definition.type))
 
   return {
     addConnectedNode,

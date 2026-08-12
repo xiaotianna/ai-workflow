@@ -4,23 +4,23 @@ import { useEffect, useRef, useState } from 'react'
 import { toStudioAppListItem } from '../data'
 import type { StudioAppListItem } from '../types'
 
-const studioAppPageSize = 24
-const studioSearchDebounce = 300
+const studioAppPageSize = 24,
+  studioSearchDebounce = 300
 
 export function useStudioApps() {
-  const [apps, setApps] = useState<StudioAppListItem[]>([])
-  const [search, setSearch] = useState('')
-  const [debouncedSearch, setDebouncedSearch] = useState('')
-  const [sort, setSort] = useState<StudioAppSort>('updated_desc')
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [initialLoading, setInitialLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [initialError, setInitialError] = useState(false)
-  const [loadMoreError, setLoadMoreError] = useState(false)
-  const [refreshRevision, setRefreshRevision] = useState(0)
-  const queryVersionRef = useRef(0)
-  const loadMoreControllerRef = useRef<AbortController | undefined>(undefined)
-  const loadingMoreRef = useRef(false)
+  const [apps, setApps] = useState<StudioAppListItem[]>([]),
+    [search, setSearch] = useState(''),
+    [debouncedSearch, setDebouncedSearch] = useState(''),
+    [sort, setSort] = useState<StudioAppSort>('updated_desc'),
+    [nextCursor, setNextCursor] = useState<string | null>(null),
+    [initialLoading, setInitialLoading] = useState(true),
+    [loadingMore, setLoadingMore] = useState(false),
+    [initialError, setInitialError] = useState(false),
+    [loadMoreError, setLoadMoreError] = useState(false),
+    [refreshRevision, setRefreshRevision] = useState(0),
+    queryVersionRef = useRef(0),
+    loadMoreControllerRef = useRef<AbortController | undefined>(undefined),
+    loadingMoreRef = useRef(false)
 
   useEffect(() => {
     const timeout = globalThis.setTimeout(() => {
@@ -38,8 +38,8 @@ export function useStudioApps() {
   )
 
   useEffect(() => {
-    const queryVersion = queryVersionRef.current + 1
-    const controller = new AbortController()
+    const queryVersion = queryVersionRef.current + 1,
+      controller = new AbortController()
 
     queryVersionRef.current = queryVersion
     loadMoreControllerRef.current?.abort()
@@ -81,8 +81,8 @@ export function useStudioApps() {
   async function requestMore(cursor: string) {
     if (loadingMoreRef.current) return
 
-    const queryVersion = queryVersionRef.current
-    const controller = new AbortController()
+    const queryVersion = queryVersionRef.current,
+      controller = new AbortController()
 
     loadMoreControllerRef.current?.abort()
     loadMoreControllerRef.current = controller
@@ -153,8 +153,8 @@ function mergeStudioApps(
   currentApps: StudioAppListItem[],
   nextApps: StudioAppDto[],
 ): StudioAppListItem[] {
-  const mergedApps = [...currentApps]
-  const existingIds = new Set(currentApps.map((app) => app.id))
+  const mergedApps = [...currentApps],
+    existingIds = new Set(currentApps.map((app) => app.id))
 
   for (const app of nextApps) {
     if (existingIds.has(app.id)) continue

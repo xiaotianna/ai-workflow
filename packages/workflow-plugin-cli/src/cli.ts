@@ -42,19 +42,18 @@ interface CliOptions {
 
 function parseInitOptions(args: readonly string[]): InitPluginOptions & { readonly help: boolean } {
   const { values, positionals } = parseArgs({
-    args: [...args],
-    allowPositionals: true,
-    strict: true,
-    options: {
-      template: { type: 'string' },
-      'package-name': { type: 'string' },
-      local: { type: 'boolean' },
-      install: { type: 'boolean' },
-      help: { type: 'boolean', short: 'h' },
-    },
-  })
-
-  const help = values.help ?? false
+      args: [...args],
+      allowPositionals: true,
+      strict: true,
+      options: {
+        template: { type: 'string' },
+        'package-name': { type: 'string' },
+        local: { type: 'boolean' },
+        install: { type: 'boolean' },
+        help: { type: 'boolean', short: 'h' },
+      },
+    }),
+    help = values.help ?? false
   if (!help && positionals.length !== 1) {
     throw new PluginCliError('init 命令需要且只能指定一个目标目录', {
       code: 'INVALID_INIT_TARGET_ARGUMENT',

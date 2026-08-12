@@ -60,8 +60,7 @@ export interface PluginCustomNodeUI {
 export type PluginNodeUI = PluginNodeUIWithBase | PluginCustomNodeUI
 
 export type PluginFormUI =
-  | { readonly custom: false }
-  | { readonly custom: true; readonly renderer: PluginModuleReference }
+  { readonly custom: false } | { readonly custom: true; readonly renderer: PluginModuleReference }
 
 export type PluginExecution =
   | { readonly kind: 'none' }
@@ -106,16 +105,15 @@ export function defineNode<
 }
 
 const pluginPortDefinitionSchema = z
-  .object({
-    dataType: z.enum(DATA_TYPE_VALUES).default('json'),
-    required: z.boolean().optional(),
-    multiple: z.boolean().optional(),
-    label: z.string().trim().min(1).optional(),
-    description: z.string().trim().optional(),
-  })
-  .strict()
-
-const pluginPortMapSchema = z.record(pluginPortIdSchema, pluginPortDefinitionSchema)
+    .object({
+      dataType: z.enum(DATA_TYPE_VALUES).default('json'),
+      required: z.boolean().optional(),
+      multiple: z.boolean().optional(),
+      label: z.string().trim().min(1).optional(),
+      description: z.string().trim().optional(),
+    })
+    .strict(),
+  pluginPortMapSchema = z.record(pluginPortIdSchema, pluginPortDefinitionSchema)
 
 export const pluginNodeOutputDefinitionSchema = nodeOutputDefinitionSchema.refine(
   (output) => jsonValueSchema.safeParse(output).success,
@@ -139,22 +137,21 @@ export const pluginNodeOutputDefinitionsSchema = z
   })
 
 const pluginNodeUISchema = z.discriminatedUnion('custom', [
-  z.object({ custom: z.literal(false), content: pluginModuleReferenceSchema.optional() }).strict(),
-  z.object({ custom: z.literal(true), renderer: pluginModuleReferenceSchema }).strict(),
-])
-
-const pluginFormUISchema = z.discriminatedUnion('custom', [
-  z.object({ custom: z.literal(false) }).strict(),
-  z.object({ custom: z.literal(true), renderer: pluginModuleReferenceSchema }).strict(),
-])
-
-const safeExecutorEntrySchema = pluginModuleReferenceSchema.shape.entry
-
-const pluginExecutionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('none') }).strict(),
-  z.object({ kind: z.literal('host-llm') }).strict(),
-  z.object({ kind: z.literal('sandbox-js'), entry: safeExecutorEntrySchema }).strict(),
-])
+    z
+      .object({ custom: z.literal(false), content: pluginModuleReferenceSchema.optional() })
+      .strict(),
+    z.object({ custom: z.literal(true), renderer: pluginModuleReferenceSchema }).strict(),
+  ]),
+  pluginFormUISchema = z.discriminatedUnion('custom', [
+    z.object({ custom: z.literal(false) }).strict(),
+    z.object({ custom: z.literal(true), renderer: pluginModuleReferenceSchema }).strict(),
+  ]),
+  safeExecutorEntrySchema = pluginModuleReferenceSchema.shape.entry,
+  pluginExecutionSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('none') }).strict(),
+    z.object({ kind: z.literal('host-llm') }).strict(),
+    z.object({ kind: z.literal('sandbox-js'), entry: safeExecutorEntrySchema }).strict(),
+  ])
 
 export const pluginNodeDefinitionSchema = z
   .object({

@@ -9,15 +9,14 @@ interface AstNode {
 }
 
 const FUNCTION_NODE_TYPES = new Set([
-  'ArrowFunctionExpression',
-  'FunctionDeclaration',
-  'FunctionExpression',
-  'ObjectMethod',
-  'ClassMethod',
-  'ClassPrivateMethod',
-])
-
-const OUTPUT_KEY_PATTERN = /^[a-zA-Z_]\w*$/
+    'ArrowFunctionExpression',
+    'FunctionDeclaration',
+    'FunctionExpression',
+    'ObjectMethod',
+    'ClassMethod',
+    'ClassPrivateMethod',
+  ]),
+  OUTPUT_KEY_PATTERN = /^[a-zA-Z_]\w*$/
 
 function isAstNode(value: unknown): value is AstNode {
   return typeof value === 'object' && value !== null && 'type' in value
@@ -94,8 +93,8 @@ function getStaticPropertyKey(property: AstNode): string | undefined {
     key.expressions.length === 0 &&
     Array.isArray(key.quasis)
   ) {
-    const quasi = key.quasis[0]
-    const quasiValue = isAstNode(quasi) ? quasi.value : undefined
+    const quasi = key.quasis[0],
+      quasiValue = isAstNode(quasi) ? quasi.value : undefined
     value =
       typeof quasiValue === 'object' && quasiValue !== null && 'cooked' in quasiValue
         ? quasiValue.cooked
@@ -161,9 +160,9 @@ export function deriveCodeNodeOutputs(code: string): NodeOutputDefinition[] | un
   const mainFunction = findMainFunction(program)
   if (!mainFunction) return []
 
-  const keys: string[] = []
-  const knownKeys = new Set<string>()
-  const body = mainFunction.body
+  const keys: string[] = [],
+    knownKeys = new Set<string>(),
+    body = mainFunction.body
 
   if (isAstNode(body) && body.type === 'ObjectExpression') {
     collectObjectKeys(body, keys, knownKeys)
@@ -188,10 +187,10 @@ export function synchronizeCodeNodeOutputs(
   const derivedOutputs = deriveCodeNodeOutputs(code)
   if (!derivedOutputs) return [...outputs]
 
-  const derivedKeys = new Set(derivedOutputs.map((output) => output.key))
-  const mappedOutputs = outputs.filter(
-    (output) => output.value !== undefined && !derivedKeys.has(output.key),
-  )
+  const derivedKeys = new Set(derivedOutputs.map((output) => output.key)),
+    mappedOutputs = outputs.filter(
+      (output) => output.value !== undefined && !derivedKeys.has(output.key),
+    )
 
   return [...derivedOutputs, ...mappedOutputs]
 }

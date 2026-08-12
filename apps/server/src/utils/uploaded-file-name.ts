@@ -6,9 +6,9 @@ export function normalizeUploadedFileName(originalFileName: string): string {
     return leafName.normalize('NFC')
   }
 
-  const latin1Bytes = Buffer.from(leafName, 'latin1')
-  const utf8FileName = latin1Bytes.toString('utf8')
-  const isValidUtf8 = Buffer.from(utf8FileName, 'utf8').equals(latin1Bytes)
+  const latin1Bytes = Buffer.from(leafName, 'latin1'),
+    utf8FileName = latin1Bytes.toString('utf8'),
+    isValidUtf8 = Buffer.from(utf8FileName, 'utf8').equals(latin1Bytes)
 
   return (isValidUtf8 ? utf8FileName : leafName).normalize('NFC')
 }

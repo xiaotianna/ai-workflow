@@ -16,8 +16,8 @@ export function normalizeDeclaredValues(
   definitions: readonly NodeOutputDefinition[],
   options: NormalizeDeclaredValuesOptions,
 ): Record<string, JsonValue> {
-  const definitionByKey = new Map(definitions.map((definition) => [definition.key, definition]))
-  const unknownKeys = Object.keys(rawValues).filter((key) => !definitionByKey.has(key))
+  const definitionByKey = new Map(definitions.map((definition) => [definition.key, definition])),
+    unknownKeys = Object.keys(rawValues).filter((key) => !definitionByKey.has(key))
 
   if (options.unknownValuePolicy === 'reject' && unknownKeys.length > 0) {
     throw new RuntimeError(

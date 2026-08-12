@@ -35,31 +35,31 @@ interface UseWorkflowNodePickerOptions {
 }
 
 export function useWorkflowNodePicker({ defaultAnchorRef, editor }: UseWorkflowNodePickerOptions) {
-  const [state, setState] = useState<NodePickerState>({ kind: 'closed' })
-  const open = state.kind !== 'closed'
-  const connectionSourceNodeId = state.kind === 'connect-next' ? state.sourceNodeId : undefined
-  const connectionSourceHandle = state.kind === 'connect-next' ? state.sourceHandle : undefined
-  const anchor = state.kind === 'connect-next' ? state.anchor : defaultAnchorRef.current
-  const anchorPosition = state.anchorPosition
-  const popoverAlign: 'start' | 'end' =
-    state.kind === 'connect-next' || anchorPosition ? 'start' : 'end'
-  const popoverSide: 'top' | 'right' | 'left' =
-    state.kind === 'connect-next' ? 'left' : anchorPosition ? 'right' : 'top'
-  const replaceNodeId = state.kind === 'replace' ? state.nodeId : undefined
-  const nodeTypes = replaceNodeId
-    ? editor.getReplacementNodeTypes(replaceNodeId)
-    : connectionSourceNodeId
-      ? editor.getNextNodeTypes(connectionSourceNodeId)
-      : editor.availableNodeTypes
-  const disabledNodeTypes = replaceNodeId
-    ? state.kind === 'replace' && state.sourceNodeId
-      ? editor.getConnectedReplacementDisabledNodeTypes(replaceNodeId)
-      : editor.getReplacementDisabledNodeTypes(replaceNodeId)
-    : state.kind === 'insert-edge'
-      ? editor.edgeInsertionDisabledNodeTypes
+  const [state, setState] = useState<NodePickerState>({ kind: 'closed' }),
+    open = state.kind !== 'closed',
+    connectionSourceNodeId = state.kind === 'connect-next' ? state.sourceNodeId : undefined,
+    connectionSourceHandle = state.kind === 'connect-next' ? state.sourceHandle : undefined,
+    anchor = state.kind === 'connect-next' ? state.anchor : defaultAnchorRef.current,
+    anchorPosition = state.anchorPosition,
+    popoverAlign: 'start' | 'end' =
+      state.kind === 'connect-next' || anchorPosition ? 'start' : 'end',
+    popoverSide: 'top' | 'right' | 'left' =
+      state.kind === 'connect-next' ? 'left' : anchorPosition ? 'right' : 'top',
+    replaceNodeId = state.kind === 'replace' ? state.nodeId : undefined,
+    nodeTypes = replaceNodeId
+      ? editor.getReplacementNodeTypes(replaceNodeId)
       : connectionSourceNodeId
-        ? editor.getNextDisabledNodeTypes(connectionSourceNodeId, connectionSourceHandle)
-        : editor.disabledNodeTypes
+        ? editor.getNextNodeTypes(connectionSourceNodeId)
+        : editor.availableNodeTypes,
+    disabledNodeTypes = replaceNodeId
+      ? state.kind === 'replace' && state.sourceNodeId
+        ? editor.getConnectedReplacementDisabledNodeTypes(replaceNodeId)
+        : editor.getReplacementDisabledNodeTypes(replaceNodeId)
+      : state.kind === 'insert-edge'
+        ? editor.edgeInsertionDisabledNodeTypes
+        : connectionSourceNodeId
+          ? editor.getNextDisabledNodeTypes(connectionSourceNodeId, connectionSourceHandle)
+          : editor.disabledNodeTypes
 
   function openAddNode(center?: XYPosition, nextAnchorPosition?: XYPosition) {
     setState({

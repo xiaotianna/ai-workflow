@@ -13,18 +13,18 @@ interface ListContentBlock {
 
 type ContentBlock = ListContentBlock | PlainContentBlock
 
-const unorderedListPattern = /^\s*[-+*]\s+(.+)$/
-const orderedListPattern = /^\s*(\d+)[.)]\s+(.+)$/
-const inlineCodePattern = /(`[^`\n]+`)/g
+const unorderedListPattern = /^\s*[-+*]\s+(.+)$/,
+  orderedListPattern = /^\s*(\d+)[.)]\s+(.+)$/,
+  inlineCodePattern = /(`[^`\n]+`)/g
 
 function parseContentBlocks(content: string): ContentBlock[] {
   const blocks: ContentBlock[] = []
 
   content.split('\n').forEach((line) => {
-    const unorderedMatch = unorderedListPattern.exec(line)
-    const orderedMatch = orderedListPattern.exec(line)
-    const kind = unorderedMatch ? 'unordered' : orderedMatch ? 'ordered' : undefined
-    const item = unorderedMatch?.[1] ?? orderedMatch?.[2]
+    const unorderedMatch = unorderedListPattern.exec(line),
+      orderedMatch = orderedListPattern.exec(line),
+      kind = unorderedMatch ? 'unordered' : orderedMatch ? 'ordered' : undefined,
+      item = unorderedMatch?.[1] ?? orderedMatch?.[2]
 
     if (kind && item) {
       const currentBlock = blocks.at(-1)

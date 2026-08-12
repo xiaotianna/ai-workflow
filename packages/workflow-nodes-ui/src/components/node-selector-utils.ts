@@ -29,8 +29,8 @@ export function filterNodeTypesByQuery(nodeTypes: readonly NodeType[], query: st
 }
 
 export function splitNodeTypesByOrigin(nodeTypes: readonly NodeType[]) {
-  const builtinNodeTypes: NodeType[] = []
-  const pluginNodeTypes: NodeType[] = []
+  const builtinNodeTypes: NodeType[] = [],
+    pluginNodeTypes: NodeType[] = []
 
   for (const nodeType of nodeTypes) {
     if (isPluginNodeType(nodeType.definition.type)) {
@@ -55,13 +55,12 @@ export function groupPluginNodeTypes(
   const groups = new Map<string, NodeType[]>()
 
   for (const nodeType of nodeTypes) {
-    const type = nodeType.definition.type
-    const label =
-      groupLabelByNodeType?.get(type) ??
-      getPluginPackageNameFromNodeType(type) ??
-      nodeType.definition.label
-
-    const existingGroup = groups.get(label)
+    const type = nodeType.definition.type,
+      label =
+        groupLabelByNodeType?.get(type) ??
+        getPluginPackageNameFromNodeType(type) ??
+        nodeType.definition.label,
+      existingGroup = groups.get(label)
     if (existingGroup) {
       existingGroup.push(nodeType)
       continue

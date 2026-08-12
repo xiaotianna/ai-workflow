@@ -5,10 +5,10 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 export default function SharedAppApiPage() {
-  const { shareToken } = useParams<{ shareToken: string }>()
-  const [sharedApp, setSharedApp] = useState<PublicAppApiDocsDto>()
-  const [loading, setLoading] = useState(true)
-  const [failed, setFailed] = useState(false)
+  const { shareToken } = useParams<{ shareToken: string }>(),
+    [sharedApp, setSharedApp] = useState<PublicAppApiDocsDto>(),
+    [loading, setLoading] = useState(true),
+    [failed, setFailed] = useState(false)
 
   useEffect(() => {
     if (!shareToken) {

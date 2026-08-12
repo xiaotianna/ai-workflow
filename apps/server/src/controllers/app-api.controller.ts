@@ -84,8 +84,8 @@ export class AppApiController {
     versionId: string | undefined,
     input: Record<string, unknown>,
   ): Promise<void> {
-    const appId = request.appApiAuth.appId
-    const run = await this.workflowRunService.createApiRun(appId, versionId, input)
+    const appId = request.appApiAuth.appId,
+      run = await this.workflowRunService.createApiRun(appId, versionId, input)
     request.appApiRunId = run.id
     await this.workflowRunSseService.stream({
       response,

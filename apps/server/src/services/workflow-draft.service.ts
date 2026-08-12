@@ -26,8 +26,8 @@ export class WorkflowDraftService {
   ) {}
 
   async get(ownerId: string, appId: string): Promise<WorkflowDraftVo> {
-    const app = await this.workflowDraftRepository.findOwned(ownerId, appId)
-    const draft = app?.workflow?.draft
+    const app = await this.workflowDraftRepository.findOwned(ownerId, appId),
+      draft = app?.workflow?.draft
 
     if (!draft) {
       throw new NotFoundException('工作流草稿不存在')
@@ -42,10 +42,10 @@ export class WorkflowDraftService {
       throw new BadRequestException('工作流定义格式无效')
     }
     const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
-      ownerId,
-      submittedDefinition,
-    )
-    const issues = validateWorkflow(submittedDefinition, catalog.nodeRegistry)
+        ownerId,
+        submittedDefinition,
+      ),
+      issues = validateWorkflow(submittedDefinition, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流定义格式无效')
     }
@@ -55,8 +55,8 @@ export class WorkflowDraftService {
       throw new BadRequestException('工作流布局格式无效')
     }
 
-    const currentApp = await this.workflowDraftRepository.findOwned(ownerId, appId)
-    const currentDraft = currentApp?.workflow?.draft
+    const currentApp = await this.workflowDraftRepository.findOwned(ownerId, appId),
+      currentDraft = currentApp?.workflow?.draft
 
     if (!currentDraft) {
       throw new NotFoundException('工作流草稿不存在')
@@ -68,19 +68,18 @@ export class WorkflowDraftService {
     }
 
     const definition = restoreMaskedWorkflowDefinitionSecrets(
-      submittedDefinition,
-      persistedDefinition,
-    )
-
-    const result = await this.workflowDraftRepository.saveOwned({
-      ownerId,
-      appId,
-      workflowId: definition.id,
-      revision: dto.revision,
-      definition: this.toJsonInput(definition),
-      layout: this.toJsonInput(layout),
-      pluginDependencies: catalog.pluginDependencies,
-    })
+        submittedDefinition,
+        persistedDefinition,
+      ),
+      result = await this.workflowDraftRepository.saveOwned({
+        ownerId,
+        appId,
+        workflowId: definition.id,
+        revision: dto.revision,
+        definition: this.toJsonInput(definition),
+        layout: this.toJsonInput(layout),
+        pluginDependencies: catalog.pluginDependencies,
+      })
 
     if (result.status === 'not-found') {
       throw new NotFoundException('工作流草稿不存在')
@@ -107,8 +106,8 @@ export class WorkflowDraftService {
     },
     internalError = false,
   ): WorkflowDraftVo {
-    const definition = parseWorkflowDefinition(draft.definition)
-    const layout = parseWorkflowLayout(draft.layout)
+    const definition = parseWorkflowDefinition(draft.definition),
+      layout = parseWorkflowLayout(draft.layout)
 
     if (!definition || !layout) {
       if (internalError) {

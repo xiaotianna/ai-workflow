@@ -25,8 +25,8 @@ import {
 } from '@nestjs/common'
 import { createHash, randomBytes } from 'node:crypto'
 
-const API_KEY_PREFIX = 'app-'
-const API_KEY_MASK_LENGTH = 20
+const API_KEY_PREFIX = 'app-',
+  API_KEY_MASK_LENGTH = 20
 
 @Injectable()
 export class AppApiService {
@@ -73,15 +73,15 @@ export class AppApiService {
   }
 
   async createKey(ownerId: string, appId: string): Promise<CreatedAppApiKeyVo> {
-    const secret = `${API_KEY_PREFIX}${randomBytes(32).toString('base64url')}`
-    const suffix = secret.slice(-5)
-    const key = await this.appApiRepository.createOwnedApiKey({
-      ownerId,
-      appId,
-      prefix: API_KEY_PREFIX,
-      suffix,
-      keyHash: hashApiKey(secret),
-    })
+    const secret = `${API_KEY_PREFIX}${randomBytes(32).toString('base64url')}`,
+      suffix = secret.slice(-5),
+      key = await this.appApiRepository.createOwnedApiKey({
+        ownerId,
+        appId,
+        prefix: API_KEY_PREFIX,
+        suffix,
+        keyHash: hashApiKey(secret),
+      })
     if (!key) throw new NotFoundException('应用不存在')
 
     return {
@@ -123,8 +123,8 @@ export class AppApiService {
     if (!app?.workflow) throw new NotFoundException('应用不存在')
 
     const rawDefinition =
-      app.workflow.deployments[0]?.version.definition ?? app.workflow.draft?.definition
-    const definition = parseWorkflowDefinition(rawDefinition)
+        app.workflow.deployments[0]?.version.definition ?? app.workflow.draft?.definition,
+      definition = parseWorkflowDefinition(rawDefinition)
     if (!definition) {
       throw new InternalServerErrorException('工作流参数定义格式无效')
     }

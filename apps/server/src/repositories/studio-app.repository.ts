@@ -48,9 +48,9 @@ export class StudioAppRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   list(options: ListStudioAppsOptions) {
-    const sortField = options.sort === 'updated_desc' ? 'updatedAt' : 'createdAt'
-    const direction = options.sort === 'created_asc' ? 'asc' : 'desc'
-    const cursorFilter = this.createCursorFilter(options.sort, options.cursor)
+    const sortField = options.sort === 'updated_desc' ? 'updatedAt' : 'createdAt',
+      direction = options.sort === 'created_asc' ? 'asc' : 'desc',
+      cursorFilter = this.createCursorFilter(options.sort, options.cursor)
 
     return this.prisma.app.findMany({
       where: {

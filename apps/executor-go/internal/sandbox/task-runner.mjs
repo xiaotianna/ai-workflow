@@ -65,8 +65,8 @@ async function executePlugin(sourcePath, request) {
 }
 
 async function main() {
-  const [requestPath, sourcePath, resultPath] = process.argv.slice(2)
-  const request = JSON.parse(await readFile(requestPath, 'utf8'))
+  const [requestPath, sourcePath, resultPath] = process.argv.slice(2),
+    request = JSON.parse(await readFile(requestPath, 'utf8'))
   let envelope
   try {
     const outputs = await executePlugin(sourcePath, request)

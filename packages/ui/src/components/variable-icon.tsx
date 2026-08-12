@@ -14,16 +14,15 @@ export type VariableIconProps = Omit<ComponentProps<'span'>, 'children'> & {
 }
 
 const VARIABLE_ICON_ASSETS: Record<VariableIconVariant, string> = {
-  default: SystemIcon,
-  system: SystemIcon,
-  environment: EnvironmentIcon,
-}
-
-const VARIABLE_ICON_COLOR_CLASSES: Record<VariableIconVariant, string> = {
-  default: '',
-  system: 'text-orange-600 dark:text-orange-400',
-  environment: 'text-violet-600 dark:text-violet-400',
-}
+    default: SystemIcon,
+    system: SystemIcon,
+    environment: EnvironmentIcon,
+  },
+  VARIABLE_ICON_COLOR_CLASSES: Record<VariableIconVariant, string> = {
+    default: '',
+    system: 'text-orange-600 dark:text-orange-400',
+    environment: 'text-violet-600 dark:text-violet-400',
+  }
 
 export function getVariableIconColorClass(variant: VariableIconVariant) {
   return VARIABLE_ICON_COLOR_CLASSES[variant]

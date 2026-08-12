@@ -35,10 +35,10 @@ export class PluginCatalogService {
     ownerId: string,
     pluginLock: WorkflowPluginLock,
   ): Promise<readonly ResolvedPluginCatalogVersion[]> {
-    const versions = await this.pluginRepository.findInstalledVersions(ownerId, pluginLock)
-    const versionByKey = new Map(
-      versions.map((version) => [`${version.pluginId}@${version.version}`, version]),
-    )
+    const versions = await this.pluginRepository.findInstalledVersions(ownerId, pluginLock),
+      versionByKey = new Map(
+        versions.map((version) => [`${version.pluginId}@${version.version}`, version]),
+      )
 
     return pluginLock.map((lock) => {
       const version = versionByKey.get(`${lock.pluginId}@${lock.version}`)
@@ -58,14 +58,14 @@ export class PluginCatalogService {
     ownerId: string,
     _pluginLock: WorkflowPluginLock,
   ): Promise<readonly ResolvedPluginCatalogVersion[]> {
-    const installations = await this.pluginRepository.listEnabledInstallations(ownerId)
-    const versions = installations.map((installation) => {
-      return this.toResolvedVersion({
-        pluginId: installation.pluginId,
-        ...installation.version,
-        grantedPermissions: installation.grantedPermissions,
+    const installations = await this.pluginRepository.listEnabledInstallations(ownerId),
+      versions = installations.map((installation) => {
+        return this.toResolvedVersion({
+          pluginId: installation.pluginId,
+          ...installation.version,
+          grantedPermissions: installation.grantedPermissions,
+        })
       })
-    })
 
     return versions.sort((left, right) => left.pluginId.localeCompare(right.pluginId))
   }

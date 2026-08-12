@@ -23,9 +23,9 @@ function assertMatchingKeys(
   actualValues: Readonly<Record<string, unknown>>,
   label: 'Node' | 'Edge',
 ): void {
-  const actualIds = Object.keys(actualValues)
-  const missingIds = [...expectedIds].filter((id) => !hasOwn(actualValues, id))
-  const unknownIds = actualIds.filter((id) => !expectedIds.has(id))
+  const actualIds = Object.keys(actualValues),
+    missingIds = [...expectedIds].filter((id) => !hasOwn(actualValues, id)),
+    unknownIds = actualIds.filter((id) => !expectedIds.has(id))
 
   if (missingIds.length > 0 || unknownIds.length > 0) {
     throw new RuntimeError(
@@ -58,12 +58,12 @@ function assertExecutionIndex(state: RuntimeState): void {
       )
     }
 
-    const hasOutputs = execution.outputs !== undefined
-    const hasError = execution.error !== undefined
-    const payloadMatchesStatus =
-      (execution.status === RUNTIME_EXECUTION_STATUSES.RUNNING && !hasOutputs && !hasError) ||
-      (execution.status === RUNTIME_EXECUTION_STATUSES.SUCCEEDED && hasOutputs && !hasError) ||
-      (execution.status === RUNTIME_EXECUTION_STATUSES.FAILED && !hasOutputs && hasError)
+    const hasOutputs = execution.outputs !== undefined,
+      hasError = execution.error !== undefined,
+      payloadMatchesStatus =
+        (execution.status === RUNTIME_EXECUTION_STATUSES.RUNNING && !hasOutputs && !hasError) ||
+        (execution.status === RUNTIME_EXECUTION_STATUSES.SUCCEEDED && hasOutputs && !hasError) ||
+        (execution.status === RUNTIME_EXECUTION_STATUSES.FAILED && !hasOutputs && hasError)
 
     if (!payloadMatchesStatus) {
       throw new RuntimeError(
@@ -149,17 +149,18 @@ function assertExecutionSequences(state: RuntimeState): void {
 }
 
 function assertRunStatus(state: RuntimeState): void {
-  const nodeStatuses = new Set(Object.values(state.nodeStates).map((nodeState) => nodeState.status))
-  const executionStatuses = new Set(
-    Object.values(state.executions).map((execution) => execution.status),
-  )
-
-  const hasRunningRecord =
-    nodeStatuses.has(RUNTIME_NODE_STATUSES.RUNNING) &&
-    executionStatuses.has(RUNTIME_EXECUTION_STATUSES.RUNNING)
-  const hasFailedRecord =
-    nodeStatuses.has(RUNTIME_NODE_STATUSES.FAILED) ||
-    executionStatuses.has(RUNTIME_EXECUTION_STATUSES.FAILED)
+  const nodeStatuses = new Set(
+      Object.values(state.nodeStates).map((nodeState) => nodeState.status),
+    ),
+    executionStatuses = new Set(
+      Object.values(state.executions).map((execution) => execution.status),
+    ),
+    hasRunningRecord =
+      nodeStatuses.has(RUNTIME_NODE_STATUSES.RUNNING) &&
+      executionStatuses.has(RUNTIME_EXECUTION_STATUSES.RUNNING),
+    hasFailedRecord =
+      nodeStatuses.has(RUNTIME_NODE_STATUSES.FAILED) ||
+      executionStatuses.has(RUNTIME_EXECUTION_STATUSES.FAILED)
 
   if (state.status === RUNTIME_RUN_STATUSES.RUNNING && (!hasRunningRecord || hasFailedRecord)) {
     throw new RuntimeError(

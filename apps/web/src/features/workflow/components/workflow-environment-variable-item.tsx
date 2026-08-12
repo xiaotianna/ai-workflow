@@ -39,9 +39,9 @@ export function WorkflowEnvironmentVariableItem({
   onDelete,
   onEdit,
 }: WorkflowEnvironmentVariableItemProps) {
-  const isSecret = variable.type === ENVIRONMENT_VARIABLE_TYPES.SECRET
-  const displayValue = isSecret ? SECRET_VALUE_MASK : String(variable.value)
-  const description = variable.description.trim()
+  const isSecret = variable.type === ENVIRONMENT_VARIABLE_TYPES.SECRET,
+    displayValue = isSecret ? SECRET_VALUE_MASK : String(variable.value),
+    description = variable.description.trim()
 
   return (
     <div className="group bg-background border-border/60 hover:bg-input/60 overflow-hidden rounded-lg border shadow-xs transition-[background-color,box-shadow] hover:shadow-md">

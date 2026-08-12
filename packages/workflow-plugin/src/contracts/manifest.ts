@@ -16,55 +16,50 @@ import { compilePluginSchemaToZod } from '../schema/compiler'
 import { pluginSchemaAstSchema } from '../schema/ast-schema'
 import { pluginNodeOutputDefinitionsSchema } from './node'
 
-const sha256DigestSchema = z.string().regex(/^[a-f0-9]{64}$/i, 'SHA-256 摘要格式不正确')
-const semanticVersionSchema = z
-  .string()
-  .regex(
-    /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
-    '插件版本必须是合法的 SemVer',
-  )
-const artifactPathSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .refine(
-    (value) =>
-      !value.startsWith('/') &&
-      !value.startsWith('\\') &&
-      !/^[a-zA-Z]:[\\/]/.test(value) &&
-      !value.replaceAll('\\', '/').split('/').includes('..'),
-    'artifact 必须使用安全相对路径',
-  )
-
-const manifestPortDefinitionSchema = z
-  .object({
-    dataType: z.enum(['string', 'number', 'boolean', 'json']),
-    required: z.boolean().optional(),
-    multiple: z.boolean().optional(),
-    label: z.string().trim().min(1).optional(),
-    description: z.string().trim().optional(),
-  })
-  .strict()
-
-const manifestPortMapSchema = z.record(pluginPortIdSchema, manifestPortDefinitionSchema)
-
-const manifestNodeUISchema = z.discriminatedUnion('custom', [
-  z
-    .object({ custom: z.literal(false), remoteExport: z.string().trim().min(1).optional() })
+const sha256DigestSchema = z.string().regex(/^[a-f0-9]{64}$/i, 'SHA-256 摘要格式不正确'),
+  semanticVersionSchema = z
+    .string()
+    .regex(
+      /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/,
+      '插件版本必须是合法的 SemVer',
+    ),
+  artifactPathSchema = z
+    .string()
+    .trim()
+    .min(1)
+    .refine(
+      (value) =>
+        !value.startsWith('/') &&
+        !value.startsWith('\\') &&
+        !/^[a-zA-Z]:[\\/]/.test(value) &&
+        !value.replaceAll('\\', '/').split('/').includes('..'),
+      'artifact 必须使用安全相对路径',
+    ),
+  manifestPortDefinitionSchema = z
+    .object({
+      dataType: z.enum(['string', 'number', 'boolean', 'json']),
+      required: z.boolean().optional(),
+      multiple: z.boolean().optional(),
+      label: z.string().trim().min(1).optional(),
+      description: z.string().trim().optional(),
+    })
     .strict(),
-  z.object({ custom: z.literal(true), remoteExport: z.string().trim().min(1) }).strict(),
-])
-
-const manifestFormUISchema = z.discriminatedUnion('custom', [
-  z.object({ custom: z.literal(false) }).strict(),
-  z.object({ custom: z.literal(true), remoteExport: z.string().trim().min(1) }).strict(),
-])
-
-const manifestExecutionSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('none') }).strict(),
-  z.object({ kind: z.literal('host-llm') }).strict(),
-  z.object({ kind: z.literal('sandbox-js'), artifact: artifactPathSchema }).strict(),
-])
+  manifestPortMapSchema = z.record(pluginPortIdSchema, manifestPortDefinitionSchema),
+  manifestNodeUISchema = z.discriminatedUnion('custom', [
+    z
+      .object({ custom: z.literal(false), remoteExport: z.string().trim().min(1).optional() })
+      .strict(),
+    z.object({ custom: z.literal(true), remoteExport: z.string().trim().min(1) }).strict(),
+  ]),
+  manifestFormUISchema = z.discriminatedUnion('custom', [
+    z.object({ custom: z.literal(false) }).strict(),
+    z.object({ custom: z.literal(true), remoteExport: z.string().trim().min(1) }).strict(),
+  ]),
+  manifestExecutionSchema = z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('none') }).strict(),
+    z.object({ kind: z.literal('host-llm') }).strict(),
+    z.object({ kind: z.literal('sandbox-js'), artifact: artifactPathSchema }).strict(),
+  ])
 
 export const pluginManifestNodeSchema = z
   .object({
@@ -163,10 +158,10 @@ export const pluginManifestSchema = z
   })
   .strict()
   .superRefine((manifest, context) => {
-    const nodeKeys = new Set<string>()
-    const nodeTypes = new Set<string>()
-    const requiredHostFields = new Set(manifest.requires.hostFields)
-    const hasWebExecutePermission = manifest.permissions.includes('web:execute')
+    const nodeKeys = new Set<string>(),
+      nodeTypes = new Set<string>(),
+      requiredHostFields = new Set(manifest.requires.hostFields),
+      hasWebExecutePermission = manifest.permissions.includes('web:execute')
 
     manifest.nodes.forEach((node, index) => {
       if (nodeKeys.has(node.key)) {

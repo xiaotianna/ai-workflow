@@ -50,103 +50,101 @@ function createRemoteExport(nodeKey: string, role: PluginWebModuleRole): string 
 }
 
 function createAssetArtifact(nodeKey: string, sourceEntry: string): string {
-  const normalizedEntry = sourceEntry.replaceAll('\\', '/')
-  const fileName = normalizedEntry.slice(normalizedEntry.lastIndexOf('/') + 1)
+  const normalizedEntry = sourceEntry.replaceAll('\\', '/'),
+    fileName = normalizedEntry.slice(normalizedEntry.lastIndexOf('/') + 1)
   return `assets/${nodeKey}-${fileName}`
 }
 
 export function createPluginBuildPlan(checkedPlugin: CheckedPlugin): PluginBuildPlan {
-  const webModules: PluginWebModulePlan[] = []
-  const executors: PluginExecutorPlan[] = []
-  const assets: PluginAssetPlan[] = []
-  const remoteExports = new Set<string>()
+  const webModules: PluginWebModulePlan[] = [],
+    executors: PluginExecutorPlan[] = [],
+    assets: PluginAssetPlan[] = [],
+    remoteExports = new Set<string>(),
+    nodes = checkedPlugin.config.nodes.map((node) => {
+      let icon: string | undefined
+      if (node.icon) {
+        icon = createAssetArtifact(node.key, node.icon)
+        assets.push({ nodeKey: node.key, sourceEntry: node.icon, artifact: icon })
+      }
 
-  const nodes = checkedPlugin.config.nodes.map((node) => {
-    let icon: string | undefined
-    if (node.icon) {
-      icon = createAssetArtifact(node.key, node.icon)
-      assets.push({ nodeKey: node.key, sourceEntry: node.icon, artifact: icon })
-    }
+      let manifestNodeUi:
+        | { readonly custom: false; readonly remoteExport?: string }
+        | { readonly custom: true; readonly remoteExport: string }
 
-    let manifestNodeUi:
-      | { readonly custom: false; readonly remoteExport?: string }
-      | { readonly custom: true; readonly remoteExport: string }
+      if (node.ui.node.custom) {
+        const remoteExport = createRemoteExport(node.key, 'renderer')
+        remoteExports.add(remoteExport)
+        webModules.push({
+          nodeKey: node.key,
+          role: 'renderer',
+          reference: node.ui.node.renderer,
+          remoteExport,
+        })
+        manifestNodeUi = { custom: true, remoteExport }
+      } else if (node.ui.node.content) {
+        const remoteExport = createRemoteExport(node.key, 'content')
+        remoteExports.add(remoteExport)
+        webModules.push({
+          nodeKey: node.key,
+          role: 'content',
+          reference: node.ui.node.content,
+          remoteExport,
+        })
+        manifestNodeUi = { custom: false, remoteExport }
+      } else {
+        manifestNodeUi = { custom: false }
+      }
 
-    if (node.ui.node.custom) {
-      const remoteExport = createRemoteExport(node.key, 'renderer')
-      remoteExports.add(remoteExport)
-      webModules.push({
-        nodeKey: node.key,
-        role: 'renderer',
-        reference: node.ui.node.renderer,
-        remoteExport,
-      })
-      manifestNodeUi = { custom: true, remoteExport }
-    } else if (node.ui.node.content) {
-      const remoteExport = createRemoteExport(node.key, 'content')
-      remoteExports.add(remoteExport)
-      webModules.push({
-        nodeKey: node.key,
-        role: 'content',
-        reference: node.ui.node.content,
-        remoteExport,
-      })
-      manifestNodeUi = { custom: false, remoteExport }
-    } else {
-      manifestNodeUi = { custom: false }
-    }
+      let manifestFormUi:
+        { readonly custom: false } | { readonly custom: true; readonly remoteExport: string }
 
-    let manifestFormUi:
-      | { readonly custom: false }
-      | { readonly custom: true; readonly remoteExport: string }
+      if (node.ui.form.custom) {
+        const remoteExport = createRemoteExport(node.key, 'configRenderer')
+        remoteExports.add(remoteExport)
+        webModules.push({
+          nodeKey: node.key,
+          role: 'configRenderer',
+          reference: node.ui.form.renderer,
+          remoteExport,
+        })
+        manifestFormUi = { custom: true, remoteExport }
+      } else {
+        manifestFormUi = { custom: false }
+      }
 
-    if (node.ui.form.custom) {
-      const remoteExport = createRemoteExport(node.key, 'configRenderer')
-      remoteExports.add(remoteExport)
-      webModules.push({
-        nodeKey: node.key,
-        role: 'configRenderer',
-        reference: node.ui.form.renderer,
-        remoteExport,
-      })
-      manifestFormUi = { custom: true, remoteExport }
-    } else {
-      manifestFormUi = { custom: false }
-    }
+      let execution:
+        | { readonly kind: 'none' }
+        | { readonly kind: 'host-llm' }
+        | {
+            readonly kind: 'sandbox-js'
+            readonly artifact: string
+          }
+      if (node.execution.kind === 'sandbox-js') {
+        const artifact = `executor/${node.key}.mjs`
+        executors.push({ nodeKey: node.key, sourceEntry: node.execution.entry, artifact })
+        execution = { kind: 'sandbox-js', artifact }
+      } else if (node.execution.kind === 'host-llm') {
+        execution = { kind: 'host-llm' }
+      } else {
+        execution = { kind: 'none' }
+      }
 
-    let execution:
-      | { readonly kind: 'none' }
-      | { readonly kind: 'host-llm' }
-      | {
-          readonly kind: 'sandbox-js'
-          readonly artifact: string
-        }
-    if (node.execution.kind === 'sandbox-js') {
-      const artifact = `executor/${node.key}.mjs`
-      executors.push({ nodeKey: node.key, sourceEntry: node.execution.entry, artifact })
-      execution = { kind: 'sandbox-js', artifact }
-    } else if (node.execution.kind === 'host-llm') {
-      execution = { kind: 'host-llm' }
-    } else {
-      execution = { kind: 'none' }
-    }
-
-    return {
-      key: node.key,
-      type: createPluginNodeType(checkedPlugin.package.name, node.key),
-      label: node.label,
-      ...(node.description === undefined ? {} : { description: node.description }),
-      ...(icon === undefined ? {} : { icon }),
-      configSchemaVersion: node.config.schemaVersion,
-      configSchema: structuredClone(node.config.schema),
-      initialConfig: structuredClone(node.config.initial),
-      form: structuredClone(node.config.form ?? {}),
-      ports: structuredClone(node.ports),
-      fixedOutputs: structuredClone(node.fixedOutputs ?? []),
-      ui: { node: manifestNodeUi, form: manifestFormUi },
-      execution,
-    }
-  })
+      return {
+        key: node.key,
+        type: createPluginNodeType(checkedPlugin.package.name, node.key),
+        label: node.label,
+        ...(node.description === undefined ? {} : { description: node.description }),
+        ...(icon === undefined ? {} : { icon }),
+        configSchemaVersion: node.config.schemaVersion,
+        configSchema: structuredClone(node.config.schema),
+        initialConfig: structuredClone(node.config.initial),
+        form: structuredClone(node.config.form ?? {}),
+        ports: structuredClone(node.ports),
+        fixedOutputs: structuredClone(node.fixedOutputs ?? []),
+        ui: { node: manifestNodeUi, form: manifestFormUi },
+        execution,
+      }
+    })
 
   if (remoteExports.size !== webModules.length) {
     throw new Error('生成的 Web Remote export 发生冲突')

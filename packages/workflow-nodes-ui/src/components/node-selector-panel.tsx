@@ -37,24 +37,23 @@ export function NodeSelectorPanel({
   className,
   onSelectNode,
 }: NodeSelectorPanelProps) {
-  const [query, setQuery] = useState('')
-  const [uncontrolledActiveTab, setUncontrolledActiveTab] =
-    useState<NodeSelectorTab>(defaultActiveTab)
-  const requestedActiveTab = controlledActiveTab ?? uncontrolledActiveTab
-  const { builtinNodeTypes, pluginNodeTypes } = useMemo(
-    () => splitNodeTypesByOrigin(nodeTypes),
-    [nodeTypes],
-  )
-  const filteredBuiltinNodeTypes = useMemo(
-    () => filterNodeTypesByQuery(builtinNodeTypes, query),
-    [builtinNodeTypes, query],
-  )
-  const filteredPluginNodeTypes = useMemo(
-    () => filterNodeTypesByQuery(pluginNodeTypes, query),
-    [pluginNodeTypes, query],
-  )
-  const hasPluginNodes = pluginNodeTypes.length > 0
-  const activeTab = requestedActiveTab === 'plugin' && hasPluginNodes ? 'plugin' : 'builtin'
+  const [query, setQuery] = useState(''),
+    [uncontrolledActiveTab, setUncontrolledActiveTab] = useState<NodeSelectorTab>(defaultActiveTab),
+    requestedActiveTab = controlledActiveTab ?? uncontrolledActiveTab,
+    { builtinNodeTypes, pluginNodeTypes } = useMemo(
+      () => splitNodeTypesByOrigin(nodeTypes),
+      [nodeTypes],
+    ),
+    filteredBuiltinNodeTypes = useMemo(
+      () => filterNodeTypesByQuery(builtinNodeTypes, query),
+      [builtinNodeTypes, query],
+    ),
+    filteredPluginNodeTypes = useMemo(
+      () => filterNodeTypesByQuery(pluginNodeTypes, query),
+      [pluginNodeTypes, query],
+    ),
+    hasPluginNodes = pluginNodeTypes.length > 0,
+    activeTab = requestedActiveTab === 'plugin' && hasPluginNodes ? 'plugin' : 'builtin'
 
   function handleActiveTabChange(nextTab: string) {
     if (nextTab !== 'builtin' && nextTab !== 'plugin') return

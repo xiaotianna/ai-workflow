@@ -42,9 +42,9 @@ function compileAst(schema: PluginSchemaAst): z.ZodType {
     }
     case 'object': {
       const shape = Object.fromEntries(
-        Object.entries(schema.properties).map(([key, property]) => [key, compileAst(property)]),
-      )
-      const result = z.object(shape)
+          Object.entries(schema.properties).map(([key, property]) => [key, compileAst(property)]),
+        ),
+        result = z.object(shape)
       if (schema.additionalProperties === 'allow') return result.passthrough()
       if (schema.additionalProperties === 'strip') return result.strip()
       return result.strict()

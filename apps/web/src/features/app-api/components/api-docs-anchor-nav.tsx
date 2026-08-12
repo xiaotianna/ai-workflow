@@ -13,15 +13,14 @@ interface ApiDocsAnchorNavProps {
   className?: string
 }
 
-const SCROLL_OFFSET = 112
-
-/** Equal width when the list is not hovered */
-const WIDTH_IDLE = 10
-/**
- * Mountain-peak widths by distance from the hovered item:
- * [hovered, ±1, ±2]. Farther items keep the last step.
- */
-const WIDTH_BY_DISTANCE = [28, 20, 14] as const
+const SCROLL_OFFSET = 112,
+  /** Equal width when the list is not hovered */
+  WIDTH_IDLE = 10,
+  /**
+   * Mountain-peak widths by distance from the hovered item:
+   * [hovered, ±1, ±2]. Farther items keep the last step.
+   */
+  WIDTH_BY_DISTANCE = [28, 20, 14] as const
 
 function findScrollRoot(node: HTMLElement | null): HTMLElement | null {
   let current = node?.parentElement ?? null
@@ -58,17 +57,16 @@ function resolveActiveId(
 function resolveBarWidth(index: number, hoveredIndex: number | null): number {
   if (hoveredIndex === null) return WIDTH_IDLE
 
-  const distance = Math.abs(index - hoveredIndex)
-  const capped = Math.min(distance, WIDTH_BY_DISTANCE.length - 1)
+  const distance = Math.abs(index - hoveredIndex),
+    capped = Math.min(distance, WIDTH_BY_DISTANCE.length - 1)
   return WIDTH_BY_DISTANCE[capped]!
 }
 
 export function ApiDocsAnchorNav({ items, className }: ApiDocsAnchorNavProps) {
-  const navRef = useRef<HTMLElement>(null)
-  const [activeId, setActiveId] = useState<string | undefined>(items[0]?.id)
-  const [hoveredId, setHoveredId] = useState<string | null>(null)
-
-  const hoveredIndex = hoveredId === null ? null : items.findIndex((item) => item.id === hoveredId)
+  const navRef = useRef<HTMLElement>(null),
+    [activeId, setActiveId] = useState<string | undefined>(items[0]?.id),
+    [hoveredId, setHoveredId] = useState<string | null>(null),
+    hoveredIndex = hoveredId === null ? null : items.findIndex((item) => item.id === hoveredId)
 
   useEffect(() => {
     const scrollRoot = findScrollRoot(navRef.current)
@@ -113,9 +111,9 @@ export function ApiDocsAnchorNav({ items, className }: ApiDocsAnchorNavProps) {
       onMouseLeave={() => setHoveredId(null)}
     >
       {items.map((item, index) => {
-        const isActive = item.id === activeId
-        const isHovered = item.id === hoveredId
-        const width = resolveBarWidth(index, hoveredIndex === -1 ? null : hoveredIndex)
+        const isActive = item.id === activeId,
+          isHovered = item.id === hoveredId,
+          width = resolveBarWidth(index, hoveredIndex === -1 ? null : hoveredIndex)
 
         return (
           <div key={item.id} className="relative" onMouseEnter={() => setHoveredId(item.id)}>

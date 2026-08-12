@@ -45,21 +45,21 @@ function createExecution(
   durationMs?: number,
   scopeKey: string = node.parentId ?? 'root',
 ): RuntimeExecution {
-  const nodeState = getWaitingNodeState(state, node.id)
-  const executionKey = createExecutionKey(state)
-  const execution: RuntimeExecution = {
-    executionKey,
-    nodeId: node.id,
-    scopeKey,
-    ...(state.loopStates[scopeKey] ? { iteration: state.loopStates[scopeKey].iteration } : {}),
-    sequence: state.nextExecutionSequence,
-    attempt: 1,
-    status,
-    ...(durationMs !== undefined ? { durationMs } : {}),
-    inputs,
-    config,
-    ...(outputs ? { outputs } : {}),
-  }
+  const nodeState = getWaitingNodeState(state, node.id),
+    executionKey = createExecutionKey(state),
+    execution: RuntimeExecution = {
+      executionKey,
+      nodeId: node.id,
+      scopeKey,
+      ...(state.loopStates[scopeKey] ? { iteration: state.loopStates[scopeKey].iteration } : {}),
+      sequence: state.nextExecutionSequence,
+      attempt: 1,
+      status,
+      ...(durationMs !== undefined ? { durationMs } : {}),
+      inputs,
+      config,
+      ...(outputs ? { outputs } : {}),
+    }
 
   state.nextExecutionSequence += 1
   state.executions[executionKey] = execution

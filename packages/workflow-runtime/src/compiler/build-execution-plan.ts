@@ -5,11 +5,11 @@ import { freezeArrayMap } from '../utils/freeze-array-map'
 
 // 将Workflow数据结构转为ExecutionPlan，具体作用看【ExecutionPlan】
 export const buildExecutionPlan = (workflow: Workflow): ExecutionPlan => {
-  const nodeById = new Map(workflow.nodes.map((node) => [node.id, node]))
-  const incomingEdges = new Map<string, WorkflowEdge[]>()
-  const outgoingEdges = new Map<string, WorkflowEdge[]>()
-  const childrenByScope = new Map<StaticScopeKey, string[]>()
-  const edgesByScope = new Map<StaticScopeKey, WorkflowEdge[]>()
+  const nodeById = new Map(workflow.nodes.map((node) => [node.id, node])),
+    incomingEdges = new Map<string, WorkflowEdge[]>(),
+    outgoingEdges = new Map<string, WorkflowEdge[]>(),
+    childrenByScope = new Map<StaticScopeKey, string[]>(),
+    edgesByScope = new Map<StaticScopeKey, WorkflowEdge[]>()
 
   for (const node of workflow.nodes) {
     appendMapValue(childrenByScope, node.parentId ?? 'root', node.id)

@@ -18,13 +18,12 @@ type VisualBuilderConfig = Record<string, unknown> & {
 }
 
 const THEME_OPTIONS = [
-  { value: 'aurora', label: 'Aurora', primary: '#6366f1', secondary: '#06b6d4' },
-  { value: 'sunset', label: 'Sunset', primary: '#f97316', secondary: '#ec4899' },
-  { value: 'forest', label: 'Forest', primary: '#10b981', secondary: '#84cc16' },
-  { value: 'mono', label: 'Mono', primary: '#64748b', secondary: '#334155' },
-] as const
-
-const COLOR_SWATCHES = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6'] as const
+    { value: 'aurora', label: 'Aurora', primary: '#6366f1', secondary: '#06b6d4' },
+    { value: 'sunset', label: 'Sunset', primary: '#f97316', secondary: '#ec4899' },
+    { value: 'forest', label: 'Forest', primary: '#10b981', secondary: '#84cc16' },
+    { value: 'mono', label: 'Mono', primary: '#64748b', secondary: '#334155' },
+  ] as const,
+  COLOR_SWATCHES = ['#6366f1', '#ec4899', '#10b981', '#f59e0b', '#06b6d4', '#8b5cf6'] as const
 
 export default function VisualBuilderConfigRenderer({
   config,

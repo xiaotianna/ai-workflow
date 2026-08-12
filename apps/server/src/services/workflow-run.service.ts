@@ -70,10 +70,10 @@ import {
 } from '@/workflow-catalog/workflow-server-catalog'
 import { WORKFLOW_EXECUTION_CLASSES } from '@/workflow-catalog/workflow-execution.registry'
 
-const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用'
-const DEFAULT_EXECUTION_DEADLINE_MS = 30_000
-const LONG_RUNNING_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000
-const RESULT_APPLY_MAX_ATTEMPTS = 5
+const APP_API_VERSION_NOT_FOUND_MESSAGE = '工作流版本不存在，或不属于当前 API 密钥对应的应用',
+  DEFAULT_EXECUTION_DEADLINE_MS = 30_000,
+  LONG_RUNNING_EXECUTION_DEADLINE_MS = 24 * 60 * 60 * 1000,
+  RESULT_APPLY_MAX_ATTEMPTS = 5
 type WorkflowRunSummary = NonNullable<Awaited<ReturnType<WorkflowRunRepository['findRunSummary']>>>
 type WorkflowRunListItem = Awaited<ReturnType<WorkflowRunRepository['listOwnedRuns']>>[number]
 interface WorkflowRunCursor {
@@ -128,20 +128,20 @@ export class WorkflowRunService {
       throw new InternalServerErrorException('发布版本工作流定义格式无效')
     }
     const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
-      target.workflow.app.ownerId,
-      parsedWorkflow.data,
-    )
-    const issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
+        target.workflow.app.ownerId,
+        parsedWorkflow.data,
+      ),
+      issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
     assertWorkflowExecutable(parsedWorkflow.data, catalog)
 
-    const runId = randomUUID()
-    const runtime = createWorkflowRuntime(parsedWorkflow.data, {
-      workflowVersionId: target.id,
-      configResolver: catalog.configProjectors.createResolver(),
-    })
+    const runId = randomUUID(),
+      runtime = createWorkflowRuntime(parsedWorkflow.data, {
+        workflowVersionId: target.id,
+        configResolver: catalog.configProjectors.createResolver(),
+      })
     let transition: RuntimeTransition
     try {
       transition = runtime.start({
@@ -220,21 +220,21 @@ export class WorkflowRunService {
     const workflow = await this.workflowRunRepository.findOwnedWorkflow(ownerId, appId)
     if (!workflow) throw new NotFoundException('应用不存在')
 
-    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
-    const runs = await this.workflowRunRepository.listOwnedRuns({
-      ownerId,
-      appId,
-      limit: query.limit,
-      cursor,
-      scope: query.scope,
-      status: query.status,
-      trigger: query.trigger,
-      from: query.from ? new Date(query.from) : undefined,
-      search: query.search || undefined,
-    })
-    const hasMore = runs.length > query.limit
-    const page = hasMore ? runs.slice(0, query.limit) : runs
-    const lastRun = page.at(-1)
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined,
+      runs = await this.workflowRunRepository.listOwnedRuns({
+        ownerId,
+        appId,
+        limit: query.limit,
+        cursor,
+        scope: query.scope,
+        status: query.status,
+        trigger: query.trigger,
+        from: query.from ? new Date(query.from) : undefined,
+        search: query.search || undefined,
+      }),
+      hasMore = runs.length > query.limit,
+      page = hasMore ? runs.slice(0, query.limit) : runs,
+      lastRun = page.at(-1)
 
     return {
       items: page.map(toWorkflowRunListItemVo),
@@ -249,18 +249,18 @@ export class WorkflowRunService {
   }
 
   async listApiRuns(appId: string, query: ListAppApiWorkflowRunsDto): Promise<WorkflowRunListVo> {
-    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined
-    const runs = await this.workflowRunRepository.listApiRuns({
-      appId,
-      limit: query.limit,
-      cursor,
-      status: query.status,
-      from: query.from ? new Date(query.from) : undefined,
-      search: query.search || undefined,
-    })
-    const hasMore = runs.length > query.limit
-    const page = hasMore ? runs.slice(0, query.limit) : runs
-    const lastRun = page.at(-1)
+    const cursor = query.cursor ? this.decodeCursor(query.cursor) : undefined,
+      runs = await this.workflowRunRepository.listApiRuns({
+        appId,
+        limit: query.limit,
+        cursor,
+        status: query.status,
+        from: query.from ? new Date(query.from) : undefined,
+        search: query.search || undefined,
+      }),
+      hasMore = runs.length > query.limit,
+      page = hasMore ? runs.slice(0, query.limit) : runs,
+      lastRun = page.at(-1)
 
     return {
       items: page.map(toWorkflowRunListItemVo),
@@ -355,13 +355,13 @@ export class WorkflowRunService {
 
       // eslint-disable-next-line no-await-in-loop
       const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
-        context.run.workflow.app.ownerId,
-        parsedWorkflow.data,
-      )
-      const runtime = createWorkflowRuntime(parsedWorkflow.data, {
-        workflowVersionId: context.run.workflowVersionId,
-        configResolver: catalog.configProjectors.createResolver(),
-      })
+          context.run.workflow.app.ownerId,
+          parsedWorkflow.data,
+        ),
+        runtime = createWorkflowRuntime(parsedWorkflow.data, {
+          workflowVersionId: context.run.workflowVersionId,
+          configResolver: catalog.configProjectors.createResolver(),
+        })
 
       let transition: RuntimeTransition
       try {
@@ -373,20 +373,20 @@ export class WorkflowRunService {
         throw new InternalServerErrorException(getErrorMessage(error, 'RuntimeState 恢复失败'))
       }
 
-      const dispatches = this.prepareRuntimeDispatches(transition, context.runId, catalog)
-      const completedNodes = collectCompletedNodeTransitions(
-        context.run.runtimeState as unknown as RuntimeState,
-        transition.state,
-      )
-      // eslint-disable-next-line no-await-in-loop
-      const applied = await this.workflowRunRepository.applyRuntimeResult(context.runId, {
-        expectedRevision: context.run.runtimeRevision,
-        state: transition.state,
-        terminal: getRuntimeTerminal(transition),
-        dispatches,
-        result: protocolResult,
-        transportError,
-      })
+      const dispatches = this.prepareRuntimeDispatches(transition, context.runId, catalog),
+        completedNodes = collectCompletedNodeTransitions(
+          context.run.runtimeState as unknown as RuntimeState,
+          transition.state,
+        ),
+        // eslint-disable-next-line no-await-in-loop
+        applied = await this.workflowRunRepository.applyRuntimeResult(context.runId, {
+          expectedRevision: context.run.runtimeRevision,
+          state: transition.state,
+          terminal: getRuntimeTerminal(transition),
+          dispatches,
+          result: protocolResult,
+          transportError,
+        })
       if (applied === 'conflict') continue
       // eslint-disable-next-line no-await-in-loop
       await this.emitRunEvents(context.runId, completedNodes, applied)
@@ -446,10 +446,10 @@ export class WorkflowRunService {
       return
     }
     const catalog = await this.workflowCatalogResolver.resolveForWorkflow(
-      target.triggeredById,
-      parsedWorkflow.data,
-    )
-    const issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
+        target.triggeredById,
+        parsedWorkflow.data,
+      ),
+      issues = validateExecutorWorkflow(parsedWorkflow.data, catalog.nodeRegistry)
     if (issues.length > 0) {
       await this.processNodeResult(
         createFailedResult(
@@ -461,11 +461,11 @@ export class WorkflowRunService {
       return
     }
 
-    const childRunId = randomUUID()
-    const runtime = createWorkflowRuntime(parsedWorkflow.data, {
-      workflowVersionId: target.version.id,
-      configResolver: catalog.configProjectors.createResolver(),
-    })
+    const childRunId = randomUUID(),
+      runtime = createWorkflowRuntime(parsedWorkflow.data, {
+        workflowVersionId: target.version.id,
+        configResolver: catalog.configProjectors.createResolver(),
+      })
     let transition: RuntimeTransition
     try {
       transition = runtime.start({
@@ -511,32 +511,32 @@ export class WorkflowRunService {
     if (!child?.parentNodeRun || child.status === WorkflowRunStatus.RUNNING) return
 
     const base = {
-      protocolVersion: '1' as const,
-      commandId: child.parentNodeRun.commandId,
-      nodeRunId: child.parentNodeRun.id,
-      executionKey: child.parentNodeRun.executionKey,
-      leaseToken: child.parentNodeRun.leaseToken,
-    }
-    const result =
-      child.status === WorkflowRunStatus.SUCCEEDED
-        ? parseExecuteNodeResult({
-            ...base,
-            status: 'SUCCEEDED',
-            outputs: child.output ?? {},
-            activatedHandles: ['result'],
-          })
-        : parseExecuteNodeResult({
-            ...base,
-            status: 'FAILED',
-            error: {
-              code: child.errorCode ?? 'SUB_WORKFLOW_FAILED',
-              message: child.errorMessage ?? '子工作流执行失败',
-              retryable: false,
-              ...(child.errorDetails && typeof child.errorDetails === 'object'
-                ? { details: child.errorDetails }
-                : {}),
-            },
-          })
+        protocolVersion: '1' as const,
+        commandId: child.parentNodeRun.commandId,
+        nodeRunId: child.parentNodeRun.id,
+        executionKey: child.parentNodeRun.executionKey,
+        leaseToken: child.parentNodeRun.leaseToken,
+      },
+      result =
+        child.status === WorkflowRunStatus.SUCCEEDED
+          ? parseExecuteNodeResult({
+              ...base,
+              status: 'SUCCEEDED',
+              outputs: child.output ?? {},
+              activatedHandles: ['result'],
+            })
+          : parseExecuteNodeResult({
+              ...base,
+              status: 'FAILED',
+              error: {
+                code: child.errorCode ?? 'SUB_WORKFLOW_FAILED',
+                message: child.errorMessage ?? '子工作流执行失败',
+                retryable: false,
+                ...(child.errorDetails && typeof child.errorDetails === 'object'
+                  ? { details: child.errorDetails }
+                  : {}),
+              },
+            })
     await this.processNodeResult(result)
   }
 
@@ -575,13 +575,13 @@ export class WorkflowRunService {
   private decodeCursor(cursor: string): WorkflowRunCursor {
     try {
       const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
-        id?: unknown
-        queuedAt?: unknown
-      }
-      const queuedAt =
-        typeof parsed.queuedAt === 'string' && parsed.queuedAt
-          ? new Date(parsed.queuedAt)
-          : undefined
+          id?: unknown
+          queuedAt?: unknown
+        },
+        queuedAt =
+          typeof parsed.queuedAt === 'string' && parsed.queuedAt
+            ? new Date(parsed.queuedAt)
+            : undefined
 
       if (
         typeof parsed.id !== 'string' ||
@@ -630,14 +630,14 @@ export class WorkflowRunService {
   }
 
   private async parseOwnedSnapshot(ownerId: string, appId: string, dto: CreateWorkflowTestRunDto) {
-    const submittedDefinition = parseWorkflowDefinition(dto.definition)
-    const layout = parseWorkflowLayout(dto.layout)
+    const submittedDefinition = parseWorkflowDefinition(dto.definition),
+      layout = parseWorkflowLayout(dto.layout)
     if (!submittedDefinition || !layout) {
       throw new BadRequestException('测试运行快照格式无效')
     }
 
-    const app = await this.workflowDraftRepository.findOwned(ownerId, appId)
-    const persistedDefinition = parseWorkflowDefinition(app?.workflow?.draft?.definition)
+    const app = await this.workflowDraftRepository.findOwned(ownerId, appId),
+      persistedDefinition = parseWorkflowDefinition(app?.workflow?.draft?.definition)
     if (!app?.workflow || !persistedDefinition) {
       throw new NotFoundException('工作流草稿不存在')
     }
@@ -647,10 +647,10 @@ export class WorkflowRunService {
     }
 
     const restoredDefinition = restoreMaskedWorkflowDefinitionSecrets(
-      submittedDefinition,
-      persistedDefinition,
-    )
-    const parsed = workflowSchema.safeParse(restoredDefinition)
+        submittedDefinition,
+        persistedDefinition,
+      ),
+      parsed = workflowSchema.safeParse(restoredDefinition)
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues[0]?.message ?? '工作流定义格式无效')
     }
@@ -665,8 +665,8 @@ export class WorkflowRunService {
     layout: unknown,
     input: Record<string, unknown>,
   ): Promise<WorkflowTestRunVo> {
-    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow)
-    const issues = validateExecutorWorkflow(workflow, catalog.nodeRegistry)
+    const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow),
+      issues = validateExecutorWorkflow(workflow, catalog.nodeRegistry)
     if (issues.length > 0) {
       throw new BadRequestException(issues[0]?.message ?? '工作流暂时无法运行')
     }
@@ -674,13 +674,13 @@ export class WorkflowRunService {
 
     this.assertFullRunCapabilities(workflow)
 
-    const runId = randomUUID()
-    const workflowVersionId = randomUUID()
-    const runtime = createWorkflowRuntime(workflow, {
-      workflowVersionId,
-      configResolver: catalog.configProjectors.createResolver(),
-    })
-    const systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
+    const runId = randomUUID(),
+      workflowVersionId = randomUUID(),
+      runtime = createWorkflowRuntime(workflow, {
+        workflowVersionId,
+        configResolver: catalog.configProjectors.createResolver(),
+      }),
+      systemVariables = createRunSystemVariables(ownerId, appId, workflow.id, runId)
 
     let transition: RuntimeTransition
     try {
@@ -693,23 +693,23 @@ export class WorkflowRunService {
       throw new BadRequestException(getErrorMessage(error, '工作流无法启动'))
     }
 
-    const initialDispatches = this.prepareRuntimeDispatches(transition, runId, catalog)
-    const created = await this.workflowRunRepository.createTestRun({
-      ownerId,
-      appId,
-      workflowId: workflow.id,
-      versionId: workflowVersionId,
-      runId,
-      traceId: randomUUID(),
-      mode: TEST_RUN_MODES.FULL,
-      definition: workflow,
-      layout,
-      input: transition.state.startInput,
-      runtimeState: transition.state,
-      terminal: getRuntimeTerminal(transition),
-      dispatches: initialDispatches,
-      pluginDependencies: catalog.pluginDependencies,
-    })
+    const initialDispatches = this.prepareRuntimeDispatches(transition, runId, catalog),
+      created = await this.workflowRunRepository.createTestRun({
+        ownerId,
+        appId,
+        workflowId: workflow.id,
+        versionId: workflowVersionId,
+        runId,
+        traceId: randomUUID(),
+        mode: TEST_RUN_MODES.FULL,
+        definition: workflow,
+        layout,
+        input: transition.state.startInput,
+        runtimeState: transition.state,
+        terminal: getRuntimeTerminal(transition),
+        dispatches: initialDispatches,
+        pluginDependencies: catalog.pluginDependencies,
+      })
     if (created === 'not-found') throw new NotFoundException('工作流草稿不存在')
 
     return this.getRunVo(runId)
@@ -734,15 +734,15 @@ export class WorkflowRunService {
 
     const catalog = await this.workflowCatalogResolver.resolveForWorkflow(ownerId, workflow)
     assertWorkflowExecutable(workflow, catalog)
-    const nodeType = catalog.nodeRegistry.get(node.type)
-    const parsedConfig = nodeType?.schema.safeParse(node.config)
+    const nodeType = catalog.nodeRegistry.get(node.type),
+      parsedConfig = nodeType?.schema.safeParse(node.config)
     if (!nodeType || !parsedConfig?.success) {
       throw new BadRequestException('节点配置不完整，无法运行')
     }
 
-    const runId = randomUUID()
-    const versionId = randomUUID()
-    const effectiveInput = resolveSingleNodeRunInput(node, input)
+    const runId = randomUUID(),
+      versionId = randomUUID(),
+      effectiveInput = resolveSingleNodeRunInput(node, input)
     let projectedConfig: Record<string, JsonValue>
     try {
       projectedConfig = catalog.configProjectors
@@ -752,31 +752,30 @@ export class WorkflowRunService {
       throw new BadRequestException(getErrorMessage(error, '节点配置无法解析'))
     }
     const command = this.createCommand({
-      runId,
-      node,
-      executionKey: `${runId}:single:${node.id}`,
-      attempt: 1,
-      inputs: effectiveInput,
-      config: projectedConfig,
-    })
-    const dispatches = [this.prepareDispatch(command, catalog)]
-
-    const created = await this.workflowRunRepository.createTestRun({
-      ownerId,
-      appId,
-      workflowId: workflow.id,
-      versionId,
-      runId,
-      traceId: randomUUID(),
-      mode: TEST_RUN_MODES.SINGLE_NODE,
-      targetNodeId,
-      definition: workflow,
-      layout,
-      input: effectiveInput,
-      terminal: { status: 'RUNNING' },
-      dispatches,
-      pluginDependencies: catalog.pluginDependencies,
-    })
+        runId,
+        node,
+        executionKey: `${runId}:single:${node.id}`,
+        attempt: 1,
+        inputs: effectiveInput,
+        config: projectedConfig,
+      }),
+      dispatches = [this.prepareDispatch(command, catalog)],
+      created = await this.workflowRunRepository.createTestRun({
+        ownerId,
+        appId,
+        workflowId: workflow.id,
+        versionId,
+        runId,
+        traceId: randomUUID(),
+        mode: TEST_RUN_MODES.SINGLE_NODE,
+        targetNodeId,
+        definition: workflow,
+        layout,
+        input: effectiveInput,
+        terminal: { status: 'RUNNING' },
+        dispatches,
+        pluginDependencies: catalog.pluginDependencies,
+      })
     if (created === 'not-found') throw new NotFoundException('工作流草稿不存在')
 
     return this.getRunVo(runId)
@@ -823,17 +822,17 @@ export class WorkflowRunService {
   ): PreparedNodeDispatch {
     try {
       const route = this.workflowExecutionRouting.resolve(
-        command.nodeType,
-        catalog.executionRegistry,
-      )
-      const routedCommand = parseExecuteNodeCommand({
-        ...command,
-        executorType: route.executorType,
-        deadlineAt: new Date(
-          Date.now() + resolveExecutionDeadlineMs(command.nodeType, route.executionClass),
-        ).toISOString(),
-        ...(route.sandboxArtifact ? { sandboxArtifact: route.sandboxArtifact } : {}),
-      })
+          command.nodeType,
+          catalog.executionRegistry,
+        ),
+        routedCommand = parseExecuteNodeCommand({
+          ...command,
+          executorType: route.executorType,
+          deadlineAt: new Date(
+            Date.now() + resolveExecutionDeadlineMs(command.nodeType, route.executionClass),
+          ).toISOString(),
+          ...(route.sandboxArtifact ? { sandboxArtifact: route.sandboxArtifact } : {}),
+        })
       return {
         command: routedCommand,
         executionClass: route.executionClass,
@@ -1008,23 +1007,21 @@ function collectRunTrace(run: WorkflowRunSummary): {
   nodeIds: string[]
   executions: WorkflowTestRunVo['traceExecutions']
 } {
-  const parsedRuntimeState = runtimeStateSchema.safeParse(run.runtimeState)
-  const orderedExecutions = parsedRuntimeState.success
-    ? Object.values(parsedRuntimeState.data.executions).sort(
-        (left, right) => left.sequence - right.sequence,
-      )
-    : []
-  const nodeIds = [
-    ...new Set(
-      orderedExecutions.length > 0
-        ? orderedExecutions.map((execution) => execution.nodeId)
-        : run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
-    ),
-  ]
-  const nodeDurations: Record<string, number> = {}
-  const nodeRunByExecutionKey = new Map(
-    run.nodeRuns.map((nodeRun) => [nodeRun.executionKey, nodeRun]),
-  )
+  const parsedRuntimeState = runtimeStateSchema.safeParse(run.runtimeState),
+    orderedExecutions = parsedRuntimeState.success
+      ? Object.values(parsedRuntimeState.data.executions).sort(
+          (left, right) => left.sequence - right.sequence,
+        )
+      : [],
+    nodeIds = [
+      ...new Set(
+        orderedExecutions.length > 0
+          ? orderedExecutions.map((execution) => execution.nodeId)
+          : run.nodeRuns.map((nodeRun) => nodeRun.nodeId),
+      ),
+    ],
+    nodeDurations: Record<string, number> = {},
+    nodeRunByExecutionKey = new Map(run.nodeRuns.map((nodeRun) => [nodeRun.executionKey, nodeRun]))
 
   for (const nodeRun of run.nodeRuns) {
     if (nodeRun.durationMs !== null) nodeDurations[nodeRun.nodeId] = nodeRun.durationMs
@@ -1039,15 +1036,15 @@ function collectRunTrace(run: WorkflowRunSummary): {
   }
 
   const executions: WorkflowTestRunVo['traceExecutions'] = orderedExecutions.map((execution) => {
-    const nodeRun = nodeRunByExecutionKey.get(execution.executionKey)
-    const error =
-      nodeRun?.errorCode && nodeRun.errorMessage
-        ? {
-            code: nodeRun.errorCode,
-            message: nodeRun.errorMessage,
-            ...(nodeRun.errorDetails !== null ? { details: nodeRun.errorDetails } : {}),
-          }
-        : execution.error
+    const nodeRun = nodeRunByExecutionKey.get(execution.executionKey),
+      error =
+        nodeRun?.errorCode && nodeRun.errorMessage
+          ? {
+              code: nodeRun.errorCode,
+              message: nodeRun.errorMessage,
+              ...(nodeRun.errorDetails !== null ? { details: nodeRun.errorDetails } : {}),
+            }
+          : execution.error
 
     return {
       executionKey: execution.executionKey,
@@ -1098,8 +1095,8 @@ function collectRunTrace(run: WorkflowRunSummary): {
 }
 
 function collectRunNodeStates(run: WorkflowRunSummary): WorkflowNodeExecutionStateVo[] {
-  const states = new Map<string, WorkflowNodeExecutionStateVo['status']>()
-  const includeRunning = run.status === WorkflowRunStatus.RUNNING
+  const states = new Map<string, WorkflowNodeExecutionStateVo['status']>(),
+    includeRunning = run.status === WorkflowRunStatus.RUNNING
 
   for (const nodeRun of run.nodeRuns) {
     if (
@@ -1172,8 +1169,8 @@ function getRuntimeTerminal(transition: RuntimeTransition): {
   output?: Record<string, JsonValue>
   error?: RuntimeErrorData
 } {
-  const complete = transition.effects.find((effect) => effect.type === 'COMPLETE_RUN')
-  const failure = transition.effects.find((effect) => effect.type === 'FAIL_RUN')
+  const complete = transition.effects.find((effect) => effect.type === 'COMPLETE_RUN'),
+    failure = transition.effects.find((effect) => effect.type === 'FAIL_RUN')
 
   return {
     status: transition.state.status,

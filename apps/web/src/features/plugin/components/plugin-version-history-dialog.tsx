@@ -30,8 +30,8 @@ interface PluginVersionHistoryDialogProps {
   onInstallVersion: (version: PluginVersion) => void
 }
 
-const VERSION_BATCH_SIZE = 5
-const VERSION_LOAD_THRESHOLD = 24
+const VERSION_BATCH_SIZE = 5,
+  VERSION_LOAD_THRESHOLD = 24
 type VersionHistoryTab = 'versions' | 'changelog'
 
 export function PluginVersionHistoryDialog({
@@ -40,14 +40,14 @@ export function PluginVersionHistoryDialog({
   onOpenChange,
   onInstallVersion,
 }: PluginVersionHistoryDialogProps) {
-  const [activeTab, setActiveTab] = useState<VersionHistoryTab>('versions')
-  const [visibleVersionCount, setVisibleVersionCount] = useState(VERSION_BATCH_SIZE)
-  const latestVersion = plugin.versions[0]
-  const visibleVersions = plugin.versions.slice(0, visibleVersionCount)
-  const hasMoreVersions = visibleVersions.length < plugin.versions.length
-  const changelog = plugin.versions
-    .map((version) => `## v${version.version}\n\n${version.changelog.trim()}`)
-    .join('\n\n')
+  const [activeTab, setActiveTab] = useState<VersionHistoryTab>('versions'),
+    [visibleVersionCount, setVisibleVersionCount] = useState(VERSION_BATCH_SIZE),
+    latestVersion = plugin.versions[0],
+    visibleVersions = plugin.versions.slice(0, visibleVersionCount),
+    hasMoreVersions = visibleVersions.length < plugin.versions.length,
+    changelog = plugin.versions
+      .map((version) => `## v${version.version}\n\n${version.changelog.trim()}`)
+      .join('\n\n')
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -64,8 +64,8 @@ export function PluginVersionHistoryDialog({
   function handleVersionScroll(event: UIEvent<HTMLDivElement>) {
     if (!hasMoreVersions) return
 
-    const { clientHeight, scrollHeight, scrollTop } = event.currentTarget
-    const distanceToBottom = scrollHeight - scrollTop - clientHeight
+    const { clientHeight, scrollHeight, scrollTop } = event.currentTarget,
+      distanceToBottom = scrollHeight - scrollTop - clientHeight
     if (distanceToBottom > VERSION_LOAD_THRESHOLD) return
 
     setVisibleVersionCount((currentCount) =>
