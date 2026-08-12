@@ -11,7 +11,31 @@ description: 在本地启动 AI Workflow 并创建第一个工作流。
 
 - Node.js 22 或更高版本
 - pnpm 10
+- Go 1.25.1 或更高版本
 - Docker 与 Docker Compose
+
+安装完成后先确认本地工具链版本：
+
+```bash
+node --version
+pnpm --version
+go version
+docker --version
+docker compose version
+```
+
+项目的 Go Module 声明了 Go 1.25.1。请使用 Go 官方安装包或系统包管理器安装对应版本；如果下载
+Go Module 较慢，可以配置模块代理：
+
+```bash
+go env -w GOPROXY=https://goproxy.cn,direct
+```
+
+该配置会写入当前用户的 Go 环境。如需恢复官方代理，可以执行：
+
+```bash
+go env -w GOPROXY=https://proxy.golang.org,direct
+```
 
 在仓库根目录安装依赖：
 
@@ -30,18 +54,35 @@ pnpm docker:dev:status
 
 默认端口分别为 `5432`、`6379`、`5672`，RabbitMQ 管理端口为 `15672`。
 
-## 3. 启动应用
+## 3. 准备并启动 Go Executor
 
-从仓库根目录启动 Web 与 Server：
+Go Executor 是独立的 RabbitMQ Worker。先在一个终端下载依赖并启动它：
+
+```bash
+cd apps/executor-go
+go mod download
+go run ./cmd/executor
+```
+
+本地开发默认使用 `legacy` Profile，并连接 `compose.dev.yaml` 启动的 RabbitMQ：
+`amqp://ai_workflow:ai_workflow_dev@127.0.0.1:5672/ai_workflow`，通常不需要额外配置环境变量。
+看到 `workflow command worker starting` 表示 Worker 已开始监听任务。
+
+Executor 运行 Code 节点时会调用本机的 Node.js 22+；前面的 Node.js 安装也是 Executor 的运行时
+依赖，不只是 Web 与 Server 的开发依赖。
+
+## 4. 启动 Web 与 Server
+
+保留 Executor 终端，在另一个终端回到仓库根目录启动 Web 与 Server：
 
 ```bash
 pnpm dev
 ```
 
-Go Executor 是独立 RabbitMQ Worker，需要按照 `apps/executor-go/README.md` 配置并启动。它负责执行
-LLM、HTTP、Code、Condition 等业务节点；Start 和 End 由 TypeScript Runtime 在 Server 内推进。
+Executor 负责执行 LLM、HTTP、Code、Condition 等业务节点；Start 和 End 由 TypeScript Runtime 在
+Server 内推进。更多 Profile 和环境变量配置见 `apps/executor-go/README.md`。
 
-## 4. 创建工作流
+## 5. 创建工作流
 
 进入工作室，新建工作流应用，并按照业务流程连接节点：
 
@@ -51,7 +92,7 @@ LLM、HTTP、Code、Condition 等业务节点；Start 和 End 由 TypeScript Run
 2. 添加 LLM、HTTP 或 Code 等处理节点。
 3. 使用 End 节点整理最终输出。
 
-## 5. 测试与发布
+## 6. 测试与发布
 
 点击顶部的“测试运行”，填写 Start 节点要求的输入，然后查看每个节点的执行结果与追踪信息。
 

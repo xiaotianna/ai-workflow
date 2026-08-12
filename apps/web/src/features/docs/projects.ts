@@ -19,7 +19,7 @@ export const DOCS_PROJECTS = [
   {
     id: 'project',
     name: '项目介绍',
-    description: '项目亮点与简历表达',
+    description: '项目亮难点与简历表达',
     path: '/docs/project',
     navigationRouteId: 'docs-project',
     logoSrc: '/project-logo.svg',

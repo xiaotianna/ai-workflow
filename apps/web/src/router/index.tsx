@@ -25,35 +25,36 @@ import { createBrowserRouter, Navigate, type RouteObject } from 'react-router-do
 import App from '../App'
 import LazyLoad from '../components/lazy-load'
 
-const AuthPage = lazy(() => import('../pages/auth'))
-const LayoutPage = lazy(() => import('../pages/home-layout'))
-const KnowledgeBasePage = lazy(() => import('../pages/home-layout/knowledge-base'))
-const ModelsPage = lazy(() => import('../pages/home-layout/models'))
-const PluginPage = lazy(() => import('../pages/home-layout/plugin'))
-const StudioPage = lazy(() => import('../pages/home-layout/studio'))
-const PluginDetailPage = lazy(() => import('../pages/plugin-detail'))
-const AppPage = lazy(() => import('../pages/app'))
-const AppWorkflowPage = lazy(() => import('../pages/app/workflow'))
-const AppApiPage = lazy(() => import('../pages/app/api'))
-const AppLogsPage = lazy(() => import('../pages/app/logs'))
-const KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base'))
-const KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents'))
-const KnowledgeDocumentDetailPage = lazy(() => import('../pages/knowledge-base/document-detail'))
-const KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test'))
-const KnowledgeBaseSettingsPage = lazy(() => import('../pages/knowledge-base/settings'))
-const SharedAppApiPage = lazy(() => import('../pages/shared/app-api'))
-const DocsPage = lazy(() => import('../pages/docs'))
-const DocsOverviewPage = lazy(() => import('../pages/docs/overview'))
-const DocsGettingStartedPage = lazy(() => import('../pages/docs/getting-started'))
-const DocsWorkflowBasicsPage = lazy(() => import('../pages/docs/workflow-basics'))
-const DocsRagApiPage = lazy(() => import('../pages/docs/rag-api'))
-const DocsDeploymentPage = lazy(() => import('../pages/docs/deployment'))
-const DocsProjectOverviewPage = lazy(() => import('../pages/docs/project-overview'))
-const DocsProjectHighlightsPage = lazy(() => import('../pages/docs/project-highlights'))
-const DocsProjectResumePage = lazy(() => import('../pages/docs/project-resume'))
-const DocsPluginOverviewPage = lazy(() => import('../pages/docs/plugin-overview'))
-const DocsPluginGettingStartedPage = lazy(() => import('../pages/docs/plugin-getting-started'))
-const DocsPluginDevelopmentPage = lazy(() => import('../pages/docs/plugin-development'))
+const AuthPage = lazy(() => import('../pages/auth')),
+  LayoutPage = lazy(() => import('../pages/home-layout')),
+  KnowledgeBasePage = lazy(() => import('../pages/home-layout/knowledge-base')),
+  ModelsPage = lazy(() => import('../pages/home-layout/models')),
+  PluginPage = lazy(() => import('../pages/home-layout/plugin')),
+  StudioPage = lazy(() => import('../pages/home-layout/studio')),
+  PluginDetailPage = lazy(() => import('../pages/plugin-detail')),
+  AppPage = lazy(() => import('../pages/app')),
+  AppWorkflowPage = lazy(() => import('../pages/app/workflow')),
+  AppApiPage = lazy(() => import('../pages/app/api')),
+  AppLogsPage = lazy(() => import('../pages/app/logs')),
+  KnowledgeBaseDetailPage = lazy(() => import('../pages/knowledge-base')),
+  KnowledgeBaseDocumentsPage = lazy(() => import('../pages/knowledge-base/documents')),
+  KnowledgeDocumentDetailPage = lazy(() => import('../pages/knowledge-base/document-detail')),
+  KnowledgeBaseRecallTestPage = lazy(() => import('../pages/knowledge-base/recall-test')),
+  KnowledgeBaseSettingsPage = lazy(() => import('../pages/knowledge-base/settings')),
+  SharedAppApiPage = lazy(() => import('../pages/shared/app-api')),
+  DocsPage = lazy(() => import('../pages/docs')),
+  DocsOverviewPage = lazy(() => import('../pages/docs/overview')),
+  DocsGettingStartedPage = lazy(() => import('../pages/docs/getting-started')),
+  DocsWorkflowBasicsPage = lazy(() => import('../pages/docs/workflow-basics')),
+  DocsRagApiPage = lazy(() => import('../pages/docs/rag-api')),
+  DocsDeploymentPage = lazy(() => import('../pages/docs/deployment')),
+  DocsProjectOverviewPage = lazy(() => import('../pages/docs/project-overview')),
+  DocsProjectHighlightsPage = lazy(() => import('../pages/docs/project-highlights')),
+  DocsProjectChallengesPage = lazy(() => import('../pages/docs/project-challenges')),
+  DocsProjectResumePage = lazy(() => import('../pages/docs/project-resume')),
+  DocsPluginOverviewPage = lazy(() => import('../pages/docs/plugin-overview')),
+  DocsPluginGettingStartedPage = lazy(() => import('../pages/docs/plugin-getting-started')),
+  DocsPluginDevelopmentPage = lazy(() => import('../pages/docs/plugin-development'))
 
 export const routes = [
   {
@@ -516,6 +517,23 @@ export const routes = [
                 title: '技术亮点',
                 requiresAuth: false,
                 icon: Lightbulb,
+                navigationGroup: '项目',
+              },
+            },
+          },
+          {
+            id: 'docs-project-challenges',
+            path: 'challenges',
+            element: (
+              <LazyLoad>
+                <DocsProjectChallengesPage />
+              </LazyLoad>
+            ),
+            handle: {
+              meta: {
+                title: '项目亮难点',
+                requiresAuth: false,
+                icon: Target,
                 navigationGroup: '项目',
               },
             },

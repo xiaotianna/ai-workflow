@@ -1,0 +1,425 @@
+---
+title: 项目亮难点
+description: 用 STAR 法则讲清 AI Workflow 的技术难点、方案取舍、核心实现与结果。
+---
+
+# 项目亮难点
+
+这一页不是把技术栈再念一遍，而是把“为什么要这样设计”讲明白。面试时建议先用一句话说结论，再按
+STAR 展开：**S（背景）说明当时发生了什么，T（任务）说明自己要解决什么，A（行动）重点讲难点、
+方案对比和落地过程，R（结果）说明最终解决了什么。**
+
+如果时间只有 1～2 分钟，可以套用这句话：
+
+> 当时我们遇到……，如果直接……会导致……。我的目标是……。我对比了 A、B、C 三种方案，最后选择
+> C，原因是……。落地时我重点处理了……和……，最后让系统具备了……能力。结果数据需要结合真实
+> 压测补充，不能为了好看编数字。
+
+## 难点一：工作流执行到一半，服务重启后怎么接着跑
+
+### S｜背景
+
+AI 工作流不是一次普通的接口调用。一个流程里可能有并行分支、条件判断、循环、模型调用和 HTTP 请求，
+有的节点几毫秒结束，有的节点要等几十秒。如果把整条流程写成一个很长的 NestJS 方法，服务只要在中间
+重启，内存里的执行进度就丢了；消息重投时，还可能把已经执行过的节点再跑一遍。
+
+### T｜任务
+
+我的目标不是简单地“把 DAG 跑起来”，而是让它满足三个条件：
+
+1. 每推进一步都能保存，进程挂掉后可以从数据库里的状态继续；
+2. 同一份输入和状态得到确定的下一步，方便排查和恢复；
+3. 调度逻辑不直接依赖数据库、RabbitMQ 和具体节点副作用。
+
+### A｜难点与方案选型
+
+最难的地方是把“算出下一步”和“真的去执行下一步”分开。前者应该是确定的状态计算，后者才涉及 MQ、
+数据库和外部接口。
+
+| 方案                               | 好处                                             | 问题                                                       | 结论   |
+| ---------------------------------- | ------------------------------------------------ | ---------------------------------------------------------- | ------ |
+| 在 NestJS Service 里按顺序调用节点 | 开发快，直观                                     | 状态藏在调用栈里，重启难恢复，并行和循环会让代码迅速失控   | 不采用 |
+| 每个节点自己发下一条 MQ 消息       | 天然异步                                         | 调度规则散在各节点中，难做全局校验，也很难还原完整运行状态 | 不采用 |
+| 纯 Runtime 状态机 + Effect         | 状态可序列化，调度可单独验证，宿主统一处理副作用 | 前期需要明确状态、事件和宿主边界                           | 采用   |
+
+最终把 Runtime 设计成“状态机”：输入当前工作流和 `RuntimeState`，输出新的状态以及一组 `Effect`。
+Runtime 只说“接下来应该派发哪个节点”或“流程应该结束”，但不直接发 MQ，也不直接写数据库。
+
+核心代码只保留主干，实际实现还包含状态恢复校验、变量解析、条件分支和循环作用域：
+
+```ts
+export type RuntimeEffect = DispatchNodeEffect | CompleteRunEffect | FailRunEffect
+
+export interface RuntimeTransition {
+  state: RuntimeState
+  effects: RuntimeEffect[]
+}
+
+applyNodeResult(state: RuntimeState, result: ExecuteNodeResult): RuntimeTransition {
+  const restoredState = restoreRuntimeState(state, /* 身份与结构校验 */)
+  const execution = getRunningExecution(restoredState, result.executionKey)
+
+  const outputs = resolveNodeOutputs(result.outputs, /* 节点与作用域 */)
+  recordBusinessNodeSuccess(restoredState, execution.executionKey, outputs)
+  settleOutgoingEdges(/* ... */, new Set(result.activatedHandles))
+
+  const effects = drainRootScope(/* ... */)
+  restoredState.revision += 1
+  return { state: restoredState, effects }
+}
+```
+
+NestJS 宿主拿到 `DISPATCH_NODE` 后，才把它转换成跨进程命令并准备持久化：
+
+```ts
+const dispatches = transition.effects
+  .filter((effect) => effect.type === 'DISPATCH_NODE')
+  .map((effect) =>
+    prepareDispatch(
+      createCommand({
+        runId,
+        node: { id: effect.nodeId, type: effect.nodeType },
+        executionKey: effect.executionKey,
+        attempt: effect.attempt,
+        inputs: effect.inputs,
+        config: effect.config,
+      }),
+    ),
+  )
+```
+
+还有两个容易被忽略的细节：
+
+- `RuntimeState` 里保存 `schemaVersion` 和 `revision`。恢复时先校验状态属于当前 Run、Workflow 和版本，
+  避免拿错快照继续执行；每次有效推进 revision 加一，用 CAS 处理并行结果同时到达。
+- Runtime 只接受已经过静态校验的 Workflow。节点输入、变量引用和输出解析有统一规则，避免某个节点
+  自己偷偷改变调度语义。
+
+### R｜结果
+
+最终，工作流的执行进度从“某台服务的内存状态”变成了“可持久化、可恢复的业务状态”。服务重启后，
+宿主可以读取最新 `RuntimeState` 继续推进；测试运行、正式运行和恢复流程也能复用同一套调度内核。
+
+这里不要说“绝对不会丢”。更准确的表达是：**Runtime 保证状态转换可恢复，消息是否可靠交给下一节的
+Outbox/Inbox 链路处理。**
+
+### 面试口语版
+
+> 这个项目里我认为最核心的难点，是工作流不能只在内存里跑。模型和 HTTP 节点耗时比较长，服务中途
+> 重启是正常故障，如果调度状态只在调用栈里，整个流程就废了。所以我把 Runtime 做成纯状态机，它只
+> 根据当前快照计算下一状态和 Effect，不碰数据库也不发 MQ。NestJS 再负责持久化状态和执行 Effect。
+> 这样每一步都有 revision，可以从数据库恢复；并行结果到达时也可以通过 revision CAS 避免互相覆盖。
+
+## 难点二：数据库写成功了，但 MQ 消息没发出去怎么办
+
+### S｜背景
+
+工作流每推进一步，通常要同时做两件事：先把最新运行状态写进 PostgreSQL，再向 RabbitMQ 发出节点执行
+命令。这两件事不在同一个事务里，会出现典型的“双写不一致”：
+
+- 数据库提交成功，但服务在发 MQ 前崩了，节点永远不会执行；
+- MQ 已收到消息，但服务没来得及记录发布成功，恢复后会再次发送；
+- Worker 已经执行完成，但 Result 因为网络重试被消费多次；
+- 两个并行节点同时返回，读取到相同 revision，后写入的结果覆盖先写入的结果。
+
+### T｜任务
+
+需要在 RabbitMQ 的 **at-least-once（至少一次）** 投递前提下，做到命令最终能发出去，同时重复 Command
+或 Result 不能把工作流状态推进两次。
+
+### A｜难点与方案选型
+
+| 方案                            | 好处                                   | 问题                                            | 结论   |
+| ------------------------------- | -------------------------------------- | ----------------------------------------------- | ------ |
+| 先写数据库，再直接发 MQ         | 实现最少                               | 两步之间存在故障窗口，消息可能永久丢失          | 不采用 |
+| 先发 MQ，再写数据库             | 看起来消息优先                         | 消费者可能先执行，数据库却回滚，产生“幽灵任务”  | 不采用 |
+| 依赖分布式事务                  | 理论上统一提交                         | 基础设施和维护成本高，RabbitMQ 场景下也不够灵活 | 不采用 |
+| PostgreSQL Outbox + Inbox + CAS | 利用本地事务保证事实落库，允许安全重试 | 需要处理领取、过期领取、重试和幂等              | 采用   |
+
+创建节点任务时，把运行状态、`NodeRun` 和待发送的 `Command Outbox` 放在同一个数据库事务里。只要事务
+成功，命令就已经成为一条不会丢的数据库事实；后台 Publisher 再负责把它发到 RabbitMQ。
+
+```ts
+await prisma.$transaction(async (tx) => {
+  await tx.workflowRun.update({
+    where: { id: runId, runtimeRevision: expectedRevision },
+    data: { runtimeState: transition.state, runtimeRevision: nextRevision },
+  })
+
+  await tx.workflowNodeRun.createMany({ data: nodeRuns })
+  await tx.workflowCommandOutbox.createMany({ data: dispatches })
+  // ...终态、日志等同事务更新
+})
+```
+
+Publisher 用 `PENDING → PUBLISHING → PUBLISHED` 管理状态。领取后发布，拿到 RabbitMQ Publisher Confirm
+再标记成功；如果进程在领取后崩溃，超过 claim timeout 的记录可以被重新领取。
+
+```ts
+const commands = await repository.claimPendingCommands({
+  limit: BATCH_SIZE,
+  staleBefore: new Date(Date.now() - CLAIM_TIMEOUT_MS),
+})
+
+await mq.publish(exchange, command.routingKey, Buffer.from(JSON.stringify(command.payload)))
+await repository.markCommandPublished(command.id)
+// ...失败时指数退避并释放 claim
+```
+
+消费 Result 时不能只查一个“处理过”的布尔值。项目同时校验 `commandId`、`nodeRunId`、
+`executionKey`、`leaseToken`、截止时间和 Run 状态；Inbox 对 `commandId`、`nodeRunId` 建唯一约束，最后再
+通过 `runtimeRevision` 做条件更新。
+
+```ts
+const context = await repository.findResultContext(result.commandId)
+
+if (!context) return 'stale'
+if (context.resultInbox) return 'duplicate'
+if (context.leaseToken !== result.leaseToken) return 'stale'
+
+const transition = runtime.applyNodeResult(context.run.runtimeState, result)
+const applied = await repository.applyRuntimeResult(context.runId, {
+  expectedRevision: context.run.runtimeRevision,
+  state: transition.state,
+  terminal: getRuntimeTerminal(transition),
+  dispatches: prepareRuntimeDispatches(transition),
+  result,
+  // ...
+})
+
+if (!applied) continue // 并行结果冲突，读取最新状态后重算
+```
+
+### R｜结果
+
+这套链路接受“消息可能重复”，但不接受“业务状态重复推进”。数据库提交后即使 MQ 暂时不可用，Outbox
+仍可继续重试；相同 Result 重投会被 Inbox 拦住；并行结果冲突会基于最新 revision 重新计算。
+
+准确话术是：**系统实现了至少一次投递下的幂等状态推进，而不是宣称整个分布式系统达到了物理意义上的
+Exactly Once。** 如果要量化，可以压测“同一 Result 重投 N 次后，Runtime revision 只增加一次”，再把
+N 和并发度换成真实数据。
+
+### 面试口语版
+
+> 可靠消息这里我没有把“数据库更新”和“发 MQ”当成两个碰运气的步骤，而是先在一个本地事务里写运行
+> 状态、NodeRun 和 Outbox。后台 Publisher 拿到 Confirm 后才把 Outbox 标成已发布，所以服务在哪个时间点
+> 挂掉都能继续重试。因为至少一次投递一定会带来重复，我又用 Inbox 唯一键、leaseToken 和 revision CAS
+> 做幂等。这样消息可以重复来，但工作流状态不会被同一个结果推进两次。
+
+## 难点三：TypeScript 调度、Go 执行，怎么保证两边不会“各说各话”
+
+### S｜背景
+
+Server 和 Runtime 使用 TypeScript，真正执行节点的是 Go Worker，Code 节点内部还会启动 Node.js ESM
+子进程。跨语言之后，TypeScript 类型在运行时帮不上忙：一边字段改名、另一边没同步，消息仍然能进队列，
+但会在执行阶段才以很难排查的方式失败。
+
+同时，不同节点的风险完全不同。条件节点只做内存计算，模型节点需要访问模型服务，HTTP 节点需要网络，
+Code 和插件节点会运行动态代码。如果所有节点都进入同一个全权限 Worker，一个 Code 节点的问题可能拖垮
+模型任务，甚至读取到不该读取的环境变量。
+
+### T｜任务
+
+一方面要建立 TypeScript 与 Go 的稳定消息合同，另一方面要按节点能力做队列和执行器隔离，并确保重试时
+不会因为运行中的配置变化被路由到另一类 Worker。
+
+### A｜协议方案对比
+
+| 方案                               | 好处                                       | 问题                                             | 结论     |
+| ---------------------------------- | ------------------------------------------ | ------------------------------------------------ | -------- |
+| TS interface 和 Go struct 手工维护 | 简单                                       | 两份定义容易漂移，无法证明线上 JSON 合法         | 不采用   |
+| Protobuf                           | 强类型、二进制效率高                       | 对当前 JSON 调试链路和插件扩展偏重，改造成本更高 | 暂不采用 |
+| 版本化 JSON Schema                 | 跨语言、可读，可生成类型，也能做运行时校验 | 需要维护 Schema 兼容规则                         | 采用     |
+
+项目把 Command/Result 写成版本化 JSON Schema，再生成 TypeScript 类型和 Go struct。更重要的是，两端都不
+盲信生成类型：消息进入和发出时仍做运行时校验。
+
+```ts
+const validateCommand = ajv.compile<ExecuteNodeCommand>(commandSchema)
+
+export function parseExecuteNodeCommand(value: unknown): ExecuteNodeCommand {
+  if (validateCommand(value)) return value
+  throw new ProtocolValidationError('节点执行命令不符合协议' /* ... */)
+}
+```
+
+```go
+func DecodeExecuteNodeCommand(data []byte) (ExecuteNodeCommand, error) {
+    var command ExecuteNodeCommand
+    if err := decodeAndValidate(data, executeNodeCommandSchema, &command); err != nil {
+        return ExecuteNodeCommand{}, err
+    }
+    return command, nil
+}
+```
+
+### A｜执行器隔离方案
+
+项目没有让 Go Worker 读取整张 Workflow 并自行决定下一步。Worker 只收到一个节点所需的 `inputs`、
+`config`、租约和截止时间，执行完返回 Result。调度权仍留在 Runtime，这样 Go 端的职责更小，协议也更稳定。
+
+路由在 Command 创建时一次性解析，并把 `executionClass` 和 `routingKey` 固化进 Outbox。之后即使服务配置
+变化，旧任务重试仍沿用原路由，不会漂到另一个 Queue。
+
+Worker 按 Profile 只注册自己允许执行的节点：
+
+```go
+switch profile {
+case executorprofile.Compute:
+    registry.Register("condition", conditionExecutor)
+case executorprofile.Model:
+    registry.Register("llm", llmExecutor)
+    registry.Register("rag", ragExecutor)
+case executorprofile.HTTP:
+    registry.Register("http", httpExecutor)
+case executorprofile.Sandbox:
+    registry.Register("code", codeExecutor)
+    registry.Register("plugin-sandbox", pluginExecutor)
+// ...
+}
+```
+
+Code 节点没有在 NestJS 进程里直接 `eval`，而是由 Go 启动独立 Node.js 子进程。每次执行使用独立临时目录，
+只透传白名单环境变量，并限制堆、栈、超时、标准错误和结果大小：
+
+```go
+command := exec.CommandContext(
+    ctx,
+    "node",
+    "--max-old-space-size=64",
+    "--stack_size=1024",
+    runnerPath,
+    userModulePath,
+    inputsPath,
+    resultPath,
+    // ...
+)
+command.Env = allowedNodeEnvironment(sandboxDirectory)
+command.Stdout = io.Discard
+command.Stderr = &cappedBuffer{limit: maxStderrBytes}
+```
+
+这里必须讲清安全边界：**子进程隔离和资源限制不等于强安全沙箱。** 它能避免用户代码直接跑在 Worker
+主进程、限制常见资源滥用和环境变量泄露，但如果面向完全不可信的公网代码，还应该升级到独立容器、
+gVisor 或 microVM，并配合只读文件系统、网络策略和更严格的系统调用限制。
+
+### R｜结果
+
+最终，协议错误会在消息边界被明确拒绝，而不是在业务执行深处才暴露；不同能力的节点进入独立队列，
+Worker Registry 再做第二道白名单校验；Code 节点异常只影响自己的子进程，不会直接击穿 Go Worker 主进程。
+
+可量化时可以补充：协议兼容用例数量、无效消息拦截数量、各 Profile 的并发与资源上限、Code 节点超时和
+内存越界的回收结果。
+
+### 面试口语版
+
+> 这部分有两个问题要一起解决：跨语言契约和执行权限。契约上我没有手写两套类型，而是用版本化 JSON
+> Schema 作为唯一来源，生成 TS 和 Go 类型，并且两端都做运行时校验。执行上我把节点分到 compute、model、
+> http、sandbox 等队列，每个 Worker 只注册自己的 Executor。Code 节点再放进独立 Node 子进程，限制时间、
+> 内存、输出和环境变量。这样协议、路由和权限是三层边界，而不是只靠一个 if 判断。
+
+## 难点四：插件既要能扩展，又不能把宿主变成不可控的脚本加载器
+
+### S｜背景
+
+平台内置节点有限，真正落地时一定会遇到企业自己的模型、审批、数据源和业务接口。如果每加一个节点都
+修改 Web、Server 和 Executor，再重新发布整个平台，扩展成本会越来越高。
+
+但“允许插件”不等于直接把一个 React Element、Zod 对象或任意函数塞进 JSON。它们无法稳定序列化，
+也不能跨 Web、Server、CLI 和 Go 重建；如果只上传一段任意代码，宿主也无法提前知道它申请了什么权限、
+支持什么版本、产物是否被替换。
+
+### T｜任务
+
+需要设计一套可序列化、可校验、可打包、可锁版本的插件合同，让同一份 Manifest 能被 CLI 构建、Server
+审查、Web 渲染和 Executor 执行，同时保留自定义 UI 与自定义执行逻辑的扩展能力。
+
+### A｜难点与方案选型
+
+| 方案                               | 好处                                                 | 问题                                               | 结论       |
+| ---------------------------------- | ---------------------------------------------------- | -------------------------------------------------- | ---------- |
+| 插件导出 Zod、React Element 和函数 | 开发体验直接                                         | 无法序列化，跨进程和版本恢复困难                   | 不采用     |
+| 只使用原生 JSON Schema             | 标准化程度高                                         | 很难完整描述宿主字段、变量引用、表单交互和模块产物 | 只作为参考 |
+| Schema AST + Form DSL + 模块引用   | 数据可序列化，宿主可确定性重建，复杂 UI 仍能独立打包 | SDK 和编译器设计成本更高                           | 采用       |
+
+插件 Schema 不是运行时对象，而是一棵纯 JSON AST。Builder 负责开发体验，最终产物仍然可以序列化：
+
+```ts
+const configSchema = pluginSchema.object({
+  prompt: pluginSchema.string({ minLength: 1 }),
+  temperature: pluginSchema.optional(pluginSchema.number({ min: 0, max: 2 })),
+  context: pluginSchema.variableValue(),
+  // ...
+})
+
+// Builder 的结果只是普通数据
+// { kind: 'object', properties: { ... }, additionalProperties: 'reject' }
+```
+
+Manifest 还必须声明宿主版本范围、权限、宿主字段能力、节点定义和完整性摘要：
+
+```ts
+const manifest = {
+  manifestVersion: 1,
+  plugin: { packageName, displayName, version },
+  hostVersionRange: '^1.0.0',
+  permissions: ['network:public'],
+  requires: { hostFields: ['model-selector'] },
+  nodes: [/* ... */],
+  integrity: { algorithm: 'sha256', digest: artifactDigest },
+}
+```
+
+CLI 构建时对 Artifact 生成 SHA-256 摘要，Server 安装和 Executor 拉取时再次校验；Workflow 发布时锁定
+插件版本和 digest，而不是只保存“最新版”。这样即使 Marketplace 后来出现新版本，已经发布的 Workflow
+仍能解析到原来的插件产物。
+
+Schema 驱动也反向简化了编辑器：节点定义、端口、表单和运行前校验共享同一份领域合同。前端只负责把
+字段 DSL 映射到 Input、Select、变量选择器等 renderer，静态规则不在每个 React 表单里复制一份。
+
+```tsx
+function PluginField({ field, value, onChange }: PluginFieldProps) {
+  switch (field.kind) {
+    case 'string':
+      return <Input value={value} onChange={/* ... */} />
+    case 'variable-value':
+      return <VariableValueEditor value={value} onChange={onChange} />
+    // ...宿主字段与自定义 UI 按声明加载
+  }
+}
+```
+
+### R｜结果
+
+最终新增普通插件节点时，不需要同时手改 Web、Server 和 Go 的内置节点列表；宿主可以在安装前检查版本、
+权限和能力，在运行前重建校验，在执行前核对 Artifact digest。发布版本保存精确插件锁，也让历史工作流
+具备可复现性。
+
+结果不要写“插件开发效率提升 80%”这类无法证明的数字。可以真实统计：一个普通节点需要维护的宿主侧
+文件数量、CLI 构建时间、Artifact 大小、安装校验耗时，以及升级插件后旧 Workflow 的回归结果。
+
+### 面试口语版
+
+> 插件体系最难的不是动态 import，而是怎么把扩展能力变成稳定合同。我没有让插件直接把 Zod 对象、
+> React Element 或函数写进 Manifest，因为这些东西不能跨进程可靠序列化。我设计了 Schema AST 和 Form
+> DSL，普通配置都是纯 JSON；自定义 UI 和 Executor 作为独立 Artifact 构建。Manifest 再声明宿主版本、
+> 权限和 SHA-256，Workflow 发布时锁定版本与 digest。这样插件可以扩展，但宿主仍然能校验、审计和复现。
+
+## 如何把结果说得可信
+
+STAR 的 R 不能只说“最终成功上线”，也不能编一个漂亮百分比。建议从下面选择真实测过的指标：
+
+| 难点          | 可以测什么                               | 验证方法示例                                                 |
+| ------------- | ---------------------------------------- | ------------------------------------------------------------ |
+| Runtime 恢复  | 恢复耗时、最大节点数、并行分支数         | 节点执行中强制重启 Server，再观察是否从最新 revision 继续    |
+| 消息幂等      | 重投次数、最终 revision、重复 NodeRun 数 | 将同一 Result 并发投递 N 次，确认只产生一次有效状态推进      |
+| 协议边界      | 无效消息拦截率、兼容版本数               | 删除必填字段、增加非法字段、使用旧协议样本分别验证 TS 与 Go  |
+| Executor 隔离 | 超时回收、内存限制、队列互不影响         | 运行死循环、超大输出和高内存 Code，同时观察 Model Queue 延迟 |
+| 插件可复现    | 构建耗时、产物大小、digest 一致性        | 同源码重复构建并校验摘要，升级插件后回放旧 Workflow          |
+
+最后可以这样收束整段项目介绍：
+
+> 这个项目的亮点不是用了 React、NestJS、Go 和 RabbitMQ，而是把它们放在了清晰的边界里：Runtime 只
+> 决定下一步，Server 保证状态和消息可靠，Go Executor 控制单节点副作用，Protocol 负责跨语言合同，
+> Plugin DSL 负责可扩展性。这样系统遇到重启、重投、并发和版本升级时，仍然知道当前状态是什么、下一步
+> 应该做什么，以及由谁来做。
