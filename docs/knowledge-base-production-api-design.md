@@ -86,6 +86,7 @@
 | 2026-08-11 | 3 搜索文本投影              | Chunk 保存 Markdown 标题路径元数据，OpenSearch 平滑追加 `title`、`title_path`、`search_content` 字段；检索文本执行 Unicode 规范化和英文驼峰拆词，旧投影仍可通过正文标题解析参与二阶段重排                                                                                                                       |
 | 2026-08-11 | 4 外部 Retrieve API         | 已实现独立 `kb-live-` Key 的创建、掩码列表和撤销，Key 只存 SHA-256；知识库总开关、scope 与单库绑定共同鉴权；`POST /v1/knowledge/retrieve` 复用统一 Retriever，限制 query/TopK/知识库 ID，并以 query 哈希写入最小审计日志；限流、多库 grant 和完整生产错误契约待补齐                                             |
 | 2026-08-12 | pgvector Dense 与元数据过滤 | Chunk Embedding 写入 PostgreSQL `vector` 并校验维度和数量；Dense 召回按 cosine/L2/inner-product 精确排序，OpenSearch 只保留 BM25；两路候选融合前按 owner、活动 Index、Head、文档/Chunk 状态及文档 JSONB 元数据强一致过滤，响应合并文档与 Chunk 元数据                                                           |
+| 2026-08-12 | 英文专有名词归一化          | 检索重排同时比较英文驼峰拆词形式与不拆分的小写原词形，`DeepSeek`、`deepseek`、`DEEPSEEK` 等大小写变体共享短关键词字面匹配，避免 Accurate 阈值误删已召回候选                                                                                                                                                     |
 
 下一批工作按以下顺序继续：
 

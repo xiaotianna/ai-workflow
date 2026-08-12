@@ -1,6 +1,6 @@
 import type { KnowledgeRetrievalDocumentVo } from '@/vo/knowledge-retrieval.vo'
 import {
-  normalizeKnowledgeSearchText,
+  createKnowledgeSearchTextVariants,
   readKnowledgeSearchMetadata,
 } from '@/utils/knowledge-search-text'
 import { Injectable } from '@nestjs/common'
@@ -27,18 +27,22 @@ export class KnowledgeRerankerService {
     candidates: KnowledgeRerankCandidate[],
     minimumScore: number,
   ): KnowledgeRerankResult[] {
-    const normalizedQuery = normalizeKnowledgeSearchText(query)
-    const queryTerms = uniqueSearchTerms(normalizedQuery)
-    const shortKeywordQuery = isShortKeywordQuery(normalizedQuery, queryTerms)
+    const queryVariants = createKnowledgeSearchTextVariants(query)
 
     return candidates
       .map((candidate) => ({
         ...candidate,
-        rerankScore: calculateRerankScore(
-          normalizedQuery,
-          queryTerms,
-          shortKeywordQuery,
-          candidate,
+        rerankScore: Math.max(
+          0,
+          ...queryVariants.map((normalizedQuery) => {
+            const queryTerms = uniqueSearchTerms(normalizedQuery)
+            return calculateRerankScore(
+              normalizedQuery,
+              queryTerms,
+              isShortKeywordQuery(normalizedQuery, queryTerms),
+              candidate,
+            )
+          }),
         ),
       }))
       .filter(({ rerankScore }) => rerankScore >= minimumScore)
@@ -57,34 +61,59 @@ function calculateRerankScore(
   shortKeywordQuery: boolean,
   candidate: KnowledgeRerankCandidate,
 ): number {
-  const searchMetadata = readKnowledgeSearchMetadata(candidate.metadata, candidate.content)
-  const title = normalizeKnowledgeSearchText(searchMetadata.title ?? '')
-  const titlePath = normalizeKnowledgeSearchText(searchMetadata.titlePath ?? '')
-  const documentName = normalizeKnowledgeSearchText(candidate.documentName)
-  const content = normalizeKnowledgeSearchText(candidate.content)
-  const fields = [title, titlePath, documentName, content]
+  const searchMetadata = readKnowledgeSearchMetadata(candidate.metadata, candidate.content),
+    title = createKnowledgeSearchTextVariants(searchMetadata.title ?? ''),
+    titlePath = createKnowledgeSearchTextVariants(searchMetadata.titlePath ?? ''),
+    documentName = createKnowledgeSearchTextVariants(candidate.documentName),
+    content = createKnowledgeSearchTextVariants(candidate.content),
+    fields = [...title, ...titlePath, ...documentName, ...content]
 
   if (shortKeywordQuery && !fields.some((value) => value.includes(normalizedQuery))) return 0
 
-  const titlePhraseScore = phraseScore(title, normalizedQuery, 0.34, 0.29)
-  const pathPhraseScore =
-    titlePath === title ? 0 : phraseScore(titlePath, normalizedQuery, 0.22, 0.18)
-  const filePhraseScore = phraseScore(documentName, normalizedQuery, 0.14, 0.11)
-  const contentPhraseScore = phraseScore(content, normalizedQuery, 0.17, 0.14)
-  const titleCoverage = termCoverage(title, queryTerms) * 0.18
-  const contentCoverage = termCoverage(content, queryTerms) * 0.1
-  const frequencyScore = Math.min(countOccurrences(content, normalizedQuery), 4) * 0.0125
-  const lexicalScore =
-    titlePhraseScore +
-    pathPhraseScore +
-    filePhraseScore +
-    contentPhraseScore +
-    titleCoverage +
-    contentCoverage +
-    frequencyScore
-  const semanticScore = denseSemanticScore(candidate)
+  const titlePhraseScore = bestPhraseScore(title, normalizedQuery, 0.34, 0.29),
+    pathPhraseScore = sameVariants(titlePath, title)
+      ? 0
+      : bestPhraseScore(titlePath, normalizedQuery, 0.22, 0.18),
+    filePhraseScore = bestPhraseScore(documentName, normalizedQuery, 0.14, 0.11),
+    contentPhraseScore = bestPhraseScore(content, normalizedQuery, 0.17, 0.14),
+    titleCoverage = bestTermCoverage(title, queryTerms) * 0.18,
+    contentCoverage = bestTermCoverage(content, queryTerms) * 0.1,
+    frequencyScore = Math.min(bestOccurrenceCount(content, normalizedQuery), 4) * 0.0125,
+    lexicalScore =
+      titlePhraseScore +
+      pathPhraseScore +
+      filePhraseScore +
+      contentPhraseScore +
+      titleCoverage +
+      contentCoverage +
+      frequencyScore,
+    semanticScore = denseSemanticScore(candidate)
 
   return roundScore(Math.min(1, lexicalScore + semanticScore))
+}
+
+function bestPhraseScore(
+  values: string[],
+  query: string,
+  exactWeight: number,
+  containsWeight: number,
+): number {
+  return Math.max(
+    0,
+    ...values.map((value) => phraseScore(value, query, exactWeight, containsWeight)),
+  )
+}
+
+function bestTermCoverage(values: string[], terms: string[]): number {
+  return Math.max(0, ...values.map((value) => termCoverage(value, terms)))
+}
+
+function bestOccurrenceCount(values: string[], query: string): number {
+  return Math.max(0, ...values.map((value) => countOccurrences(value, query)))
+}
+
+function sameVariants(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index])
 }
 
 /**
@@ -93,8 +122,8 @@ function calculateRerankScore(
  */
 function denseSemanticScore(candidate: KnowledgeRerankCandidate): number {
   if (candidate.denseScore === undefined) return 0
-  const relevance = normalizeDenseRelevance(candidate.denseScore, candidate.distanceMetric)
-  const minimumRelevance = 0.4
+  const relevance = normalizeDenseRelevance(candidate.denseScore, candidate.distanceMetric),
+    minimumRelevance = 0.4
   if (relevance <= minimumRelevance) return 0
   return ((relevance - minimumRelevance) / (1 - minimumRelevance)) * 0.18
 }
@@ -146,8 +175,8 @@ function uniqueSearchTerms(value: string): string[] {
 
 function countOccurrences(value: string, query: string): number {
   if (!value || !query) return 0
-  let count = 0
-  let fromIndex = 0
+  let count = 0,
+    fromIndex = 0
   while (fromIndex < value.length) {
     const index = value.indexOf(query, fromIndex)
     if (index === -1) break

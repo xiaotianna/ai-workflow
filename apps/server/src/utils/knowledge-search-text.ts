@@ -6,10 +6,25 @@ export interface KnowledgeSearchMetadata {
 }
 
 export function normalizeKnowledgeSearchText(value: string): string {
+  return finishKnowledgeSearchTextNormalization(
+    value
+      .normalize('NFKC')
+      .replace(/([\p{Ll}\d])(\p{Lu})/gu, '$1 $2')
+      .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2'),
+  )
+}
+
+export function createKnowledgeSearchTextVariants(value: string): string[] {
+  return [
+    ...new Set([
+      normalizeKnowledgeSearchText(value),
+      finishKnowledgeSearchTextNormalization(value.normalize('NFKC')),
+    ]),
+  ].filter(Boolean)
+}
+
+function finishKnowledgeSearchTextNormalization(value: string): string {
   return value
-    .normalize('NFKC')
-    .replace(/([\p{Ll}\d])(\p{Lu})/gu, '$1 $2')
-    .replace(/(\p{Lu})(\p{Lu}\p{Ll})/gu, '$1 $2')
     .replace(/[_.\\/:-]+/g, ' ')
     .toLocaleLowerCase()
     .replace(/\s+/g, ' ')
@@ -20,8 +35,8 @@ export function readKnowledgeSearchMetadata(
   metadata: Record<string, unknown>,
   content: string,
 ): KnowledgeSearchMetadata {
-  const metadataTitle = readNonEmptyString(metadata.title) ?? readNonEmptyString(metadata.question)
-  const metadataTitlePath = readNonEmptyString(metadata.titlePath)
+  const metadataTitle = readNonEmptyString(metadata.title) ?? readNonEmptyString(metadata.question),
+    metadataTitlePath = readNonEmptyString(metadata.titlePath)
   if (metadataTitle || metadataTitlePath) {
     return {
       ...(metadataTitle ? { title: metadataTitle } : {}),
@@ -30,11 +45,11 @@ export function readKnowledgeSearchMetadata(
   }
 
   const heading = content
-    .split('\n')
-    .map((line) => line.trim())
-    .map((line) => MARKDOWN_HEADING_PATTERN.exec(line))
-    .find(Boolean)
-  const title = heading?.[2]?.trim()
+      .split('\n')
+      .map((line) => line.trim())
+      .map((line) => MARKDOWN_HEADING_PATTERN.exec(line))
+      .find(Boolean),
+    title = heading?.[2]?.trim()
   return title ? { title, titlePath: title } : {}
 }
 
@@ -45,9 +60,9 @@ export function addHeadingMetadata(
 
   return chunks.map((chunk) => {
     for (const line of chunk.content.split('\n')) {
-      const match = MARKDOWN_HEADING_PATTERN.exec(line.trim())
-      const level = match?.[1]?.length
-      const title = match?.[2]?.trim()
+      const match = MARKDOWN_HEADING_PATTERN.exec(line.trim()),
+        level = match?.[1]?.length,
+        title = match?.[2]?.trim()
       if (!level || !title) continue
       headingPath.length = level - 1
       headingPath[level - 1] = title

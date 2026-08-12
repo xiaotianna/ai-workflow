@@ -170,7 +170,8 @@
 - 检索配置使用不可变索引期配置和版本化 `KnowledgeRetrievalProfile` 分离管理。当前
   `HYBRID_ACCURATE` 使用每路 100 个候选、RRF 后取全局 50 个候选执行标题、标题路径、精确短语、
   词项覆盖率与经距离度量还原的 Dense 相关度组合的确定性二阶段重排；RRF 只负责候选融合和同分
-  排序，不计入最终相关度。短关键词没有连续字面证据时禁止仅凭词项覆盖或 Dense 排名获得重排分；Accurate
+  排序，不计入最终相关度。英文驼峰词同时保留拆词形式和不拆分的小写原词形，保证 `DeepSeek`、
+  `deepseek` 等大小写变体共享短关键词字面证据；短关键词没有连续字面证据时禁止仅凭词项覆盖或 Dense 排名获得重排分；Accurate
   使用最低重排分阈值并允许返回少于 TopK 的结果。`HYBRID_FAST` 使用每路 30 个候选并直接返回 RRF。
   多个知识库混用画像时采用更严格的 Accurate 路径。多个知识库仍必须先按 `embeddingSpaceKey`
   分组，禁止直接比较不同嵌入空间的向量原始分数；后续接入独立 Cross-Encoder Provider 时替换
