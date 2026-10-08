@@ -6,20 +6,25 @@ import {
 } from '@/api/studio'
 import { resolvePluginRuntimeCatalog } from '@/api/plugins'
 import type { WorkflowEditorSnapshot } from '@/components/workflow/types'
-import { WorkflowEditorProvider } from '@/features/workflow/components/workflow-editor'
 import { createEmptyWorkflowDocument } from '@/features/workflow/data'
 import { useWorkflowPublish } from '@/features/workflow/hooks/use-workflow-publish'
 import { useWorkflowTestRun } from '@/features/workflow/hooks/use-workflow-test-run'
-import {
-  createWorkflowPluginRuntime,
-  type WorkflowPluginRuntime,
-} from '@/features/workflow/plugin-runtime'
+import type { WorkflowPluginRuntime } from '@/features/workflow/plugin-runtime/create-workflow-plugin-runtime'
 import { useWorkflowPluginRuntimeToasts } from '@/features/workflow/hooks/use-workflow-plugin-runtime-toasts'
 import type { StudioAppListItem } from '@/features/studio'
-import { useEffect, useRef, useState } from 'react'
+import { LoaderCircle } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 
 import type { AppDetailOutletContext } from '.'
+
+const workflowEditorModule = import('@/features/workflow/components/workflow-editor'),
+  workflowPluginRuntimeModule =
+    import('@/features/workflow/plugin-runtime/create-workflow-plugin-runtime'),
+  WorkflowEditorProvider = lazy(async () => {
+    const module = await workflowEditorModule
+    return { default: module.WorkflowEditorProvider }
+  })
 
 interface AppWorkflowEditorProps {
   app: StudioAppListItem
@@ -67,10 +72,10 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
 
     void getStudioWorkflowDraft(app.id, controller.signal)
       .then(async (loadedDraft) => {
-        const runtimeCatalog = await resolvePluginRuntimeCatalog(
-            loadedDraft.definition.plugins,
-            controller.signal,
-          ),
+        const [runtimeCatalog, { createWorkflowPluginRuntime }] = await Promise.all([
+            resolvePluginRuntimeCatalog(loadedDraft.definition.plugins, controller.signal),
+            workflowPluginRuntimeModule,
+          ]),
           runtime = await createWorkflowPluginRuntime(runtimeCatalog, controller.signal)
         revisionRef.current = loadedDraft.revision
         setDraftState({
@@ -93,7 +98,11 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   }, [app.id])
 
   if (!draft || !catalog) {
-    return <UnavailableWorkflowEditor workflowId={app.id} />
+    return draftState.status === 'loading' ? (
+      <WorkflowEditorLoading />
+    ) : (
+      <UnavailableWorkflowEditor workflowId={app.id} />
+    )
   }
 
   async function handleSave(snapshot: WorkflowEditorSnapshot) {
@@ -113,6 +122,7 @@ function AppWorkflowEditor({ app, disabled }: AppWorkflowEditorProps) {
   async function handleRestoreVersion(versionId: string) {
     const restoredDraft = await restoreStudioWorkflowVersion(app.id, versionId),
       runtimeCatalog = await resolvePluginRuntimeCatalog(restoredDraft.definition.plugins),
+      { createWorkflowPluginRuntime } = await workflowPluginRuntimeModule,
       runtime = await createWorkflowPluginRuntime(runtimeCatalog)
     revisionRef.current = restoredDraft.revision
     setSelectedVersionId(versionId)
@@ -182,12 +192,33 @@ function UnavailableWorkflowEditor({ workflowId = 'unavailable' }: { workflowId?
   return <WorkflowEditorProvider initialSnapshot={snapshot} disabled onSave={setSnapshot} />
 }
 
+function WorkflowEditorLoading() {
+  return (
+    <div
+      className="text-muted-foreground flex h-full min-h-40 items-center justify-center gap-2 text-sm"
+      role="status"
+      aria-live="polite"
+    >
+      <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+      正在加载工作流…
+    </div>
+  )
+}
+
 export default function AppWorkflowPage() {
-  const { app, isResourceAvailable } = useOutletContext<AppDetailOutletContext>()
+  const { app, isResourceAvailable, isResourceLoading } = useOutletContext<AppDetailOutletContext>()
 
-  if (!app) {
-    return <UnavailableWorkflowEditor />
-  }
-
-  return <AppWorkflowEditor key={app.id} app={app} disabled={!isResourceAvailable} />
+  return (
+    <Suspense fallback={<WorkflowEditorLoading />}>
+      {!app ? (
+        isResourceLoading ? (
+          <WorkflowEditorLoading />
+        ) : (
+          <UnavailableWorkflowEditor />
+        )
+      ) : (
+        <AppWorkflowEditor key={app.id} app={app} disabled={!isResourceAvailable} />
+      )}
+    </Suspense>
+  )
 }

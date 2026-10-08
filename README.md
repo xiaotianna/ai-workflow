@@ -56,6 +56,12 @@ pnpm docker:dev:down
 
 ## 应用开发
 
+首次拉取代码并安装依赖后，先生成 Prisma Client：
+
+```bash
+pnpm prisma:generate
+```
+
 通过 Turborepo 从仓库根目录启动应用：
 
 ```bash

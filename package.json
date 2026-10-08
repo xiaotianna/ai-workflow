@@ -11,6 +11,7 @@
     "dev": "turbo dev",
     "dev:web": "turbo dev:web --filter=@ai-workflow/web",
     "dev:server": "turbo dev:server --filter=@ai-workflow/server",
+    "prisma:generate": "pnpm --filter @ai-workflow/server prisma:generate",
     "plugin:cli:build": "pnpm --filter @ai-workflow/plugin-cli build",
     "plugin:init": "pnpm run plugin:cli:build && node ./packages/workflow-plugin-cli/bin/ai-workflow-plugin.mjs init --local",
     "build": "turbo run build",

@@ -31,6 +31,7 @@ type AppResourceState =
 export interface AppDetailOutletContext {
   app: StudioAppListItem | undefined
   isResourceAvailable: boolean
+  isResourceLoading: boolean
 }
 
 export interface AppPageProps {
@@ -52,7 +53,8 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
       resourceState.routeId === id && resourceState.status === 'success'
         ? resourceState.app
         : undefined,
-    isResourceAvailable = app !== undefined
+    isResourceAvailable = app !== undefined,
+    isResourceLoading = resourceState.routeId === id && resourceState.status === 'loading'
 
   useEffect(() => {
     if (!id) {
@@ -161,7 +163,13 @@ export default function AppPage({ onAppAction, onImportDsl }: AppPageProps) {
         }
         navigationItems={getNavigationItemsFromRoute(routes, 'app', `/app/${encodedAppId}`)}
         navigationLabel="应用导航"
-        outletContext={{ app, isResourceAvailable } satisfies AppDetailOutletContext}
+        outletContext={
+          {
+            app,
+            isResourceAvailable,
+            isResourceLoading,
+          } satisfies AppDetailOutletContext
+        }
       />
     </>
   )
