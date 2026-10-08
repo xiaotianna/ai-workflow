@@ -21,6 +21,8 @@ x-server-environment: &server-environment
   RABBITMQ_VHOST: ${RABBITMQ_VHOST:-ai_workflow}
   WORKFLOW_EXECUTOR_ROUTING_MODE: legacy
   EXECUTOR_REQUIRE_INTERNAL_AUTH: 'true'
+  AGENT_RUNTIME_URL: http://agent-runtime:3100
+  AGENT_RUN_TIMEOUT_MS: ${AGENT_RUN_TIMEOUT_MS:-180000}
   PLUGIN_ARTIFACT_DIRECTORY: /workspace/apps/server/var/plugin-artifacts
   KNOWLEDGE_SOURCE_STORAGE_DRIVER: local
   KNOWLEDGE_SOURCE_DIRECTORY: /workspace/apps/server/var/knowledge-sources
@@ -40,12 +42,14 @@ services:
       OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-}
       JWT_SECRET: ${JWT_SECRET:-}
       EXECUTOR_INTERNAL_AUTH_TOKEN: ${EXECUTOR_INTERNAL_AUTH_TOKEN:-}
+      AGENT_RUNTIME_INTERNAL_AUTH_TOKEN: ${AGENT_RUNTIME_INTERNAL_AUTH_TOKEN:-}
       MODEL_CREDENTIAL_ENCRYPTION_KEY: ${MODEL_CREDENTIAL_ENCRYPTION_KEY:-}
     entrypoint: ['/bin/sh', '/opt/ai-workflow/init-secrets.sh']
     volumes:
       - ./deploy/init-secrets.sh:/opt/ai-workflow/init-secrets.sh:ro
       - server_secrets:/secrets/server
       - executor_secrets:/secrets/executor
+      - agent_secrets:/secrets/agent
       - postgres_secrets:/secrets/postgres
       - rabbitmq_secrets:/secrets/rabbitmq
       - opensearch_secrets:/secrets/opensearch
@@ -95,6 +99,8 @@ services:
         condition: service_healthy
       opensearch:
         condition: service_healthy
+      agent-runtime:
+        condition: service_healthy
     volumes:
       - server_logs:/workspace/apps/server/logs
       - plugin_artifacts:/workspace/apps/server/var/plugin-artifacts
@@ -104,6 +110,7 @@ services:
       - gateway
       - backend
       - executor
+      - agent
     healthcheck:
       test:
         [
@@ -118,6 +125,54 @@ services:
       start_period: 30s
     security_opt:
       - no-new-privileges:true
+
+  agent-runtime:
+    <<: *application-image
+    command: ['agent-runtime']
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: '3100'
+      AI_WORKFLOW_SECRETS_DIR: /run/ai-workflow-secrets
+      AI_WORKFLOW_SERVER_URL: http://server:3000
+      AGENT_RUN_TIMEOUT_MS: ${AGENT_RUN_TIMEOUT_MS:-180000}
+      AGENT_SESSION_IDLE_TTL_MS: ${AGENT_SESSION_IDLE_TTL_MS:-1800000}
+      AGENT_MAX_SESSIONS: ${AGENT_MAX_SESSIONS:-100}
+      AGENT_MAX_MODEL_TURNS: ${AGENT_MAX_MODEL_TURNS:-12}
+      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-40}
+    expose:
+      - '3100'
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+    volumes:
+      - agent_secrets:/run/ai-workflow-secrets:ro
+    networks:
+      - agent
+      - agent-egress
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:3100/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    mem_limit: 512m
+    cpus: 1.0
 
   executor:
     <<: *application-image
@@ -265,6 +320,9 @@ networks:
   backend:
     internal: true
   executor:
+  agent:
+    internal: true
+  agent-egress:
 
 volumes:
   postgres_data:
@@ -276,6 +334,7 @@ volumes:
   knowledge_sources:
   server_secrets:
   executor_secrets:
+  agent_secrets:
   postgres_secrets:
   rabbitmq_secrets:
   opensearch_secrets:

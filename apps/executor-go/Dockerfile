@@ -17,7 +17,7 @@ COPY apps/executor-go ./apps/executor-go
 WORKDIR /workspace/apps/executor-go
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /out/executor ./cmd/executor
 
-FROM node:22-bookworm-slim AS node-dependencies
+FROM node:22.19.0-bookworm-slim AS node-dependencies
 
 ENV HUSKY=0
 WORKDIR /workspace
@@ -25,11 +25,12 @@ COPY package.json pnpm-workspace.yaml .npmrc ./
 COPY packages ./packages
 COPY apps/web/package.json ./apps/web/package.json
 COPY apps/server/package.json ./apps/server/package.json
+COPY apps/agent-runtime/package.json ./apps/agent-runtime/package.json
 COPY apps/executor-go ./apps/executor-go
 RUN corepack enable \
   && pnpm install --prod --no-frozen-lockfile --ignore-scripts
 
-FROM node:22-bookworm-slim
+FROM node:22.19.0-bookworm-slim
 
 ENV NODE_ENV=production \
   CODE_NODE_BINARY=node \

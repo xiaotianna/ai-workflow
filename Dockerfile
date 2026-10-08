@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:22-bookworm-slim AS workspace-build-dependencies
+FROM --platform=$BUILDPLATFORM node:22.19.0-bookworm-slim AS workspace-build-dependencies
 
 ENV HUSKY=0
 WORKDIR /workspace
@@ -9,6 +9,7 @@ COPY packages ./packages
 COPY apps/web ./apps/web
 COPY apps/server ./apps/server
 COPY apps/executor-go ./apps/executor-go
+COPY apps/agent-runtime ./apps/agent-runtime
 
 RUN corepack enable \
   && pnpm install --no-frozen-lockfile
@@ -23,6 +24,10 @@ FROM workspace-build-dependencies AS server-build
 
 RUN DATABASE_URL=postgresql://localhost:5432/ai_workflow_build \
   pnpm --filter @ai-workflow/server build
+
+FROM workspace-build-dependencies AS agent-build
+
+RUN pnpm --filter @ai-workflow/agent-runtime build
 
 FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS executor-build
 
@@ -41,12 +46,13 @@ RUN go mod download
 WORKDIR /workspace
 COPY packages/workflow-protocol ./packages/workflow-protocol
 COPY apps/executor-go ./apps/executor-go
+COPY apps/agent-runtime ./apps/agent-runtime
 
 WORKDIR /workspace/apps/executor-go
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
   go build -trimpath -ldflags='-s -w' -o /out/executor ./cmd/executor
 
-FROM node:22-bookworm-slim AS workspace-runtime-dependencies
+FROM node:22.19.0-bookworm-slim AS workspace-runtime-dependencies
 
 ENV HUSKY=0
 WORKDIR /workspace
@@ -61,7 +67,7 @@ COPY apps/executor-go ./apps/executor-go
 RUN corepack enable \
   && pnpm install --no-frozen-lockfile
 
-FROM node:22-bookworm-slim
+FROM node:22.19.0-bookworm-slim
 
 ENV NODE_ENV=production \
   CODE_NODE_BINARY=node \
@@ -88,6 +94,9 @@ COPY --from=server-build --chown=node:node /workspace/apps/server/prisma ./apps/
 COPY --from=server-build --chown=node:node /workspace/apps/server/prisma.config.ts ./apps/server/prisma.config.ts
 COPY --from=server-build --chown=node:node /workspace/apps/server/package.json ./apps/server/package.json
 COPY --from=server-build --chown=node:node /workspace/apps/server/public ./apps/server/public
+COPY --from=workspace-runtime-dependencies --chown=node:node /workspace/apps/agent-runtime/node_modules ./apps/agent-runtime/node_modules
+COPY --from=agent-build --chown=node:node /workspace/apps/agent-runtime/dist ./apps/agent-runtime/dist
+COPY --from=agent-build --chown=node:node /workspace/apps/agent-runtime/package.json ./apps/agent-runtime/package.json
 COPY --from=web-build --chown=node:node /workspace/apps/web/dist ./web
 COPY --from=executor-build --chown=node:node /out/executor ./executor
 COPY --chown=node:node apps/server/docker-entrypoint.sh ./apps/server/docker-entrypoint.sh
@@ -96,6 +105,6 @@ COPY --chown=node:node deploy/app-entrypoint.sh ./deploy/app-entrypoint.sh
 COPY deploy/app-nginx.conf /etc/nginx/nginx.conf
 
 USER node
-EXPOSE 3000 8080
+EXPOSE 3000 3100 8080
 ENTRYPOINT ["sh", "/workspace/deploy/app-entrypoint.sh"]
 CMD ["web"]

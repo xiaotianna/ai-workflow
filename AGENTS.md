@@ -11,12 +11,13 @@
 
 仓库的详细项目规范维护在 `.agents/skills`。开始修改对应范围前，必须读取相应技能的 `SKILL.md`，再按其中导航渐进式加载必要引用文件。
 
-| 范围                                                              | 技能                    | 路径                                           |
-| ----------------------------------------------------------------- | ----------------------- | ---------------------------------------------- |
-| `apps/web` 前端页面、路由、布局、业务功能、组件、Hooks 与设计规范 | `$app-web`              | `.agents/skills/app-web/SKILL.md`              |
-| `apps/server` 后端框架、接口、模块、数据访问与工作流接入          | `$app-server`           | `.agents/skills/app-server/SKILL.md`           |
-| `apps/executor-go` Go 节点执行器、Node 代码运行时与部署运行环境   | `$app-executor-go`      | `.agents/skills/app-executor-go/SKILL.md`      |
-| `packages/*` 所有子包的职责、公开 API、用法、依赖与注意事项       | `$ai-workflow-packages` | `.agents/skills/ai-workflow-packages/SKILL.md` |
+| 范围                                                                       | 技能                    | 路径                                           |
+| -------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------- |
+| `apps/web` 前端页面、路由、布局、业务功能、组件、Hooks 与设计规范          | `$app-web`              | `.agents/skills/app-web/SKILL.md`              |
+| `apps/server` 后端框架、接口、模块、数据访问与工作流接入                   | `$app-server`           | `.agents/skills/app-server/SKILL.md`           |
+| `apps/executor-go` Go 节点执行器、Node 代码运行时与部署运行环境            | `$app-executor-go`      | `.agents/skills/app-executor-go/SKILL.md`      |
+| `apps/agent-runtime` Pi Agent、模型适配、Session、内置 Tools 与 Agent 部署 | `$app-agent-runtime`    | `.agents/skills/app-agent-runtime/SKILL.md`    |
+| `packages/*` 所有子包的职责、公开 API、用法、依赖与注意事项                | `$ai-workflow-packages` | `.agents/skills/ai-workflow-packages/SKILL.md` |
 
 ### 读取规则
 

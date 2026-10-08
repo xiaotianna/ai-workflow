@@ -4,11 +4,11 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "runtime:prepare": "pnpm --filter @ai-workflow/core build:node && pnpm --filter @ai-workflow/protocol build:node && pnpm --filter @ai-workflow/runtime build:node && pnpm --filter @ai-workflow/plugin build:node",
+    "runtime:prepare": "pnpm --filter @ai-workflow/core build:node && pnpm --filter @ai-workflow/protocol build:node && pnpm --filter @ai-workflow/runtime build:node && pnpm --filter @ai-workflow/plugin build:node && pnpm --filter @ai-workflow/agent-protocol build:node",
     "predev": "pnpm run runtime:prepare",
-    "dev": "nest start --watch",
+    "dev": "node ../../scripts/agent-dev.mjs server nest start --watch",
     "predev:server": "pnpm run runtime:prepare",
-    "dev:server": "nest start --watch",
+    "dev:server": "node ../../scripts/agent-dev.mjs server nest start --watch",
     "build": "pnpm run runtime:prepare && pnpm run prisma:generate && nest build",
     "prestart": "pnpm run runtime:prepare",
     "start": "nest start",
@@ -62,7 +62,9 @@
     "rxjs": "^7.8.1",
     "semver": "^7.8.5",
     "winston": "^3.19.0",
-    "winston-daily-rotate-file": "^5.0.0"
+    "winston-daily-rotate-file": "^5.0.0",
+    "@ai-workflow/agent-protocol": "workspace:*",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",

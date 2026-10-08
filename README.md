@@ -65,7 +65,7 @@ pnpm prisma:generate
 通过 Turborepo 从仓库根目录启动应用：
 
 ```bash
-# 同时启动 Web 和 Server
+# 同时启动 Web、Server 和 Agent Runtime
 pnpm dev
 
 # 只启动 Web
@@ -73,7 +73,18 @@ pnpm dev:web
 
 # 只启动 Server
 pnpm dev:server
+
+# 只启动 Agent Runtime
+pnpm dev:agent
 ```
+
+本地开发启动会自动为 Server 和 Agent Runtime 配置连接地址与内部认证，认证令牌保存到已忽略的
+`.agent-runtime.auth.local`，两个服务共用同一令牌。Runtime 默认监听 `3100`，自动连接 Server
+配置的端口；已有服务连接配置优先使用。单独启动时需分别运行 `dev:server` 和 `dev:agent`。
+Turbo 启动前自动准备 Agent Protocol；生产部署继续使用 Compose 的隔离密钥配置。
+
+AI 助手使用模型列表页面中启用的 Chat 模型。模型 ID、供应商地址与 API Key 由 Server 根据所选
+模型从数据库解析，每轮传给 Runtime；在模型页面保存配置后即可选择使用。
 
 启动 Go Executor：
 
@@ -86,10 +97,12 @@ go run .
 
 默认的 `compose.yaml` 会同时启动以下服务：
 
-- 一个统一应用镜像，由三个容器分别运行 Nginx + Web、NestJS Server 和 Go Executor；
+- 一个统一应用镜像，由四个容器分别运行 Nginx + Web、NestJS Server、Go Executor 和 Agent Runtime；
 - Web 容器对外只开放 `APP_PORT`，Server 启动前自动执行已提交的 Prisma migration；
-- Executor 与 Server 共用应用镜像，镜像内包含 Code 节点需要的 Node.js 22；
+- Executor 与 Server 共用应用镜像，镜像内包含 Code 节点和 Pi Agent Core 需要的 Node.js 22.19.0；
 - PostgreSQL、Redis、RabbitMQ 和 OpenSearch，数据写入 Docker named volume。
+
+Agent Runtime 通过内部网络调用 Server Tool Gateway，仅挂载 Agent 内部认证密钥；模型凭证由 Server 按本轮请求解析。会话仅保存在内存中，重启后可从界面重新发起。
 
 应用进程共用一个构建产物，但仍分别运行在独立容器中，避免进程互相影响。数据库、缓存、消息队列和
 搜索服务继续使用独立官方镜像与数据卷，便于持久化、升级和故障恢复。
@@ -100,7 +113,7 @@ go run .
 docker compose up -d
 ```
 
-`secrets-init` 初始化容器会生成随机的 PostgreSQL、RabbitMQ、OpenSearch、JWT、Executor 内部认证和
+`secrets-init` 初始化容器会生成随机的 PostgreSQL、RabbitMQ、OpenSearch、JWT、Executor / Agent 内部认证和
 模型凭证加密密钥，并保存在只挂载给对应服务的 Docker named volume 中。以后再次执行 Compose 会复用
 已有密钥，不会自动轮换。该初始化容器完成后显示为 `Exited (0)` 属于正常状态。
 
@@ -123,7 +136,7 @@ Go 依赖默认通过 `https://goproxy.cn,direct` 下载，避免服务器访问
 
 ```bash
 docker compose ps
-docker compose logs -f web server executor
+docker compose logs -f web server executor agent-runtime
 ```
 
 默认只监听宿主机的 `127.0.0.1:8080`，避免占用已有 OpenResty/Nginx 的 80 端口。外层 OpenResty

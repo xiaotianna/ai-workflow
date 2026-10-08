@@ -202,6 +202,8 @@ export const WorkflowPanel = ({
           addNodeButtonRef={addNodeButtonRef}
           disabled={disabled}
           addNodeOpen={addNodeOpen}
+          aiOpen={activeAuxiliaryPanel === 'ai-agent'}
+          onAiToggle={() => onAuxiliaryPanelToggle('ai-agent')}
           canRedo={canRedo}
           canUndo={canUndo}
           onAddNodeOpenChange={onAddNodeOpenChange}
@@ -234,7 +236,7 @@ export const WorkflowPanel = ({
                 layout="position"
                 className="pointer-events-auto z-0 w-100 min-w-0 shrink"
                 style={
-                  activeAuxiliaryPanel
+                  activeAuxiliaryPanel && activeAuxiliaryPanel !== 'ai-agent'
                     ? { clipPath: 'inset(-1.5rem 0 -1.5rem -1.5rem)' }
                     : undefined
                 }
@@ -312,11 +314,11 @@ export const WorkflowPanel = ({
               </motion.div>
             ) : null}
 
-            {!disabled && activeAuxiliaryPanel ? (
+            {!disabled && activeAuxiliaryPanel && activeAuxiliaryPanel !== 'ai-agent' ? (
               <motion.div
                 key="workflow-auxiliary-panel"
                 layout="position"
-                className="pointer-events-auto z-10 w-100 min-w-0 shrink-0 origin-top-right"
+                className="pointer-events-auto z-10 w-100 max-w-full min-w-0 shrink-0 origin-top-right"
                 initial={
                   activeAuxiliaryPanel === 'check-list'
                     ? { y: -8, scale: 0.98, opacity: 0 }

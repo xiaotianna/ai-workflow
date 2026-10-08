@@ -1,5 +1,6 @@
 import {
   BuiltinNodeType,
+  type Workflow,
   type WorkflowEdge,
   type WorkflowEnvironmentVariable,
 } from '@ai-workflow/core'
@@ -10,7 +11,10 @@ import type { WorkflowCanvasNode } from '@/components/workflow/types'
 
 const MAX_HISTORY_LENGTH = 100
 
+export type WorkflowMetadata = Omit<Workflow, 'nodes' | 'edges' | 'environmentVariables'>
+
 interface WorkflowHistorySnapshot {
+  metadata: WorkflowMetadata
   nodes: WorkflowCanvasNode[]
   edges: WorkflowEdge[]
   environmentVariables: WorkflowEnvironmentVariable[]
@@ -27,6 +31,8 @@ interface CheckpointOptions {
 }
 
 interface UseWorkflowHistoryOptions {
+  metadata: WorkflowMetadata
+  setMetadata: Dispatch<SetStateAction<WorkflowMetadata>>
   nodes: readonly WorkflowCanvasNode[]
   edges: readonly WorkflowEdge[]
   environmentVariables: readonly WorkflowEnvironmentVariable[]
@@ -65,6 +71,7 @@ function getPersistentSignature(snapshot: WorkflowHistorySnapshot) {
       targetHandle,
     })),
     environmentVariables: snapshot.environmentVariables,
+    metadata: snapshot.metadata,
   })
 }
 
@@ -79,6 +86,8 @@ function limitStack(stack: WorkflowHistorySnapshot[]) {
  * 连续拖动或缩放通过 checkpoint 的 continuing/completed 合并为单次历史操作。
  */
 export function useWorkflowHistory({
+  metadata,
+  setMetadata,
   edges,
   environmentVariables,
   nodes,
@@ -87,7 +96,8 @@ export function useWorkflowHistory({
   setEnvironmentVariables,
   setNodes,
 }: UseWorkflowHistoryOptions) {
-  const nodesRef = useRef(nodes),
+  const metadataRef = useRef(metadata),
+    nodesRef = useRef(nodes),
     edgesRef = useRef(edges),
     environmentVariablesRef = useRef(environmentVariables),
     pastRef = useRef<WorkflowHistorySnapshot[]>([]),
@@ -99,12 +109,14 @@ export function useWorkflowHistory({
       canRedo: false,
     })
 
+  metadataRef.current = metadata
   nodesRef.current = nodes
   edgesRef.current = edges
   environmentVariablesRef.current = environmentVariables
 
   function createSnapshot(): WorkflowHistorySnapshot {
     return {
+      metadata: metadataRef.current,
       nodes: [...nodesRef.current],
       edges: [...edgesRef.current],
       environmentVariables: [...environmentVariablesRef.current],
@@ -152,11 +164,14 @@ export function useWorkflowHistory({
 
   function restore(snapshot: WorkflowHistorySnapshot) {
     const restoredSnapshot = {
+      metadata: snapshot.metadata,
       nodes: [...snapshot.nodes],
       edges: [...snapshot.edges],
       environmentVariables: [...snapshot.environmentVariables],
     }
 
+    metadataRef.current = restoredSnapshot.metadata
+    setMetadata(restoredSnapshot.metadata)
     nodesRef.current = restoredSnapshot.nodes
     edgesRef.current = restoredSnapshot.edges
     environmentVariablesRef.current = restoredSnapshot.environmentVariables

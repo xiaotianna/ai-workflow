@@ -337,3 +337,12 @@ function ExampleForm() {
 - Loop 容器相关行为（子节点添加、缩放边界同步、删除拦截）集中在
   `features/workflow/hooks/use-workflow-loop-editor.ts`；`useWorkflowEditor` 只组合该
   Hook 并通过 `WorkflowLoopEditorProvider` 向节点组件注入能力。
+
+## Workflow AI 助手
+
+编辑器作用域的 WorkflowAgentProvider 持有 Assistant UI RemoteThreadListRuntime，各线程使用 LocalRuntime；AI 侧栏在 ReactFlow 外、编辑器容器内由 WorkflowAgentSidebar 管理开关动画。收起侧栏只卸载 UI，离开编辑器才取消，保持轨迹与下一条草稿；侧栏内 Escape 只关闭 UI，并尊重弹出控件已消费的 Escape 与 IME 组合输入。模型选择和节点搜索使用 Shared useFormData/Zod；Composer 文本、附件与消息由 Assistant UI 管理，避免复制第二份表单状态。
+模型选择按当前账号保存在浏览器 localStorage；模型目录加载成功后优先恢复仍启用的选择，首次使用或旧模型不可用时回退到第一个启用模型。新建与切换对话沿用当前模型，不从历史会话覆盖用户选择；存储异常通过 Toast 提示，当前页面仍可选择和使用模型。
+对话历史由 agent-conversation-storage 接入浏览器 IndexedDB，复用 @assistant-ui/core/react 的 createLocalStorageAdapter 和原生消息 History Adapter；按账号 phone 与应用 ID（缺省为工作流 ID）隔离存储，Provider 的作用域 key 同步重置运行状态。消息、标题、附件由原生适配器保存；Agent Session ID 与 Composer 草稿保存为线程 custom 元数据，读取通过 agentConversationStateSchema 校验，附件只保存可恢复的内容、不保存 File 或上传状态。草稿变化延迟 300ms 保存，离开线程、pagehide 与卸载时刷新存储；空白新对话不创建历史条目。运行、加载、切换或删除期间禁止再次切换和删除，切换后恢复 Session 与草稿并清理当前运行展示。删除调用原生 Thread List Item 的 delete，同步删除消息与 custom；存储异常通过 Toast 提示，历史列表提供加载与失败重试状态。历史仅保存在当前浏览器，清理站点数据后失效；服务端 Agent Session 仍受内存存续与过期时间限制，SESSION_NOT_FOUND 清除持久化引用后允许重试。
+本轮 SSE 通过 AgentTranscript 按顺序投影为 reasoning/tool-call/text/data parts；禁止消费 Pi 类型、执行 Web Tool 或显示原始思维链。运行中不排队消息，停止先进入 stopping 并等待终态；失败/取消/断连保留部分轨迹，重试重新读取当前 Snapshot，SESSION_NOT_FOUND 清除旧会话。
+节点上下文是 workflow-node 稳定引用附件，最多 20 个、去重、排除 Loop 系统节点；提交前清理已删除节点，历史引用只读。选择器和画布多选入口复用编辑器 selectedNodeIds。
+候选应用前重新核对完整 Snapshot Hash，冲突时只提供重新生成。applyAgentCandidate 一次建立 Undo 检查点并替换完整顶层领域数据；历史包含 metadata、nodes、edges、environmentVariables。已有 Secret 保留真实值，新增 Secret 留空；Loop 子节点在合法范围布局，再沿用自动布局与 revision 保存冲突处理。

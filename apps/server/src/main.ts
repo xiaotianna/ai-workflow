@@ -7,11 +7,21 @@ import cors from 'cors'
 import { ValidationPipe } from '@nestjs/common'
 import { ResponseInterceptor } from './interceptors/response.interceptor'
 import { HttpAllException } from './filters/http-all-exception.filter'
+import { AGENT_MAX_REQUEST_BYTES } from '@ai-workflow/agent-protocol'
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   })
+
+  app.useBodyParser('json', {
+    limit: AGENT_MAX_REQUEST_BYTES,
+    type: (request) =>
+      request.method === 'POST' &&
+      /^\/studio\/apps\/[^/]+\/agent\/runs\/?(?:\?.*)?$/.test(request.url ?? '') &&
+      request.headers['content-type']?.split(';')[0]?.trim().toLowerCase() === 'application/json',
+  })
+  app.useBodyParser('json', { limit: '1mb' })
 
   // 用winston的provider去替换nest的logger
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER))

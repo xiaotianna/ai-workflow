@@ -34,7 +34,7 @@ export function DetailLayout({
     <>
       {before}
 
-      <div className="flex h-svh min-w-0 gap-1 overflow-hidden bg-[#f2f4f7] p-1">
+      <div className="bg-workspace-background flex h-svh min-w-0 gap-1 overflow-hidden p-1">
         <div className="bg-background border-border flex h-full rounded-lg shadow-xs">
           <LayoutSidebar
             header={

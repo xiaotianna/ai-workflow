@@ -38,6 +38,7 @@ import { ModelsModule } from './models.module'
     KnowledgeApiController,
     ExecutorKnowledgeController,
   ],
+  exports: [KnowledgeBaseService],
   providers: [
     KnowledgeBaseService,
     KnowledgeBaseRepository,

@@ -28,6 +28,26 @@
 原生 `Input` 和准确的 `aria-label`，但同时移除边框、背景、圆角、阴影、内外边距以及
 Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不得用于常规表单字段。
 
+工作流对话的 Prompt Input 使用 Assistant UI `ComposerPrimitive` 组合为单一输入容器，
+外壳沿用 Composer 官方示例的 24px 圆角和 10px 内边距，与 32px 圆形工具栏按钮配合。
+沿用上述背景、1px 边框占位与 Hover / Focus visible 状态，内置 Textarea 不重复绘制边框；
+正文默认两行、最小高度 52px，按内容自动增长至最多六行，超过后在正文区滚动。
+附件位于输入区上方，最高 192px，超过后滚动。图片、节点、工作流与知识库引用统一为 28px 高的紧凑项，使用浅色背景、0.5px 语义边框和 `rounded-md`；图片缩略图为 20px，节点标识与资源类型图标统一为 14px，节点标识使用 `rounded`（4px）和 10px 内部图标。名称最多占 128px，超长截断；图标与名称是静态内容，Hover 时通过 Tooltip 展示完整名称，图片额外显示预览。移除入口使用 Ghost `icon-xs` Button 和 14px 关闭图标，保留 Button 的默认圆角，Hover / Focus visible 使用 `bg-button-secondary-bg-active` 与正文文字色，明暗主题保持一致。底部工具栏提供附件菜单、Chat 模型选择与发送/停止；内嵌模型
+Trigger 显示供应商图标与当前模型名，使用按内容适配宽度的 32px 高圆角胶囊，默认背景透明，Hover / Focus visible 使用 `bg-accent` 反馈，明暗主题保持一致；
+菜单按启用模型组分组，组标题显示供应商图标与组名，模型行仅显示名称，选中行使用浅色背景和右侧勾选。
+图标按钮继续使用 UI 包 Button，附件添加按钮使用 32px 圆形外壳；点击后提供上传图片、选择节点、选择工作流和选择知识库，菜单入口与节点、资源候选项的图标和文字统一保持 8px 间距。已选节点、工作流与知识库在菜单及对应命令列表中显示绿色勾选，菜单内再次点击可取消选择，命令列表重复选择不增加附件。
+输入 `@` 使用 Assistant UI TriggerPopover 选择当前画布节点，输入 `/` 选择已发布工作流或知识库；选择后转换为 Composer 附件并移除触发查询，支持方向键、Enter / Tab 和 Escape。
+`/` 候选列表按「工作流」「知识库」分组，每组通过标题标识类型，条目显示图标、名称与已选状态；搜索时仅展示包含匹配项的分组，键盘选择沿用候选项的连续索引。
+空对话引导和推荐问题位于输入框
+上方，推荐问题只填入草稿。对话头部展示当前标题，历史与关闭图标依次放在右侧。
+推荐问题列表的箭头可见左边缘与引导标题、说明左侧对齐；行按钮使用零水平 padding，
+箭头补偿图标自身的空白，图标和文字仍保持 8px 布局间隔。
+推荐问题行的 Hover 与 Focus visible 保持透明背景，仅将文字和箭头从
+`text-muted-foreground` 加深为 `text-foreground`，亮色与暗色主题保持一致。
+头部标题左侧与关闭图标的可见右边缘保持 16px 留白；32px 图标按钮由右侧 8px padding
+补偿内部留白。AI 面板使用与详情左侧边栏一致的 `bg-background` 和 `shadow-xs`，外部
+留白继续共用 `bg-workspace-background`。
+
 ## 代码编辑器
 
 - UI 包的 `CodeEditor` 只提供 Monaco 编辑器核心，语言通过 props 指定，内层背景保持透明；
@@ -170,24 +190,28 @@ Hover / Focus 容器反馈，只保留文本光标表示可编辑。该例外不
 
 ## 语义 Token
 
-| Token                                            | 用途                         |
-| ------------------------------------------------ | ---------------------------- |
-| `--input` / `bg-input`                           | 输入控件失焦背景             |
-| `--input-focus` / `border-input-focus`           | 输入控件与通用控件的聚焦边框 |
-| `--input-placeholder` / `text-input-placeholder` | 输入提示文字                 |
-| `--workflow-edge` / `text-workflow-edge`         | 工作流画布普通连线           |
-| `--workflow-node-success`                        | 工作流节点运行成功           |
-| `--workflow-node-failed`                         | 工作流节点运行失败           |
-| `--background` / `bg-background`                 | 输入控件聚焦背景             |
-| `--border` / `border-border`                     | 容器、浮层的静态细边框       |
-| `--info` / `bg-info`                             | 信息状态与信息通知           |
-| `--warning` / `bg-warning`                       | 警告状态与警告通知           |
-| `--success` / `bg-success`                       | 成功状态与成功通知           |
-| `--destructive` / `border-destructive`           | 错误与危险状态               |
-| `--button-primary-disabled`                      | 主操作按钮禁用背景           |
-| `--button-secondary-*`                           | 次级按钮各交互状态           |
+| Token                                                | 用途                         |
+| ---------------------------------------------------- | ---------------------------- |
+| `--input` / `bg-input`                               | 输入控件失焦背景             |
+| `--input-focus` / `border-input-focus`               | 输入控件与通用控件的聚焦边框 |
+| `--input-placeholder` / `text-input-placeholder`     | 输入提示文字                 |
+| `--workflow-edge` / `text-workflow-edge`             | 工作流画布普通连线           |
+| `--workspace-background` / `bg-workspace-background` | 详情布局、画布与侧栏外部底色 |
+| `--workflow-node-success`                            | 工作流节点运行成功           |
+| `--workflow-node-failed`                             | 工作流节点运行失败           |
+| `--background` / `bg-background`                     | 输入控件聚焦背景             |
+| `--border` / `border-border`                         | 容器、浮层的静态细边框       |
+| `--info` / `bg-info`                                 | 信息状态与信息通知           |
+| `--warning` / `bg-warning`                           | 警告状态与警告通知           |
+| `--success` / `bg-success`                           | 成功状态与成功通知           |
+| `--destructive` / `border-destructive`               | 错误与危险状态               |
+| `--button-primary-disabled`                          | 主操作按钮禁用背景           |
+| `--button-secondary-*`                               | 次级按钮各交互状态           |
 
 `--ring` 仅作为第三方兼容 token 保留，不应在项目组件样式中使用。若 shadcn 更新重新引入 ring 类，合并前必须按本规范替换。
+
+详情布局外层、工作流画布（包括 ReactFlow Background）和 AI 侧栏外层统一使用
+`--workspace-background`；亮色值为 `#f2f4f7`，暗色沿用 `--muted`。圆角内容面板继续使用 `bg-background`。
 
 ## 组件检查清单
 

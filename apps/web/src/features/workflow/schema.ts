@@ -6,6 +6,40 @@ import {
 } from '@ai-workflow/core'
 import { z } from 'zod'
 
+export const agentModelSelectionSchema = z.object({
+  groupId: z.uuid('请选择对话模型'),
+  configuredModelId: z.uuid('请选择对话模型'),
+})
+
+export const agentNodeSearchFormSchema = z.object({ query: z.string().trim() })
+export const agentResourceReferenceSchema = z.object({
+  kind: z.enum(['workflow', 'knowledge-base']),
+  id: z.uuid(),
+  label: z.string().trim().min(1).max(200),
+})
+
+const agentDraftContentSchema = z.discriminatedUnion('type', [
+    z.object({ type: z.literal('text'), text: z.string() }),
+    z.object({ type: z.literal('image'), image: z.string() }),
+    z.object({ type: z.literal('data'), name: z.string(), data: z.unknown() }),
+  ]),
+  agentDraftAttachmentSchema = z.object({
+    id: z.string().min(1),
+    type: z.string().min(1),
+    name: z.string(),
+    contentType: z.string(),
+    content: z.array(agentDraftContentSchema),
+  }),
+  agentDraftSchema = z.object({
+    text: z.string(),
+    attachments: z.array(agentDraftAttachmentSchema),
+  })
+
+export const agentConversationStateSchema = z.object({
+  sessionId: z.uuid().optional(),
+  draft: agentDraftSchema.optional(),
+})
+
 const environmentVariableFormBaseSchema = z.object({
   type: environmentVariableTypeSchema,
   name: environmentVariableNameSchema,

@@ -338,3 +338,9 @@ Runtime Execution 输入。Loop 内 Execution 同时返回所在迭代次数。�
 - 先把已经通过 Core 执行前校验的工作流转换为只读查询索引，再交给具体适配器；转换过程不维护
   第二套静态校验。
 - 将重试、超时、取消、检查点和恢复语义定义在 runtime 接口，不散落在 Nest Controller 中。
+
+## Agent 数据边界
+
+ChatModelResolverService 是 Agent 与 Executor 共用的 Chat 模型解析入口，只按 owner 和稳定 UUID 核验类型、启用状态并解密凭证；Executor 仍先检查 NodeRun 租约与不可变配置，Agent 在当前应用权限检查后解析。
+Agent 查询 Catalog 使用当前启用的编辑器插件版本；候选校验使用候选精确插件锁，经 workflowSchema、validateWorkflow、validateExecutorWorkflow 和执行能力检查，成功定义在本轮 Context 中留存摘要供 SSE 复核。
+WorkflowRunService 的 forAgent 投影读取实际版本 Secret 对日志脱敏，普通运行详情的现有 Secret 清空语义保持原样。Gateway 复用业务 Service 的 owner/app 查询，不直接查询 Prisma；Agent Session 与候选不入库。

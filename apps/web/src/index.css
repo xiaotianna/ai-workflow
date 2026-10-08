@@ -5,6 +5,7 @@
 @source './';
 @source '../node_modules/fumadocs-ui/dist/**/*.js';
 @source '../node_modules/fumadocs-openapi/dist/**/*.js';
+@source '../node_modules/streamdown/dist/*.js';
 
 .workflow-editor .react-flow__panel {
   /* 1rem -> 16px -> m-4 */

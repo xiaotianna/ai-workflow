@@ -1,3 +1,10 @@
+import { AgentController, AgentToolGatewayController } from '@/controllers/agent.controller'
+import { AgentInternalAuthGuard } from '@/guards/agent-internal-auth.guard'
+import { AgentRunService } from '@/services/agent-run.service'
+import { AgentContextService } from '@/services/agent-context.service'
+import { AgentToolGatewayService } from '@/services/agent-tool-gateway.service'
+import { ModelsModule } from './models.module'
+import { KnowledgeBaseModule } from './knowledge-base.module'
 import { AppApiController } from '@/controllers/app-api.controller'
 import { AppApiManagementController } from '@/controllers/app-api-management.controller'
 import { PublicAppApiController } from '@/controllers/public-app-api.controller'
@@ -33,8 +40,10 @@ import { JwtModule } from './jwt.module'
 import { PluginModule } from './plugin.module'
 
 @Module({
-  imports: [JwtModule, PluginModule, WorkflowMqModule],
+  imports: [JwtModule, PluginModule, WorkflowMqModule, ModelsModule, KnowledgeBaseModule],
   controllers: [
+    AgentController,
+    AgentToolGatewayController,
     AppApiController,
     AppApiManagementController,
     PublicAppApiController,
@@ -45,6 +54,10 @@ import { PluginModule } from './plugin.module'
     WorkflowVersionController,
   ],
   providers: [
+    AgentInternalAuthGuard,
+    AgentRunService,
+    AgentContextService,
+    AgentToolGatewayService,
     AppApiService,
     AppApiRepository,
     AppApiKeyGuard,

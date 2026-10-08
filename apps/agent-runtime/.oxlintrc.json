@@ -1,0 +1,8 @@
+{
+  "extends": ["../../configs/oxc/.oxlintrc.json"],
+  "env": { "node": true },
+  "plugins": ["node"],
+  "rules": {
+    "import/no-nodejs-modules": "off"
+  }
+}

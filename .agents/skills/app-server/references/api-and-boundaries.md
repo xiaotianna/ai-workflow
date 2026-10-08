@@ -355,3 +355,14 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 - 基础设施实现依赖 Prisma、Redis、LangGraph 等具体库。
 - 领域契约不得依赖 Nest HTTP 类型或 Prisma 生成类型。
 - 前后端共享的纯协议放入 `@ai-workflow/shared` 前，先确认不包含服务端实现细节。
+
+## AI Agent 接口
+
+- POST /studio/apps/:appId/agent/runs 使用用户 JWT，校验当前 owner/app 草稿、未保存 Snapshot、摘要、模型 UUID 和最多 20 个当前节点引用，返回未经 ApiResponse 包装的 SSE；POST sessions/:sessionId/abort 按同一范围取消。
+- Agent 请求可选 images 使用共享 agentImageSchema 校验，PNG/JPEG/WebP 数组不设张数上限、每张解码后最大 10MiB，随本轮请求透传 Runtime；Agent Run 路径独立配置 64MiB JSON 解析上限，其他 JSON 接口保持 1MiB，不在日志中记录图片载荷。
+- AI 助手模型使用模型管理页面保存的 Chat 模型：按当前用户、groupId 与 configuredModelId 校验启用状态，读取供应商地址并解密本轮 API Key；不从环境变量读取模型 API Key。
+- 本地 Turbo 启动通过 scripts/agent-dev.mjs 自动衔接 Server/Runtime 的地址与内部认证，令牌保存在忽略文件 .agent-runtime.auth.local；生产与显式远程 Runtime 仍要求部署配置内部认证。
+- AGENT_RUNTIME_URL 与至少 32 字符的 AGENT_RUNTIME_INTERNAL_AUTH_TOKEN 成对配置；超时使用 AGENT_RUN_TIMEOUT_MS。对内调用不复用 Executor Token；上下文 HMAC 绑定本轮 owner/app/run/workflow/工具名单与短期过期时间，并在 Run 结束时释放。
+- POST /internal/agent/tools/execute 同时校验内部 Bearer 和 X-Agent-Context；Gateway 仅暴露当前 Catalog、用户公开资源、当前应用运行摘要/追踪与 Workflow 校验，不提供保存、发布或执行。
+- Gateway 对 Secret/API Key/认证字段与运行日志敏感值统一安全投影，结果上限 64 KiB；候选不能截断。Server 转发 candidate_ready 必须核对本轮成功校验记录、Workflow ID 和基线摘要。
+- SSE 校验每帧协议，使用独立 AGENT_MAX_EVENT_BYTES 限制最多 1MiB/帧与 4MiB/轮，15 秒心跳；断连取消 Runtime，并释放 active Run 与令牌。生产 Runtime 不公开端口，不把内部路由经公网代理开放。

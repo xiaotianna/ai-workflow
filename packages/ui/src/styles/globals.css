@@ -38,6 +38,7 @@
   --color-input-placeholder: var(--input-placeholder);
   --color-input: var(--input);
   --color-workflow-edge: var(--workflow-edge);
+  --color-workspace-background: var(--workspace-background);
   --color-workflow-node-success: var(--workflow-node-success);
   --color-workflow-node-failed: var(--workflow-node-failed);
   --color-border: var(--border);
@@ -72,6 +73,7 @@
 
 :root {
   --background: oklch(1 0 0);
+  --workspace-background: #f2f4f7;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -125,6 +127,7 @@
 
 .dark {
   --background: oklch(0.145 0 0);
+  --workspace-background: var(--muted);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
   --card-foreground: oklch(0.985 0 0);

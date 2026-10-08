@@ -2,7 +2,7 @@
 
 ## 1. 文档状态
 
-- 状态：实施中（详细进度见第 18 节）
+- 状态：第一阶段代码实现完成；静态检查与模拟联调通过，真实模型、浏览器交互与镜像部署待验收（详细进度见第 18 节）
 - 基线日期：2026-10-08
 - 适用范围：Web 工作流编辑器与 Assistant UI、Server 项目上下文、独立 Agent Runtime、Agent 内置 Tools
 - 核心结论：新增独立应用 `apps/agent-runtime`，使用 `@earendil-works/pi-agent-core` 承载模型会话、
@@ -259,7 +259,7 @@ Tool 不返回 Zod 实例、函数、执行路由、插件制品路径或权限�
 
 Web 使用 `useLocalRuntime()` 和一个项目内 `ChatModelAdapter`：
 
-1. Adapter 从 Assistant UI 的本轮用户消息中读取文本和节点上下文附件；
+1. Adapter 从 Assistant UI 的本轮用户消息中读取文本、节点与资源引用附件，以及图片；
 2. Adapter 连同当前 Snapshot、`baseSnapshotHash` 和模型引用请求 Server SSE；
 3. Adapter 把协议事件累积转换为 Assistant UI 的 `reasoning`、`tool-call`、`text` 和自定义 data part；
 4. `abortSignal` 同时关闭 SSE 并调用现有 Agent abort 接口；
@@ -275,14 +275,34 @@ Tools，Assistant UI 只管理 Web 端消息状态和渲染，不在浏览器重
 
 面板使用 Assistant UI 的 `Thread`、`ComposerPrimitive`、`MessagePrimitive` 和 Reasoning 组件作为基础，复制到
 仓库的 registry 组件只保留当前面板实际使用的部分，并适配现有 Tailwind Token 和 `@ai-workflow/ui` 组件。
-AI 面板复用现有 `WorkflowAuxiliaryPanel` 的右侧浮动位置、`w-100` 宽度、圆角、边框、阴影和 Motion 进出
-动画，新增 `ai-agent` 面板类型；它与运行历史、检查清单等辅助面板互斥，但仍可与节点配置面板并排显示。
-窄视口无法容纳两块面板时暂时隐藏节点配置面板，关闭 AI 面板后恢复，不清除节点选择。
+AI 面板由编辑器右侧的 `WorkflowAgentSidebar` 承载，外层占满高度、宽度为 25rem；顶部、底部和右侧留白
+沿用详情根布局的 `p-1`（4px），与左侧导航对齐；侧栏仅使用 `pl-1` 在画布与面板之间保留 4px 间隔。
+侧栏外层与详情根布局、工作流画布统一使用 `bg-workspace-background`，内层使用 `bg-background`。
+内层容器使用完整 `rounded-xl` 圆角、0.5px 语义边框和与左侧边栏一致的 `shadow-xs`。桌面展开时为侧栏保留独立空间，画布随展开和收起调整宽度；窄视口从右侧覆盖展开，宽度
+不超过编辑器。面板沿用 `ai-agent` 开关，与运行历史、检查清单等辅助面板互斥；节点配置继续显示在画布内。
+头部展示当前对话标题（从首条用户消息提取，默认“新对话”），右侧依次为对话历史和关闭图标；标题左边缘与关闭图标的可见右边缘均保留 16px 留白；
+底部 AI 入口、头部关闭图标和面板内 Escape 共享收起路径。
+Motion 管理侧栏宽度、位移和透明度，收起完成后卸载 UI；减少动态效果时取消空间移动，保留短淡入淡出。
+输入区默认两行、正文最小高度 52px，按内容扩展至最多六行，超过后内部滚动；过渡期间内容宽度按编辑器容器保持稳定，避免文本自动高度计算挤占消息区。
+Prompt Input 使用 Assistant UI ComposerPrimitive 的 Root、Input、Attachments 和 Send 组合，
+外壳沿用 Composer 官方示例的 24px 圆角和 10px 内边距，与 32px 圆形工具栏按钮配合；
+沿用 Runtime 的草稿与附件状态；输入框底部工具栏依次放圆形附件菜单入口、已启用 Chat 模型选择、发送或停止。
+附件菜单提供上传图片、选择节点、选择已发布工作流和选择知识库；复用已有画布节点与项目资源目录。已选节点、工作流与知识库在菜单及对应 `/`、`@` 列表右侧显示绿色勾选，菜单内再次点击可取消选择，命令列表重复选择不增加附件。
+附件名称最多占 128px，超长使用省略号；各类附件图标沿用 Button 的悬停与键盘聚焦反馈，通过 Tooltip 显示完整名称，图片额外显示预览。附件区最高 192px，超过后滚动，保留正文与工具栏空间。
+`/` 唤起节点选择，`@` 唤起工作流与知识库选择，使用官方 TriggerPopover 与 SlashCommandAdapter，支持筛选、方向键、Enter / Tab 选择与 Escape 关闭。选中后移除触发查询并添加可移除的 Composer 附件。
+工作流与知识库引用使用稳定 UUID 和类型，随 Prompt 作为数据发送，由 inspect_project_resources 按原有权限核实；工作流引用的 id 是 appId。
+图片在浏览器读取为 Data URL，发送时提取 MIME 与 Base64；支持一次选择多张 PNG/JPEG/WebP，不设图片张数上限，单张最大 10MiB，整体请求上限为 64MiB，为 Base64 编码和画布上下文保留空间。图片使用 Pi agent.prompt 的独立图片参数发送，模型必须支持图片输入；仅选择图片或资源时使用默认目标文本。
+Session 序列化消息预算为 64MiB，多张合法图片在总预算内保留会话；长期多图超过总预算仍按现有策略清理会话。
+模型选择使用显示供应商图标与模型名的紧凑圆角胶囊，默认背景透明，悬停与键盘聚焦时使用 bg-accent；菜单按启用模型组分组，组标题复用供应商图标，模型行显示名称与右侧选中标记。
+空对话时在输入框上方展示引导标题、说明与四个示例问题；列表箭头的可见左边缘与标题、说明对齐，图标和文字保持 8px 布局间隔；点击示例填入草稿，由用户继续编辑或发送。
+对话历史沿用 LocalRuntime 的内存 Thread List，支持新建、切换及未发送草稿保留；每个对话分别记录
+Runtime Session 和模型选择，运行或切换过程中禁止切换对话。历史随编辑器页面生命周期保留。
 
 面板的最小布局如下：
 
 ```text
-┌ AI 助手 ───── 正在读取画布 · 12s ┐
+┌ 当前对话标题 ───── [历史] [关闭] ┐
+│ 正在读取画布 · 12s               │
 │ 用户消息 + 节点上下文             │
 │ 思考摘要                          │
 │ 读取画布   运行中／成功   1.2s    │
@@ -291,8 +311,8 @@ AI 面板复用现有 `WorkflowAuxiliaryPanel` 的右侧浮动位置、`w-100` �
 │ 工作流候选                 [应用] │
 ├──────────────────────────────────┤
 │ [节点 A ×] [节点 B ×]            │
-│ [+ 添加节点] [添加所选节点（2）]  │
-│ 输入下一条消息…             [停止] │
+│ 输入下一条消息…                  │
+│ [+] [当前对话模型 ▾]       [↑/■] │
 └──────────────────────────────────┘
 ```
 
@@ -509,11 +529,14 @@ POST /studio/apps/:appId/agent/sessions/:sessionId/abort
 创建 Run 的请求包含：
 
 - 可选 `sessionId`；
-- 用户 Prompt；
+- 用户 Prompt（含选中的工作流与知识库资源引用数据）；
+- 可选 `images`：PNG/JPEG/WebP 数组，不设张数上限，MIME 与 Base64 经共享 Schema 校验，每张解码后不超过 10MiB；
 - `contextNodeIds`，来自本轮节点上下文附件；
 - `groupId + configuredModelId`；
 - 当前 `WorkflowEditorSnapshot`；
 - `baseSnapshotHash`。
+
+Server 为 POST /studio/apps/:appId/agent/runs 单独配置 64MiB JSON 解析上限，其他 JSON 接口保持 1MiB；Runtime 读取上限和会话消息预算同步为 64MiB。SSE 帧仍使用独立的 1MiB 上限，事件流总量保持 4MiB。
 
 Server 必须校验应用归属、Workflow ID、模型归属和快照基本结构，再调用内部 Runtime。Web 不直接访问
 Agent Runtime。
@@ -706,33 +729,82 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 - [Assistant UI Reasoning](https://www.assistant-ui.com/elements/reasoning)
 - [Assistant UI Tool UI](https://www.assistant-ui.com/docs/tools/tool-ui)
 - [Assistant UI Attachments](https://www.assistant-ui.com/docs/guides/attachments)
+- [Assistant UI Composer](https://www.assistant-ui.com/elements/composer)
 - [工作流 Core 规范](../.agents/skills/ai-workflow-packages/references/workflow-core.md)
 - [工作流 Runtime 规范](../.agents/skills/ai-workflow-packages/references/workflow-runtime.md)
 - [Server 数据与工作流规范](../.agents/skills/app-server/references/data-and-workflow.md)
 
 ## 18. 实施进度
 
-按第 14 节顺序推进；每一步记录实现范围、验证结果和剩余事项。状态分为待开始、进行中、已完成。
+按第 14 节逐项记录。以下状态表示代码实现进度；未进行的环境验收单独列在表格后，后续继续实施时更新对应记录。
 
-| 步骤                                | 状态   | 实现与验证记录                                                         |
-| ----------------------------------- | ------ | ---------------------------------------------------------------------- |
-| 1.1 Protocol 与 Runtime workspace   | 进行中 | 2026-10-08：读取设计与项目约束，核对现有公开入口、模型解析和部署结构。 |
-| 1.2 Pi 模型、事件、取消与限制       | 待开始 |                                                                        |
-| 1.3 Session 与 Server 流式调用      | 待开始 |                                                                        |
-| 2.1 上下文令牌与 Gateway            | 待开始 |                                                                        |
-| 2.2 Catalog、资源、日志与校验 Tools | 待开始 |                                                                        |
-| 2.3 内存画布候选闭环                | 待开始 |                                                                        |
-| 2.4 审计、安全投影与边界限制        | 待开始 |                                                                        |
-| 3.1 Assistant UI 面板与模型选择     | 待开始 |                                                                        |
-| 3.2 状态机与 SSE Adapter            | 待开始 |                                                                        |
-| 3.3 入口、Composer、停止与未读状态  | 待开始 |                                                                        |
-| 3.4 Tool 轨迹与状态展示             | 待开始 |                                                                        |
-| 3.5 节点上下文附件                  | 待开始 |                                                                        |
-| 3.6 滚动、焦点与无障碍              | 待开始 |                                                                        |
-| 3.7 候选冲突检查与应用              | 待开始 |                                                                        |
-| 3.8 取消、错误恢复与 Session 重建   | 待开始 |                                                                        |
-| 4.1 镜像、入口与 Compose            | 待开始 |                                                                        |
-| 4.2 健康检查、认证与资源上限        | 待开始 |                                                                        |
-| 4.3 项目技能同步                    | 待开始 |                                                                        |
+| 步骤                                | 状态   | 实现与验证记录                                                                                                                                                           |
+| ----------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1.1 Protocol 与 Runtime workspace   | 已完成 | 2026-10-08：新增独立 ESM Runtime 和双模块 Agent Protocol，安装 Pi / Assistant UI 固定版本；仓库与镜像 Node 基线提升至 22.19.0；跨端类型检查通过。                        |
+| 1.2 Pi 模型、事件、取消与限制       | 已完成 | 2026-10-08：Pi 边界、三种供应商映射、安全思考摘要、有序工具事件、Abort、模型轮次/工具次数限制已实现；真实 Pi + 模拟 OpenAI SSE 的顺序、取消、超时与次数上限断言通过。    |
+| 1.3 Session 与 Server 流式调用      | 已完成 | 2026-10-08：内存 Session、owner/app、TTL、单用户/单应用并发、短期凭证清理、Server SSE 代理已实现；Session 回收、并发限制、流式代理与终态清理自检通过。                   |
+| 2.1 上下文令牌与 Gateway            | 已完成 | 2026-10-08：实现内部 Bearer、HMAC、owner/app/run/workflow/工具范围、过期和活跃 Run 检查；签名篡改、错误身份、过期、释放后拒绝访问断言通过。                              |
+| 2.2 Catalog、资源、日志与校验 Tools | 已完成 | 2026-10-08：八个 Tools 已注册；复用当前启用插件目录、模型/知识库/已发布子工作流/Run Service；真实 Gateway 对全部内置节点元数据和保存/执行校验自检通过。                  |
+| 2.3 内存画布候选闭环                | 已完成 | 2026-10-08：候选仅在 Server 完整校验后替换 workingCandidate；代理再核对本轮校验记录；校验失败保留原候选、伪造候选不转发断言通过。                                        |
+| 2.4 审计、安全投影与边界限制        | 已完成 | 2026-10-08：固定安全展示字段、Secret 掩码、日志敏感值投影、请求/结果/事件流上限、Run/工具/耗时/状态审计已实现；秘密值、超大字段和数组截断自检通过。                      |
+| 3.1 Assistant UI 面板与模型选择     | 已完成 | 2026-10-08：编辑器级 LocalRuntime、AI 辅助面板与已启用 Chat 模型选择已接入；Web 类型检查通过。                                                                           |
+| 3.2 状态机与 SSE Adapter            | 已完成 | 2026-10-08：实现有序 reasoning/tool-call/text/data parts、八种运行状态；完成和取消保留轨迹的断言通过。                                                                   |
+| 3.3 入口、Composer、停止与未读状态  | 已完成 | 2026-10-08：底部 AI 入口、停止、下一条草稿保留、隐藏面板持续运行、完成/失败未读提示已接入；Web 类型检查通过，真实浏览器行为待验收。                                      |
+| 3.4 Tool 轨迹与状态展示             | 已完成 | 2026-10-08：八种图标、未知工具回退、参数/结果摘要、详情、失败文案、真实耗时和进度展示已实现；轨迹状态断言与 Web 类型检查通过。                                           |
+| 3.5 节点上下文附件                  | 已完成 | 2026-10-08：节点搜索与多选、画布多选入口、最多 20 个稳定 ID 附件、Composer Primitive Chip 和删除节点后的清理已实现；去重、节点归属和数量边界断言通过。                   |
+| 3.6 滚动、焦点与无障碍              | 已完成 | 2026-10-08：沿用 Assistant UI 跟随底部与回到最新，补齐焦点、aria-live/busy/expanded/controls 和 motion-reduce；类型与 UI 静态扫描通过，键盘/读屏/滚动实机验收待进行。    |
+| 3.7 候选冲突检查与应用              | 已完成 | 2026-10-08：应用前重算 Hash 并检测异步期间编辑，完整顶层字段、单次 Undo、Secret 保留与 Loop 子节点布局已接入；摘要变化断言与 Web 类型检查通过，浏览器撤销交互待验收。    |
+| 3.8 取消、错误恢复与 Session 重建   | 已完成 | 2026-10-08：失败/超时/取消保留轨迹，基于当前快照重试，SESSION_NOT_FOUND 清除旧会话并可重新发送；取消/超时/TTL/错误候选自检通过。                                         |
+| 4.1 镜像、入口与 Compose            | 已完成 | 2026-10-08：统一镜像新增 Runtime 阶段和入口，Compose 新增 Runtime 服务与专用密钥；Compose config 静态校验通过，未运行镜像构建。                                          |
+| 4.2 健康检查、认证与资源上限        | 已完成 | 2026-10-08：健康检查、只读根目录、tmpfs、cap_drop、PID/CPU/内存限制、内部网络与 Nginx 内部 Agent 路由隔离已配置；HTTP 健康/认证、Compose 限制断言和 Shell 语法检查通过。 |
+| 4.3 项目技能同步                    | 已完成 | 2026-10-08：新增 app-agent-runtime 技能、Agent Protocol 独立引用与根技能路由；同步 Server/Web/Executor 稳定边界与技能元数据，YAML/名称/描述/提示校验通过。               |
 
-命令约束：不执行 dev、build 或 git 命令，不新增测试文件。验证使用类型检查、Lint 和临时断言自检；实际模型与生产部署联调单独记录。
+验证记录：
+
+- 2026-10-09 资源选择勾选：已完成实现、校验与规范同步。
+  - 定位完成：共用资源菜单原来通过 disabled 表示已选，`@` 隐藏已选项；已核对 addResource 的 UUID 与去重逻辑。
+  - 实现完成：知识库/工作流菜单沿用节点右侧绿色勾选、aria-pressed 与再次点击取消；`@` 保留已选资源，显示绿色勾选及已选择语义，重复执行沿用现有去重。
+  - 校验完成：Web 类型检查、修改文件 Lint、UI 静态与格式检查通过。浏览器确认两个知识库均显示绿色勾选、可再次点击取消，`@` 列表保留已选资源并且重复 Enter 不增加附件；当前已发布工作流目录为空，内联断言运行真实共用资源菜单渲染分支，工作流与知识库的未选/添加/绿色勾选/移除均通过。效果截图：/private/tmp/ai-workflow-agent-resource-checks-detail.jpg。
+  - 完成：设计文档和 Web 技能已同步，清理校验草稿并保留原有对话。未执行 dev/build/git、未新增测试文件、未调用真实模型；工作流选中态未用真实已发布条目实机复核。
+- 2026-10-09 Composer 附件交互：已完成实现、校验与规范同步。
+  - 定位完成：已核对附件展示、官方多文件选择入口、共享 images 数量校验、节点选择计数与 Server/Runtime 载荷限制。
+  - 实现完成：名称最多 128px 并截断；所有附件图标可通过 Hover / 键盘聚焦显示完整名称，图片另有预览。图片不设张数上限，沿用单张 10MiB；节点列表显示绿色勾选并可取消，节点计数只统计节点附件。正文默认两行 52px，附件区最高 192px 后滚动。传输与会话预算同步扩至 64MiB，其他接口和 SSE 预算保持原值。
+  - 静态校验完成：Web、Server、Runtime 类型检查通过；修改文件 Lint 与 UI 静态扫描无错误。内联断言验证 30 张图片协议可通过、单图 10MiB 边界、3 张图片同时添加/独立 ID/预览/发送，以及 Pi 收到全部图片。实际 Nest JSON 解析验证两张各 10MiB 图片通过 Agent 路径，其他接口与相似路径仍拒绝超大请求，未监听端口。 Session 校验确认两张各 10MiB 图片保留，超过 64MiB 消息预算清理。
+  - 浏览器校验完成：节点绿色勾选、再次点击取消、`/` 保留已选标记且重复选择不增加附件通过；节点与知识库图标键盘聚焦显示完整名称提示。名称最大宽度 128px、ellipsis 已核对，正文默认与两行内容均为 52px。768 × 600 下 8 个附件达到 192px 后内部滚动，正文与工具栏可见，无横向溢出；已复原视口并清理校验草稿。效果截图：/private/tmp/ai-workflow-agent-node-checks.jpg、/private/tmp/ai-workflow-agent-attachment-interaction.jpg、/private/tmp/ai-workflow-agent-attachment-two-lines.jpg。
+  - 完成：设计文档及 Web、协议、Runtime、Server 技能已同步。未运行 dev/build/git、未新增测试文件、未调用真实模型；浏览器图片选择仍受扩展本地文件权限限制，已用实际 File 对象校验多图适配器，未实机复核暗色主题与鼠标 Hover。Node 共享协议 dist 未重新生成，后端多图和预算变更需下次正常启动准备步骤更新产物后生效。
+- 2026-10-09 图片上限调整：已完成单张图片 10MiB 与 Agent 请求/会话 16MiB 的统一调整，其他接口与 SSE 上限保持原值。
+  - 定位：已核对前端文件校验、共享图片 Schema、Server JSON 解析、Runtime 请求/会话及 Nginx 上限。
+  - 实现完成：单张图片上限、菜单提示及错误文案已统一为 10MB（10MiB）；共享请求上限与 Runtime 会话预算为 16MiB。Server 仅放宽 Agent Run 的 JSON 解析，其他接口仍为 1MiB；新增独立 AGENT_MAX_EVENT_BYTES，SSE 帧仍为 1MiB。现有 Nginx 的 64MiB 上限无需改动。
+  - 校验完成：前端适配器及共享 Schema 验证恰好 10MiB 接受、超过 1 字节拒绝；实际 Nest Express JSON 中间件验证 10MiB 图片的 Base64 JSON 可通过、16MiB 请求超限拒绝、其他接口和相似路径仍拒绝大载荷；未监听端口。Session 验证合法 10MiB 图片保留、消息超过 16MiB 清理。Web、Server、Runtime 类型检查通过。格式检查与 Lint 无错误；浏览器已确认上传菜单显示 10MB，热更新上下文失效后通过刷新现有预览恢复。效果截图：/private/tmp/ai-workflow-agent-image-10mb.jpg。
+  - 完成：执行记录与对应项目技能已同步；未执行 dev/build/git、未新增测试文件、未调用真实模型。共享协议 Node 产物未重新生成，后端需按原有启动准备流程更新产物后生效。
+- 2026-10-09 Composer 附件与命令：已完成实现范围定位，复用官方 TriggerPopover / SlashCommandAdapter、现有节点和项目资源目录；正在接入 + 号附件菜单、`/` 节点选择、`@` 工作流/知识库选择及图片发送。沿用 1MiB 请求上限，图片限制为单张 512KB 的 PNG/JPEG/WebP；不运行 dev/build/git，不新增测试文件。
+  - 实现：已接入四项附件菜单、两种命令、图片与资源附件展示、原有节点引用兼容，以及可选图片协议和 Pi 图片传参；复用已发布工作流与知识库目录，沿用鉴权与资源核实。
+  - 校验：Web、Server 与 Runtime 类型检查、格式及 UI 静态扫描通过，Lint 无错误（保留现有风格警告）。内联断言验证图片 Data URL 解析、格式/大小/数量、旧文本请求兼容、本地 PNG 读取与预览数据、资源 UUID、附件发送兼容，以及 Pi 图片参数；合法单张 512KiB 图片保留 Session、超过 1MiB 消息预算清理均通过。
+  - 浏览器：已验证四项加号菜单、节点搜索与附件移除、`/` Enter 添加节点、`@` 方向键与 Tab 添加知识库、Escape 只关闭命令浮层、收起重开保留附件；现有已发布工作流目录为空，已核对空列表提示。768×600 窄屏浮层位于视口内，无横向溢出，默认输入框仍为 94px；完成后恢复桌面尺寸并清除验证草稿。效果截图：/private/tmp/ai-workflow-agent-attachment-menu.jpg。
+  - 完成：实现与对应前端、协议、Runtime、Server 技能规范均已同步。未执行 dev/build/git、未新增测试文件、未调用真实模型；图片自动选择受 Chrome 扩展本地文件权限限制，暗色主题未实机复核。Node 使用共享协议 dist，现有产物未重新生成，图片后端需用户下次正常启动的准备步骤更新产物后生效。
+- 2026-10-08 模型入口默认背景：已将模型选择胶囊在明暗主题中的默认背景改为透明，保留 Hover / Focus visible 的浅色背景反馈。浏览器实测非悬停、非键盘聚焦时背景为 rgba(0, 0, 0, 0)，Tab 聚焦时切换至 accent 背景，失焦后恢复透明；供应商图标和模型名正常保留。修改文件格式与 UI 静态检查通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与前端技能已同步。效果截图保存至 /private/tmp/ai-workflow-agent-model-transparent.png。本次仅调整背景样式，未重跑类型检查，未执行 dev/build/git，未新增测试文件；暗色主题未实机复核。
+- 2026-10-08 当前模型供应商图标：已在模型选择胶囊的名称左侧显示当前模型所属供应商的图标，复用模型目录的 providerType 与现有供应商策略；未选择时继续显示占位提示。浏览器核对 DeepSeek 与 Ollama 模型切换后均显示对应供应商图标，图标为 14px，胶囊保持 32px 高；菜单模型行仍仅显示名称和选中标记。Web 类型与 UI 静态检查通过，Lint 无错误，保留现有 one-var 风格警告；设计规范和前端技能已同步。效果截图保存至 /private/tmp/ai-workflow-agent-selected-provider.png。未执行 dev/build/git，未新增测试文件；未发送真实模型请求，暗色主题未实机复核。
+- 2026-10-08 Prompt Input 模型菜单：已完成 32px 高、按模型名适配宽度的圆角胶囊触发器；菜单按启用模型组分组，供应商图标仅显示在组标题，模型行仅显示名称，选中行使用浅色背景与右侧勾选，发送/停止继续靠右。模型来源与组/模型 UUID 保持原有契约，禁用组、禁用模型和空组不进入菜单。现有浏览器验证鼠标选择与方向键/Enter 切换，触发器仅回显模型名；4 个供应商组标题各有 1 个图标，5 个模型行仅选中项有勾选图标。桌面及 768 × 600 窄屏菜单完整位于视口内，无横向溢出，输入框保持 94px 默认高度。Web 类型、修改文件格式与 UI 静态检查通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与前端技能已同步。内联临时断言验证禁用组、无启用模型组与空组过滤通过。效果截图保存至 /private/tmp/ai-workflow-agent-model-picker.jpg。未执行 dev/build/git，未新增测试文件；未发送真实模型请求，暗色主题未实机复核。
+- 2026-10-08 Prompt Input 外壳圆角：已按 Assistant UI Composer 官方组合示例，将外壳圆角从 rounded-2xl（18px）调整为 24px，保留 10px 内边距、32px 圆形按钮和 94px 默认高度；桌面及 768 × 600 窄屏实测尺寸一致、无横向溢出，键盘聚焦添加按钮保持圆形。同步设计规范和前端技能引用；修改文件的 Prettier 检查、Prompt Input 的 Oxlint 与 Impeccable 静态检查均通过。效果截图保存至 /private/tmp/ai-workflow-agent-composer-radius.png。本次仅调整样式，未重跑类型检查，未执行 dev/build/git、未新增测试文件；暗色主题未实机复核。
+- 2026-10-08 Prompt Input 高度与圆形按钮：已完成输入正文默认行数从三行改为单行，最小高度由 80px 缩为 32px，保留最多六行自动扩展；节点添加按钮改为与 Composer 示例一致的 32px 圆形，保留项目 Ghost 交互。浏览器实测默认输入框整体高度从 142px 缩为 94px，多行正文增长至 132px 后通过 overflow-y: auto 内部滚动；节点按钮为 32×32px 圆形，节点选择浮层打开/关闭及键盘聚焦正常。768×600 窄屏下默认高度仍为 94px，输入区可见，无横向溢出。Web 类型、格式与 UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与 Web 技能已同步。未执行 dev/build/git，未新增测试文件；暗色主题未实机复核。
+- 2026-10-08 推荐问题交互颜色：已完成推荐问题行的 Hover 与 Focus visible 透明背景，仅加深文字和箭头的语义前景色，并覆盖暗色主题的 Ghost 背景反馈。现有浏览器实测鼠标悬停、键盘 Tab 聚焦和默认行背景均为 rgba(0, 0, 0, 0)；交互行的文字与箭头为 foreground，默认行保持 muted-foreground，推荐问题仍只填入草稿。格式和 UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与 Web 技能已同步。仅调整样式，未重跑类型检查，未执行 dev/build/git，未新增测试文件；暗色主题未实机复核。
+- 2026-10-08 推荐问题左侧对齐：已完成移除推荐问题行按钮的水平 padding，并补偿 ChevronRight 图标自身留白，使箭头可见左边缘与引导标题、说明对齐；保留图标与文字的 8px 布局间隔。现有浏览器 1470×724 与 768×600 复核四行箭头使用同一列，标题与说明左缘一致，行 padding 为 0px、gap 为 8px，无横向溢出。格式和 UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与 Web 技能已同步。仅调整样式，未重跑类型检查，未执行 dev/build/git，未新增测试文件。
+- 2026-10-08 AI 头部间距与侧栏边缘：已完成关闭按钮右侧 padding 从 16px 调整为 8px，补偿按钮内部留白，使关闭图标的可见边缘与标题左侧对齐；AI 面板阴影从 shadow-sm 改为与左侧边栏一致的 shadow-xs。内外层仍分别复用 background 和 workspace-background。现有浏览器 1470×724 与 768×600 实测标题左侧和关闭图标右侧均为 16.5px（含 0.5px 面板边框）；左右内容背景、外层底色与阴影一致，外层顶部、底部及右侧仍为 4px，无横向溢出。格式和 UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告；设计规范与 Web 技能已同步。仅调整样式，未重跑类型检查，未执行 dev/build/git，未新增测试文件。
+- 2026-10-08 对话头部与 Prompt Input：已完成当前对话标题、历史入口与关闭图标；新增基于 Assistant UI ComposerPrimitive 的 Prompt Input，模型选择移至输入框工具栏，节点附件保留，空对话增加引导标题与四个草稿示例。现有浏览器 1470×668 与 768×600 验证模型来自模型管理的 Chat 列表、示例只填草稿、节点添加与移除入口、关闭后重开保留当前对话；输入工具栏可见，无横向溢出，外层 4px 间距、同源底色和 14px 圆角保持一致。Web 类型、格式与 UI 静态扫描通过，Lint 无错误，保留风格类警告；设计规范与 Web 技能已同步。未执行 dev/build/git，未新建仓库测试文件；未发送真实模型请求，暗色主题及读屏未实机复核。
+- 2026-10-08 对话历史与隔离：已完成 LocalRuntime 内存 Thread List；新建和切换保留各对话草稿、附件、模型选择与 Runtime Session，离开含草稿的新线程前初始化历史条目，运行及切换过程中锁定再次切换。浏览器验证两个草稿对话切换时标题、节点附件与不同模型正确恢复；临时断言直接抽取实现验证标题、草稿初始化、模型与 Session 隔离、过期清理、运行锁、并发切换以及失败与部分失败恢复。历史仅驻留当前编辑器页面内存，刷新或前端热更新后可能重置，尚未接入持久化历史。
+- 2026-10-08 AI 侧栏外部底色统一：详情根布局、画布及 ReactFlow Background、AI 外层接入同一 workspace-background 语义色；内层保留 bg-background，4px 间距、圆角与动画保持原有约定。浏览器实测根布局、画布背景与 AI 外层均为 rgb(242, 244, 247)，内部面板仍为白色，顶部、底部、右侧及画布间隔仍为 4px，无横向溢出；Web 类型检查、格式、UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告。设计规范、Web 与 UI 包技能已同步。未执行 dev/build/git，未新建测试文件；暗色主题未实机复核。
+- 2026-10-08 AI 侧栏间距对齐：浏览器确认左侧导航距页面上下边缘为 4px，AI 面板因根布局与内部 padding 叠加为 12px；已将内部 padding 调整为仅左侧 4px，让顶部、底部和右侧沿用根布局留白。现有浏览器 1470×668 与 768×800 实测顶部、底部、右侧与画布间隔均为 4px，桌面与左侧导航边缘对齐，无横向溢出；格式与 UI 静态扫描通过，设计约定和 Web 技能已同步。未执行 dev/build/git，未新建测试文件。
+- 2026-10-08 AI 侧栏样式调整：头部关闭按钮及其参数已移除，两个面板调用入口已同步；外层增加 8px 留白和画布同源背景，内层采用完整圆角、0.5px 语义边框与轻阴影；底部开关和 Escape 收起路径保留。Web 类型检查、格式与 UI 静态扫描通过，Lint 无错误，保留现有 one-var 风格警告；现有浏览器 1470×668 与 768×800 验证四周 8px 间距、14px 圆角、0.5px 边框、头部按钮移除与无横向溢出。设计约定与 Web 技能已同步；未新建测试文件、未执行 dev/build/git。
+- 2026-10-08 AI 侧栏 UI：从画布浮层移至编辑器右侧满高侧栏；桌面展开保留独立空间、窄屏贴边滑入；增加展开/收起与 reduced motion、开关 aria-controls/expanded、退出时 inert，保留会话和隐藏后运行状态；输入框自动高度与过渡排版已修正。类型检查、Lint 和 UI 静态扫描通过；现有浏览器 1470×668 与 768×800 的侧栏边界、满高、画布空间、无横向溢出、输入高度、收起重开后模型/消息/候选保留和 Escape 关闭验证通过。设计约定与 Web 技能已同步；未新建测试文件、未执行 dev/build/git。
+- 2026-10-08 本地启动衔接修复：确认 Chat 模型始终由模型页面配置、Server 按用户和模型 UUID 从数据库解析；新增开发启动衔接，为 Server/Runtime 自动共享随机内部认证令牌及连接地址，保留显式配置与生产隔离认证；Turbo 两种启动入口均接入，README 和维护技能同步。8 个并发进程的令牌一致性、0600 权限、复用、配置优先级、端口衔接、生产禁用与远程认证边界断言通过；语法和格式检查通过，Lint 无错误，保留风格警告。未启动服务。
+- 2026-10-08 启动配置补充：根 `dev:agent` 改为 Turbo 任务；Runtime 增加对应脚本和 Protocol 准备钩子；`turbo.json` 为单独启动和统一 `dev` 配置常驻任务、关闭缓存及 Runtime 环境变量透传；README 同步启动说明。脚本对应关系与格式已静态检查，未实际启动服务。
+- Runtime：`pnpm --filter @ai-workflow/agent-runtime exec tsc --noEmit`。
+- Server：`pnpm --filter @ai-workflow/server exec tsc --noEmit --incremental false`。
+- Web：`pnpm --filter @ai-workflow/web exec tsc -p tsconfig.app.json --noEmit`；未调整现有根 tsconfig 的 TypeScript 6 baseUrl 弃用提示。
+- 改动文件使用 Prettier 与 oxlint；Lint 无错误，保留风格类 warning。UI 静态检测通过。
+- 临时断言位于 `/tmp`，分别覆盖真实 Pi Runtime + 模拟模型/Gateway、真实 Server Gateway + 内存业务替身、真实 Server SSE 代理 + 模拟 Runtime；未新增仓库测试文件。
+- `docker compose config --quiet`、编排结构断言、入口 Shell 语法与技能 YAML 元数据校验通过。
+
+待环境验收：真实 OpenAI/DeepSeek/Ollama 模型 Tool Calling；已登录浏览器中的隐藏面板、滚动、节点附件、候选应用/撤销与读屏交互；Docker 镜像构建和生产服务联调。Session 仅存在内存，Runtime 重启后需重新发送；当前不支持多实例会话协调。
+
+命令约束：本次未执行 dev、build 或任何 git 命令，未新增仓库测试文件；依赖安装使用 ignore-scripts，临时验证使用类型检查、Lint 和断言自检。

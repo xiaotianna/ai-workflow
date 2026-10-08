@@ -28,6 +28,8 @@ interface WorkflowCanvasToolbarProps {
   onAddNodeOpenChange: (open: boolean) => void
   onRedo: () => void
   onUndo: () => void
+  aiOpen: boolean
+  onAiToggle: () => void
 }
 
 export const WorkflowCanvasToolbar = ({
@@ -39,6 +41,8 @@ export const WorkflowCanvasToolbar = ({
   onAddNodeOpenChange,
   onRedo,
   onUndo,
+  aiOpen,
+  onAiToggle,
 }: WorkflowCanvasToolbarProps) => {
   return (
     <fieldset
@@ -84,7 +88,7 @@ export const WorkflowCanvasToolbar = ({
       </WorkflowToolbarGroup>
 
       <WorkflowToolbarGroup aria-label="AI 操作" className="absolute top-0 left-full ml-2">
-        <OpenAIPanel />
+        <OpenAIPanel open={aiOpen} onClick={onAiToggle} />
       </WorkflowToolbarGroup>
     </fieldset>
   )

@@ -1,28 +1,16 @@
-import { ModelType } from '@/generated/prisma/client'
-import { ModelCredentialService } from '@/infra/model-provider/model-credential.service'
-import { ModelProviderRegistry } from '@/infra/model-provider/model-provider.registry'
+import { ChatModelResolverService } from '@/services/chat-model-resolver.service'
 import { ExecutorModelRepository } from '@/repositories/executor-model.repository'
-import { ModelGroupRepository } from '@/repositories/model-group.repository'
 import { PluginCatalogService } from '@/services/plugin-catalog.service'
-import { MODEL_PROVIDER_TYPES, type ModelProviderTypeValue } from '@/constant/model'
 import type { ResolveExecutorModelDto } from '@/dto/executor-model.dto'
 import type { ExecutorModelResolutionVo } from '@/vo/executor-model.vo'
-import {
-  BuiltinNodeType,
-  llmNodeSchema,
-  type LlmNodeConfig,
-  type Workflow,
-  workflowSchema,
-} from '@ai-workflow/core'
+import { BuiltinNodeType, llmNodeSchema, type Workflow, workflowSchema } from '@ai-workflow/core'
 import { Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common'
 
 @Injectable()
 export class ExecutorModelService {
   constructor(
     private readonly executorModelRepository: ExecutorModelRepository,
-    private readonly modelGroupRepository: ModelGroupRepository,
-    private readonly credentialService: ModelCredentialService,
-    private readonly providerRegistry: ModelProviderRegistry,
+    private readonly chatModelResolver: ChatModelResolverService,
     private readonly pluginCatalogService: PluginCatalogService,
   ) {}
 
@@ -52,7 +40,7 @@ export class ExecutorModelService {
       throw new UnprocessableEntityException('LLM 节点配置无效')
     }
 
-    return this.resolveConfiguredModel(context.run.workflow.app.ownerId, parsedConfig.data)
+    return this.chatModelResolver.resolve(context.run.workflow.app.ownerId, parsedConfig.data.model)
   }
 
   private async supportsLlmExecution(
@@ -72,45 +60,4 @@ export class ExecutorModelService {
       ),
     )
   }
-
-  private async resolveConfiguredModel(
-    ownerId: string,
-    config: LlmNodeConfig,
-  ): Promise<ExecutorModelResolutionVo> {
-    const { configuredModelId, groupId } = config.model
-    if (!groupId || !configuredModelId) {
-      throw new UnprocessableEntityException('LLM 节点尚未选择模型')
-    }
-
-    const group = await this.modelGroupRepository.findById(ownerId, groupId)
-    if (!group || group.modelType !== ModelType.CHAT || !group.enabled) {
-      throw new NotFoundException('模型组不存在或未启用')
-    }
-
-    const configuredModel = group.models.find((model) => model.id === configuredModelId)
-    if (!configuredModel || !configuredModel.enabled) {
-      throw new NotFoundException('模型不存在或未启用')
-    }
-
-    if (!isModelProviderType(group.providerType)) {
-      throw new UnprocessableEntityException('模型供应商配置无效')
-    }
-    const provider = this.providerRegistry.get(group.providerType),
-      baseUrl = group.baseUrl || provider.defaultBaseUrl,
-      apiKey = this.credentialService.decrypt(group, group.id)
-    if (provider.supportsApiKey && !apiKey) {
-      throw new UnprocessableEntityException('模型组缺少 API Key')
-    }
-
-    return {
-      providerType: provider.type,
-      modelId: configuredModel.modelId,
-      baseUrl,
-      ...(apiKey ? { apiKey } : {}),
-    }
-  }
-}
-
-function isModelProviderType(value: string): value is ModelProviderTypeValue {
-  return (MODEL_PROVIDER_TYPES as readonly string[]).includes(value)
 }

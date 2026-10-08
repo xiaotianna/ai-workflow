@@ -1,0 +1,23 @@
+{
+  "name": "@ai-workflow/agent-protocol",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "node": {
+        "import": "./dist/index.mjs",
+        "require": "./dist/index.cjs"
+      },
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build:node": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --sourcemap --outfile=dist/index.cjs && esbuild src/index.ts --bundle --platform=node --format=esm --target=node22 --sourcemap --outfile=dist/index.mjs"
+  },
+  "dependencies": {
+    "@ai-workflow/core": "workspace:*",
+    "zod": "^4.4.3"
+  }
+}

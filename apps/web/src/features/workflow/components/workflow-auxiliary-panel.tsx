@@ -1,3 +1,4 @@
+import { WorkflowAgentPanel } from '../agent/workflow-agent-panel'
 import {
   SYSTEM_VARIABLE_DEFINITIONS,
   SYSTEM_VARIABLE_NAMESPACE,
@@ -21,6 +22,7 @@ import { WorkflowVersionHistoryPanel } from './workflow-version-history-panel'
 import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
 
 export type WorkflowAuxiliaryPanelType =
+  | 'ai-agent'
   | 'test-run'
   | 'run-history'
   | 'check-list'
@@ -167,6 +169,7 @@ const WORKFLOW_AUXILIARY_PANEL_DEFINITIONS: Record<
   WorkflowAuxiliaryPanelType,
   WorkflowAuxiliaryPanelDefinition
 > = {
+  'ai-agent': { title: 'AI 助手', description: '根据目标生成并校验工作流候选。' },
   'test-run': {
     title: '测试运行',
     description: '配置输入并查看本次运行的结果与节点追踪。',
@@ -217,6 +220,8 @@ export function WorkflowAuxiliaryPanel({
   onStartTestRun,
   onUpdateEnvironmentVariable,
 }: WorkflowAuxiliaryPanelProps) {
+  if (type === 'ai-agent') return <WorkflowAgentPanel onClose={onClose} />
+
   const definition = WORKFLOW_AUXILIARY_PANEL_DEFINITIONS[type],
     Content = definition.Content,
     title =

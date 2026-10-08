@@ -26,7 +26,23 @@
     },
     "dev:server": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["AGENT_*", "NODE_ENV"]
+    },
+    "dev:agent": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["AGENT_*", "AI_WORKFLOW_SERVER_URL", "PORT", "NODE_ENV"]
+    },
+    "@ai-workflow/agent-runtime#dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["AGENT_*", "AI_WORKFLOW_SERVER_URL", "PORT", "NODE_ENV"]
+    },
+    "@ai-workflow/server#dev": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": ["AGENT_*", "NODE_ENV"]
     }
   }
 }

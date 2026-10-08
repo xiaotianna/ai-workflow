@@ -2,9 +2,9 @@
 
 ## Node 运行时
 
-- Code Executor 使用真实 Node.js 22+ ESM 子进程执行用户代码
+- Code Executor 使用真实 Node.js 22.19.0+ ESM 子进程执行用户代码
 - `runtime.go` 的 `go:embed` 只把 `runner.mjs` 源码嵌入 Go 二进制，不包含 Node 可执行程序
-- Executor 的实际运行环境必须能找到 Node.js 22+，否则 Code 节点返回 `CODE_NODE_RUNTIME_UNAVAILABLE`
+- Executor 的实际运行环境必须能找到 Node.js 22.19.0+，否则 Code 节点返回 `CODE_NODE_RUNTIME_UNAVAILABLE`
 - 默认从 `PATH` 调用 `node`，可用 `CODE_NODE_BINARY` 指定其他 Node 可执行文件路径
 - 宿主服务器可以不安装 Node，但运行 Executor 的容器或 Pod 必须包含 Node
 - 不能在保留完整 Node API、ESM、原生 `fetch`、文件系统、网络、`worker_threads` 和 `child_process` 能力的同时移除 Node 运行时
@@ -43,8 +43,8 @@
 ## 部署检查
 
 仓库根目录的 `compose.yaml` 是单机自托管部署入口：根目录统一应用 `Dockerfile` 使用 Go 1.25
-构建静态 Executor，并以包含 Node.js 22 和 Nginx 的 Debian 镜像作为运行层。Web、Server、Executor
-复用该应用镜像，但仍以三个独立容器运行。镜像固定配置
+构建静态 Executor，并以包含 Node.js 22.19.0 和 Nginx 的 Debian 镜像作为运行层。Web、Server、Executor、Agent Runtime
+复用该应用镜像，但仍以四个独立容器运行。镜像固定配置
 `CODE_NODE_BINARY=node` 和 `CODE_NODE_MODULES_PATH=/workspace/node_modules`，并按根 `.npmrc` 安装
 workspace 的生产依赖，同时显式安装 `ca-certificates`，保证静态 Go Executor 能使用系统 CA 校验
 HTTPS 上游证书；Compose 使用非 root 用户、只读根文件
@@ -65,7 +65,7 @@ ARM 原生依赖。
 部署或修改 Executor 镜像时确认：
 
 1. 镜像包含项目要求的 Go Executor 二进制
-2. 镜像包含 Node.js 22 或更高版本
+2. 镜像包含 Node.js 22.19.0 或更高版本
 3. `node` 位于 `PATH`，或正确配置 `CODE_NODE_BINARY`
 4. 需要开放的 npm 包存在于可解析的 `node_modules`，或正确配置 `CODE_NODE_MODULES_PATH`
 5. 镜像包含有效的系统 CA bundle，Go HTTP Executor 能验证公共 HTTPS 证书

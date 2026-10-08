@@ -1,0 +1,32 @@
+{
+  "name": "@ai-workflow/agent-runtime",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "dev": "node ../../scripts/agent-dev.mjs runtime tsx watch src/main.ts",
+    "dev:agent": "node ../../scripts/agent-dev.mjs runtime tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --external:@earendil-works/* --external:typebox --external:zod --platform=node --format=esm --target=node22 --sourcemap --outfile=dist/main.js",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "predev": "pnpm --filter @ai-workflow/agent-protocol build:node",
+    "predev:agent": "pnpm --filter @ai-workflow/agent-protocol build:node",
+    "prebuild": "pnpm --filter @ai-workflow/agent-protocol build:node"
+  },
+  "dependencies": {
+    "@ai-workflow/agent-protocol": "workspace:*",
+    "@ai-workflow/core": "workspace:*",
+    "@earendil-works/pi-agent-core": "1.1.0",
+    "@earendil-works/pi-ai": "1.1.0",
+    "typebox": "1.3.27",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "~6.0.2",
+    "tsx": "^4.21.0"
+  }
+}

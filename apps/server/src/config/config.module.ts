@@ -51,6 +51,12 @@ const nodeEnv = process.env.NODE_ENV ?? 'development',
         EXECUTOR_ENABLED_CLASSES: Joi.string().default(
           'trusted-compute,controlled-model,controlled-http,untrusted-sandbox',
         ),
+        AGENT_RUNTIME_URL: Joi.string()
+          .uri({ scheme: ['http', 'https'] })
+          .allow('')
+          .default(''),
+        AGENT_RUNTIME_INTERNAL_AUTH_TOKEN: Joi.string().min(32).allow('').default(''),
+        AGENT_RUN_TIMEOUT_MS: Joi.number().integer().min(1000).max(900_000).default(180_000),
         PLUGIN_ARTIFACT_DIRECTORY: Joi.string().trim().min(1).default('var/plugin-artifacts'),
         KNOWLEDGE_SOURCE_DIRECTORY: Joi.string().trim().min(1).default('var/knowledge-sources'),
         KNOWLEDGE_SOURCE_STORAGE_DRIVER: Joi.string()
@@ -73,6 +79,9 @@ const nodeEnv = process.env.NODE_ENV ?? 'development',
         OPENSEARCH_PASSWORD: Joi.string().allow('').default(''),
         OPENSEARCH_TLS_REJECT_UNAUTHORIZED: Joi.boolean().default(true),
       }).custom((value: Record<string, unknown>, helpers) => {
+        if (Boolean(value.AGENT_RUNTIME_URL) !== Boolean(value.AGENT_RUNTIME_INTERNAL_AUTH_TOKEN)) {
+          return helpers.message({ custom: 'Agent Runtime 地址和内部认证令牌必须同时配置' })
+        }
         if (value.KNOWLEDGE_SOURCE_STORAGE_DRIVER === 's3' && !value.KNOWLEDGE_S3_BUCKET) {
           return helpers.message({
             custom: 'S3 存储必须配置 KNOWLEDGE_S3_BUCKET',

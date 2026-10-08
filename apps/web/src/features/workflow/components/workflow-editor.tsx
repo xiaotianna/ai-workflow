@@ -1,3 +1,5 @@
+import { WorkflowAgentProvider } from '../agent/workflow-agent-provider'
+import { WorkflowAgentSidebar } from '../agent/workflow-agent-sidebar'
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
 import { Background, ConnectionLineType, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import { useWorkflowEditor } from '../hooks/use-workflow-editor'
@@ -349,214 +351,241 @@ export function WorkflowEditor({
       />
 
       <WorkflowModelCatalogProvider enabled={!disabled}>
-        <WorkflowKnowledgeBaseCatalogProvider enabled={!disabled}>
-          <WorkflowStudioAppCatalogProvider
-            enabled={!disabled}
-            currentAppId={applicationMetadata?.id}
-            currentWorkflowId={editor.workflow.id}
-          >
-            <WorkflowEnvironmentVariablesProvider variables={editor.environmentVariables}>
-              <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
-                <WorkflowContextMenu
-                  actions={contextMenu.actions}
-                  context={contextMenu.context}
-                  disabled={disabled}
-                  instanceKey={contextMenu.instanceKey}
-                  keepOpen={nodePicker.open}
-                  onAction={contextMenu.executeAction}
-                  onOpenChange={contextMenu.handleOpenChange}
-                >
-                  <WorkflowAddNodeProvider
+        <WorkflowAgentProvider
+          appId={applicationMetadata?.id}
+          enabled={!disabled}
+          visible={activeAuxiliaryPanel === 'ai-agent'}
+          snapshot={editor.createSnapshot()}
+          selectedNodeIds={editor.selectedNodeIds}
+          getSnapshot={editor.createSnapshot}
+          onApply={editor.applyAgentCandidate}
+        >
+          <WorkflowKnowledgeBaseCatalogProvider enabled={!disabled}>
+            <WorkflowStudioAppCatalogProvider
+              enabled={!disabled}
+              currentAppId={applicationMetadata?.id}
+              currentWorkflowId={editor.workflow.id}
+            >
+              <WorkflowEnvironmentVariablesProvider variables={editor.environmentVariables}>
+                <WorkflowLoopEditorProvider value={editor.loopEditor} disabled={disabled}>
+                  <WorkflowContextMenu
+                    actions={contextMenu.actions}
+                    context={contextMenu.context}
                     disabled={disabled}
-                    openInsertNode={(edgeId, center, anchorPosition) =>
-                      nodePicker.openInsertNode(edgeId, center, anchorPosition)
-                    }
+                    instanceKey={contextMenu.instanceKey}
+                    keepOpen={nodePicker.open}
+                    onAction={contextMenu.executeAction}
+                    onOpenChange={contextMenu.handleOpenChange}
                   >
-                    <div className="h-full min-h-0 w-full">
-                      <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
-                        ref={canvasRef}
-                        nodes={renderedNodes}
-                        edges={renderedEdges}
-                        nodeTypes={workflowNodeTypes}
-                        edgeTypes={workflowEdgeTypes}
-                        defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
-                        connectionLineType={ConnectionLineType.Bezier}
-                        proOptions={{ hideAttribution: true }}
-                        onNodesChange={editor.handleNodesChange}
-                        // 设置画布的初始视口
-                        defaultViewport={
-                          contextMenu.viewportBeforeRemount ?? editor.initialViewport
-                        }
-                        // editor.initialViewport为空，自动展示全部节点
-                        fitView={!contextMenu.viewportBeforeRemount && !editor.initialViewport}
-                        // 自动适配设置最大缩放
-                        fitViewOptions={{
-                          padding: 0.2,
-                          maxZoom: 1,
-                        }}
-                        deleteKeyCode={null}
-                        nodesDraggable={!disabled}
-                        nodesConnectable={!disabled}
-                        nodesFocusable={!disabled}
-                        edgesFocusable={!disabled}
-                        elementsSelectable={!disabled}
-                        selectNodesOnDrag={false}
-                        onEdgesChange={editor.handleEdgesChange}
-                        onEdgeContextMenu={contextMenu.handleEdgeContextMenu}
-                        onConnect={editor.handleConnect}
-                        isValidConnection={(connection) =>
-                          !disabled && editor.isValidConnection(connection)
-                        }
-                        onBeforeDelete={editor.handleBeforeDelete}
-                        onNodesDelete={editor.handleNodesDelete}
-                        onNodeClick={(event, node) => {
-                          if (disabled) return
-                          if (event.metaKey || event.ctrlKey || event.shiftKey) return
-                          handleOpenNodeConfig(node.id)
-                        }}
-                        onNodeContextMenu={contextMenu.handleNodeContextMenu}
-                        onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
-                        onNodeMouseLeave={(_event, node) =>
-                          setHoveredNodeId((currentNodeId) =>
-                            currentNodeId === node.id ? undefined : currentNodeId,
-                          )
-                        }
-                        onPaneClick={() => {
-                          setSingleNodeTestRunOpen(false)
-                          editor.clearSelection()
-                        }}
-                        onPaneContextMenu={contextMenu.handlePaneContextMenu}
-                        aria-disabled={disabled}
-                        className="bg-muted/30 workflow-editor"
-                      >
-                        <WorkflowExecutionCamera nodeExecutionStatuses={nodeExecutionStatuses} />
-                        {/* 总面板组件 */}
-                        <WorkflowPanel
-                          appId={applicationMetadata?.id}
-                          addNodeButtonRef={addNodeButtonRef}
-                          activeAuxiliaryPanel={activeAuxiliaryPanel}
-                          selectedNode={editor.selectedNode}
-                          selectedNodeCanAddNextNode={
-                            editor.selectedNode
-                              ? editor.canAddNextNode(editor.selectedNode.id)
-                              : false
-                          }
-                          selectedNodeCanAddErrorBranch={
-                            editor.selectedNode
-                              ? editor.canAddNextNode(
-                                  editor.selectedNode.id,
-                                  ERROR_HANDLING_PORT_ID,
-                                )
-                              : false
-                          }
-                          selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
-                          selectedNodeCanRun={
-                            editor.selectedNode ? editor.canRunNode(editor.selectedNode.id) : false
-                          }
-                          selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
-                          focusLastRunTabKey={focusLastRunTabKey}
-                          lastRunRefreshKey={lastRunRefreshKey}
-                          lastSavedAt={save.lastSavedAt}
-                          singleNodeTestRunOpen={singleNodeTestRunOpen}
-                          publishedAt={publishedAt}
-                          publishLoadError={publishLoadError}
-                          publishLoading={publishLoading}
-                          publishPending={operations.publishPending}
-                          publishSync={publishSync}
-                          saveStatus={save.status}
-                          canRedo={editor.canRedo}
-                          canUndo={editor.canUndo}
-                          checkListIssues={checkListIssues}
-                          environmentVariables={editor.environmentVariables}
-                          nodes={editor.workflow.nodes}
-                          addNodeOpen={disabled ? false : nodePicker.open}
-                          nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
-                          nextStepSourceHandle={nodePicker.connectionSourceHandle}
-                          shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
-                          testRunResult={testRunResult}
-                          selectedVersionId={selectedVersionId}
-                          disabled={disabled}
-                          onAddNodeOpenChange={handleNodePickerOpenChange}
-                          onAuxiliaryPanelClose={() => setActiveAuxiliaryPanel(undefined)}
-                          onAuxiliaryPanelToggle={handleAuxiliaryPanelToggle}
-                          onApplyNode={editor.applyNode}
-                          onAddEnvironmentVariable={editor.addEnvironmentVariable}
-                          canChangeNextStepNode={(nodeId, sourceHandle) =>
-                            editor.selectedNode
-                              ? editor.canReplaceConnectedNode(
-                                  editor.selectedNode.id,
-                                  nodeId,
-                                  sourceHandle,
-                                )
-                              : false
-                          }
-                          canDeleteNextStepNode={editor.canDeleteNode}
-                          onCloseNodeConfig={() => {
-                            setSingleNodeTestRunOpen(false)
-                            editor.clearSelection()
-                          }}
-                          onCloseSingleNodeTestRun={() => setSingleNodeTestRunOpen(false)}
-                          onCheckListIssueSelect={handleOpenNodeConfig}
-                          onNodeDraftValidationIssuesChange={editor.setNodeDraftValidationIssues}
-                          onChangeNextStepNode={(nodeId, anchorPosition, sourceHandle) =>
-                            editor.selectedNode
-                              ? nodePicker.openReplaceConnectedNode(
-                                  editor.selectedNode.id,
-                                  nodeId,
-                                  anchorPosition,
-                                  sourceHandle,
-                                )
-                              : false
-                          }
-                          onDeleteNextStepNode={editor.deleteNode}
-                          onDeleteEnvironmentVariable={editor.deleteEnvironmentVariable}
-                          onDisconnectNextStepNode={editor.disconnectNodes}
-                          onNextStepOpenChange={handleNextStepOpenChange}
-                          onNextStepNodeSelect={handleOpenNodeConfig}
-                          onRedo={editor.redo}
-                          onOpenSingleNodeTestRun={(nodeId) =>
-                            operations.openSingleNodeTestRun(nodeId)
-                          }
-                          onPauseTestRun={() => void operations.pauseTestRun()}
-                          onPublish={() => void operations.publish()}
-                          onRestoreVersion={onRestoreVersion}
-                          onSelectCurrentDraft={() => void onSelectCurrentDraft?.()}
-                          onShortcutHelpOpenChange={setShortcutHelpOpen}
-                          onStartTestRun={(input) => void operations.testRun(input)}
-                          onSubmitSingleNodeTestRun={handleSubmitSingleNodeTestRun}
-                          onTestRun={handleTestRunAction}
-                          testRunCanPause={operations.testRunCanPause}
-                          testRunPausing={operations.testRunPausing}
-                          testRunPending={operations.testRunPending}
-                          onUndo={editor.undo}
-                          onUpdateEnvironmentVariable={editor.updateEnvironmentVariable}
+                    <WorkflowAddNodeProvider
+                      disabled={disabled}
+                      openInsertNode={(edgeId, center, anchorPosition) =>
+                        nodePicker.openInsertNode(edgeId, center, anchorPosition)
+                      }
+                    >
+                      <div className="@container/editor relative flex h-full min-h-0 w-full overflow-hidden">
+                        <div className="h-full min-h-0 min-w-0 flex-1">
+                          <ReactFlow<WorkflowCanvasNode, WorkflowEdge>
+                            ref={canvasRef}
+                            nodes={renderedNodes}
+                            edges={renderedEdges}
+                            nodeTypes={workflowNodeTypes}
+                            edgeTypes={workflowEdgeTypes}
+                            defaultEdgeOptions={{ type: ConnectionLineType.Bezier }}
+                            connectionLineType={ConnectionLineType.Bezier}
+                            proOptions={{ hideAttribution: true }}
+                            onNodesChange={editor.handleNodesChange}
+                            // 设置画布的初始视口
+                            defaultViewport={
+                              contextMenu.viewportBeforeRemount ?? editor.initialViewport
+                            }
+                            // editor.initialViewport为空，自动展示全部节点
+                            fitView={!contextMenu.viewportBeforeRemount && !editor.initialViewport}
+                            // 自动适配设置最大缩放
+                            fitViewOptions={{
+                              padding: 0.2,
+                              maxZoom: 1,
+                            }}
+                            deleteKeyCode={null}
+                            nodesDraggable={!disabled}
+                            nodesConnectable={!disabled}
+                            nodesFocusable={!disabled}
+                            edgesFocusable={!disabled}
+                            elementsSelectable={!disabled}
+                            selectNodesOnDrag={false}
+                            onEdgesChange={editor.handleEdgesChange}
+                            onEdgeContextMenu={contextMenu.handleEdgeContextMenu}
+                            onConnect={editor.handleConnect}
+                            isValidConnection={(connection) =>
+                              !disabled && editor.isValidConnection(connection)
+                            }
+                            onBeforeDelete={editor.handleBeforeDelete}
+                            onNodesDelete={editor.handleNodesDelete}
+                            onNodeClick={(event, node) => {
+                              if (disabled) return
+                              if (event.metaKey || event.ctrlKey || event.shiftKey) return
+                              handleOpenNodeConfig(node.id)
+                            }}
+                            onNodeContextMenu={contextMenu.handleNodeContextMenu}
+                            onNodeMouseEnter={(_event, node) => setHoveredNodeId(node.id)}
+                            onNodeMouseLeave={(_event, node) =>
+                              setHoveredNodeId((currentNodeId) =>
+                                currentNodeId === node.id ? undefined : currentNodeId,
+                              )
+                            }
+                            onPaneClick={() => {
+                              setSingleNodeTestRunOpen(false)
+                              editor.clearSelection()
+                            }}
+                            onPaneContextMenu={contextMenu.handlePaneContextMenu}
+                            aria-disabled={disabled}
+                            className="bg-workspace-background workflow-editor"
+                          >
+                            <WorkflowExecutionCamera
+                              nodeExecutionStatuses={nodeExecutionStatuses}
+                            />
+                            {/* 总面板组件 */}
+                            <WorkflowPanel
+                              appId={applicationMetadata?.id}
+                              addNodeButtonRef={addNodeButtonRef}
+                              activeAuxiliaryPanel={activeAuxiliaryPanel}
+                              selectedNode={editor.selectedNode}
+                              selectedNodeCanAddNextNode={
+                                editor.selectedNode
+                                  ? editor.canAddNextNode(editor.selectedNode.id)
+                                  : false
+                              }
+                              selectedNodeCanAddErrorBranch={
+                                editor.selectedNode
+                                  ? editor.canAddNextNode(
+                                      editor.selectedNode.id,
+                                      ERROR_HANDLING_PORT_ID,
+                                    )
+                                  : false
+                              }
+                              selectedNodeAvailableVariables={editor.selectedNodeAvailableVariables}
+                              selectedNodeCanRun={
+                                editor.selectedNode
+                                  ? editor.canRunNode(editor.selectedNode.id)
+                                  : false
+                              }
+                              selectedNodeDefaultLabel={editor.selectedNodeDefaultLabel}
+                              focusLastRunTabKey={focusLastRunTabKey}
+                              lastRunRefreshKey={lastRunRefreshKey}
+                              lastSavedAt={save.lastSavedAt}
+                              singleNodeTestRunOpen={singleNodeTestRunOpen}
+                              publishedAt={publishedAt}
+                              publishLoadError={publishLoadError}
+                              publishLoading={publishLoading}
+                              publishPending={operations.publishPending}
+                              publishSync={publishSync}
+                              saveStatus={save.status}
+                              canRedo={editor.canRedo}
+                              canUndo={editor.canUndo}
+                              checkListIssues={checkListIssues}
+                              environmentVariables={editor.environmentVariables}
+                              nodes={editor.workflow.nodes}
+                              addNodeOpen={disabled ? false : nodePicker.open}
+                              nextStepSourceNodeId={nodePicker.connectionSourceNodeId}
+                              nextStepSourceHandle={nodePicker.connectionSourceHandle}
+                              shortcutHelpOpen={disabled ? false : shortcutHelpOpen}
+                              testRunResult={testRunResult}
+                              selectedVersionId={selectedVersionId}
+                              disabled={disabled}
+                              onAddNodeOpenChange={handleNodePickerOpenChange}
+                              onAuxiliaryPanelClose={() => setActiveAuxiliaryPanel(undefined)}
+                              onAuxiliaryPanelToggle={handleAuxiliaryPanelToggle}
+                              onApplyNode={editor.applyNode}
+                              onAddEnvironmentVariable={editor.addEnvironmentVariable}
+                              canChangeNextStepNode={(nodeId, sourceHandle) =>
+                                editor.selectedNode
+                                  ? editor.canReplaceConnectedNode(
+                                      editor.selectedNode.id,
+                                      nodeId,
+                                      sourceHandle,
+                                    )
+                                  : false
+                              }
+                              canDeleteNextStepNode={editor.canDeleteNode}
+                              onCloseNodeConfig={() => {
+                                setSingleNodeTestRunOpen(false)
+                                editor.clearSelection()
+                              }}
+                              onCloseSingleNodeTestRun={() => setSingleNodeTestRunOpen(false)}
+                              onCheckListIssueSelect={handleOpenNodeConfig}
+                              onNodeDraftValidationIssuesChange={
+                                editor.setNodeDraftValidationIssues
+                              }
+                              onChangeNextStepNode={(nodeId, anchorPosition, sourceHandle) =>
+                                editor.selectedNode
+                                  ? nodePicker.openReplaceConnectedNode(
+                                      editor.selectedNode.id,
+                                      nodeId,
+                                      anchorPosition,
+                                      sourceHandle,
+                                    )
+                                  : false
+                              }
+                              onDeleteNextStepNode={editor.deleteNode}
+                              onDeleteEnvironmentVariable={editor.deleteEnvironmentVariable}
+                              onDisconnectNextStepNode={editor.disconnectNodes}
+                              onNextStepOpenChange={handleNextStepOpenChange}
+                              onNextStepNodeSelect={handleOpenNodeConfig}
+                              onRedo={editor.redo}
+                              onOpenSingleNodeTestRun={(nodeId) =>
+                                operations.openSingleNodeTestRun(nodeId)
+                              }
+                              onPauseTestRun={() => void operations.pauseTestRun()}
+                              onPublish={() => void operations.publish()}
+                              onRestoreVersion={onRestoreVersion}
+                              onSelectCurrentDraft={() => void onSelectCurrentDraft?.()}
+                              onShortcutHelpOpenChange={setShortcutHelpOpen}
+                              onStartTestRun={(input) => void operations.testRun(input)}
+                              onSubmitSingleNodeTestRun={handleSubmitSingleNodeTestRun}
+                              onTestRun={handleTestRunAction}
+                              testRunCanPause={operations.testRunCanPause}
+                              testRunPausing={operations.testRunPausing}
+                              testRunPending={operations.testRunPending}
+                              onUndo={editor.undo}
+                              onUpdateEnvironmentVariable={editor.updateEnvironmentVariable}
+                            />
+                            {/* 背景 */}
+                            <Background
+                              bgColor="var(--workspace-background)"
+                              color="#e3e4ec"
+                              gap={20}
+                              size={2}
+                            />
+                          </ReactFlow>
+                          <NodeSelectorPopover
+                            anchor={nodePicker.anchor}
+                            anchorPosition={nodePicker.anchorPosition}
+                            nodeTypes={nodePicker.nodeTypes}
+                            disabledNodeTypes={nodePicker.disabledNodeTypes}
+                            pluginGroupLabelByNodeType={catalog.pluginGroupLabelByNodeType}
+                            activeTab={nodeSelectorTab.activeTab}
+                            onActiveTabChange={nodeSelectorTab.onActiveTabChange}
+                            open={!disabled && nodePicker.open}
+                            operationLabel={nodePicker.operationLabel}
+                            keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}
+                            side={nodePicker.popoverSide}
+                            align={nodePicker.popoverAlign}
+                            onOpenChange={handleNodePickerOpenChange}
+                            onSelectNode={nodePicker.handleSelectNode}
+                          />
+                        </div>
+                        <WorkflowAgentSidebar
+                          open={!disabled && activeAuxiliaryPanel === 'ai-agent'}
+                          onClose={() => setActiveAuxiliaryPanel(undefined)}
                         />
-                        {/* 背景 */}
-                        <Background bgColor="#f2f4f7" color="#e3e4ec" gap={20} size={2} />
-                      </ReactFlow>
-                      <NodeSelectorPopover
-                        anchor={nodePicker.anchor}
-                        anchorPosition={nodePicker.anchorPosition}
-                        nodeTypes={nodePicker.nodeTypes}
-                        disabledNodeTypes={nodePicker.disabledNodeTypes}
-                        pluginGroupLabelByNodeType={catalog.pluginGroupLabelByNodeType}
-                        activeTab={nodeSelectorTab.activeTab}
-                        onActiveTabChange={nodeSelectorTab.onActiveTabChange}
-                        open={!disabled && nodePicker.open}
-                        operationLabel={nodePicker.operationLabel}
-                        keepOpenOnFocusOutside={Boolean(nodePicker.anchorPosition)}
-                        side={nodePicker.popoverSide}
-                        align={nodePicker.popoverAlign}
-                        onOpenChange={handleNodePickerOpenChange}
-                        onSelectNode={nodePicker.handleSelectNode}
-                      />
-                    </div>
-                  </WorkflowAddNodeProvider>
-                </WorkflowContextMenu>
-              </WorkflowLoopEditorProvider>
-            </WorkflowEnvironmentVariablesProvider>
-          </WorkflowStudioAppCatalogProvider>
-        </WorkflowKnowledgeBaseCatalogProvider>
+                      </div>
+                    </WorkflowAddNodeProvider>
+                  </WorkflowContextMenu>
+                </WorkflowLoopEditorProvider>
+              </WorkflowEnvironmentVariablesProvider>
+            </WorkflowStudioAppCatalogProvider>
+          </WorkflowKnowledgeBaseCatalogProvider>
+        </WorkflowAgentProvider>
       </WorkflowModelCatalogProvider>
     </>
   )

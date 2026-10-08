@@ -38,8 +38,9 @@ import {
   getSelectionRootNodeIds,
   removeDanglingEdges,
   removeEdgesConnectedToNodes,
+  syncLoopChildExtents,
 } from '@/utils/workflow/editor-elements'
-import { useWorkflowHistory } from './use-workflow-history'
+import { type WorkflowMetadata, useWorkflowHistory } from './use-workflow-history'
 import { useWorkflowLoopEditor } from './use-workflow-loop-editor'
 import { getAvailableVariables } from '../utils/get-available-variables'
 import type { WorkflowCanvasNode, WorkflowEditorSnapshot } from '@/components/workflow/types'
@@ -249,6 +250,13 @@ export function useWorkflowEditor({
   catalog,
 }: UseWorkflowEditorOptions) {
   const { nodeRegistry } = catalog,
+    [metadata, setMetadata] = useState<WorkflowMetadata>({
+      id: initialSnapshot.workflow.id,
+      name: initialSnapshot.workflow.name,
+      description: initialSnapshot.workflow.description,
+      outputs: initialSnapshot.workflow.outputs,
+      plugins: initialSnapshot.workflow.plugins,
+    }),
     [nodes, setNodes, applyNodeChanges] = useNodesState<WorkflowCanvasNode>(
       toCanvasNodes(initialSnapshot, nodeRegistry),
     ),
@@ -283,6 +291,8 @@ export function useWorkflowEditor({
       setViewport: setReactFlowViewport,
     } = useReactFlow<WorkflowCanvasNode, WorkflowEdge>(),
     history = useWorkflowHistory({
+      metadata,
+      setMetadata,
       nodes,
       edges,
       environmentVariables,
@@ -321,11 +331,14 @@ export function useWorkflowEditor({
       }
 
       return {
-        ...toWorkflow(initialSnapshot.workflow, nodes, edges),
+        ...toWorkflow({ ...initialSnapshot.workflow, ...metadata }, nodes, edges),
         environmentVariables,
-        plugins: catalog.pluginLock.filter((lock) => usedPluginIds.has(lock.pluginId)),
+        plugins: [
+          ...metadata.plugins.filter((lock) => !usedPluginIds.has(lock.pluginId)),
+          ...catalog.pluginLock.filter((lock) => usedPluginIds.has(lock.pluginId)),
+        ],
       }
-    }, [catalog, edges, environmentVariables, initialSnapshot.workflow, nodes]),
+    }, [catalog, edges, environmentVariables, initialSnapshot.workflow, metadata, nodes]),
     // 画布选中节点
     selectedCanvasNode = nodes.find((node) => node.id === selectedNodeId),
     // 选择态只用于画布交互，不写入 Core 工作流数据。
@@ -1302,6 +1315,87 @@ export function useWorkflowEditor({
     })
   }
 
+  function applyAgentCandidate(candidate: Workflow) {
+    if (candidate.id !== workflow.id) throw new Error('候选不属于当前工作流')
+    for (const lock of candidate.plugins) {
+      if (
+        !catalog.pluginLock.some(
+          (current) =>
+            current.pluginId === lock.pluginId &&
+            current.version === lock.version &&
+            current.digest === lock.digest,
+        )
+      ) {
+        throw new Error('候选插件版本与当前编辑器目录不一致，请刷新目录后重新生成')
+      }
+    }
+    const currentSnapshot = createSnapshot(),
+      candidateNodeById = new Map(candidate.nodes.map((node) => [node.id, node])),
+      positions = Object.fromEntries(
+        nodes.flatMap((node) =>
+          candidateNodeById.get(node.id)?.parentId === node.parentId
+            ? [[node.id, node.position]]
+            : [],
+        ),
+      )
+    let nextNodes = toCanvasNodes(
+      { workflow: candidate, layout: { ...currentSnapshot.layout, positions } },
+      nodeRegistry,
+    )
+    const placed = nextNodes.filter((node) => !node.parentId || positions[node.id])
+    for (const node of nextNodes) {
+      if (!node.parentId || positions[node.id]) continue
+      node.position =
+        node.type === BuiltinNodeType.LOOP_START
+          ? { x: 32, y: 96 }
+          : node.type === BuiltinNodeType.LOOP_EXIT
+            ? { x: 260, y: 96 }
+            : getNextLoopChildPosition(node.parentId, placed)
+      placed.push(node)
+    }
+    // 从内向外扩容，确保新增子节点和嵌套 Loop 落在合法拖拽范围内。
+    for (const node of nextNodes.toReversed()) {
+      if (node.type !== BuiltinNodeType.LOOP) continue
+      const size = getLoopNodeSize(node)
+      for (const child of nextNodes.filter((item) => item.parentId === node.id)) {
+        const childSize = getCanvasNodeSize(child)
+        size.width = Math.max(size.width, child.position.x + childSize.width + 32)
+        size.height = Math.max(size.height, child.position.y + childSize.height + 32)
+      }
+      node.style = size
+    }
+    nextNodes = autoLayoutRootNodes(syncLoopChildExtents(nextNodes), candidate.edges)
+    history.checkpoint()
+    setMetadata({
+      id: candidate.id,
+      name: candidate.name,
+      description: candidate.description,
+      outputs: candidate.outputs,
+      plugins: candidate.plugins,
+    })
+    setNodes(nextNodes)
+    setEdges([...candidate.edges])
+    setEnvironmentVariables(
+      candidate.environmentVariables.map((variable) => {
+        const existing = environmentVariables.find(
+          (v) => v.id === variable.id && v.type === 'secret',
+        )
+        return variable.type === 'secret'
+          ? { ...variable, value: existing?.type === 'secret' ? existing.value : '' }
+          : variable
+      }),
+    )
+    setSelectedNodeIds(new Set())
+    setSelectedEdgeIds(new Set())
+    setSelectedNodeId(undefined)
+    setNodeDraftValidationIssuesState(undefined)
+    setDirty(true)
+    requestAnimationFrame(() => {
+      nextNodes.forEach((node) => updateNodeInternals(node.id))
+      void fitView({ padding: 0.2, maxZoom: 1, duration: 200 })
+    })
+  }
+
   function nudgeSelectedNodes(offset: { x: number; y: number }) {
     const movedNodeIds = getSelectionRootNodeIds(selectedNodeIds, nodes)
     if (movedNodeIds.size === 0) return false
@@ -1421,6 +1515,7 @@ export function useWorkflowEditor({
     addNode,
     applyNode,
     autoLayout,
+    applyAgentCandidate,
     availableNodeTypes,
     canAddNextNode,
     canRedo: history.canRedo,
@@ -1485,6 +1580,7 @@ export function useWorkflowEditor({
     redo: history.redo,
     selectAllNodes,
     selectNodeForContextMenu,
+    selectedNodeIds,
     selectedNode,
     selectedNodeAvailableVariables,
     selectedNodeDefaultLabel,

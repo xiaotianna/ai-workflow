@@ -1,3 +1,4 @@
+import { projectAgentData } from '@/utils/agent-data'
 import type { PreparedNodeDispatch } from '@/common/interfaces/workflow-run-persistence.interface'
 import { ListAppApiWorkflowRunsDto } from '@/dto/app-api.dto'
 import {
@@ -274,7 +275,14 @@ export class WorkflowRunService {
     }
   }
 
-  async getRunDetail(ownerId: string, appId: string, runId: string): Promise<WorkflowRunDetailVo> {
+  getRunDetail(ownerId: string, appId: string, runId: string): Promise<WorkflowRunDetailVo>
+  getRunDetail(ownerId: string, appId: string, runId: string, forAgent: true): Promise<unknown>
+  async getRunDetail(
+    ownerId: string,
+    appId: string,
+    runId: string,
+    forAgent = false,
+  ): Promise<unknown> {
     const run = await this.workflowRunRepository.findOwnedRunDetail(ownerId, appId, runId)
     if (!run) throw new NotFoundException('运行记录不存在')
     const definition = parseWorkflowDefinition(run.version.definition)
@@ -282,11 +290,16 @@ export class WorkflowRunService {
     const layout = parseWorkflowLayout(run.version.layout)
     if (!layout) throw new InternalServerErrorException('运行绑定的工作流布局快照格式无效')
 
-    return {
+    const detail = {
       ...toWorkflowTestRunVo(run),
       definition: redactWorkflowDefinitionSecrets(definition),
       layout,
     }
+    if (!forAgent) return detail
+    const secrets = definition.environmentVariables
+      .filter((v) => v.type === 'secret')
+      .map((v) => String(v.value))
+    return projectAgentData(detail, secrets)
   }
 
   async getApiRun(appId: string, runId: string): Promise<WorkflowTestRunVo> {

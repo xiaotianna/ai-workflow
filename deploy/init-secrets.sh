@@ -74,5 +74,9 @@ sync_secret executor_token "${EXECUTOR_INTERNAL_AUTH_TOKEN:-}" \
   "$secrets_root/server/executor_token" \
   "$secrets_root/executor/executor_token"
 
+sync_secret agent_token "${AGENT_RUNTIME_INTERNAL_AUTH_TOKEN:-}" \
+  "$secrets_root/server/agent_token" \
+  "$secrets_root/agent/agent_token"
+
 sync_secret model_key "${MODEL_CREDENTIAL_ENCRYPTION_KEY:-}" \
   "$secrets_root/server/model_key"
