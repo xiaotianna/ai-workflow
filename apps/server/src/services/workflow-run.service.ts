@@ -276,7 +276,12 @@ export class WorkflowRunService {
   }
 
   getRunDetail(ownerId: string, appId: string, runId: string): Promise<WorkflowRunDetailVo>
-  getRunDetail(ownerId: string, appId: string, runId: string, forAgent: true): Promise<unknown>
+  getRunDetail(
+    ownerId: string,
+    appId: string,
+    runId: string,
+    forAgent: true,
+  ): Promise<ReturnType<typeof projectAgentData>>
   async getRunDetail(
     ownerId: string,
     appId: string,

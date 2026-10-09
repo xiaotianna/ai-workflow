@@ -28,12 +28,21 @@ export const agentSnapshotSchema = z.object({
   layout: z.object({
     positions: z.record(z.string(), point),
     sizes: z
-      .record(z.string(), z.object({ width: z.number().positive(), height: z.number().positive() }))
+      .record(
+        z.string(),
+        z.object({
+          width: z.number().positive(),
+          height: z.number().positive(),
+        }),
+      )
       .optional(),
     viewport: z.object({ x: z.number(), y: z.number(), zoom: z.number().positive() }).optional(),
   }),
 })
-export const agentModelRefSchema = z.object({ groupId: z.uuid(), configuredModelId: z.uuid() })
+export const agentModelRefSchema = z.object({
+  groupId: z.uuid(),
+  configuredModelId: z.uuid(),
+})
 export const agentImageSchema = z.object({
   mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
   data: z
@@ -50,10 +59,45 @@ export const agentImageSchema = z.object({
     ),
 })
 export type AgentImage = z.infer<typeof agentImageSchema>
+export const agentReasoningFieldSchema = z.enum([
+  'reasoning_content',
+  'reasoning',
+  'reasoning_text',
+])
+export const agentMessageSchema = z.discriminatedUnion('role', [
+  z.object({
+    role: z.literal('user'),
+    text: z.string(),
+    images: z.array(agentImageSchema).optional(),
+  }),
+  z.object({
+    role: z.literal('assistant'),
+    content: z.array(
+      z.discriminatedUnion('type', [
+        z.object({ type: z.literal('text'), text: z.string() }),
+        z.object({
+          type: z.literal('reasoning'),
+          text: z.string(),
+          field: agentReasoningFieldSchema.optional(),
+        }),
+        z.object({
+          type: z.literal('tool-call'),
+          toolCallId: id,
+          toolName: agentToolNameSchema,
+          args: z.record(z.string(), json),
+          result: json,
+          isError: z.boolean(),
+        }),
+      ]),
+    ),
+  }),
+])
+export type AgentMessage = z.infer<typeof agentMessageSchema>
 export const agentTurnSchema = z
   .object({
     protocolVersion: z.literal(1),
     sessionId: z.uuid().optional(),
+    messages: z.array(agentMessageSchema).default([]),
     prompt: z.string().trim().min(1).max(16_000),
     images: z.array(agentImageSchema).optional(),
     contextNodeIds: z.array(id).max(20),
@@ -135,8 +179,14 @@ export const agentToolInputSchemas = {
   set_canvas_candidate: z.object({ workflow: workflowSchema }),
 }
 export const agentGatewayCallSchema = z.discriminatedUnion('tool', [
-  z.object({ tool: z.literal('list_node_types'), input: agentToolInputSchemas.list_node_types }),
-  z.object({ tool: z.literal('get_node_type'), input: agentToolInputSchemas.get_node_type }),
+  z.object({
+    tool: z.literal('list_node_types'),
+    input: agentToolInputSchemas.list_node_types,
+  }),
+  z.object({
+    tool: z.literal('get_node_type'),
+    input: agentToolInputSchemas.get_node_type,
+  }),
   z.object({
     tool: z.literal('inspect_project_resources'),
     input: agentToolInputSchemas.inspect_project_resources,
@@ -145,7 +195,10 @@ export const agentGatewayCallSchema = z.discriminatedUnion('tool', [
     tool: z.literal('list_workflow_runs'),
     input: agentToolInputSchemas.list_workflow_runs,
   }),
-  z.object({ tool: z.literal('get_workflow_run'), input: agentToolInputSchemas.get_workflow_run }),
+  z.object({
+    tool: z.literal('get_workflow_run'),
+    input: agentToolInputSchemas.get_workflow_run,
+  }),
   z.object({
     tool: z.literal('validate_workflow'),
     input: agentToolInputSchemas.validate_workflow,
@@ -166,7 +219,11 @@ export const agentGatewayResultSchema = z.discriminatedUnion('ok', [
     data: json,
     truncated: z.boolean().optional(),
   }),
-  z.object({ protocolVersion: z.literal(1), ok: z.literal(false), error: agentErrorSchema }),
+  z.object({
+    protocolVersion: z.literal(1),
+    ok: z.literal(false),
+    error: agentErrorSchema,
+  }),
 ])
 export type AgentGatewayResult = z.infer<typeof agentGatewayResultSchema>
 export const agentValidationSchema = z.object({
@@ -184,19 +241,37 @@ export const agentValidationSchema = z.object({
 const display = z.object({
   summary: z.string().max(1000),
   fields: z.record(z.string(), z.union([z.string().max(500), z.number(), z.boolean()])).optional(),
+  data: json.optional(),
+  truncated: z.boolean().optional(),
 })
 export type AgentToolDisplay = z.infer<typeof display>
 export const agentEventSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('session_started'), sessionId: z.uuid(), agentRunId: z.uuid() }),
+  z.object({
+    type: z.literal('session_started'),
+    sessionId: z.uuid(),
+    agentRunId: z.uuid(),
+  }),
   z.object({
     type: z.literal('reasoning_started'),
     reasoningId: id,
-    source: z.enum(['runtime', 'model_summary']),
+    source: z.enum(['runtime', 'model_summary', 'model']),
     startedAt: time,
   }),
-  z.object({ type: z.literal('reasoning_delta'), reasoningId: id, delta: z.string().max(4000) }),
-  z.object({ type: z.literal('reasoning_finished'), reasoningId: id, completedAt: time }),
-  z.object({ type: z.literal('assistant_delta'), delta: z.string().max(16_000) }),
+  z.object({
+    type: z.literal('reasoning_delta'),
+    reasoningId: id,
+    delta: z.string().max(4000),
+  }),
+  z.object({
+    type: z.literal('reasoning_finished'),
+    reasoningId: id,
+    completedAt: time,
+    field: agentReasoningFieldSchema.optional(),
+  }),
+  z.object({
+    type: z.literal('assistant_delta'),
+    delta: z.string().max(16_000),
+  }),
   z.object({
     type: z.literal('tool_queued'),
     toolCallId: id,
@@ -281,4 +356,65 @@ export async function hashAgentSnapshot(snapshot: AgentSnapshot): Promise<string
 
 export function encodeAgentEvent(event: AgentEvent): string {
   return `event: ${event.type}\ndata: ${JSON.stringify({ protocolVersion: 1, ...event })}\n\n`
+}
+
+export function projectAgentData(
+  value: unknown,
+  secrets: readonly string[] = [],
+): {
+  data: z.infer<typeof json>
+  truncated: boolean
+} {
+  let truncated = false
+  const redact = (text: string) =>
+    secrets.filter(Boolean).reduce((s, secret) => s.split(secret).join('********'), text)
+  function visit(item: unknown, depth: number): unknown {
+    if (typeof item === 'function' || typeof item === 'symbol') return null
+    if (depth > 15) {
+      truncated = true
+      return { truncated: true }
+    }
+    if (typeof item === 'string') {
+      const text = redact(item)
+      if (text.length > 4000) {
+        truncated = true
+        return `${text.slice(0, 4000)}…[已截断]`
+      }
+      return text
+    }
+    if (item instanceof Date) return item.toISOString()
+    if (Array.isArray(item)) {
+      if (item.length > 100) truncated = true
+      return item.slice(0, 100).map((entry) => visit(entry, depth + 1))
+    }
+    if (item && typeof item === 'object') {
+      const entries = Object.entries(item)
+      if (entries.length > 100) truncated = true
+      return Object.fromEntries(
+        entries
+          .slice(0, 100)
+          .filter(([, v]) => v !== undefined)
+          .map(([key, entry]) => [
+            redact(key),
+            /^(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|credential|storageKey)$/i.test(
+              key,
+            )
+              ? '********'
+              : visit(entry, depth + 1),
+          ]),
+      )
+    }
+    return item ?? null
+  }
+  const data = json.parse(visit(value, 0))
+  if (
+    new TextEncoder().encode(JSON.stringify(data)).byteLength >
+    AGENT_MAX_TOOL_RESULT_BYTES - 1024
+  ) {
+    return {
+      data: { truncated: true, summary: '结果超过大小限制，请缩小查询范围' },
+      truncated: true,
+    }
+  }
+  return { data, truncated }
 }

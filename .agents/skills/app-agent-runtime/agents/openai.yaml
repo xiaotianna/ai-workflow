@@ -1,4 +1,4 @@
 interface:
   display_name: 'Agent Runtime（app-agent-runtime）'
-  short_description: '维护 Pi Agent Runtime 的模型、会话、工具、事件、取消、启动与部署边界'
+  short_description: '维护 Pi Agent Runtime 的模型、对话上下文、活跃运行、工具、取消与部署边界'
   default_prompt: '使用 $app-agent-runtime 修改项目中的 Pi Agent Runtime。'

@@ -175,7 +175,9 @@ export class AgentToolGatewayService {
       } else if (call.tool === 'list_workflow_runs') {
         data = await this.runs.listRuns(ownerId, appId, { ...call.input, scope: 'all' })
       } else if (call.tool === 'get_workflow_run') {
-        data = await this.runs.getRunDetail(ownerId, appId, call.input.runId, true)
+        const result = await this.runs.getRunDetail(ownerId, appId, call.input.runId, true)
+        data = result.data
+        truncated = result.truncated
       } else {
         const workflow = workflowSchema.parse(call.input.workflow)
         if (workflow.id !== claims.workflowId)

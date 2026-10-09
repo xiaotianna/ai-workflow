@@ -102,7 +102,7 @@ go run .
 - Executor 与 Server 共用应用镜像，镜像内包含 Code 节点和 Pi Agent Core 需要的 Node.js 22.19.0；
 - PostgreSQL、Redis、RabbitMQ 和 OpenSearch，数据写入 Docker named volume。
 
-Agent Runtime 通过内部网络调用 Server Tool Gateway，仅挂载 Agent 内部认证密钥；模型凭证由 Server 按本轮请求解析。会话仅保存在内存中，重启后可从界面重新发起。
+Agent Runtime 通过内部网络调用 Server Tool Gateway，仅挂载 Agent 内部认证密钥；模型凭证由 Server 按本轮请求解析。对话历史保存在浏览器，每轮携带当前对话的消息上下文；Runtime 重启后可使用同一 sessionId 继续对话。
 
 应用进程共用一个构建产物，但仍分别运行在独立容器中，避免进程互相影响。数据库、缓存、消息队列和
 搜索服务继续使用独立官方镜像与数据卷，便于持久化、升级和故障恢复。

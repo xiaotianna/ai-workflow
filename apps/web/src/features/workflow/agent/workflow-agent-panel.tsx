@@ -87,7 +87,7 @@ import { agentResourceReferenceSchema } from '../schema'
 import { AgentContextPicker, AgentComposerTriggers } from './agent-context-picker'
 import { PromptInput, PromptInputTextarea, PromptInputToolbar } from './prompt-input'
 import type { AgentRunStatus, ToolTrace } from './agent-transcript'
-import type { AgentError } from '@ai-workflow/agent-protocol'
+import type { AgentError, AgentToolDisplay } from '@ai-workflow/agent-protocol'
 
 const MARKDOWN_OPTIONS = {
     security: {
@@ -162,7 +162,10 @@ function AgentMessageDetails({
           initial={{ height: reducedMotion ? 'auto' : 0, opacity: 0 }}
           animate={{ height: 'auto', opacity: 1 }}
           exit={{ height: reducedMotion ? 'auto' : 0, opacity: 0 }}
-          transition={{ duration: reducedMotion ? 0.12 : 0.2, ease: [0.22, 1, 0.36, 1] }}
+          transition={{
+            duration: reducedMotion ? 0.12 : 0.2,
+            ease: [0.22, 1, 0.36, 1],
+          }}
         >
           {children}
         </motion.div>
@@ -189,7 +192,7 @@ function AgentReasoning({ text, status, timing }: ReasoningMessagePartProps) {
           className={cn('size-3.5', running && 'text-primary motion-safe:animate-pulse')}
           aria-hidden
         />
-        <span className="flex-1">{running ? '正在思考' : '思考摘要'}</span>
+        <span className="flex-1">{running ? '正在思考' : '思考过程'}</span>
         <span>{seconds(timing?.startedAt, timing?.completedAt ?? now)}</span>
         <ChevronDown
           className={cn(
@@ -200,8 +203,21 @@ function AgentReasoning({ text, status, timing }: ReasoningMessagePartProps) {
         />
       </button>
       <AgentMessageDetails id={id} open={open}>
-        <p className="pt-2 leading-5 whitespace-pre-wrap">{text || '正在分析请求…'}</p>
+        {text && <p className="pt-2 leading-5 break-words whitespace-pre-wrap">{text}</p>}
       </AgentMessageDetails>
+    </div>
+  )
+}
+function AgentToolPayload({ label, display }: { label: string; display: AgentToolDisplay }) {
+  const data = display.data ?? display.fields
+  if (data === undefined) return null
+  return (
+    <div className="space-y-1 pt-2">
+      <p className="text-foreground font-medium">{label}</p>
+      <pre className="bg-input max-h-64 overflow-auto rounded-lg p-2 font-mono text-xs leading-5 break-words whitespace-pre-wrap">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+      {display.truncated && <p>数据已截断，可缩小查询范围查看。</p>}
     </div>
   )
 }
@@ -210,7 +226,10 @@ function AgentToolCard({ toolName, artifact }: ToolCallMessagePartProps) {
     [expanded, setExpanded] = useState<boolean>(),
     id = useId(),
     trace = artifact as ToolTrace | undefined,
-    presentation = TOOL_PRESENTATIONS[toolName] ?? { label: '工具调用', icon: Wrench },
+    presentation = TOOL_PRESENTATIONS[toolName] ?? {
+      label: toolName,
+      icon: Wrench,
+    },
     Icon = presentation.icon,
     state = trace?.state ?? 'queued',
     running = state === 'running' || state === 'progress',
@@ -236,7 +255,7 @@ function AgentToolCard({ toolName, artifact }: ToolCallMessagePartProps) {
             : '已停止',
     start = trace?.startedAt ? Date.parse(trace.startedAt) : undefined,
     end = trace?.completedAt ? Date.parse(trace.completedAt) : now,
-    resultSummary = state === 'succeeded' ? undefined : trace?.displayResult?.summary
+    resultSummary = trace?.displayResult?.summary
   return (
     <div className="border-border/60 rounded-xl border-[0.5px] p-3 text-xs">
       <button
@@ -276,34 +295,14 @@ function AgentToolCard({ toolName, artifact }: ToolCallMessagePartProps) {
         />
       </button>
       {resultSummary && !open && (
-        <p className="text-muted-foreground mt-1 truncate">{resultSummary}</p>
+        <p className="text-muted-foreground mt-1 break-words">{resultSummary}</p>
       )}
       <AgentMessageDetails id={id} open={open}>
         <div className="text-muted-foreground space-y-1 pt-3">
-          <p>{trace?.displayArgs.summary ?? '正在等待工具执行'}</p>
-          {trace?.displayArgs.fields && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1">
-              {Object.entries(trace.displayArgs.fields).map(([key, value]) => (
-                <div key={key} className="contents">
-                  <dt>
-                    {(
-                      {
-                        nodeCount: '节点数',
-                        resource: '资源',
-                        type: '节点类型',
-                        source: '画布来源',
-                        runId: '运行 ID',
-                        limit: '条数',
-                        status: '状态',
-                        trigger: '触发方式',
-                      } as Record<string, string>
-                    )[key] ?? key}
-                  </dt>
-                  <dd className="min-w-0 break-all">{String(value)}</dd>
-                </div>
-              ))}
-            </dl>
+          {trace?.displayArgs.data === undefined && (
+            <p>{trace?.displayArgs.summary ?? '正在等待工具执行'}</p>
           )}
+          {trace?.displayArgs && <AgentToolPayload label="调用参数" display={trace.displayArgs} />}
           {running && start && now - start >= 10_000 && <p>仍在处理中 · {seconds(start, now)}</p>}
           {trace?.progress && (
             <>
@@ -320,6 +319,9 @@ function AgentToolCard({ toolName, artifact }: ToolCallMessagePartProps) {
           )}
           {resultSummary && (
             <p className={state === 'failed' ? 'text-destructive' : undefined}>{resultSummary}</p>
+          )}
+          {trace?.displayResult && (
+            <AgentToolPayload label="返回结果" display={trace.displayResult} />
           )}
           {state === 'failed' && <p>助手会尝试修正；本轮结束后可基于当前画布重试。</p>}
         </div>
@@ -405,7 +407,11 @@ function CandidateCard({
 }
 function Outcome({
   data,
-}: DataMessagePartProps<{ state: AgentRunStatus; error?: AgentError; completedAt?: number }>) {
+}: DataMessagePartProps<{
+  state: AgentRunStatus
+  error?: AgentError
+  completedAt?: number
+}>) {
   const agent = useWorkflowAgent(),
     message = useAuiState((s) => s.message),
     presentation = OUTCOMES[data.state] ?? OUTCOMES.failed!,
@@ -429,7 +435,7 @@ function Outcome({
           disabled={agent.active}
           onClick={() => agent.retry(message.id)}
         >
-          {data.error?.code === 'SESSION_NOT_FOUND' ? '新建会话并重新发送' : '使用当前画布重试'}
+          使用当前画布重试
         </Button>
       )}
       {data.error?.code === 'MODEL_TOOL_CALL_UNSUPPORTED' && (
@@ -525,13 +531,20 @@ function AssistantMessage() {
               <p className="text-muted-foreground text-xs">正在准备上下文…</p>
             ) : null,
           tools: { Fallback: AgentToolCard },
-          data: { by_name: { 'workflow-candidate': () => null, 'agent-outcome': Outcome } },
+          data: {
+            by_name: {
+              'workflow-candidate': () => null,
+              'agent-outcome': Outcome,
+            },
+          },
         }}
       />
       {candidateIndex !== -1 && (
         <MessagePrimitive.PartByIndex
           index={candidateIndex}
-          components={{ data: { by_name: { 'workflow-candidate': CandidateCard } } }}
+          components={{
+            data: { by_name: { 'workflow-candidate': CandidateCard } },
+          }}
         />
       )}
     </MessagePrimitive.Root>

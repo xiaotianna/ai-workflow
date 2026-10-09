@@ -17,7 +17,8 @@ export function createPiModel(config: AgentResolvedModel) {
       input: ['text', 'image'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 32_768,
-      maxTokens: 8192,
+      // Pi 必填元数据；使用原始 stream 将输出长度交由供应商决定。
+      maxTokens: 0,
       compat: {
         supportsStore: false,
         supportsDeveloperRole: false,
@@ -41,5 +42,5 @@ export function createPiModel(config: AgentResolvedModel) {
       },
     }),
   )
-  return { model, streamFn: models.streamSimple.bind(models) }
+  return { model, streamFn: models.stream.bind(models) }
 }

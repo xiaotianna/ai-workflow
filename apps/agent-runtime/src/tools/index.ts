@@ -4,6 +4,7 @@ import {
   agentToolInputSchemas,
   agentValidationSchema,
   maskAgentWorkflow,
+  projectAgentData,
   type AgentToolDisplay,
   type AgentToolName,
 } from '@ai-workflow/agent-protocol'
@@ -30,7 +31,6 @@ export function projectToolArgs(name: string, raw: unknown): AgentToolDisplay {
   const parsed = agentToolInputSchemas[name as AgentToolName].safeParse(raw)
   if (!parsed.success) return { summary: '正在校验工具参数' }
   const input = parsed.data,
-    // 只展示固定的非内容字段；Prompt、config、Workflow 和日志载荷不进入事件。
     fields: Record<string, string | number | boolean> = {}
   for (const key of [
     'source',
@@ -40,6 +40,8 @@ export function projectToolArgs(name: string, raw: unknown): AgentToolDisplay {
     'status',
     'trigger',
     'runId',
+    'search',
+    'from',
   ] as const) {
     if (key in input) {
       const value = (input as Record<string, unknown>)[key]
@@ -48,7 +50,63 @@ export function projectToolArgs(name: string, raw: unknown): AgentToolDisplay {
   }
   if ('nodeIds' in input && input.nodeIds) fields.nodeCount = input.nodeIds.length
   if ('workflow' in input) fields.nodeCount = input.workflow.nodes.length
-  return { summary: descriptions[name as AgentToolName].split('。')[0]!, fields }
+  const projected = projectAgentData(
+    'workflow' in input ? { ...input, workflow: maskAgentWorkflow(input.workflow) } : input,
+  )
+  return { summary: descriptions[name as AgentToolName].split('。')[0]!, fields, ...projected }
+}
+
+export function projectToolResult(name: AgentToolName, raw: unknown): AgentToolDisplay {
+  const projected = projectAgentData(raw),
+    value = projected.data,
+    wrapped = value !== null && typeof value === 'object' && !Array.isArray(value) ? value : {},
+    data = wrapped.truncated && 'data' in wrapped ? wrapped.data : value,
+    result = data !== null && typeof data === 'object' && !Array.isArray(data) ? data : {},
+    items = Array.isArray(data) ? data : Array.isArray(result.items) ? result.items : [],
+    count = Array.isArray(result.nodes) ? result.nodes.length : 0
+  let summary: string
+  switch (name) {
+    case 'read_canvas': {
+      summary = `已读取 ${count} 个节点、${Array.isArray(result.edges) ? result.edges.length : 0} 条连线`
+      break
+    }
+    case 'list_node_types': {
+      summary = `找到 ${count} 种节点类型`
+      break
+    }
+    case 'get_node_type': {
+      summary = `已读取节点定义：${result.label ?? result.type}`
+      break
+    }
+    case 'inspect_project_resources': {
+      summary = 'name' in result ? `已读取应用：${result.name}` : `找到 ${items.length} 项项目资源`
+      break
+    }
+    case 'list_workflow_runs': {
+      summary = `找到 ${items.length} 条运行记录`
+      break
+    }
+    case 'get_workflow_run': {
+      summary = `运行状态：${result.status ?? '未知'} · ${Array.isArray(result.nodeRuns) ? result.nodeRuns.length : 0} 条节点追踪`
+      break
+    }
+    case 'validate_workflow':
+    case 'set_canvas_candidate': {
+      summary = result.valid
+        ? name === 'set_canvas_candidate'
+          ? `候选已校验：${result.nodeCount} 个节点、${result.edgeCount} 条连线`
+          : '工作流校验通过'
+        : `校验未通过：${Array.isArray(result.issues) ? result.issues.length : 0} 项问题`
+      break
+    }
+  }
+  const truncated = projected.truncated || wrapped.truncated === true
+  if (typeof result.summary === 'string') summary = result.summary
+  return {
+    ...projected,
+    truncated,
+    summary: `${summary}${truncated ? '（结果已截断）' : ''}`.slice(0, 1000),
+  }
 }
 
 export function createTools(context: ToolContext): AgentTool[] {
@@ -79,15 +137,17 @@ export function createTools(context: ToolContext): AgentTool[] {
               [...nodeIds].some((nodeId) => !workflow.nodes.some((node) => node.id === nodeId))
             )
               throw new Error('节点不属于当前画布')
-            data = nodeIds
-              ? {
-                  ...workflow,
-                  nodes: workflow.nodes.filter((node) => nodeIds.has(node.id)),
-                  edges: workflow.edges.filter(
-                    (edge) => nodeIds.has(edge.source) || nodeIds.has(edge.target),
-                  ),
-                }
-              : workflow
+            data = maskAgentWorkflow(
+              nodeIds
+                ? {
+                    ...workflow,
+                    nodes: workflow.nodes.filter((node) => nodeIds.has(node.id)),
+                    edges: workflow.edges.filter(
+                      (edge) => nodeIds.has(edge.source) || nodeIds.has(edge.target),
+                    ),
+                  }
+                : workflow,
+            )
           } else if (name === 'set_canvas_candidate' || name === 'validate_workflow') {
             const { workflow } = agentToolInputSchemas[name].parse(input)
             if (workflow.id !== context.baselineSnapshot.workflow.id)
@@ -103,7 +163,7 @@ export function createTools(context: ToolContext): AgentTool[] {
               if (!result.valid || !result.workflow)
                 return {
                   content: [{ type: 'text', text: JSON.stringify(result) }],
-                  details: { summary: '候选未通过校验' },
+                  details: { displayResult: projectToolResult(name, result) },
                   isError: true,
                 }
               signal?.throwIfAborted()
@@ -114,7 +174,12 @@ export function createTools(context: ToolContext): AgentTool[] {
                 baseSnapshotHash: context.baseSnapshotHash,
                 workflow: context.workingCandidate,
               })
-              data = { valid: true, nodeCount: context.workingCandidate.nodes.length }
+              data = {
+                valid: true,
+                nodeCount: context.workingCandidate.nodes.length,
+                edgeCount: context.workingCandidate.edges.length,
+                outputCount: context.workingCandidate.outputs.length,
+              }
             }
           } else if (name === 'list_node_types') {
             const options = agentToolInputSchemas.list_node_types.parse(input)
@@ -152,9 +217,10 @@ export function createTools(context: ToolContext): AgentTool[] {
             throw new Error('工具结果超过大小限制，请聚焦更少节点或缩小查询范围')
           return {
             content: [{ type: 'text', text }],
-            details: {
-              summary: name === 'set_canvas_candidate' ? '候选已校验，可预览' : '查询完成',
-            },
+            details: { displayResult: projectToolResult(name, data) },
+            ...(name === 'validate_workflow' && !agentValidationSchema.parse(data).valid
+              ? { isError: true }
+              : {}),
           }
         } catch (error) {
           const message = signal?.aborted

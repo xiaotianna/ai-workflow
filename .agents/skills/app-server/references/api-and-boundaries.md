@@ -358,8 +358,10 @@ Studio 管理接口使用 Bearer JWT，并按当前用户和应用隔离：
 
 ## AI Agent 接口
 
-- POST /studio/apps/:appId/agent/runs 使用用户 JWT，校验当前 owner/app 草稿、未保存 Snapshot、摘要、模型 UUID 和最多 20 个当前节点引用，返回未经 ApiResponse 包装的 SSE；POST sessions/:sessionId/abort 按同一范围取消。
+- POST /studio/apps/:appId/agent/runs 使用用户 JWT，校验当前 owner/app 草稿、未保存 Snapshot、摘要、messages 对话历史、模型 UUID 和最多 20 个当前节点引用，返回未经 ApiResponse 包装的 SSE；POST sessions/:sessionId/abort 按同一范围取消。
+- 每轮通过共享 agentMessageSchema 校验并透传 messages 历史；sessionId 是稳定对话标识，不查询历史存储或判断会话过期。Run 级签名上下文期限和结束释放仍是 Gateway 授权边界。
 - Agent 请求可选 images 使用共享 agentImageSchema 校验，PNG/JPEG/WebP 数组不设张数上限、每张解码后最大 10MiB，随本轮请求透传 Runtime；Agent Run 路径独立配置 64MiB JSON 解析上限，其他 JSON 接口保持 1MiB，不在日志中记录图片载荷。
+- Agent 工具与运行追踪复用 Agent Protocol 的 projectAgentData 脱敏和裁剪；get_workflow_run Gateway 返回投影中的 data，并将 truncated 提升到 Gateway 结果，不嵌套投影包装。SSE 代理通过共享 Schema 接收模型 thinking 与工具真实展示数据，模型凭证和上下文令牌不进入这些事件。
 - AI 助手模型使用模型管理页面保存的 Chat 模型：按当前用户、groupId 与 configuredModelId 校验启用状态，读取供应商地址并解密本轮 API Key；不从环境变量读取模型 API Key。
 - 本地 Turbo 启动通过 scripts/agent-dev.mjs 自动衔接 Server/Runtime 的地址与内部认证，令牌保存在忽略文件 .agent-runtime.auth.local；生产与显式远程 Runtime 仍要求部署配置内部认证。
 - AGENT_RUNTIME_URL 与至少 32 字符的 AGENT_RUNTIME_INTERNAL_AUTH_TOKEN 成对配置；超时使用 AGENT_RUN_TIMEOUT_MS。对内调用不复用 Executor Token；上下文 HMAC 绑定本轮 owner/app/run/workflow/工具名单与短期过期时间，并在 Run 结束时释放。

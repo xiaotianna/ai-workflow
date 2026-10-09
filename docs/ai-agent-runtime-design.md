@@ -27,7 +27,7 @@
 4. Agent Runtime 作为独立 workspace 应用部署，Pi 依赖和会话生命周期不进入 Server、Web 或工作流执行包。
 5. Agent 核心只依赖模型、Prompt、Tools 和事件输出，不直接依赖 NestJS、Prisma、React 或项目业务 Service。
 6. Web 在应用候选前展示结果，并确保 Agent 运行期间产生的用户编辑不会被静默覆盖。
-7. Web 使用 Assistant UI 展示完整的可审计执行轨迹，包括安全的思考摘要、每次 Tool 调用、状态、耗时和结果摘要。
+7. Web 使用 Assistant UI 展示完整的可审计执行轨迹，包括模型实际返回的可见思考过程、每次 Tool 调用、状态、耗时、参数与结果数据。
 8. 用户可以从输入框选择当前工作流节点作为上下文，也可以把画布当前选中的节点加入本轮对话。
 
 ### 2.2 第一阶段非目标
@@ -38,7 +38,7 @@
 - 不引入第二套 Workflow、Node、Edge、变量或静态校验模型。
 - 不用 Agent Runtime 替代 Go Executor、RabbitMQ 或 `@ai-workflow/runtime`。
 - 不自动合并 Agent 候选与运行期间发生的用户画布修改。
-- 不暴露模型隐藏的原始思维链；界面中的“思考”只表示模型明确返回的 reasoning summary 或 Runtime 生成的结构化进度摘要。
+- 思考区展示模型 API 实际返回的可见 thinking；未返回 thinking 时不生成该区，不使用固定文案代替模型内容。
 - 第一阶段不支持 Agent 运行中的 steering、消息排队或暂停后恢复；用户只能停止本轮，再发送下一条消息。
 
 ## 3. 总体架构
@@ -70,14 +70,14 @@ Server 在用户鉴权后签发短期上下文令牌，把本次 Agent Run 固�
 
 ## 4. 组件职责
 
-| 组件             | 职责                                                                                                                    | 明确不负责                       |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
-| Web              | 提交当前编辑器快照、Prompt、节点上下文和 Agent 模型引用；用 Assistant UI 展示消息、思考摘要与 Tool 轨迹；预览并应用候选 | 模型调用、权限判断、服务端校验   |
-| Server           | 用户与应用鉴权、短期上下文令牌、模型配置解析、项目查询、工作流校验、SSE 代理和审计                                      | Pi 会话循环、Agent Prompt 推理   |
-| Agent Runtime    | 创建 Pi Agent、维护短期会话、注册内置 Tools、执行 Tool Loop、归一化事件、取消和资源限制                                 | 数据库访问、真实工作流保存与执行 |
-| Agent Protocol   | 定义 Server、Runtime 和 Web 共用的版本化请求、事件与内部 Tool 调用协议                                                  | 业务查询实现和 Pi 类型           |
-| Workflow Core    | Workflow Schema、节点 Catalog、端口和保存／执行前校验                                                                   | Agent 会话、HTTP 和持久化        |
-| Workflow Runtime | 执行已校验的不可变工作流版本                                                                                            | 生成或编辑工作流                 |
+| 组件             | 职责                                                                                                                        | 明确不负责                       |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Web              | 提交当前编辑器快照、Prompt、节点上下文和 Agent 模型引用；用 Assistant UI 展示消息、模型思考过程与 Tool 轨迹；预览并应用候选 | 模型调用、权限判断、服务端校验   |
+| Server           | 用户与应用鉴权、短期上下文令牌、模型配置解析、项目查询、工作流校验、SSE 代理和审计                                          | Pi 会话循环、Agent Prompt 推理   |
+| Agent Runtime    | 创建 Pi Agent、接收对话历史、注册内置 Tools、执行 Tool Loop、归一化事件、取消和资源限制                                     | 数据库访问、真实工作流保存与执行 |
+| Agent Protocol   | 定义 Server、Runtime 和 Web 共用的版本化请求、事件与内部 Tool 调用协议                                                      | 业务查询实现和 Pi 类型           |
+| Workflow Core    | Workflow Schema、节点 Catalog、端口和保存／执行前校验                                                                       | Agent 会话、HTTP 和持久化        |
+| Workflow Runtime | 执行已校验的不可变工作流版本                                                                                                | 生成或编辑工作流                 |
 
 ## 5. Workspace 规划
 
@@ -150,8 +150,8 @@ Runtime 直接使用 `@earendil-works/pi-agent-core` 的 `Agent`，并通过 `@e
 - 使用 `beforeToolCall` 复核 Tool 白名单和本次上下文授权；
 - 使用 `afterToolCall` 记录名称、耗时和结果状态，但不记录完整参数、结果、Prompt 或模型凭证；
 - 使用 AbortSignal 贯通模型请求、Server 查询和用户取消；
-- 每个 Run 设置总时限、最大模型轮次和最大 Tool 调用数，达到限制后返回稳定错误；
-- Runtime 只向 Web 转发归一化事件，不透传 Pi 内部对象；Tool 生命周期和安全的 reasoning summary
+- 每个 Run 保留总时限，不限制模型轮次或 Tool 总次数；同一画布与参数连续出现三次相同结果时暂停一轮 Tool，让模型说明障碍与新策略后继续。交替调用和参数校验失败也纳入检测；调整后仍重复原调用则停止 Tool，要求模型基于已有信息给出最终答复；
+- Runtime 只向 Web 转发归一化事件，不透传 Pi 内部对象；Tool 生命周期和模型返回的可见 thinking
   分别归一化为稳定事件。
 
 Server 从现有模型组中解析用户明确选择且已启用的 Chat 模型，并把本次所需的 provider、model ID、
@@ -165,13 +165,13 @@ JSON。
 
 ## 7. Agent 会话与候选状态
 
-第一阶段使用 Runtime 进程内会话，不新增 Prisma 表，也不接入 `pi-durable`：
+对话历史由 Web 的 Assistant UI 管理并保存到浏览器 IndexedDB，每轮请求直接携带当前对话的消息：
 
-- `sessionId` 对应一个 Pi Agent 和一份 Tool Context；
-- 每次 Turn 开始前，用 Web 提交的最新 Snapshot 刷新画布基线；
-- 会话设置空闲过期时间和数量上限，过期后释放 Agent、消息和模型凭证；
-- Runtime 重启后会话丢失，Web 收到 `SESSION_NOT_FOUND` 后可以创建新会话；
-- 第一阶段只部署一个 Runtime 实例，不承诺跨实例会话迁移。
+- `sessionId` 是稳定对话标识，用于本轮运行与取消，不承担历史存储；
+- 请求携带历史用户文本、图片和节点/资源引用，以及助手文本、可见 reasoning、工具调用和结果、工作流候选；本轮用户消息通过 Prompt 与 images 追加一次；
+- Runtime 每轮从请求历史创建 Pi Agent，并使用最新 Snapshot 初始化本轮 Tool Context；
+- Runtime 只在内存登记活跃运行，用于 owner/app 并发限制与取消，结束即释放；对话不设置空闲 TTL 或会话数量上限；
+- Runtime 重启后，同一 sessionId 的下一轮请求直接携带历史继续对话；执行中的 Run 仍会中断。
 
 Tool Context 保存两份状态：
 
@@ -259,19 +259,18 @@ Tool 不返回 Zod 实例、函数、执行路由、插件制品路径或权限�
 
 Web 使用 `useLocalRuntime()` 和一个项目内 `ChatModelAdapter`：
 
-1. Adapter 从 Assistant UI 的本轮用户消息中读取文本、节点与资源引用附件，以及图片；
-2. Adapter 连同当前 Snapshot、`baseSnapshotHash` 和模型引用请求 Server SSE；
+1. Adapter 从 Assistant UI 的当前对话读取历史消息，并从本轮用户消息读取文本、节点与资源引用附件，以及图片；
+2. Adapter 将历史 messages、本轮 Prompt/images 连同当前 Snapshot、`baseSnapshotHash` 和模型引用请求 Server SSE；
 3. Adapter 把协议事件累积转换为 Assistant UI 的 `reasoning`、`tool-call`、`text` 和自定义 data part；
 4. `abortSignal` 同时关闭 SSE 并调用现有 Agent abort 接口；
 5. `sessionId` 由面板适配层保存并在后续 Turn 复用，不写入用户消息正文。
 
-选择 `LocalRuntime` 是因为当前 Web 没有独立的聊天 Store，而且第一阶段会话只需跟随 AI 面板生命周期。
+各对话使用 `LocalRuntime` 管理消息，并通过原生 History Adapter 保存到浏览器 IndexedDB。
 不使用 Assistant Transport 或 External Store Runtime，也不把 Server 协议改造成 Assistant UI 私有协议。Pi 执行
 Tools，Assistant UI 只管理 Web 端消息状态和渲染，不在浏览器重复执行同名 Tool。
 
 `AssistantRuntimeProvider` 挂在工作流编辑器作用域，打开和关闭侧边面板只切换可见性，不销毁 Runtime，保证
-本页内的完整轨迹可以继续查看。第一阶段刷新页面后不恢复 Web transcript；这与 Runtime 进程内 Session 的
-非持久化边界保持一致。
+完整轨迹可以继续查看。刷新页面后从 IndexedDB 恢复消息和附件，下一轮直接将历史回填模型上下文。
 
 面板使用 Assistant UI 的 `Thread`、`ComposerPrimitive`、`MessagePrimitive` 和 Reasoning 组件作为基础，复制到
 仓库的 registry 组件只保留当前面板实际使用的部分，并适配现有 Tailwind Token 和 `@ai-workflow/ui` 组件。
@@ -292,11 +291,11 @@ Prompt Input 使用 Assistant UI ComposerPrimitive 的 Root、Input、Attachment
 `/` 唤起节点选择，`@` 唤起工作流与知识库选择，使用官方 TriggerPopover 与 SlashCommandAdapter，支持筛选、方向键、Enter / Tab 选择与 Escape 关闭。选中后移除触发查询并添加可移除的 Composer 附件。
 工作流与知识库引用使用稳定 UUID 和类型，随 Prompt 作为数据发送，由 inspect_project_resources 按原有权限核实；工作流引用的 id 是 appId。
 图片在浏览器读取为 Data URL，发送时提取 MIME 与 Base64；支持一次选择多张 PNG/JPEG/WebP，不设图片张数上限，单张最大 10MiB，整体请求上限为 64MiB，为 Base64 编码和画布上下文保留空间。图片使用 Pi agent.prompt 的独立图片参数发送，模型必须支持图片输入；仅选择图片或资源时使用默认目标文本。
-Session 序列化消息预算为 64MiB，多张合法图片在总预算内保留会话；长期多图超过总预算仍按现有策略清理会话。
+每轮请求包含当前对话历史，整体预算为 64MiB；超限明确拒绝请求，不自动丢弃历史或清理对话。
 模型选择使用显示供应商图标与模型名的紧凑圆角胶囊，默认背景透明，悬停与键盘聚焦时使用 bg-accent；菜单按启用模型组分组，组标题复用供应商图标，模型行显示名称与右侧选中标记。
 空对话时在输入框上方展示引导标题、说明与四个示例问题；列表箭头的可见左边缘与标题、说明对齐，图标和文字保持 8px 布局间隔；点击示例填入草稿，由用户继续编辑或发送。
-对话历史沿用 LocalRuntime 的内存 Thread List，支持新建、切换及未发送草稿保留；每个对话分别记录
-Runtime Session 和模型选择，运行或切换过程中禁止切换对话。历史随编辑器页面生命周期保留。
+对话历史使用 RemoteThreadListRuntime 与 IndexedDB History Adapter，支持新建、切换及未发送草稿保留；每个对话分别记录
+稳定 sessionId 与草稿，运行或切换过程中禁止切换对话。历史保存在浏览器 IndexedDB；模型选择沿用当前账号偏好。
 
 面板的最小布局如下：
 
@@ -304,7 +303,7 @@ Runtime Session 和模型选择，运行或切换过程中禁止切换对话。�
 ┌ 当前对话标题 ───── [历史] [关闭] ┐
 │ 正在读取画布 · 12s               │
 │ 用户消息 + 节点上下文             │
-│ 思考摘要                          │
+│ 思考过程                          │
 │ 读取画布   运行中／成功   1.2s    │
 │ 校验工作流 成功          0.4s    │
 │ 最终回答                          │
@@ -318,7 +317,7 @@ Runtime Session 和模型选择，运行或切换过程中禁止切换对话。�
 
 ### 9.2 执行轨迹与消息部分
 
-一个 Agent Turn 在同一条 assistant message 中按实际发生顺序展示思考摘要、Tool 调用和最终回答：
+一个 Agent Turn 在同一条 assistant message 中按实际发生顺序展示模型思考过程、Tool 调用和最终回答：
 
 | Agent Protocol 事件                                          | Assistant UI 映射              | 展示行为                                         |
 | ------------------------------------------------------------ | ------------------------------ | ------------------------------------------------ |
@@ -332,17 +331,14 @@ Runtime Session 和模型选择，运行或切换过程中禁止切换对话。�
 | `agent_cancelled`                                            | message `incomplete` status    | 保留部分内容并标记为用户停止                     |
 | `agent_failed`                                               | message `incomplete` status    | 保留已完成轨迹，并在末尾显示稳定错误             |
 
-这里的“完整执行轨迹”指所有 reasoning summary 与 Tool 生命周期都按顺序可见，不把多个 Tool 静默压缩成
-一句“已处理”。Tool 展示只使用经过 Tool 专属投影和脱敏后的 `displayArgs`、`displayResult`；完整内部参数、
-大段日志、Secret 和上下文令牌不进入浏览器。运行中的 Tool 默认展开，结束后收起详情但保留一行结果，用户
-可以重新展开查看本次会话内的完整安全载荷。
+模型返回的可见 thinking 与 Tool 生命周期按发生顺序展示。Runtime 将 Pi 的 thinking_start/delta/end
+归一化为 `reasoning_*`，来源为 model，delta 分片不超过 4000 字符；不转发思考签名或内部 Pi 对象。
+未返回 thinking 的模型不生成思考卡片，阶段状态继续来自真实请求和工具生命周期。
 
-原始隐式思维链不是协议能力，也不能通过日志或 Pi 内部事件旁路暴露。`reasoning_*` 只允许两类来源：
-
-- 模型供应商明确返回、允许展示的 reasoning summary；
-- Runtime 根据可观察状态生成的结构化进度，例如“正在读取画布”“正在校验候选工作流”。
-
-如果当前模型不提供 reasoning summary，界面仍展示 Runtime 进度和完整 Tool 轨迹，不伪造模型思考内容。
+Tool 的 `displayArgs`、`displayResult` 包含真实参数和结果的脱敏 JSON、专属结果摘要与 truncated 标记；
+使用共享 projectAgentData 控制敏感键、已知 Secret、深度、字段长度和 64KiB 字节预算，Workflow 先掩码 Secret。
+运行中默认展开，结束后保留实际结果摘要，重新展开可分别查看调用参数与返回结果，长内容限高滚动。
+模型凭证、上下文令牌和真实 Secret 不进入展示或日志。
 相邻 `reasoning` part 使用 `MessagePrimitive.GroupedParts` 合并为一个折叠区；Tool 调用会打断分组并保留在原始
 时间位置，因此 Tool 前后的思考摘要不会被错误重排。
 
@@ -423,6 +419,10 @@ Web 只维护一套可判别的 Run 状态，不用多个 `loading` Boolean 拼�
 - Tool 执行：使用 Tool 展示名，例如 `正在读取画布`；
 - Tool 全部结束且模型继续输出：`正在整理结果`；
 - 候选已经生成但最终说明未结束：`正在完成校验`。
+
+模型请求通过 Pi Models.stream 发出，输出长度使用供应商默认设置，不在请求中设置 max_tokens/max_completion_tokens；Pi 必填的 maxTokens 元数据使用 0，不作为请求限制。
+
+Runtime 对模型输出截断（stopReason=length）和只有思考、没有工具结果或最终答复的停止保留上下文自动续跑；连续最多补发两轮，有有效答复或正常工具轮次后重置计数。仍未完成时返回 MODEL_OUTPUT_TRUNCATED / MODEL_RESPONSE_INCOMPLETE，保留轨迹并显示失败原因。截断的工具参数不执行，续跑必须重新提交完整调用。
 
 界面只展示真实阶段和累计耗时，不显示无法准确计算的百分比、剩余时间或无限循环的步骤文案。所有终态都把
 Composer 恢复为可发送状态；终态保留在消息上，面板级状态随后可以回到 `idle`，避免上一轮成功状态阻塞下一轮。
@@ -508,7 +508,6 @@ Pi 的 `toolcall_end` 归一化为 `tool_queued`，`tool_execution_start/update/
 | 模型不支持 Tool Calling | 所选模型不支持 Agent 工具调用       | 更换模型                         |
 | 请求限流                | 请求过于频繁，请稍后重试            | 服务端允许后重试                 |
 | Agent 超时              | Agent 运行超时，已保留当前执行记录  | 使用当前画布重试                 |
-| Session 失效            | Agent 会话已失效                    | 新建会话并重新发送               |
 | SSE／网络中断           | 连接已中断，本轮未完成              | 使用当前画布重试                 |
 | Tool 失败               | 在对应 Tool Card 中显示具体安全错误 | Agent 可恢复时继续，否则重试整轮 |
 
@@ -528,7 +527,8 @@ POST /studio/apps/:appId/agent/sessions/:sessionId/abort
 
 创建 Run 的请求包含：
 
-- 可选 `sessionId`；
+- 可选 `sessionId`（稳定对话标识）；
+- `messages`：本轮用户消息之前的完整对话历史；只允许 user/assistant，工具调用内含对应结果；
 - 用户 Prompt（含选中的工作流与知识库资源引用数据）；
 - 可选 `images`：PNG/JPEG/WebP 数组，不设张数上限，MIME 与 Base64 经共享 Schema 校验，每张解码后不超过 10MiB；
 - `contextNodeIds`，来自本轮节点上下文附件；
@@ -536,7 +536,7 @@ POST /studio/apps/:appId/agent/sessions/:sessionId/abort
 - 当前 `WorkflowEditorSnapshot`；
 - `baseSnapshotHash`。
 
-Server 为 POST /studio/apps/:appId/agent/runs 单独配置 64MiB JSON 解析上限，其他 JSON 接口保持 1MiB；Runtime 读取上限和会话消息预算同步为 64MiB。SSE 帧仍使用独立的 1MiB 上限，事件流总量保持 4MiB。
+Server 为 POST /studio/apps/:appId/agent/runs 单独配置 64MiB JSON 解析上限，其他 JSON 接口保持 1MiB；Runtime 单轮请求读取上限同步为 64MiB。SSE 帧仍使用独立的 1MiB 上限，事件流总量保持 4MiB。
 
 Server 必须校验应用归属、Workflow ID、模型归属和快照基本结构，再调用内部 Runtime。Web 不直接访问
 Agent Runtime。
@@ -586,8 +586,9 @@ Server 向 Web 代理以下稳定事件：
 | `agent_cancelled`    | `agentRunId`、`cancelledAt`、`reason`                              |
 | `agent_failed`       | 稳定错误结构                                                       |
 
-事件不返回隐藏的原始思维链、内部 Tool 参数、未裁剪 Tool Result、上下文令牌或模型凭证。
-`displayArgs` 和 `displayResult` 必须由每个 Tool 的显式投影函数产生，默认拒绝透传未知字段。
+事件只携带模型实际返回的可见 thinking 和经过脱敏、裁剪的工具参数与结果，不返回 Pi 内部对象、
+思考签名、上下文令牌或模型凭证。`displayArgs` 和 `displayResult` 由工具投影产生，可选 data 保存脱敏 JSON，
+truncated 标记裁剪；fields 保留旧记录兼容。
 
 ## 11. 安全与可靠性
 
@@ -612,7 +613,7 @@ Server 向 Web 代理以下稳定事件：
 - 日志列表限制条数，Run 详情对大输入和输出做可识别截断；
 - 每个用户和应用限制并发 Agent Run；
 - 客户端取消或 SSE 断开时，由 Server 中止内部请求，Runtime 调用 `Agent.abort()`；
-- 会话过期或 Runtime 关闭时必须释放监听器和模型凭证引用。
+- 每轮运行结束或 Runtime 关闭时必须释放监听器和模型凭证引用。
 
 ## 12. 部署变化
 
@@ -637,7 +638,6 @@ agent-runtime
 | `AGENT_RUNTIME_INTERNAL_AUTH_TOKEN` | Server、Runtime | 服务间认证                    |
 | `AI_WORKFLOW_SERVER_URL`            | Runtime         | Server 内部 Tool Gateway 地址 |
 | `AGENT_RUN_TIMEOUT_MS`              | Runtime         | 单次 Run 总时限               |
-| `AGENT_SESSION_IDLE_TTL_MS`         | Runtime         | 内存会话空闲回收时间          |
 
 模型 API Key 不作为 Runtime 环境变量，也不写入 secrets volume；它由 Server 针对单次 Run 解析后通过
 受控内部请求传递。
@@ -665,7 +665,7 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 
 1. 新增 Agent Protocol 和 `apps/agent-runtime`。
 2. 接入 Pi Agent Core、Pi AI、自定义模型映射、reasoning／Tool 流式事件、取消和运行限制。
-3. 实现进程内 Session 与空 Tool Registry，完成 Server 到 Runtime 的内部流式调用。
+3. 每轮从 Web 历史创建 Agent，登记活跃运行，完成 Server 到 Runtime 的内部流式调用。
 
 ### 阶段二 Server 上下文与内置 Tools
 
@@ -683,7 +683,7 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 5. 实现节点选择器、画布所选节点入口和 `workflow-node` Composer 附件。
 6. 实现流式自动跟随、回到最新、焦点管理、离散状态播报和 reduced motion。
 7. 展示候选摘要，检查 `baseSnapshotHash` 后应用并自动布局。
-8. 支持取消当前 Run、内联错误恢复和会话失效后的重建。
+8. 支持取消当前 Run 与内联错误恢复，下一轮直接使用当前对话历史。
 
 ### 阶段四 部署与收口
 
@@ -697,7 +697,7 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 - Runtime 不访问数据库、Redis、RabbitMQ、对象存储或用户文件系统。
 - Agent 可以读取当前未保存画布、当前 Catalog、项目资源和当前应用工作流日志。
 - Agent 只能返回通过 Server 完整校验的候选 Workflow。
-- 每次 reasoning summary 和 Tool 调用都按执行顺序呈现；失败或取消时已产生的轨迹不会丢失。
+- 每次模型 thinking 和 Tool 调用都按执行顺序呈现；失败或取消时已产生的轨迹不会丢失。
 - 每个内置 Tool 使用稳定且不同的图标，未知 Tool 有一致的回退展示。
 - 输入框可以选择任意当前画布节点，也可以加入画布当前多选节点；发送后 Agent 能按 ID 读取对应上下文。
 - `starting`、`running`、`stopping`、`completed`、`cancelled`、`timed_out` 和 `failed` 都有明确文案、图标和可用操作。
@@ -712,8 +712,8 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 
 只有出现以下真实需求时再扩展：
 
-- Runtime 重启后必须恢复会话或执行中的 Tool：评估稳定后的 `pi-durable`；
-- 需要多实例 Agent Runtime：增加外部 Session Store 与实例无关的取消协调；
+- Runtime 重启后必须恢复执行中的 Tool：评估稳定后的 `pi-durable`；
+- 需要多实例 Agent Runtime：增加实例无关的活跃 Run 与取消协调；
 - 大型工作流完整定义频繁占满上下文：增加受校验的节点级候选操作，而不是通用 JSON Patch；
 - 需要 Agent 自动测试或发布：为每个写操作单独设计审批、幂等和权限 Tool；
 - 有第二类宿主需要复用 Agent Core：再从应用中提取通用 package，不提前抽象。
@@ -805,6 +805,6 @@ Web 应增加一个明确的 Agent 候选应用入口，一次性处理 `nodes`�
 - 临时断言位于 `/tmp`，分别覆盖真实 Pi Runtime + 模拟模型/Gateway、真实 Server Gateway + 内存业务替身、真实 Server SSE 代理 + 模拟 Runtime；未新增仓库测试文件。
 - `docker compose config --quiet`、编排结构断言、入口 Shell 语法与技能 YAML 元数据校验通过。
 
-待环境验收：真实 OpenAI/DeepSeek/Ollama 模型 Tool Calling；已登录浏览器中的隐藏面板、滚动、节点附件、候选应用/撤销与读屏交互；Docker 镜像构建和生产服务联调。Session 仅存在内存，Runtime 重启后需重新发送；当前不支持多实例会话协调。
+待环境验收：真实 OpenAI/DeepSeek/Ollama 模型 Tool Calling；已登录浏览器中的隐藏面板、滚动、节点附件、候选应用/撤销与读屏交互；Docker 镜像构建和生产服务联调。对话上下文由每轮请求携带，Runtime 重启后下一轮继续；执行中的 Run 不自动恢复，当前不支持多实例取消协调。
 
 命令约束：本次未执行 dev、build 或任何 git 命令，未新增仓库测试文件；依赖安装使用 ignore-scripts，临时验证使用类型检查、Lint 和断言自检。

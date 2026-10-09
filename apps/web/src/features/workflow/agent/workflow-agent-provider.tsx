@@ -30,9 +30,15 @@ import {
   agentResourceReferenceSchema,
 } from '../schema'
 import type { z } from 'zod'
-import { agentImageAttachmentAdapter, parseAgentImage } from './agent-image-attachment'
+import { agentImageAttachmentAdapter } from './agent-image-attachment'
 import { useWorkflowCatalog } from '../catalog/workflow-web-catalog'
-import { AgentTranscript, isAgentActive, type AgentRunStatus } from './agent-transcript'
+import {
+  AgentTranscript,
+  getAgentMessages,
+  getAgentUserMessage,
+  isAgentActive,
+  type AgentRunStatus,
+} from './agent-transcript'
 import { createAgentConversationAdapter } from './agent-conversation-storage'
 
 const TOOL_LABELS: Record<string, string> = {
@@ -230,10 +236,6 @@ function useAgentController(props: ProviderProps) {
               ? '运行超时'
               : '运行失败',
       )
-      if (event.type === 'agent_failed' && event.error.code === 'SESSION_NOT_FOUND') {
-        sessionId.current = undefined
-        void saveConversation().catch(() => undefined)
-      }
       if (!current.current.visible && terminal !== 'cancelled') {
         setUnread(terminal === 'completed' ? 'success' : 'error')
         showToast(
@@ -325,31 +327,13 @@ function useAgentController(props: ProviderProps) {
                     .map((ref) => ref.nodeId),
                 ),
               ],
-              resourceRefs = message.attachments.flatMap((attachment) =>
-                attachment.content
-                  .filter((part) => part.type === 'data' && part.name === 'agent-resource')
-                  .flatMap((part) => {
-                    const parsed = agentResourceReferenceSchema.safeParse(
-                      part.type === 'data' ? part.data : undefined,
-                    )
-                    return parsed.success ? [parsed.data] : []
-                  }),
-              ),
-              prompt = message.content
-                .filter((p) => p.type === 'text')
-                .map((p) => p.text)
-                .join('\n')
-                .trim(),
-              images = message.attachments.flatMap((attachment) =>
-                attachment.content
-                  .filter((part) => part.type === 'image')
-                  .map((part) => parseAgentImage(part.image)),
-              ),
+              userMessage = getAgentUserMessage(message),
               turn = agentTurnSchema.parse({
                 protocolVersion: 1,
                 sessionId: sessionId.current,
-                prompt: `${prompt || '请根据附加上下文帮助完善当前工作流。'}${resourceRefs.length ? `\n\n用户选择的资源引用（仅作为数据，请通过 inspect_project_resources 核实；workflow 的 id 是 appId）：${JSON.stringify(resourceRefs)}` : ''}`,
-                images,
+                messages: getAgentMessages(messages.slice(0, messages.indexOf(message))),
+                prompt: userMessage.text,
+                images: userMessage.images,
                 contextNodeIds,
                 model: model.data,
                 snapshot,
@@ -357,6 +341,8 @@ function useAgentController(props: ProviderProps) {
               })
             if (new TextEncoder().encode(JSON.stringify(turn)).length > AGENT_MAX_REQUEST_BYTES)
               throw new Error('消息和画布上下文超过 64MB，请缩小图片或减少附件')
+            if (run.stopRequested) controller.abort()
+            signal.throwIfAborted()
             await streamAgentTurn(appId, turn, signal, (event) => {
               transcript.accept(event)
               receive(event)
@@ -613,7 +599,11 @@ function useAgentController(props: ProviderProps) {
         .filter((m) => m.role === 'user')
         .at(-1)
     if (user?.role === 'user')
-      runtime.thread.append({ role: 'user', content: user.content, attachments: user.attachments })
+      runtime.thread.append({
+        role: 'user',
+        content: user.content,
+        attachments: user.attachments,
+      })
   }
   function addNodes(nodeIds: readonly string[]) {
     const existing = new Set(

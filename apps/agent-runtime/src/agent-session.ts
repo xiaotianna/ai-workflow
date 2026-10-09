@@ -1,5 +1,4 @@
 import {
-  AGENT_MAX_REQUEST_BYTES,
   agentContextClaimsSchema,
   type AgentRunRequest,
   type AgentEvent,
@@ -9,7 +8,6 @@ import type { Agent } from '@earendil-works/pi-agent-core'
 import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
 import type { RuntimeConfig } from './config.js'
 import { createAgent, runAgent } from './agent-runtime.js'
-import { createPiModel } from './pi-model.js'
 import { createServerClient } from './server-client.js'
 import { createTools } from './tools/index.js'
 import type { ToolContext } from './tool-context.js'
@@ -28,40 +26,22 @@ interface Session {
   ownerId: string
   appId: string
   agent: Agent
-  busy: boolean
-  lastUsed: number
-  controller?: AbortController
+  controller: AbortController
 }
 
 export class AgentSessions {
   private readonly sessions = new Map<string, Session>()
-  private readonly timer: ReturnType<typeof setInterval>
-  constructor(private readonly config: RuntimeConfig) {
-    this.timer = setInterval(
-      () => this.collect(),
-      Math.min(config.AGENT_SESSION_IDLE_TTL_MS, 60_000),
-    )
-    this.timer.unref()
-  }
-  private collect() {
-    for (const [id, session] of this.sessions) {
-      if (!session.busy && Date.now() - session.lastUsed >= this.config.AGENT_SESSION_IDLE_TTL_MS) {
-        session.agent.reset()
-        session.agent.state.tools = []
-        this.sessions.delete(id)
-      }
-    }
-  }
+  constructor(private readonly config: RuntimeConfig) {}
   abort(id: string, ownerId: string, appId: string, reason = 'user') {
     const session = this.sessions.get(id)
-    if (!session || session.ownerId !== ownerId || session.appId !== appId)
-      throw new RunError('SESSION_NOT_FOUND', 'Agent 会话已失效')
-    session.controller?.abort(reason)
+    if (!session) return
+    if (session.ownerId !== ownerId || session.appId !== appId)
+      throw new RunError('AGENT_SESSION_FORBIDDEN', '无法停止其他用户或应用的运行')
+    session.controller.abort(reason)
   }
   close() {
-    clearInterval(this.timer)
     for (const session of this.sessions.values()) {
-      session.controller?.abort('shutdown')
+      session.controller.abort('shutdown')
       session.agent.abort()
     }
     this.sessions.clear()
@@ -94,38 +74,23 @@ export class AgentSessions {
       claims.expiresAt <= Date.now()
     )
       throw new RunError('AGENT_CONTEXT_INVALID', '本轮上下文无效或已过期')
-    this.collect()
-    let session = request.turn.sessionId ? this.sessions.get(request.turn.sessionId) : undefined
+    const active = [...this.sessions.values()]
     if (
-      request.turn.sessionId &&
-      (!session || session.ownerId !== request.ownerId || session.appId !== request.appId)
-    )
-      throw new RunError('SESSION_NOT_FOUND', 'Agent 会话已失效')
-    const active = [...this.sessions.values()].filter((s) => s.busy)
-    if (
-      session?.busy ||
+      (request.turn.sessionId && this.sessions.has(request.turn.sessionId)) ||
       active.some((s) => s.ownerId === request.ownerId || s.appId === request.appId) ||
       active.length >= this.config.AGENT_MAX_CONCURRENT_RUNS
     )
       throw new RunError('AGENT_RATE_LIMITED', '请求过于频繁，请稍后重试')
-    if (!session) {
-      if (this.sessions.size >= this.config.AGENT_MAX_SESSIONS)
-        throw new RunError('AGENT_RATE_LIMITED', '会话数量已达上限，请稍后重试')
-      session = {
-        id: randomUUID(),
+    const controller = new AbortController(),
+      signal = AbortSignal.any([disconnectSignal, controller.signal]),
+      session: Session = {
+        id: request.turn.sessionId ?? randomUUID(),
         ownerId: request.ownerId,
         appId: request.appId,
-        agent: createAgent(request.resolvedModel, []),
-        busy: false,
-        lastUsed: Date.now(),
-      }
-      this.sessions.set(session.id, session)
-    }
-    const controller = new AbortController(),
-      signal = AbortSignal.any([disconnectSignal, controller.signal])
-    session.busy = true
-    session.controller = controller
-    const context: ToolContext = {
+        agent: createAgent(request.resolvedModel, [], request.turn.messages),
+        controller,
+      },
+      context: ToolContext = {
         baselineSnapshot: structuredClone(request.turn.snapshot),
         workingCandidate: structuredClone(request.turn.snapshot.workflow),
         candidateChanged: false,
@@ -136,15 +101,18 @@ export class AgentSessions {
           request.agentContextToken,
         ),
         emit,
-      },
-      pi = createPiModel(request.resolvedModel)
-    session.agent.state.model = pi.model
-    session.agent.streamFunction = pi.streamFn
+      }
     session.agent.state.tools = createTools(context)
+    session.agent.sessionId = session.id
+    this.sessions.set(session.id, session)
     const timeout = setTimeout(() => controller.abort('timeout'), this.config.AGENT_RUN_TIMEOUT_MS),
       previousMessageCount = session.agent.state.messages.length
-    emit({ type: 'session_started', sessionId: session.id, agentRunId: request.agentRunId })
     try {
+      emit({
+        type: 'session_started',
+        sessionId: session.id,
+        agentRunId: request.agentRunId,
+      })
       let runError: AgentError | undefined
       try {
         runError = await runAgent({
@@ -152,8 +120,7 @@ export class AgentSessions {
           prompt: `${request.turn.prompt}\n\n本轮节点上下文 ID：${JSON.stringify(request.turn.contextNodeIds)}。每轮画布基线已更新，请通过 read_canvas 获取最新状态。`,
           images: request.turn.images,
           signal,
-          maxModelTurns: this.config.AGENT_MAX_MODEL_TURNS,
-          maxToolCalls: this.config.AGENT_MAX_TOOL_CALLS,
+          getCanvas: () => context.workingCandidate,
           emit,
           allowedTools: claims.allowedTools,
           expiresAt: claims.expiresAt,
@@ -217,23 +184,15 @@ export class AgentSessions {
       }
     } finally {
       clearTimeout(timeout)
-      session.busy = false
-      session.lastUsed = Date.now()
-      session.controller = undefined
+      this.sessions.delete(session.id)
+      session.agent.reset()
       session.agent.state.tools = []
       session.agent.streamFunction = async () => {
-        throw new Error('会话没有活跃模型配置')
+        throw new Error('运行已结束')
       }
       session.agent.getApiKey = undefined
       request.resolvedModel.apiKey = undefined
       request.agentContextToken = ''
-      // ponytail: 会话总量沿用单次请求预算；长期多图对话再引入历史裁剪。
-      if (
-        Buffer.byteLength(JSON.stringify(session.agent.state.messages)) > AGENT_MAX_REQUEST_BYTES
-      ) {
-        session.agent.reset()
-        this.sessions.delete(session.id)
-      }
     }
   }
 }
@@ -241,5 +200,9 @@ export class AgentSessions {
 export function safeRuntimeError(error: unknown): AgentError {
   return error instanceof RunError
     ? { code: error.code, message: error.message, retryable: true }
-    : { code: 'AGENT_INTERNAL_ERROR', message: 'Agent 执行失败，请重试', retryable: true }
+    : {
+        code: 'AGENT_INTERNAL_ERROR',
+        message: 'Agent 执行失败，请重试',
+        retryable: true,
+      }
 }
